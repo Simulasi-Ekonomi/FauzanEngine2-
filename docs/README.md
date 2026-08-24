@@ -11,6 +11,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Editor/runtime scene contract | [`SCENE_DOCUMENT_V1.md`](SCENE_DOCUMENT_V1.md) | Bounded authoring envelope and atomic candidate-scene loading boundary; not multiplayer or game-state authority. |
 | Local authoring bridge | [`LOCAL_AUTHORING_BRIDGE_V1.md`](LOCAL_AUTHORING_BRIDGE_V1.md) | Approval-gated local handoff from versioned authoring document to C++ candidate scene; no public runtime-control endpoint. |
 | Archive completeness | [`GITHUB_ARCHIVE_COMPLETENESS_AUDIT_2026-08-24.md`](GITHUB_ARCHIVE_COMPLETENESS_AUDIT_2026-08-24.md) | Local workspace versus GitHub tree comparison and documented source/artefact decisions. |
+| Hermes reconciliation | [`HERMES_ARCHIVE_RECONCILIATION_2026-08-24.md`](HERMES_ARCHIVE_RECONCILIATION_2026-08-24.md) | Reconciliation of the obsolete `1281664` clone scan against current GitHub `main`. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
 | Route ownership | [`../route_intent_single_writer_contract.md`](../route_intent_single_writer_contract.md) | Intent/receipt and one-transform-writer contract. |
