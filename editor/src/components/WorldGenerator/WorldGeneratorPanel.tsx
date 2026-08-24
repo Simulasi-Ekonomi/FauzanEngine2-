@@ -158,7 +158,7 @@ export function WorldGeneratorPanel({ isOpen, onClose, onGenerate }: WorldGenera
             <Stat label="Total Resources" value={totals.resources.toLocaleString()} />
             <Stat label="Total Monsters" value={totals.monsters.toLocaleString()} />
             <Stat label="Total Buildings" value={totals.buildings.toLocaleString()} />
-            <Stat label="Major Cities" value={cityCount} />
+            <Stat label="Major Cities" value={cityCount.toString()} />
           </div>
 
           {/* Generate Button */}

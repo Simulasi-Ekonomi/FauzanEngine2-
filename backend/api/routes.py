@@ -3,11 +3,22 @@ NeoEngine API Routes
 REST endpoints for the editor frontend.
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+
+from api.scene_documents import (
+    SceneActorDocument,
+    SceneDocumentConflict,
+    SceneDocumentPayload,
+    SceneDocumentReceipt,
+    SceneDocumentStore,
+    SceneDocumentUpdate,
+    StoredSceneDocument,
+)
 
 
 router = APIRouter()
+scene_documents = SceneDocumentStore.from_environment()
 
 
 class ChatRequest(BaseModel):
@@ -25,6 +36,48 @@ class SceneActor(BaseModel):
     name: str
     type: str
     transform: dict | None = None
+
+
+def scene_not_found(scene_id: str) -> HTTPException:
+    return HTTPException(status_code=404, detail=f"scene '{scene_id}' was not found")
+
+
+@router.post("/scene/documents", response_model=StoredSceneDocument, status_code=201)
+async def create_scene_document(payload: SceneDocumentPayload):
+    try:
+        return scene_documents.create(payload)
+    except SceneDocumentConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@router.get("/scene/documents/{scene_id}", response_model=StoredSceneDocument)
+async def get_scene_document(scene_id: str):
+    document = scene_documents.read(scene_id)
+    if document is None:
+        raise scene_not_found(scene_id)
+    return document
+
+
+@router.put("/scene/documents/{scene_id}", response_model=StoredSceneDocument)
+async def update_scene_document(scene_id: str, payload: SceneDocumentUpdate):
+    if scene_id != payload.scene_id:
+        raise HTTPException(status_code=400, detail="path scene_id and payload scene_id must match")
+    try:
+        return scene_documents.update(payload)
+    except KeyError as error:
+        raise scene_not_found(scene_id) from error
+    except SceneDocumentConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@router.delete("/scene/documents/{scene_id}", status_code=204)
+async def delete_scene_document(scene_id: str, expected_revision: int):
+    try:
+        scene_documents.delete(scene_id, expected_revision)
+    except KeyError as error:
+        raise scene_not_found(scene_id) from error
+    except SceneDocumentConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @router.get("/status")
@@ -68,20 +121,41 @@ async def aries_reset(request: Request):
 
 @router.get("/scene/actors")
 async def get_scene_actors():
-    """Get all actors in the current scene (placeholder)."""
-    return {"actors": []}
+    """Compatibility view over the default authoring document, not runtime state."""
+    document = scene_documents.read("editor-default")
+    return {"actors": [] if document is None else document.actors, "revision": 0 if document is None else document.revision}
 
 
 @router.post("/scene/actors")
 async def add_scene_actor(actor: SceneActor):
-    """Add an actor to the scene (placeholder)."""
-    return {"status": "ok", "actor": actor.model_dump()}
+    """Append an editor actor through the versioned default SceneDocument."""
+    current = scene_documents.read("editor-default")
+    next_id = actor.id or (max((existing.id for existing in current.actors), default=0) + 1 if current else 1)
+    next_actor = SceneActorDocument(id=next_id, kind=actor.type, transform=actor.transform or {})
+    if current is None:
+        document = scene_documents.create(SceneDocumentPayload(scene_id="editor-default", actors=[next_actor]))
+    else:
+        document = scene_documents.update(SceneDocumentUpdate(scene_id="editor-default", expected_revision=current.revision, actors=[*current.actors, next_actor]))
+    return {"status": "ok", "actor": next_actor, "revision": document.revision, "checksum": document.checksum}
 
 
 @router.delete("/scene/actors/{actor_id}")
 async def remove_scene_actor(actor_id: str):
-    """Remove an actor from the scene (placeholder)."""
-    return {"status": "ok", "removed": actor_id}
+    """Remove an actor from the default authoring document when no child refers to it."""
+    current = scene_documents.read("editor-default")
+    if current is None:
+        raise scene_not_found("editor-default")
+    try:
+        target_id = int(actor_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="actor_id must be an integer") from error
+    if any(existing.parent_id == target_id for existing in current.actors):
+        raise HTTPException(status_code=409, detail="cannot remove actor with children")
+    actors = [existing for existing in current.actors if existing.id != target_id]
+    if len(actors) == len(current.actors):
+        raise HTTPException(status_code=404, detail=f"actor '{actor_id}' was not found")
+    document = scene_documents.update(SceneDocumentUpdate(scene_id="editor-default", expected_revision=current.revision, actors=actors))
+    return {"status": "ok", "removed": target_id, "revision": document.revision, "checksum": document.checksum}
 
 
 @router.get("/engine/info")

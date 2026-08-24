@@ -29,26 +29,11 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
   if (!isOpen) return null;
 
   const handleBuild = async () => {
-    setBuilding(true);
     setResult(null);
-    onLog(`[Build] Starting ${platform} build for "${appName}"...`);
-
-    const steps = [
-      'Compiling shaders...', 'Processing assets...', 'Bundling game scripts...',
-      'Compiling C++ engine...', 'Linking libraries...', 'Optimizing...',
-      `Generating ${platform === 'android' ? 'APK' : platform === 'web' ? 'HTML5' : 'executable'}...`,
-      'Signing package...',
-    ];
-
-    for (const step of steps) {
-      onLog(`[Build] ${step}`);
-      await new Promise(r => setTimeout(r, 400));
-    }
-
-    // Export game bundle
+    onLog(`[Authoring Export] Preparing SceneDocument-compatible authoring bundle for "${appName}".`);
     const bundle = {
-      engine: 'NeoEngine', version, appName, packageName,
-      buildDate: new Date().toISOString(), platform, orientation,
+      format: 'neoengine-authoring-bundle', version: 1, appName, packageName,
+      exportedAt: new Date().toISOString(), requestedPlatform: platform, orientation,
       scene: { actors, actorCount: Object.keys(actors).length },
       scripts: scripts.map(s => ({ actor: s.actorName, code: s.code })),
     };
@@ -57,78 +42,27 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const ext = { android: 'apk', ios: 'ipa', web: 'html', windows: 'exe', linux: 'AppImage' }[platform] || 'bundle';
-    a.download = `${appName.replace(/\s+/g, '_')}_v${version}.${ext}.neobundle`;
+    a.download = `${appName.replace(/\s+/g, '_')}_authoring_v${version}.neobundle.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
     const size = (blob.size / 1024).toFixed(1);
-    onLog(`[Build] Build complete! Output: ${size} KB`);
-    setResult(`Build successful! ${appName} v${version} for ${platform} (${size} KB) - Downloaded to your device.`);
-    setBuilding(false);
+    onLog(`[Authoring Export] Exported ${size} KB. No platform binary, signing, upload, or deployment was performed.`);
+    setResult(`Authoring bundle exported (${size} KB). This is not an APK, IPA, executable, store upload, or deployment.`);
   };
 
   const handlePublish = async () => {
-    setBuilding(true);
     setResult(null);
-    onLog(`[Publish] Preparing upload to ${store}...`);
-
-    const storeSteps: Record<string, string[]> = {
-      google_play: ['Validating APK...', 'Uploading to Google Play Console...', 'Processing...', 'Submitting for review...'],
-      app_store: ['Validating IPA...', 'Uploading to App Store Connect...', 'Processing...', 'Submitting for review...'],
-      itch_io: ['Compressing bundle...', 'Uploading to itch.io...', 'Published!'],
-      steam: ['Preparing Steamworks upload...', 'Uploading depot...', 'Submitting for review...'],
-      web: ['Optimizing HTML5...', 'Deploying to CDN...', 'Live!'],
-    };
-
-    for (const step of (storeSteps[store] || [])) {
-      onLog(`[Publish] ${step}`);
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    const urls: Record<string, string> = {
-      google_play: `https://play.google.com/store/apps/details?id=${packageName}`,
-      app_store: `https://apps.apple.com/app/${appName.toLowerCase().replace(/\s+/g, '-')}`,
-      itch_io: `https://neoengine.itch.io/${appName.toLowerCase().replace(/\s+/g, '-')}`,
-      steam: `https://store.steampowered.com/app/${appName.toLowerCase().replace(/\s+/g, '-')}`,
-      web: `https://${appName.toLowerCase().replace(/\s+/g, '-')}.neoengine.app`,
-    };
-
-    onLog(`[Publish] Submitted to ${store}!`);
-    setResult(`Published to ${store}! URL: ${urls[store]}`);
-    setBuilding(false);
+    onLog(`[Delivery Gate] ${store} publishing is unavailable: no signed package, store credential, review submission, or deployment was attempted.`);
+    setResult('Publishing is capability-gated until a verified packaging and store-delivery pipeline exists.');
   };
 
   const handleUpdate = async () => {
-    setBuilding(true);
     setResult(null);
-    const changes = updateChanges.split('\n').filter(c => c.trim());
-    onLog(`[Update] Preparing ${updateType} update with ${changes.length} changes...`);
-
-    const steps: Record<string, string[]> = {
-      hot_reload: ['Diffing changes...', 'Pushing hot reload...', 'Clients updated!'],
-      patch: ['Building patch...', 'Uploading to CDN...', 'Notifying clients...', 'Deployed!'],
-      minor: ['Building bundle...', 'Testing...', 'Uploading...', 'Rolling out...'],
-      major: ['Full build...', 'Regression tests...', 'Uploading...', 'Staged rollout 1%...', 'Full rollout...'],
-    };
-
-    for (const step of (steps[updateType] || [])) {
-      onLog(`[Update] ${step}`);
-      await new Promise(r => setTimeout(r, 400));
-    }
-
-    const vParts = version.split('.').map(Number);
-    if (updateType === 'patch') vParts[2]++;
-    else if (updateType === 'minor') { vParts[1]++; vParts[2] = 0; }
-    else if (updateType === 'major') { vParts[0]++; vParts[1] = 0; vParts[2] = 0; }
-    const newVersion = vParts.join('.');
-    setVersion(newVersion);
-
-    onLog(`[Update] Update deployed! Version: ${newVersion}`);
-    setResult(`${updateType} update deployed! New version: ${newVersion}${forceUpdate ? ' (force update enabled)' : ''}`);
-    setBuilding(false);
+    onLog(`[Delivery Gate] ${updateType} update was not deployed. Runtime update delivery has no verified transport or client acknowledgement path.`);
+    setResult('Live updates are capability-gated until a verified signed update, transport, and client acknowledgement pipeline exists.');
   };
 
   const inputStyle: React.CSSProperties = {
@@ -157,7 +91,7 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '12px 16px', borderBottom: '1px solid #333', background: '#2a2a2a',
         }}>
-          <span style={{ color: '#e0e0e0', fontWeight: 700, fontSize: 14 }}>Build & Publish</span>
+          <span style={{ color: '#e0e0e0', fontWeight: 700, fontSize: 14 }}>Authoring Export & Delivery Gate</span>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', color: '#888', fontSize: 18, cursor: 'pointer',
           }}>×</button>
@@ -171,7 +105,7 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
               border: 'none', color: activeTab === tab ? '#fff' : '#888', fontSize: 12,
               cursor: 'pointer', borderBottom: activeTab === tab ? '2px solid #0078d4' : '2px solid transparent',
               textTransform: 'uppercase', fontWeight: 600,
-            }}>{tab === 'build' ? 'Build' : tab === 'publish' ? 'Publish to Store' : 'Live Update'}</button>
+            }}>{tab === 'build' ? 'Export Authoring' : tab === 'publish' ? 'Delivery Gate' : 'Update Gate'}</button>
           ))}
         </div>
 
@@ -190,11 +124,11 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
 
               <label style={labelStyle}>Platform</label>
               <select style={selectStyle} value={platform} onChange={e => setPlatform(e.target.value)}>
-                <option value="android">Android (APK/AAB)</option>
-                <option value="ios">iOS (IPA)</option>
-                <option value="web">Web (HTML5)</option>
-                <option value="windows">Windows (EXE)</option>
-                <option value="linux">Linux (AppImage)</option>
+                <option value="android">Android intent (not packaged)</option>
+                <option value="ios">iOS intent (not packaged)</option>
+                <option value="web">Web intent (not deployed)</option>
+                <option value="windows">Windows intent (not packaged)</option>
+                <option value="linux">Linux intent (not packaged)</option>
               </select>
 
               <label style={labelStyle}>Orientation</label>
@@ -208,7 +142,7 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
                 width: '100%', marginTop: 16, padding: '10px 0', background: building ? '#555' : '#0078d4',
                 color: '#fff', border: 'none', borderRadius: 4, cursor: building ? 'wait' : 'pointer',
                 fontSize: 13, fontWeight: 600,
-              }}>{building ? 'Building...' : `Build for ${platform}`}</button>
+              }}>Export authoring bundle</button>
             </>
           )}
 
@@ -239,7 +173,7 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
                 width: '100%', marginTop: 16, padding: '10px 0', background: building ? '#555' : '#4ec949',
                 color: '#fff', border: 'none', borderRadius: 4, cursor: building ? 'wait' : 'pointer',
                 fontSize: 13, fontWeight: 600,
-              }}>{building ? 'Publishing...' : `Upload to ${store.replace('_', ' ')}`}</button>
+              }}>Explain delivery gate for {store.replace('_', ' ')}</button>
             </>
           )}
 
@@ -266,7 +200,7 @@ export function BuildPublishDialog({ isOpen, onClose, onLog, actors, scripts }: 
                 width: '100%', marginTop: 16, padding: '10px 0', background: building ? '#555' : '#e8a030',
                 color: '#fff', border: 'none', borderRadius: 4, cursor: building ? 'wait' : 'pointer',
                 fontSize: 13, fontWeight: 600,
-              }}>{building ? 'Deploying...' : `Push ${updateType} update`}</button>
+              }}>Explain {updateType} update gate</button>
             </>
           )}
 

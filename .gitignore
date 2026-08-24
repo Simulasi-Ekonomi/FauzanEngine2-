@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+editor/node_modules/
+backend/__pycache__/
+backend/data/
+backend/aries/__pycache__/
+backend/aries/core_modules/__pycache__/
+backend/api/__pycache__/
+backend/bridge/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Build output
+build/
+build_*/
+Builds/
+bin/
+editor/dist/
+engine/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+.env
+__pycache__/
+.worktrees/
+
+# Local agent, memory, benchmark, and device artifacts (not canonical C++ source)
+.claude/
+.claude-flow/
+.swarm/
+Coba_Memory/
+Coba_Obsidian_Vault/
+APKTest/
+benchmark/
+benchmark_standalone/
+litert_libs/
+
+# Local credentials, backups, databases, and generated Android artifacts
+*.db
+*.bak
+*.tar.gz
+.mcp.json
+*.env
+android/local.properties
+android/app/src/main/jniLibs/
+android/.gradle/
+
+# Generated native/shader artifacts and transient diagnostics
+*.so
+*.spv
+*.tmp
+*.bak2
+*.V*_backup
+*.trashed-*
+report_part_*
+*_report*.txt
+aries_chaos_log_*.txt
+test_event*.txt
+watcher_test.txt
+__pycache__/
+*.pyc

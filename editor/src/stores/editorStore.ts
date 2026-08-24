@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { EditorState, ActorType, Transform, ChatMessage, NeoActor, TransformMode, TransformSpace, ViewMode, ActorCreateOptions, MaterialProperties } from '../types/editor';
 import { processWithAriesBrain, queryLLM } from '../engine/AriesBrain';
+import { syncSceneDocument } from '../services/sceneDocumentClient';
 
 let actorCounter = 0;
 let messageCounter = 0;
@@ -167,12 +168,10 @@ function pushUndo(actors: Record<string, NeoActor>) {
   redoStack.length = 0; // clear redo on new action
 }
 
-// Backend API URL - try deployed backend first, fall back to local
-const API_BASE = (() => {
-  const deployed = 'https://neoengine-backend-vlpphblg.fly.dev';
-  if (deployed) return deployed;
-  return '';  // relative URL for same-origin or local dev
-})();
+// Backend API URL: explicit deployment configuration, otherwise same-origin.
+// A remote endpoint is never assumed by source code.
+const editorEnvironment = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+const API_BASE = (editorEnvironment?.VITE_NEOENGINE_API_URL || '').replace(/\/$/, '');
 
 // Client-side AI processing (works without backend)
 function processCommandOffline(command: string, actors: Record<string, NeoActor>): { response: string; actions: Array<Record<string, unknown>> } {
@@ -802,6 +801,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const data = JSON.stringify(get().actors, null, 2);
     localStorage.setItem('neoengine_scene', data);
     get().addSystemMessage('[Scene] Scene saved to local storage.');
+    void syncSceneDocument(get().actors)
+      .then((receipt) => get().addSystemMessage(`[Scene] Synced authoring document revision ${receipt.revision} (${receipt.actor_count} actors).`))
+      .catch((error: unknown) => get().addSystemMessage(`[Scene] Local save kept; authoring sync unavailable: ${error instanceof Error ? error.message : 'unknown error'}`));
   },
 
   saveSceneAs: () => {
@@ -908,7 +910,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }));
 
     // Try backend first, fall back to client-side AI
-    const apiUrl = API_BASE ? `${API_BASE}/api/aries/chat` : '/api/aries/chat';
+    const apiUrl = API_BASE ? `${API_BASE}/aries/chat` : '/aries/chat';
     fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

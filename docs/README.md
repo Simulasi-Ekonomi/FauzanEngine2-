@@ -6,6 +6,9 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 |---|---|---|
 | Task backlog | [`../todo.md`](../todo.md) | Historical completed work and explicitly deferred work. |
 | Readiness | [`../production_backend_readiness.md`](../production_backend_readiness.md) | Authoritative **NOT PASSED** readiness statement. |
+| Readiness audit | [`READINESS_AUDIT_2026-08-24.md`](READINESS_AUDIT_2026-08-24.md) | Evidence-based active-source, smoke, integration, legacy-boundary, and priority audit. |
+| Source consolidation | [`SOURCE_CONSOLIDATION_MANIFEST.md`](SOURCE_CONSOLIDATION_MANIFEST.md) | Preserve/adapt/replace-stub map for canonical runtime, legacy source, editor, backend, agents, and Android adapters. |
+| Editor/runtime scene contract | [`SCENE_DOCUMENT_V1.md`](SCENE_DOCUMENT_V1.md) | Bounded authoring envelope and atomic candidate-scene loading boundary; not multiplayer or game-state authority. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
 | Route ownership | [`../route_intent_single_writer_contract.md`](../route_intent_single_writer_contract.md) | Intent/receipt and one-transform-writer contract. |
