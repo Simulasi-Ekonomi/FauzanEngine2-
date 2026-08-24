@@ -1,0 +1,82 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.neoengine.editor'
+    compileSdk 36
+    ndkVersion "29.0.14206865"
+
+    defaultConfig {
+        applicationId "com.neoengine.editor"
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName "1.0.0"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++2b -O2 -fexceptions -frtti"
+                abiFilters "arm64-v8a"
+            }
+        }
+    }
+
+    signingConfigs {
+        release {
+            def storePath = System.getenv('NEO_ANDROID_KEYSTORE')
+            if (storePath != null && !storePath.isBlank()) {
+                storeFile file(storePath)
+                storePassword System.getenv('NEO_ANDROID_STORE_PASSWORD')
+                keyAlias System.getenv('NEO_ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('NEO_ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+            def releaseRequested = requestedTasks.any { it.contains('release') || it.contains('bundle') }
+            def signingValues = ['NEO_ANDROID_KEYSTORE', 'NEO_ANDROID_KEY_ALIAS', 'NEO_ANDROID_STORE_PASSWORD', 'NEO_ANDROID_KEY_PASSWORD'].collect { System.getenv(it) }
+            if (releaseRequested && signingValues.any { it == null || it.isBlank() }) {
+                throw new GradleException('Release APK/AAB requires NEO_ANDROID_KEYSTORE, NEO_ANDROID_KEY_ALIAS, NEO_ANDROID_STORE_PASSWORD, and NEO_ANDROID_KEY_PASSWORD.')
+            }
+            if (signingValues.every { it != null && !it.isBlank() }) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable true
+            jniDebuggable true
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/jni/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.google.ai.edge.litertlm:litertlm-android:latest.release'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'com.google.android.material:material:1.12.0'
+}

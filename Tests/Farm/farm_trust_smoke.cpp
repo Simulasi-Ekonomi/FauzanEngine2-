@@ -1,0 +1,4 @@
+#include "Systems/FarmSystem.h"
+#include "Systems/TrustSafetySystem.h"
+#include <cstdio>
+using namespace NeoEngine;int main(){FarmSystem farm(2,2,100);TrustSafetySystem trust;farm.SetTrustSafety(&trust,"player-1");farm.SetReceiptVerifier([](const VerifiedTopUpReceipt&){return true;});VerifiedTopUpReceipt receipt{1,10,"approved"};bool ok=farm.ApplyVerifiedTopUp(receipt)&&!farm.ApplyVerifiedTopUp(receipt)&&farm.LastError()==FarmError::DuplicateTransaction&&!farm.Sell(2,FarmItem::WheatProduce,1,5)&&farm.LastError()==FarmError::InsufficientInventory&&trust.IsBanned("player-1")&&!farm.ApplyVerifiedTopUp({2,10,"approved"})&&farm.LastError()==FarmError::Banned;if(!ok){std::fprintf(stderr,"FARM_TRUST_SMOKE_FAIL\n");return 1;}std::printf("FARM_TRUST_SMOKE_OK banned=1 audit=%zu\n",trust.Audit().size());}

@@ -1,0 +1,12 @@
+C++:794
+Python:5
+Game Tech:15
+[LOCAL_MODELS]
+HERMES_AGENT: hermes2pro (Status: Pulling)
+GEMMA_CORE: gemma (Status: Ready)
+OPENCODE: opencode (Status: Ready)
+
+[ACTIVE_SKILLS]
+VISUALIZER: scientific-visualization
+PROJECT_MGR: linear-sovereign
+OFFICIAL_AGENT: hermes-agent-official

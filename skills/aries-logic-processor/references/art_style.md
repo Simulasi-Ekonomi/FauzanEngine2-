@@ -1,0 +1,37 @@
+# S7 Reference: ART STYLE
+
+- Waiting for Commander's Sprite to Begin Production.
+- ART MASTERY DATA: Anatomy of a Sprite (16x16, 32x32, 64x64 Standards)
+- Technique: Frame-by-frame efficiency for NeoEngine.
+- Status: Visual Cortex Updated.ART MASTERY DATA: Character Animation (Idle, Walk, Attack, Death Frames)
+- Technique: Frame-by-frame efficiency for NeoEngine.
+- Technique: Frame-by-frame efficiency for NeoEngine.
+- Status: Visual Cortex Updated.ART MASTERY DATA: Exporting for Engines (Sprite Sheets & Atlas Logic)
+- Technique: Frame-by-frame efficiency for NeoEngine.
+- Technique: Frame-by-frame efficiency for NeoEngine.
+- Status: Visual Cortex Updated.ART MASTERY DATA: VFX Pixel Effects (Particle Sprites, Glow, & Trails)
+- Technique: Frame-by-frame efficiency for NeoEngine.
+- GODOT ENGINE KNOWLEDGE: Animation Player & State Machine Tree
+- [2026-02-06 08:59:21] NeoEngine Baby Logic: Sprite Mapping & Frame Indexing System Ready.
+- Universal algebra and category theory provide general frameworks to
+- combinatorics. The twelvefold way provides a unified framework for
+- infinite. It provides a formal framework for describing statements such
+- made using mathematical statistics employ the framework of probability
+- this framework, ranging from obtaining a sufficient sample size to
+- frameworks for geometry, arithmetic, and analysis. In the early 20th
+- framework for the study of foundations of mathematics.^[8] In 1847,
+- theory of functions and cardinality in a completely formal framework of
+- most influential works of the 20th century, although the framework of
+- also provides the framework to develop a mathematical theory of
+- Frameworks and tools
+- Cooperative games are often analyzed through the framework of
+- animation of a double-rod pendulum at an intermediate energy showing
+- circle. Animation shows the first to the sixth iteration of the
+- [StationaryStatesAnimation.gif] An example of mathematical physics:
+- experiments within a mathematically rigorous framework. In this sense,
+- The prevailing framework for science in the 16th and early 17th
+- belonging to the same plane. This essential mathematical framework is
+- frameworks developed in next centuries.
+- universal gravitation on a framework of absolute space—hypothesized by
+- frame to predictions of positions in another reference frame, all
+- Status: Knowledge Injected to NeoEngine Core.YOUTUBE MASTERY DATA: Level 3: Sprite Batching & Rendering Optimization

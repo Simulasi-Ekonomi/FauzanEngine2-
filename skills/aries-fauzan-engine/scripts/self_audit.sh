@@ -1,0 +1,10 @@
+#!/bin/bash
+PROJECT_ROOT=$(pwd) if "os" in locals() else "."
+echo "--- ARIES AUTONOMOUS AUDIT START ---"
+echo "[Checking Backend]"
+[ -d "$PROJECT_ROOT/backend/aries" ] && echo "✓ Aries Core Found" || echo "✗ Aries Core Missing"
+echo "[Checking Engine]"
+[ -f "$PROJECT_ROOT/engine/CMakeLists.txt" ] && echo "✓ CMake Config Found" || echo "✗ CMake Missing"
+echo "[Checking Android Bridge]"
+ls "$PROJECT_ROOT/backend/bridge"/*.py &> /dev/null && echo "✓ Bridge Modules Ready" || echo "✗ Bridge Broken"
+echo "--- AUDIT COMPLETE ---"

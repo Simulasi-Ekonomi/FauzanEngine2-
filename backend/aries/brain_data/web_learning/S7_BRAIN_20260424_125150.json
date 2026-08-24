@@ -1,0 +1,17 @@
+{
+    "source": "https://ue5-docs.com",
+    "topic": "Memory_Management",
+    "intel": {
+        "title": "C++ Memory Optimization",
+        "code_blocks": [
+            "std::vector<int> v; v.reserve(100);",
+            "TSharedPtr<FUser> User;"
+        ],
+        "content": "Automated extraction via S6 Agent."
+    },
+    "graph_nodes": [
+        "Memory_Management",
+        "pattern_0",
+        "pattern_1"
+    ]
+}

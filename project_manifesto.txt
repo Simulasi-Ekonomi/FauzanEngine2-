@@ -1,0 +1,14 @@
+
+# PROJECT MANIFESTO: Aries_Project_579
+# GENRE: Action RPG
+# ARCHITECTURE: S7 Component-Based
+
+STRATEGI WORLD GEN:
+1. Gunakan Medium (Static) map generation.
+2. Distribusi 20 NPC dengan State Machine Level 6.
+3. Resource Management via FauzaMemoryGuard (Level 8).
+
+NASKAH CERITA:
+Dunia yang dibangun dari fragmen memori S7 yang retak.
+Aktor Utama: Robot Fighter (berdasarkan Standar Artist S7).
+        

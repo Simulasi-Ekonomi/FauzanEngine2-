@@ -1,0 +1,4 @@
+#include "Templates/SudokuGame.h"
+#include <cstdio>
+using namespace NeoEngine;
+int main(){ SudokuGame game; bool ok=!game.Place(0,0,4)&&game.LastError()==SudokuError::GivenCell; ok=ok&&game.Place(0,2,4)&&!game.Place(0,3,4)&&game.LastError()==SudokuError::Conflict; const auto state=game.Serialize(); SudokuGame restored; ok=ok&&restored.Deserialize(state)&&!restored.Deserialize("bad"); for(uint8_t r=0;r<9;++r)for(uint8_t c=0;c<9;++c)if(!game.IsGiven(r,c)){ static constexpr uint8_t solution[81]={5,3,4,6,7,8,9,1,2,6,7,2,1,9,5,3,4,8,1,9,8,3,4,2,5,6,7,8,5,9,7,6,1,4,2,3,4,2,6,8,5,3,7,9,1,7,1,3,9,2,4,8,5,6,9,6,1,5,3,7,2,8,4,2,8,7,4,1,9,6,3,5,3,4,5,2,8,6,1,7,9}; ok=ok&&game.Place(r,c,solution[r*9+c]); } ok=ok&&game.IsComplete(); if(!ok){std::fprintf(stderr,"SUDOKU_SMOKE_FAIL\n");return 1;} std::printf("SUDOKU_SMOKE_OK complete=1 state=%zu\n",state.size()); }

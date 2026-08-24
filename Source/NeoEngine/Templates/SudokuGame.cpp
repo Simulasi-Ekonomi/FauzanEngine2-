@@ -1,0 +1,13 @@
+#include "SudokuGame.h"
+namespace NeoEngine {
+namespace { constexpr std::array<uint8_t,81> kPuzzle{5,3,0,0,7,0,0,0,0,6,0,0,1,9,5,0,0,0,0,9,8,0,0,0,0,6,0,8,0,0,0,6,0,0,0,3,4,0,0,8,0,3,0,0,1,7,0,0,0,2,0,0,0,6,0,6,0,0,0,0,2,8,0,0,0,0,4,1,9,0,0,5,0,0,0,0,8,0,0,7,9}; constexpr std::array<uint8_t,81> kSolution{5,3,4,6,7,8,9,1,2,6,7,2,1,9,5,3,4,8,1,9,8,3,4,2,5,6,7,8,5,9,7,6,1,4,2,3,4,2,6,8,5,3,7,9,1,7,1,3,9,2,4,8,5,6,9,6,1,5,3,7,2,8,4,2,8,7,4,1,9,6,3,5,3,4,5,2,8,6,1,7,9}; }
+SudokuGame::SudokuGame() : m_Board(kPuzzle), m_Solution(kSolution) { for(size_t i=0;i<81;++i) m_Givens[i]=m_Board[i] != 0; }
+bool SudokuGame::Conflicts(uint8_t r,uint8_t c,uint8_t v) const { for(uint8_t i=0;i<9;++i) if((m_Board[r*9+i]==v && i!=c)||(m_Board[i*9+c]==v && i!=r)) return true; const uint8_t br=(r/3)*3, bc=(c/3)*3; for(uint8_t y=br;y<br+3;++y) for(uint8_t x=bc;x<bc+3;++x) if((y!=r||x!=c)&&m_Board[y*9+x]==v) return true; return false; }
+bool SudokuGame::Place(uint8_t r,uint8_t c,uint8_t v) { if(!Valid(r,c)){m_LastError=SudokuError::InvalidCoordinate;return false;} if(v<1||v>9){m_LastError=SudokuError::InvalidValue;return false;} const size_t i=r*9+c; if(m_Givens[i]){m_LastError=SudokuError::GivenCell;return false;} if(Conflicts(r,c,v)){m_LastError=SudokuError::Conflict;return false;} m_Board[i]=v;m_LastError=SudokuError::None;return true; }
+bool SudokuGame::Clear(uint8_t r,uint8_t c) { if(!Valid(r,c)){m_LastError=SudokuError::InvalidCoordinate;return false;} const size_t i=r*9+c; if(m_Givens[i]){m_LastError=SudokuError::GivenCell;return false;} m_Board[i]=0;m_LastError=SudokuError::None;return true; }
+uint8_t SudokuGame::Cell(uint8_t r,uint8_t c) const { return Valid(r,c)?m_Board[r*9+c]:0; }
+bool SudokuGame::IsGiven(uint8_t r,uint8_t c) const { return Valid(r,c)&&m_Givens[r*9+c]; }
+bool SudokuGame::IsComplete() const { return m_Board==m_Solution; }
+std::string SudokuGame::Serialize() const { std::string out="SDK1"; out.reserve(85); for(uint8_t v:m_Board) out.push_back(static_cast<char>('0'+v)); return out; }
+bool SudokuGame::Deserialize(const std::string& state) { if(state.size()!=85||state.substr(0,4)!="SDK1"){m_LastError=SudokuError::CorruptState;return false;} auto next=m_Board; for(size_t i=0;i<81;++i){char ch=state[i+4];if(ch<'0'||ch>'9'||(m_Givens[i]&&ch!='0'&&static_cast<uint8_t>(ch-'0')!=kPuzzle[i])){m_LastError=SudokuError::CorruptState;return false;} next[i]=static_cast<uint8_t>(ch-'0');} for(uint8_t r=0;r<9;++r)for(uint8_t c=0;c<9;++c){uint8_t v=next[r*9+c];if(v){auto saved=m_Board;m_Board=next;m_Board[r*9+c]=0;bool bad=Conflicts(r,c,v);m_Board=saved;if(bad){m_LastError=SudokuError::CorruptState;return false;}}}m_Board=next;m_LastError=SudokuError::None;return true; }
+} // namespace NeoEngine

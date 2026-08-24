@@ -1,0 +1,106 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: editor/package-lock.json
+
+    - name: Build Editor (React)
+      run: |
+        cd editor
+        npm ci
+        npm run build
+        mkdir -p ../android/app/src/main/assets/editor
+        cp -r dist/* ../android/app/src/main/assets/editor/
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
+
+    - name: Build Debug APK
+      run: |
+        cd android
+        gradle assembleDebug --no-daemon
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: NeoEngine-Debug-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+
+  build-release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: editor/package-lock.json
+
+    - name: Build Editor
+      run: |
+        cd editor
+        npm ci
+        npm run build
+        mkdir -p ../android/app/src/main/assets/editor
+        cp -r dist/* ../android/app/src/main/assets/editor/
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
+
+    - name: Build Release APK
+      run: |
+        cd android
+        gradle assembleRelease --no-daemon
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: NeoEngine-Release-APK
+        path: android/app/build/outputs/apk/release/app-release*.apk
+        retention-days: 90

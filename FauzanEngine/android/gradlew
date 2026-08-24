@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+set -e
+# Use system gradle if wrapper jar is not valid
+APP_HOME=$(cd "$(dirname "$0")" && pwd)
+WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if java -jar "$WRAPPER_JAR" --version > /dev/null 2>&1; then
+    exec java -jar "$WRAPPER_JAR" "$@"
+else
+    exec gradle "$@"
+fi

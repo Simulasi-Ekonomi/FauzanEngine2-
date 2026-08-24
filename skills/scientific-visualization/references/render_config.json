@@ -1,0 +1,6 @@
+{
+    "engine": "FauzanEngine_v1",
+    "theme": "Sovereign_Dark",
+    "preferred_format": "mermaid",
+    "output_path": "output/diagrams/"
+}

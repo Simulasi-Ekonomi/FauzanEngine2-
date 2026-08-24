@@ -1,0 +1,3 @@
+#include "Templates/TowerDefenseGame.h"
+#include <cstdio>
+using namespace NeoEngine; int main(){TowerDefenseGame a,b;bool ok=a.PlaceTower(0)&&a.PlaceTower(1)&&a.StartWave(6)&&!a.StartWave(1)&&a.LastError()==TowerDefenseError::WaveActive;ok=ok&&b.PlaceTower(0)&&b.PlaceTower(1)&&b.StartWave(6);for(int i=0;i<12;++i){ok=ok&&a.Tick()&&b.Tick();}const auto s=a.Snapshot();ok=ok&&s.enemies==0&&s.lives==8&&s.gold==70&&a.DeterministicState()==b.DeterministicState()&&!a.PlaceTower(3)&&a.LastError()==TowerDefenseError::InvalidLane;if(!ok){std::fprintf(stderr,"TOWER_DEFENSE_SMOKE_FAIL\n");return 1;}std::printf("TOWER_DEFENSE_SMOKE_OK wave=%u gold=%d lives=%d\n",s.wave,s.gold,s.lives);}

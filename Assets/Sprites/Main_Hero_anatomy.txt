@@ -1,0 +1,12 @@
+# ANATOMY OF MAIN_HERO
+# Base Size: 32x32
+# Technical Standard: Vertex Stacking (Fauza Engine Custom)
+
+[ANIMATION_STREAMS]
+IDLE: [0, 1, 2, 1] @ 100ms
+WALK: [4, 5, 6, 7] @ 80ms
+ATTACK: [8, 9, 10, 11] @ 50ms (Trigger: Hit_Box_Active)
+
+[MEM_OPTIMIZATION]
+Use_Pallete_Swapping: True
+VRAM_Priority: HIGH

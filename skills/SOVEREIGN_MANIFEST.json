@@ -1,0 +1,18 @@
+{
+  "engine_name": "FauzanEngine",
+  "ai_sovereign": "Aries",
+  "active_skills": {
+    "visual_generation": "high-fidelity-3d-forge (Trellis/UE5)",
+    "autonomous_research": "deep-research (Gemini Deep)",
+    "security_auditor": "security-audit-bits (Trail of Bits)",
+    "scientific_benchmarking": "exploratory-data-analysis (K-Dense)",
+    "efficiency_protocol": "claude-starter (TOON/Zig)",
+    "ui_renderer": "web-artifacts-builder (React/Tailwind)"
+  },
+  "priority_logic": [
+    "Always use TOON format for token efficiency",
+    "Run security-audit before compiling C++ code",
+    "Use deep-research for unknown technical challenges",
+    "Generate 3D assets following UE5 standards"
+  ]
+}

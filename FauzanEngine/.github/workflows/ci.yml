@@ -1,0 +1,52 @@
+name: CI - Lint & Type Check
+
+on:
+  push:
+    branches: [ main, master, 'devin/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: editor/package-lock.json
+
+    - name: Install dependencies
+      run: cd editor && npm ci
+
+    - name: Type check
+      run: cd editor && npx tsc --noEmit
+
+    - name: Build check
+      run: cd editor && npm run build
+
+  backend-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+
+    - name: Syntax check
+      run: |
+        cd backend
+        python -m py_compile main.py
+        python -m py_compile aries/brain.py
