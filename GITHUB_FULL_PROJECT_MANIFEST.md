@@ -29,7 +29,7 @@ This manifest interprets **"entire FauzanEngine and all code"** as all reviewabl
 1. Use the already-created empty public repository `Simulasi-Ekonomi/FauzanEngine2-` with no starter README, license, or `.gitignore`.
 2. Build a new local staging tree from the workspace using the exclusions in this manifest. This clean tree prevents paths historically tracked by the old Devin/local repository—such as `android/.gradle/`—from entering the new initial commit. Do not use a destructive cleanup command against the working workspace.
 3. Initialize `main` only inside that staging tree, stage the reviewed scope, and inspect `git status --short` plus a filename-only secret scan before commit. The source snapshot intentionally retains pre-existing trailing whitespace across historical files; record the result of `git diff --cached --check` as a non-blocking historical-format exception rather than autoformatting thousands of unreviewed lines during archival.
-4. Make the initial `main` commit with a message that identifies this as a complete FauzanEngine workspace baseline and records the 85/85 Release plus 85/85 AddressSanitizer smoke baseline.
+4. Make the initial `main` commit with a message that identifies this as a complete FauzanEngine workspace baseline and records the then-current smoke baseline. Later archival updates must compare the full local reviewable tree with `git ls-files`, document every remaining gap, and never introduce engine features as a substitute for missing source archival.
 5. Push only after the user explicitly confirms the `main` branch, public visibility, staged scope, commit, and remote push.
 
 No remote branch, commit, or push is created by this document.
