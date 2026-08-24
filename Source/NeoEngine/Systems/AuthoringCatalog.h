@@ -50,6 +50,7 @@ public:
     [[nodiscard]] uint32_t BoundEntityCount() const { return static_cast<uint32_t>(bound_.size()); }
     [[nodiscard]] bool IsSceneBound() const { return scene_ != nullptr; }
     [[nodiscard]] const SceneEntity* BoundEntity(uint32_t definitionId) const;
+    [[nodiscard]] const SceneEntity* BoundEntity(AuthoringSceneObjectKind kind, uint32_t definitionId) const;
 private:
     struct BoundObject { SceneEntity entity{}; AuthoringSceneObjectKind kind = AuthoringSceneObjectKind::Actor; uint32_t definitionId = 0; int16_t x = 0; int16_t z = 0; int8_t patrolDirection = 1; std::vector<GridCell> route; size_t routeIndex = 0; };
     bool Fail(AuthoringError error); bool ValidMaterial(const CollisionMaterialDefinition&) const; bool ValidSkeleton(const SkeletonDefinition&) const; bool ValidKey(const std::string&) const; bool ValidBehavior(AuthoringBehavior) const; bool IsUnique(uint32_t id, const auto& values) const;

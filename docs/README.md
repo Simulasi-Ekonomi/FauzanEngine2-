@@ -16,6 +16,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Phase 1 codebase audit | [`PHASE_1_ENGINE_CODEBASE_AUDIT.md`](PHASE_1_ENGINE_CODEBASE_AUDIT.md) | Active-source, legacy, placeholder, agent, and capability-gap inventory for the game-builder program. |
 | Scene mesh binding | [`SCENE_DOCUMENT_MESH_BINDING_V1.md`](SCENE_DOCUMENT_MESH_BINDING_V1.md) | Bounded authoring scene-to-staged mesh/material runtime binding contract and evidence. |
 | SceneDocument v2 | [`SCENE_DOCUMENT_V2.md`](SCENE_DOCUMENT_V2.md) | Versioned mesh/material/texture authoring contract, NAB1 compatibility, NAB2 bridge, and current evidence. |
+| Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
 | Route ownership | [`../route_intent_single_writer_contract.md`](../route_intent_single_writer_contract.md) | Intent/receipt and one-transform-writer contract. |
