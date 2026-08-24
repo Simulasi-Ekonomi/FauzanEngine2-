@@ -34,9 +34,10 @@ bool ReadTransform(Cursor& cursor, Transform3& transform) {
            cursor.ReadFloat(transform.sx) && cursor.ReadFloat(transform.sy) && cursor.ReadFloat(transform.sz);
 }
 
-bool ReadActor(Cursor& cursor, EditorSceneActor& actor) {
+bool ReadActor(Cursor& cursor, uint8_t version, EditorSceneActor& actor) {
     uint8_t kind = 0;
     if (!cursor.ReadU32(actor.id) || !cursor.ReadU32(actor.parentId) || !cursor.ReadU8(kind) || !ReadTransform(cursor, actor.transform) || !cursor.ReadString(actor.assetId, 128)) return false;
+    if (version >= 2 && (!cursor.ReadString(actor.materialAssetId, 128) || !cursor.ReadString(actor.materialName, 96) || !cursor.ReadString(actor.textureAssetId, 128))) return false;
     if (kind > static_cast<uint8_t>(EditorSceneActorKind::Marker)) return false;
     actor.kind = static_cast<EditorSceneActorKind>(kind);
     return true;
@@ -59,14 +60,15 @@ bool LocalAuthoringBridge::Load(std::span<const uint8_t> payload, bool approved,
     Cursor cursor(payload);
     uint8_t magic[4]{};
     for (uint8_t& byte : magic) if (!cursor.ReadU8(byte)) return Fail(LocalAuthoringBridgeError::CorruptPayload);
-    if (magic[0] != 'N' || magic[1] != 'A' || magic[2] != 'B' || magic[3] != '1') return Fail(LocalAuthoringBridgeError::CorruptPayload);
+    if (magic[0] != 'N' || magic[1] != 'A' || magic[2] != 'B' || (magic[3] != '1' && magic[3] != '2')) return Fail(LocalAuthoringBridgeError::CorruptPayload);
     EditorSceneDocument document;
     uint16_t actorCount = 0;
     if (!cursor.ReadU8(document.version) || !cursor.ReadString(document.sceneId, 48) || !cursor.ReadU64(document.revision) || !cursor.ReadU16(actorCount)) return Fail(LocalAuthoringBridgeError::CorruptPayload);
-    if (document.version != EditorSceneDocument::kVersion) return Fail(LocalAuthoringBridgeError::UnsupportedVersion);
+    const uint8_t envelopeVersion = static_cast<uint8_t>(magic[3] - '0');
+    if (document.version != envelopeVersion || document.version < EditorSceneDocument::kMinSupportedVersion || document.version > EditorSceneDocument::kVersion) return Fail(LocalAuthoringBridgeError::UnsupportedVersion);
     if (actorCount > EditorSceneDocumentAdapter::kMaxActors) return Fail(LocalAuthoringBridgeError::CorruptPayload);
     document.actors.reserve(actorCount);
-    for (uint16_t index = 0; index < actorCount; ++index) { EditorSceneActor actor{}; if (!ReadActor(cursor, actor)) return Fail(LocalAuthoringBridgeError::CorruptPayload); document.actors.push_back(std::move(actor)); }
+    for (uint16_t index = 0; index < actorCount; ++index) { EditorSceneActor actor{}; if (!ReadActor(cursor, document.version, actor)) return Fail(LocalAuthoringBridgeError::CorruptPayload); document.actors.push_back(std::move(actor)); }
     if (cursor.remaining() != 0) return Fail(LocalAuthoringBridgeError::TrailingBytes);
     if (!adapter_.Load(document, assets, target)) return Fail(LocalAuthoringBridgeError::SceneRejected);
     receipt = {document.sceneId, document.revision, actorCount, Digest(payload)};

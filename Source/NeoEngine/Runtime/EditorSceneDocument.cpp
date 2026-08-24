@@ -40,7 +40,7 @@ const SceneEntity* EditorSceneDocumentAdapter::EntityForActor(uint32_t actorId) 
 }
 
 bool EditorSceneDocumentAdapter::Load(const EditorSceneDocument& document, const AssetRegistry& assets, SceneWorld& target) {
-    if (document.version != EditorSceneDocument::kVersion) return Fail(EditorSceneDocumentError::UnsupportedVersion);
+    if (document.version < EditorSceneDocument::kMinSupportedVersion || document.version > EditorSceneDocument::kVersion) return Fail(EditorSceneDocumentError::UnsupportedVersion);
     if (!ValidSceneId(document.sceneId)) return Fail(EditorSceneDocumentError::InvalidSceneId);
     if (document.revision == 0) return Fail(EditorSceneDocumentError::InvalidRevision);
     if (document.actors.size() > kMaxActors || document.actors.size() > SceneWorld::kCapacity) return Fail(EditorSceneDocumentError::Capacity);
@@ -50,11 +50,25 @@ bool EditorSceneDocumentAdapter::Load(const EditorSceneDocument& document, const
     for (const EditorSceneActor& actor : document.actors) {
         if (actor.id == 0 || !ids.insert(actor.id).second) return Fail(EditorSceneDocumentError::DuplicateActorId);
         if (!ValidActorKind(actor.kind) || !ValidTransform(actor.transform)) return Fail(EditorSceneDocumentError::InvalidActor);
+        if (document.version == EditorSceneDocument::kMinSupportedVersion && (!actor.materialAssetId.empty() || !actor.materialName.empty() || !actor.textureAssetId.empty())) return Fail(EditorSceneDocumentError::InvalidActor);
         if (!actor.assetId.empty()) {
             const AssetDefinition* asset = assets.Find(actor.assetId);
             if (asset == nullptr) return Fail(EditorSceneDocumentError::MissingAsset);
             if (asset->state != AssetState::Ready) return Fail(EditorSceneDocumentError::AssetNotReady);
             if (asset->kind != AssetKind::Mesh && asset->kind != AssetKind::Prefab) return Fail(EditorSceneDocumentError::AssetKindMismatch);
+        }
+        if (!actor.materialName.empty() && actor.materialAssetId.empty()) return Fail(EditorSceneDocumentError::InvalidActor);
+        if (!actor.materialAssetId.empty()) {
+            const AssetDefinition* material = assets.Find(actor.materialAssetId);
+            if (material == nullptr) return Fail(EditorSceneDocumentError::MissingMaterial);
+            if (material->state != AssetState::Ready) return Fail(EditorSceneDocumentError::MaterialNotReady);
+            if (material->kind != AssetKind::Material) return Fail(EditorSceneDocumentError::MaterialKindMismatch);
+        }
+        if (!actor.textureAssetId.empty()) {
+            const AssetDefinition* texture = assets.Find(actor.textureAssetId);
+            if (texture == nullptr) return Fail(EditorSceneDocumentError::MissingTexture);
+            if (texture->state != AssetState::Ready) return Fail(EditorSceneDocumentError::TextureNotReady);
+            if (texture->kind != AssetKind::Texture) return Fail(EditorSceneDocumentError::TextureKindMismatch);
         }
     }
     for (const EditorSceneActor& actor : document.actors) {

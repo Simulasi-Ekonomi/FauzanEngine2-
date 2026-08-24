@@ -20,6 +20,14 @@ SCENE_ID_MAX_BYTES = 48
 SCENE_ACTOR_MAX_COUNT = 512
 
 
+def _valid_asset_reference(value: str, label: str) -> str:
+    if not value or len(value) > 128:
+        raise ValueError(f"{label} must contain 1-128 characters")
+    if not all(character.isascii() and 0x21 <= ord(character) <= 0x7E for character in value):
+        raise ValueError(f"{label} only permits printable ASCII characters")
+    return value
+
+
 def _valid_scene_id(value: str) -> str:
     if not value or len(value) > SCENE_ID_MAX_BYTES:
         raise ValueError("scene_id must contain 1-48 characters")
@@ -55,6 +63,9 @@ class SceneActorDocument(BaseModel):
     kind: str = "empty"
     transform: SceneTransformDocument = Field(default_factory=SceneTransformDocument)
     asset_id: str | None = None
+    material_asset_id: str | None = None
+    material_name: str | None = None
+    texture_asset_id: str | None = None
 
     @field_validator("kind")
     @classmethod
@@ -66,13 +77,31 @@ class SceneActorDocument(BaseModel):
     @field_validator("asset_id")
     @classmethod
     def validate_asset_id(cls, value: str | None) -> str | None:
-        if value is not None and (not value or len(value) > 128):
-            raise ValueError("asset_id must contain 1-128 characters when supplied")
+        return None if value is None else _valid_asset_reference(value, "asset_id")
+
+    @field_validator("material_asset_id", "texture_asset_id")
+    @classmethod
+    def validate_optional_asset_reference(cls, value: str | None, info) -> str | None:
+        return None if value is None else _valid_asset_reference(value, info.field_name)
+
+    @field_validator("material_name")
+    @classmethod
+    def validate_material_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not value or len(value) > 96 or not all(character.isascii() and 0x21 <= ord(character) <= 0x7E for character in value):
+            raise ValueError("material_name must contain 1-96 printable ASCII characters")
         return value
+
+    @model_validator(mode="after")
+    def validate_asset_binding(self) -> "SceneActorDocument":
+        if self.material_name is not None and self.material_asset_id is None:
+            raise ValueError("material_name requires material_asset_id")
+        return self
 
 
 class SceneDocumentPayload(BaseModel):
-    version: Annotated[int, Field(ge=1, le=1)] = 1
+    version: Annotated[int, Field(ge=1, le=2)] = 2
     scene_id: str
     actors: list[SceneActorDocument] = Field(default_factory=list, max_length=SCENE_ACTOR_MAX_COUNT)
 
@@ -88,6 +117,8 @@ class SceneDocumentPayload(BaseModel):
             raise ValueError("actor ids must be unique")
         parents = {actor.id: actor.parent_id for actor in self.actors}
         for actor in self.actors:
+            if self.version == 1 and (actor.material_asset_id is not None or actor.material_name is not None or actor.texture_asset_id is not None):
+                raise ValueError("SceneDocument v1 does not permit material or texture bindings")
             if actor.parent_id is not None and actor.parent_id not in ids:
                 raise ValueError("parent_id must refer to an actor in the same document")
             seen: set[int] = set()

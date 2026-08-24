@@ -17,12 +17,13 @@ void Float(std::vector<uint8_t>& bytes, float value) { U32(bytes, std::bit_cast<
 void String(std::vector<uint8_t>& bytes, const std::string& value) { U8(bytes, static_cast<uint8_t>(value.size())); bytes.insert(bytes.end(), value.begin(), value.end()); }
 void Actor(std::vector<uint8_t>& bytes, uint32_t id, uint32_t parent, uint8_t kind, float x, const std::string& asset) { U32(bytes, id); U32(bytes, parent); U8(bytes, kind); Float(bytes, x); Float(bytes, 0); Float(bytes, 0); Float(bytes, 0); Float(bytes, 0); Float(bytes, 0); Float(bytes, 1); Float(bytes, 1); Float(bytes, 1); String(bytes, asset); }
 std::vector<uint8_t> Payload(const std::string& asset) { std::vector<uint8_t> bytes{'N','A','B','1',1}; String(bytes, "farm-slice"); U64(bytes, 1); U16(bytes, 2); Actor(bytes, 10, 0, 1, 4, asset); Actor(bytes, 20, 10, 5, 2, ""); return bytes; }
+std::vector<uint8_t> PayloadV2(const std::string& material) { std::vector<uint8_t> bytes{'N','A','B','2',2}; String(bytes, "render-slice"); U64(bytes, 2); U16(bytes, 1); Actor(bytes, 30, 0, 1, 5, "mesh.cube"); String(bytes, material); String(bytes, "grass"); String(bytes, "texture.grass"); return bytes; }
 }
 
 int main() {
     using namespace NeoEngine;
     AssetRegistry assets;
-    if (!assets.ImportBytes("mesh.cube", AssetKind::Mesh, {}, {1, 2, 3}) || !assets.MarkReady("mesh.cube")) return 1;
+    if (!assets.ImportBytes("mesh.cube", AssetKind::Mesh, {}, {1, 2, 3}) || !assets.MarkReady("mesh.cube") || !assets.ImportBytes("material.grass", AssetKind::Material, {}, {1, 2, 3}) || !assets.MarkReady("material.grass") || !assets.ImportBytes("texture.grass", AssetKind::Texture, {}, {1, 2, 3}) || !assets.MarkReady("texture.grass")) return 1;
     SceneWorld target;
     LocalAuthoringBridge bridge;
     LocalAuthoringBridgeReceipt receipt{};
@@ -35,6 +36,10 @@ int main() {
     if (bridge.Load(Payload("mesh.missing"), true, assets, target, receipt) || bridge.LastError() != LocalAuthoringBridgeError::SceneRejected || bridge.LastSceneError() != EditorSceneDocumentError::MissingAsset || target.AliveCount() != preserved) return 1;
     auto trailing = valid; trailing.push_back(0);
     if (bridge.Load(trailing, true, assets, target, receipt) || bridge.LastError() != LocalAuthoringBridgeError::TrailingBytes || target.AliveCount() != preserved) return 1;
+    const auto v2 = PayloadV2("material.grass");
+    if (!bridge.Load(v2, true, assets, target, receipt) || receipt.sceneId != "render-slice" || receipt.revision != 2 || receipt.actorCount != 1 || receipt.payloadDigest == 0U || target.AliveCount() != 1) return 1;
+    const uint32_t v2Preserved = target.AliveCount();
+    if (bridge.Load(PayloadV2("material.missing"), true, assets, target, receipt) || bridge.LastError() != LocalAuthoringBridgeError::SceneRejected || bridge.LastSceneError() != EditorSceneDocumentError::MissingMaterial || target.AliveCount() != v2Preserved) return 1;
     std::printf("LOCAL_AUTHORING_BRIDGE_SMOKE_OK actors=%u approval=1 assets=1 atomic=1 digest=%llu\n", target.AliveCount(), static_cast<unsigned long long>(receipt.payloadDigest));
     return 0;
 }

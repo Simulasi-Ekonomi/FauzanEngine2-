@@ -41,6 +41,12 @@ bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& mesh,
     if(mesh.assetId.empty()||mesh.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
     SceneMeshInstance instance{entity,mesh.vertices,mesh.indices,material.material};instance.sourceAssetId=mesh.assetId;instance.sourceHash=mesh.sourceHash;instance.sourceMaterialAssetId=material.assetId;instance.sourceMaterialName=material.materialName;instance.sourceMaterialHash=material.sourceHash;return Add(std::move(instance));
 }
+bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material,const CpuTextureResource* texture){
+    if(mesh.assetId.empty()||mesh.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
+    if(material.assetId.empty()||material.materialName.empty()||material.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedMaterial;return false;}
+    MeshMaterial surface=material.material;surface.texture=texture;
+    SceneMeshInstance instance{entity,mesh.vertices,mesh.indices,surface};instance.sourceAssetId=mesh.assetId;instance.sourceHash=mesh.sourceHash;instance.sourceMaterialAssetId=material.assetId;instance.sourceMaterialName=material.materialName;instance.sourceMaterialHash=material.sourceHash;return Add(std::move(instance));
+}
 bool SceneMeshAdapter::RefreshStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material){
     if(resource.assetId.empty()||resource.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
     const auto found=std::find_if(instances_.begin(),instances_.end(),[entity](const SceneMeshInstance& instance){return instance.entity==entity;});

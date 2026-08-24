@@ -10,7 +10,7 @@
 namespace NeoEngine {
 
 enum class EditorSceneActorKind : uint8_t { Empty, Mesh, Light, Camera, PlayerStart, Marker };
-enum class EditorSceneDocumentError : uint8_t { None, UnsupportedVersion, InvalidSceneId, InvalidRevision, Capacity, DuplicateActorId, InvalidActor, MissingParent, InvalidHierarchy, MissingAsset, AssetNotReady, AssetKindMismatch, SceneSyncFailed };
+enum class EditorSceneDocumentError : uint8_t { None, UnsupportedVersion, InvalidSceneId, InvalidRevision, Capacity, DuplicateActorId, InvalidActor, MissingParent, InvalidHierarchy, MissingAsset, AssetNotReady, AssetKindMismatch, MissingMaterial, MaterialNotReady, MaterialKindMismatch, MissingTexture, TextureNotReady, TextureKindMismatch, SceneSyncFailed };
 
 struct EditorSceneActor {
     uint32_t id = 0;
@@ -18,10 +18,14 @@ struct EditorSceneActor {
     EditorSceneActorKind kind = EditorSceneActorKind::Empty;
     Transform3 transform{};
     std::string assetId;
+    std::string materialAssetId;
+    std::string materialName;
+    std::string textureAssetId;
 };
 
 struct EditorSceneDocument {
-    static constexpr uint8_t kVersion = 1;
+    static constexpr uint8_t kMinSupportedVersion = 1;
+    static constexpr uint8_t kVersion = 2;
     uint8_t version = kVersion;
     std::string sceneId;
     uint64_t revision = 0;

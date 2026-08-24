@@ -20,6 +20,7 @@ public:
     bool Add(SceneMeshInstance instance);
     bool AddStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material);
     bool AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material);
+    bool AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material,const CpuTextureResource* texture);
     // Explicitly replaces a copy-on-register CPU instance only when its staged source identity matches.
     bool RefreshStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material);
     bool RefreshStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material);

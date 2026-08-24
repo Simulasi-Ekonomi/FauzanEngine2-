@@ -45,6 +45,21 @@ class SceneDocumentStoreTests(unittest.TestCase):
             self.assertIsNotNone(restored)
             self.assertEqual((restored.revision, restored.checksum), (created.revision, created.checksum))
 
+    def test_v2_material_and_texture_bindings_are_versioned_and_persisted(self) -> None:
+        payload = SceneDocumentPayload(
+            version=2,
+            scene_id="render-slice",
+            actors=[SceneActorDocument(id=1, kind="mesh", asset_id="farm.mesh", material_asset_id="farm.material", material_name="grass", texture_asset_id="farm.texture")],
+        )
+        with TemporaryDirectory() as temporary:
+            path = Path(temporary) / "authoring-scenes.json"
+            created = SceneDocumentStore(path).create(payload)
+            restored = SceneDocumentStore(path).read("render-slice")
+            self.assertEqual((created.version, restored.version), (2, 2))
+            self.assertEqual(restored.actors[0].material_name, "grass")
+        with self.assertRaises(ValueError):
+            SceneDocumentPayload(version=1, scene_id="legacy", actors=[SceneActorDocument(id=1, kind="mesh", material_asset_id="farm.material")])
+
 
 if __name__ == "__main__":
     unittest.main()

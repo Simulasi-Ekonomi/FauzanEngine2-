@@ -12,10 +12,13 @@ interface SceneDocumentActor {
   kind: SceneDocumentActorKind;
   transform: { x: number; y: number; z: number; rx: number; ry: number; rz: number; sx: number; sy: number; sz: number };
   asset_id?: string;
+  material_asset_id?: string;
+  material_name?: string;
+  texture_asset_id?: string;
 }
 
 interface SceneDocumentPayload {
-  version: 1;
+  version: 2;
   scene_id: string;
   actors: SceneDocumentActor[];
 }
@@ -67,6 +70,18 @@ function assetId(actor: NeoActor): string | undefined {
   return typeof mesh === 'string' && mesh.length > 0 ? mesh : undefined;
 }
 
+function assetBindings(actor: NeoActor): Pick<SceneDocumentActor, 'material_asset_id' | 'material_name' | 'texture_asset_id'> {
+  const component = actor.components.find((candidate) => candidate.type === 'StaticMeshComponent');
+  const materialAssetId = component?.properties.material;
+  const materialName = component?.properties.materialName;
+  const textureAssetId = component?.properties.texture;
+  return {
+    ...(typeof materialAssetId === 'string' && materialAssetId.length > 0 ? { material_asset_id: materialAssetId } : {}),
+    ...(typeof materialName === 'string' && materialName.length > 0 ? { material_name: materialName } : {}),
+    ...(typeof textureAssetId === 'string' && textureAssetId.length > 0 ? { texture_asset_id: textureAssetId } : {}),
+  };
+}
+
 export function createSceneDocument(actors: Record<string, NeoActor>): SceneDocumentPayload {
   const pairs = Object.values(actors)
     .map((actor) => ({ source: actor, id: stableActorId(actor.id) }))
@@ -79,7 +94,7 @@ export function createSceneDocument(actors: Record<string, NeoActor>): SceneDocu
     ids.set(pair.source.id, pair.id);
   }
   return {
-    version: 1,
+    version: 2,
     scene_id: SCENE_ID,
     actors: pairs.map(({ source, id }) => ({
       id,
@@ -87,6 +102,7 @@ export function createSceneDocument(actors: Record<string, NeoActor>): SceneDocu
       kind: actorKind(source.type),
       transform: transformPayload(source.transform),
       ...(assetId(source) ? { asset_id: assetId(source) } : {}),
+      ...assetBindings(source),
     })),
   };
 }

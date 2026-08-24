@@ -12,6 +12,10 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Local authoring bridge | [`LOCAL_AUTHORING_BRIDGE_V1.md`](LOCAL_AUTHORING_BRIDGE_V1.md) | Approval-gated local handoff from versioned authoring document to C++ candidate scene; no public runtime-control endpoint. |
 | Archive completeness | [`GITHUB_ARCHIVE_COMPLETENESS_AUDIT_2026-08-24.md`](GITHUB_ARCHIVE_COMPLETENESS_AUDIT_2026-08-24.md) | Local workspace versus GitHub tree comparison and documented source/artefact decisions. |
 | Hermes reconciliation | [`HERMES_ARCHIVE_RECONCILIATION_2026-08-24.md`](HERMES_ARCHIVE_RECONCILIATION_2026-08-24.md) | Reconciliation of the obsolete `1281664` clone scan against current GitHub `main`. |
+| Vault and APK readiness | [`VAULT_APK_ENGINE_READINESS_ASSESSMENT_2026-08-24.md`](VAULT_APK_ENGINE_READINESS_ASSESSMENT_2026-08-24.md) | Evidence-based vault exclusion, APK dependency, and engine readiness assessment. |
+| Phase 1 codebase audit | [`PHASE_1_ENGINE_CODEBASE_AUDIT.md`](PHASE_1_ENGINE_CODEBASE_AUDIT.md) | Active-source, legacy, placeholder, agent, and capability-gap inventory for the game-builder program. |
+| Scene mesh binding | [`SCENE_DOCUMENT_MESH_BINDING_V1.md`](SCENE_DOCUMENT_MESH_BINDING_V1.md) | Bounded authoring scene-to-staged mesh/material runtime binding contract and evidence. |
+| SceneDocument v2 | [`SCENE_DOCUMENT_V2.md`](SCENE_DOCUMENT_V2.md) | Versioned mesh/material/texture authoring contract, NAB1 compatibility, NAB2 bridge, and current evidence. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
 | Route ownership | [`../route_intent_single_writer_contract.md`](../route_intent_single_writer_contract.md) | Intent/receipt and one-transform-writer contract. |
