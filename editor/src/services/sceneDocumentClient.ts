@@ -4,7 +4,7 @@ const SCENE_ID = 'editor-default';
 const editorEnvironment = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
 const API_BASE = (editorEnvironment?.VITE_NEOENGINE_API_URL || '').replace(/\/$/, '');
 
-type SceneDocumentActorKind = 'empty' | 'mesh' | 'light' | 'camera' | 'player_start' | 'marker';
+type SceneDocumentActorKind = 'empty' | 'mesh' | 'sprite' | 'light' | 'camera' | 'player_start' | 'marker';
 
 interface SceneDocumentActor {
   id: number;
@@ -15,10 +15,15 @@ interface SceneDocumentActor {
   material_asset_id?: string;
   material_name?: string;
   texture_asset_id?: string;
+  sprite_width?: number;
+  sprite_height?: number;
+  sprite_layer?: number;
+  sprite_order?: number;
+  sprite_rgba?: number;
 }
 
 interface SceneDocumentPayload {
-  version: 2;
+  version: 3;
   scene_id: string;
   actors: SceneDocumentActor[];
 }
@@ -47,7 +52,8 @@ function actorKind(type: ActorType): SceneDocumentActorKind {
   if (type === 'camera') return 'camera';
   if (type === 'player_start') return 'player_start';
   if (type.startsWith('light_')) return 'light';
-  if (['cube', 'sphere', 'plane', 'cylinder', 'cone', 'torus', 'ring', 'capsule', 'static_mesh', 'skeletal_mesh', 'landscape', 'water', 'foliage', 'sprite', 'tilemap'].includes(type)) return 'mesh';
+  if (type === 'sprite') return 'sprite';
+  if (['cube', 'sphere', 'plane', 'cylinder', 'cone', 'torus', 'ring', 'capsule', 'static_mesh', 'skeletal_mesh', 'landscape', 'water', 'foliage', 'tilemap'].includes(type)) return 'mesh';
   return type === 'empty' ? 'empty' : 'marker';
 }
 
@@ -82,6 +88,23 @@ function assetBindings(actor: NeoActor): Pick<SceneDocumentActor, 'material_asse
   };
 }
 
+function spriteBindings(actor: NeoActor): Pick<SceneDocumentActor, 'asset_id' | 'sprite_width' | 'sprite_height' | 'sprite_layer' | 'sprite_order' | 'sprite_rgba'> {
+  const component = actor.components.find((candidate) => candidate.type === 'SpriteComponent' || typeof candidate.properties.color === 'string');
+  const texture = component?.properties.texturePath ?? component?.properties.texture;
+  const width = component?.properties.width;
+  const height = component?.properties.height;
+  const color = component?.properties.color;
+  const rgba = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? (0xFF000000 | Number.parseInt(color.slice(1), 16)) >>> 0 : 0xFFFFFFFF;
+  return {
+    ...(typeof texture === 'string' && texture.length > 0 ? { asset_id: texture } : {}),
+    sprite_width: typeof width === 'number' && Number.isFinite(width) && width > 0 ? width : 2,
+    sprite_height: typeof height === 'number' && Number.isFinite(height) && height > 0 ? height : 2,
+    sprite_layer: 0,
+    sprite_order: 0,
+    sprite_rgba: rgba,
+  };
+}
+
 export function createSceneDocument(actors: Record<string, NeoActor>): SceneDocumentPayload {
   const pairs = Object.values(actors)
     .map((actor) => ({ source: actor, id: stableActorId(actor.id) }))
@@ -94,16 +117,18 @@ export function createSceneDocument(actors: Record<string, NeoActor>): SceneDocu
     ids.set(pair.source.id, pair.id);
   }
   return {
-    version: 2,
+    version: 3,
     scene_id: SCENE_ID,
-    actors: pairs.map(({ source, id }) => ({
-      id,
-      parent_id: source.parentId === null ? null : ids.get(source.parentId) ?? null,
-      kind: actorKind(source.type),
-      transform: transformPayload(source.transform),
-      ...(assetId(source) ? { asset_id: assetId(source) } : {}),
-      ...assetBindings(source),
-    })),
+    actors: pairs.map(({ source, id }) => {
+      const kind = actorKind(source.type);
+      return {
+        id,
+        parent_id: source.parentId === null ? null : ids.get(source.parentId) ?? null,
+        kind,
+        transform: transformPayload(source.transform),
+        ...(kind === 'sprite' ? spriteBindings(source) : { ...(assetId(source) ? { asset_id: assetId(source) } : {}), ...assetBindings(source) }),
+      };
+    }),
   };
 }
 

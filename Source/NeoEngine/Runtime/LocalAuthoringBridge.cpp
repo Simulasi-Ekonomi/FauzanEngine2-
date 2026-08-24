@@ -38,7 +38,8 @@ bool ReadActor(Cursor& cursor, uint8_t version, EditorSceneActor& actor) {
     uint8_t kind = 0;
     if (!cursor.ReadU32(actor.id) || !cursor.ReadU32(actor.parentId) || !cursor.ReadU8(kind) || !ReadTransform(cursor, actor.transform) || !cursor.ReadString(actor.assetId, 128)) return false;
     if (version >= 2 && (!cursor.ReadString(actor.materialAssetId, 128) || !cursor.ReadString(actor.materialName, 96) || !cursor.ReadString(actor.textureAssetId, 128))) return false;
-    if (kind > static_cast<uint8_t>(EditorSceneActorKind::Marker)) return false;
+    if (version >= 3) { uint16_t layer = 0, order = 0; if (!cursor.ReadFloat(actor.spriteWidth) || !cursor.ReadFloat(actor.spriteHeight) || !cursor.ReadU16(layer) || !cursor.ReadU16(order) || !cursor.ReadU32(actor.spriteRgba)) return false; actor.spriteLayer = std::bit_cast<int16_t>(layer); actor.spriteOrder = std::bit_cast<int16_t>(order); }
+    if (kind > static_cast<uint8_t>(EditorSceneActorKind::Sprite)) return false;
     actor.kind = static_cast<EditorSceneActorKind>(kind);
     return true;
 }
@@ -60,7 +61,7 @@ bool LocalAuthoringBridge::Load(std::span<const uint8_t> payload, bool approved,
     Cursor cursor(payload);
     uint8_t magic[4]{};
     for (uint8_t& byte : magic) if (!cursor.ReadU8(byte)) return Fail(LocalAuthoringBridgeError::CorruptPayload);
-    if (magic[0] != 'N' || magic[1] != 'A' || magic[2] != 'B' || (magic[3] != '1' && magic[3] != '2')) return Fail(LocalAuthoringBridgeError::CorruptPayload);
+    if (magic[0] != 'N' || magic[1] != 'A' || magic[2] != 'B' || (magic[3] != '1' && magic[3] != '2' && magic[3] != '3')) return Fail(LocalAuthoringBridgeError::CorruptPayload);
     EditorSceneDocument document;
     uint16_t actorCount = 0;
     if (!cursor.ReadU8(document.version) || !cursor.ReadString(document.sceneId, 48) || !cursor.ReadU64(document.revision) || !cursor.ReadU16(actorCount)) return Fail(LocalAuthoringBridgeError::CorruptPayload);

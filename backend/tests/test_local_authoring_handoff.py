@@ -35,6 +35,14 @@ class LocalAuthoringHandoffTests(unittest.TestCase):
         self.assertIn(b"farm.material", payload)
         self.assertIn(b"farm.texture", payload)
 
+    def test_emits_bounded_nab3_sprite_bindings(self) -> None:
+        store = SceneDocumentStore()
+        document = store.create(SceneDocumentPayload(version=3, scene_id="sprite-slice", actors=[SceneActorDocument(id=10, kind="sprite", asset_id="farmer.texture", sprite_width=2.0, sprite_height=3.0, sprite_layer=4, sprite_order=-5, sprite_rgba=0xFF28A0E0)]))
+        payload = serialize_local_authoring_handoff(document, approved=True)
+        self.assertEqual((payload[:4], payload[4]), (b"NAB3", 3))
+        self.assertIn(b"farmer.texture", payload)
+        self.assertIn(struct.pack("<ffhhI", 2.0, 3.0, 4, -5, 0xFF28A0E0), payload)
+
 
 if __name__ == "__main__":
     unittest.main()

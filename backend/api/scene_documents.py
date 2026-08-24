@@ -66,11 +66,16 @@ class SceneActorDocument(BaseModel):
     material_asset_id: str | None = None
     material_name: str | None = None
     texture_asset_id: str | None = None
+    sprite_width: float | None = None
+    sprite_height: float | None = None
+    sprite_layer: Annotated[int | None, Field(ge=-32768, le=32767)] = None
+    sprite_order: Annotated[int | None, Field(ge=-32768, le=32767)] = None
+    sprite_rgba: Annotated[int | None, Field(ge=0, le=0xFFFFFFFF)] = None
 
     @field_validator("kind")
     @classmethod
     def validate_kind(cls, value: str) -> str:
-        if value not in {"empty", "mesh", "light", "camera", "player_start", "marker"}:
+        if value not in {"empty", "mesh", "sprite", "light", "camera", "player_start", "marker"}:
             raise ValueError("unsupported actor kind")
         return value
 
@@ -93,15 +98,28 @@ class SceneActorDocument(BaseModel):
             raise ValueError("material_name must contain 1-96 printable ASCII characters")
         return value
 
+    @field_validator("sprite_width", "sprite_height")
+    @classmethod
+    def validate_sprite_size(cls, value: float | None) -> float | None:
+        if value is not None and (value != value or value in (float("inf"), float("-inf")) or value <= 0.0):
+            raise ValueError("sprite dimensions must be finite and positive")
+        return value
+
     @model_validator(mode="after")
     def validate_asset_binding(self) -> "SceneActorDocument":
         if self.material_name is not None and self.material_asset_id is None:
             raise ValueError("material_name requires material_asset_id")
+        sprite_values = (self.sprite_width, self.sprite_height, self.sprite_layer, self.sprite_order, self.sprite_rgba)
+        if self.kind == "sprite":
+            if self.asset_id is None or self.material_asset_id is not None or self.material_name is not None or self.texture_asset_id is not None or any(value is None for value in sprite_values):
+                raise ValueError("sprite requires texture asset and complete sprite properties")
+        elif any(value is not None for value in sprite_values):
+            raise ValueError("sprite properties require sprite kind")
         return self
 
 
 class SceneDocumentPayload(BaseModel):
-    version: Annotated[int, Field(ge=1, le=2)] = 2
+    version: Annotated[int, Field(ge=1, le=3)] = 3
     scene_id: str
     actors: list[SceneActorDocument] = Field(default_factory=list, max_length=SCENE_ACTOR_MAX_COUNT)
 
@@ -119,6 +137,8 @@ class SceneDocumentPayload(BaseModel):
         for actor in self.actors:
             if self.version == 1 and (actor.material_asset_id is not None or actor.material_name is not None or actor.texture_asset_id is not None):
                 raise ValueError("SceneDocument v1 does not permit material or texture bindings")
+            if self.version < 3 and (actor.kind == "sprite" or actor.sprite_width is not None or actor.sprite_height is not None or actor.sprite_layer is not None or actor.sprite_order is not None or actor.sprite_rgba is not None):
+                raise ValueError("SceneDocument v1/v2 does not permit sprite actors or sprite properties")
             if actor.parent_id is not None and actor.parent_id not in ids:
                 raise ValueError("parent_id must refer to an actor in the same document")
             seen: set[int] = set()

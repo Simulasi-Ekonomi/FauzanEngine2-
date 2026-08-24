@@ -23,7 +23,7 @@ bool ValidTransform(const Transform3& transform) {
 }
 
 bool ValidActorKind(EditorSceneActorKind kind) {
-    return kind == EditorSceneActorKind::Empty || kind == EditorSceneActorKind::Mesh ||
+    return kind == EditorSceneActorKind::Empty || kind == EditorSceneActorKind::Mesh || kind == EditorSceneActorKind::Sprite ||
            kind == EditorSceneActorKind::Light || kind == EditorSceneActorKind::Camera ||
            kind == EditorSceneActorKind::PlayerStart || kind == EditorSceneActorKind::Marker;
 }
@@ -51,7 +51,13 @@ bool EditorSceneDocumentAdapter::Load(const EditorSceneDocument& document, const
         if (actor.id == 0 || !ids.insert(actor.id).second) return Fail(EditorSceneDocumentError::DuplicateActorId);
         if (!ValidActorKind(actor.kind) || !ValidTransform(actor.transform)) return Fail(EditorSceneDocumentError::InvalidActor);
         if (document.version == EditorSceneDocument::kMinSupportedVersion && (!actor.materialAssetId.empty() || !actor.materialName.empty() || !actor.textureAssetId.empty())) return Fail(EditorSceneDocumentError::InvalidActor);
-        if (!actor.assetId.empty()) {
+        if (actor.kind == EditorSceneActorKind::Sprite) {
+            if (document.version < 3U || actor.assetId.empty() || !actor.materialAssetId.empty() || !actor.materialName.empty() || !actor.textureAssetId.empty() || !std::isfinite(actor.spriteWidth) || !std::isfinite(actor.spriteHeight) || actor.spriteWidth <= 0.0F || actor.spriteHeight <= 0.0F) return Fail(EditorSceneDocumentError::InvalidActor);
+            const AssetDefinition* texture = assets.Find(actor.assetId);
+            if (texture == nullptr) return Fail(EditorSceneDocumentError::MissingTexture);
+            if (texture->state != AssetState::Ready) return Fail(EditorSceneDocumentError::TextureNotReady);
+            if (texture->kind != AssetKind::Texture) return Fail(EditorSceneDocumentError::TextureKindMismatch);
+        } else if (!actor.assetId.empty()) {
             const AssetDefinition* asset = assets.Find(actor.assetId);
             if (asset == nullptr) return Fail(EditorSceneDocumentError::MissingAsset);
             if (asset->state != AssetState::Ready) return Fail(EditorSceneDocumentError::AssetNotReady);

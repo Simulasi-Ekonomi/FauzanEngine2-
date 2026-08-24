@@ -44,6 +44,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/RuntimeTimerQueue.cpp
     Runtime/RenderCamera.cpp
     Runtime/SpriteBatch.cpp
+    Runtime/SceneSpriteAdapter.cpp
     Runtime/MeshRenderer.cpp
     Runtime/TinyObjLoader.cpp
     Runtime/ObjMeshImporter.cpp
@@ -72,6 +73,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SceneWorld.cpp
     Runtime/EditorSceneDocument.cpp
     Runtime/EditorSceneMeshBinder.cpp
+    Runtime/EditorSceneSpriteBinder.cpp
     Runtime/AuthoringCatalogVisualBinder.cpp
     Runtime/LocalAuthoringBridge.cpp
     Runtime/SceneMeshAdapter.cpp
@@ -315,6 +317,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_document
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_mesh_binder_smoke.cpp")
     add_xpbd_executable(editor_scene_mesh_binder_smoke ../../Tests/Runtime/editor_scene_mesh_binder_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_sprite_binder_smoke.cpp")
+    add_xpbd_executable(editor_scene_sprite_binder_smoke ../../Tests/Runtime/editor_scene_sprite_binder_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/authoring_catalog_visual_binder_smoke.cpp")
     add_xpbd_executable(authoring_catalog_visual_binder_smoke ../../Tests/Runtime/authoring_catalog_visual_binder_smoke.cpp)

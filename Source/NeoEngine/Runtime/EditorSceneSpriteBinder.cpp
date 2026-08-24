@@ -1,0 +1,11 @@
+#include "Runtime/EditorSceneSpriteBinder.h"
+
+namespace NeoEngine {
+bool EditorSceneSpriteBinder::Fail(EditorSceneSpriteBinderError error) { lastError_ = error; return false; }
+bool EditorSceneSpriteBinder::BindDocumentAssets(const EditorSceneDocument& document, const EditorSceneDocumentAdapter& documentAdapter, const AssetRegistry& assets, TextureStagingStore& textures, SceneSpriteAdapter& target) {
+    if (document.version != EditorSceneDocument::kVersion) return Fail(EditorSceneSpriteBinderError::InvalidDocument);
+    SceneSpriteAdapter candidate; size_t spriteCount = 0;
+    for (const EditorSceneActor& actor : document.actors) { if (actor.kind != EditorSceneActorKind::Sprite) continue; ++spriteCount; if (spriteCount > kMaxBindings) return Fail(EditorSceneSpriteBinderError::Capacity); if (actor.assetId.empty()) return Fail(EditorSceneSpriteBinderError::MissingTextureAsset); const AssetDefinition* definition = assets.Find(actor.assetId); const std::vector<uint8_t>* bytes = assets.Data(actor.assetId); if (definition == nullptr || definition->kind != AssetKind::Texture || definition->state != AssetState::Ready || bytes == nullptr || bytes->size() < 2U) return Fail(EditorSceneSpriteBinderError::MissingTextureAsset); bool staged = true; if (textures.Find(actor.assetId) == nullptr) { if ((*bytes)[0] == 'P' && (*bytes)[1] == '6') staged = textures.StagePpm(assets, actor.assetId); else if ((*bytes)[0] == 'B' && (*bytes)[1] == 'M') staged = textures.StageBmp(assets, actor.assetId); else staged = false; } else if (!textures.IsCurrent(assets, actor.assetId)) staged = textures.Refresh(assets, actor.assetId); if (!staged) return Fail(EditorSceneSpriteBinderError::TextureStageFailed); const SceneEntity* entity = documentAdapter.EntityForActor(actor.id); const CpuTextureResource* texture = textures.Find(actor.assetId); if (entity == nullptr) return Fail(EditorSceneSpriteBinderError::MissingSceneEntity); if (texture == nullptr || !candidate.AddStaged(*entity, *texture, actor.spriteWidth, actor.spriteHeight, actor.spriteLayer, actor.spriteOrder, actor.spriteRgba)) return Fail(EditorSceneSpriteBinderError::SceneSpriteRejected); }
+    if (spriteCount == 0U) return Fail(EditorSceneSpriteBinderError::InvalidDocument); target = std::move(candidate); lastError_ = EditorSceneSpriteBinderError::None; return true;
+}
+} // namespace NeoEngine

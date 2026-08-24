@@ -15,7 +15,7 @@ class LocalAuthoringApprovalRequired(PermissionError):
     """Raised before serialization when an explicit local approval is absent."""
 
 
-_KINDS = {"empty": 0, "mesh": 1, "light": 2, "camera": 3, "player_start": 4, "marker": 5}
+_KINDS = {"empty": 0, "mesh": 1, "light": 2, "camera": 3, "player_start": 4, "marker": 5, "sprite": 6}
 
 
 def _ascii(value: str, maximum: int, label: str) -> bytes:
@@ -33,11 +33,11 @@ def _optional_ascii(value: str | None, maximum: int, label: str) -> bytes:
 
 
 def serialize_local_authoring_handoff(document: StoredSceneDocument, *, approved: bool) -> bytes:
-    """Return the exact bounded `NAB1` or `NAB2` payload consumed by C++ bridge."""
+    """Return the exact bounded `NAB1`, `NAB2`, or `NAB3` payload consumed by C++ bridge."""
     if not approved:
         raise LocalAuthoringApprovalRequired("local authoring bridge approval is required")
     scene_id = _ascii(document.scene_id, 48, "scene_id")
-    if document.version not in {1, 2} or document.revision < 1 or len(document.actors) > 512:
+    if document.version not in {1, 2, 3} or document.revision < 1 or len(document.actors) > 512:
         raise ValueError("unsupported SceneDocument for local bridge")
     payload = bytearray(f"NAB{document.version}".encode("ascii"))
     payload.extend(struct.pack("<B", document.version))
@@ -68,7 +68,7 @@ def serialize_local_authoring_handoff(document: StoredSceneDocument, *, approved
             len(asset_id),
         ))
         payload.extend(asset_id)
-        if document.version == 2:
+        if document.version >= 2:
             material_asset_id = _optional_ascii(actor.material_asset_id, 128, "material_asset_id")
             material_name = _optional_ascii(actor.material_name, 96, "material_name")
             texture_asset_id = _optional_ascii(actor.texture_asset_id, 128, "texture_asset_id")
@@ -78,4 +78,13 @@ def serialize_local_authoring_handoff(document: StoredSceneDocument, *, approved
             payload.extend(material_name)
             payload.extend(struct.pack("<B", len(texture_asset_id)))
             payload.extend(texture_asset_id)
+        if document.version >= 3:
+            payload.extend(struct.pack(
+                "<ffhhI",
+                1.0 if actor.sprite_width is None else actor.sprite_width,
+                1.0 if actor.sprite_height is None else actor.sprite_height,
+                0 if actor.sprite_layer is None else actor.sprite_layer,
+                0 if actor.sprite_order is None else actor.sprite_order,
+                0xFFFFFFFF if actor.sprite_rgba is None else actor.sprite_rgba,
+            ))
     return bytes(payload)

@@ -60,6 +60,28 @@ class SceneDocumentStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SceneDocumentPayload(version=1, scene_id="legacy", actors=[SceneActorDocument(id=1, kind="mesh", material_asset_id="farm.material")])
 
+    def test_v3_sprite_bindings_are_versioned_and_persisted(self) -> None:
+        sprite = SceneActorDocument(
+            id=1,
+            kind="sprite",
+            asset_id="farmer.texture",
+            sprite_width=2.0,
+            sprite_height=3.0,
+            sprite_layer=4,
+            sprite_order=5,
+            sprite_rgba=0xFF28A0E0,
+        )
+        payload = SceneDocumentPayload(version=3, scene_id="sprite-slice", actors=[sprite])
+        with TemporaryDirectory() as temporary:
+            path = Path(temporary) / "authoring-scenes.json"
+            restored = SceneDocumentStore(path).create(payload)
+            self.assertEqual(restored.version, 3)
+            self.assertEqual((restored.actors[0].sprite_width, restored.actors[0].sprite_order), (2.0, 5))
+        with self.assertRaises(ValueError):
+            SceneDocumentPayload(version=2, scene_id="legacy-sprite", actors=[sprite])
+        with self.assertRaises(ValueError):
+            SceneActorDocument(id=2, kind="sprite", sprite_width=1.0, sprite_height=1.0, sprite_layer=0, sprite_order=0, sprite_rgba=0xFFFFFFFF)
+
 
 if __name__ == "__main__":
     unittest.main()
