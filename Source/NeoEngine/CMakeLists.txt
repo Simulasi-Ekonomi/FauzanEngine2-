@@ -62,6 +62,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/EventSignalBus.cpp
     Runtime/RendererCapability.cpp
     Runtime/SoftwareRenderer.cpp
+    Runtime/SoftwareSurfacePresenter.cpp
     Runtime/AssetRegistry.cpp
     Runtime/AssetManifestSnapshot.cpp
     Runtime/AssetReloadDiagnostics.cpp
@@ -302,6 +303,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/renderer_capability_s
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/software_renderer_smoke.cpp")
     add_xpbd_executable(software_renderer_smoke ../../Tests/Runtime/software_renderer_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/software_surface_presenter_smoke.cpp")
+    add_xpbd_executable(software_surface_presenter_smoke ../../Tests/Runtime/software_surface_presenter_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/ppm_texture_smoke.cpp")
     add_xpbd_executable(ppm_texture_smoke ../../Tests/Runtime/ppm_texture_smoke.cpp)

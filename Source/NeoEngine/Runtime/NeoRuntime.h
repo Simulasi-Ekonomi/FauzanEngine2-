@@ -2,6 +2,7 @@
 #include "AssetRegistry.h"
 #include "SceneWorld.h"
 #include "SoftwareRenderer.h"
+#include "SoftwareSurfacePresenter.h"
 #include "RuntimeClock.h"
 #include "RuntimeTimerQueue.h"
 #include "EventSignalBus.h"
@@ -21,9 +22,9 @@
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, PresentationFailed };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
-struct RuntimeConfig { uint16_t farmWidth = 8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide; std::vector<GridCell> routeMotionRoute{}; };
+struct RuntimeConfig { uint16_t farmWidth = 8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide; std::vector<GridCell> routeMotionRoute{}; };
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
@@ -52,6 +53,7 @@ public:
     const SceneWorld* Scene() const { return m_Scene.get(); }
     SoftwareRenderer* Renderer() { return m_Renderer.get(); }
     const SoftwareRenderer* Renderer() const { return m_Renderer.get(); }
+    const SoftwareSurfacePresenter* SurfacePresenter() const { return m_SurfacePresenter.get(); }
     RuntimeClock* Clock() { return m_Clock.get(); }
     const RuntimeClock* Clock() const { return m_Clock.get(); }
     RuntimeTimerQueue* Timers() { return m_Timers.get(); }
@@ -96,5 +98,6 @@ private:
     std::unique_ptr<MovementAuthorityGate> m_MotionAuthority;
     std::unique_ptr<SceneWorld> m_Scene;
     std::unique_ptr<SoftwareRenderer> m_Renderer;
+    std::unique_ptr<SoftwareSurfacePresenter> m_SurfacePresenter;
 };
 } // namespace NeoEngine

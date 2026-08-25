@@ -24,6 +24,11 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!authority->Initialize(*world, *trustSafety, "runtime-farm-player", "runtime-farm-session")) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto renderer = std::make_unique<SoftwareRenderer>();
     if (!renderer->Initialize(config.renderWidth, config.renderHeight)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto surfacePresenter = std::unique_ptr<SoftwareSurfacePresenter>{};
+    if (config.enableSoftwareSurfacePresentation) {
+        surfacePresenter = std::make_unique<SoftwareSurfacePresenter>();
+        if (!surfacePresenter->Initialize({config.renderWidth, config.renderHeight, config.softwareSurfaceHidden})) { m_LastError = RuntimeError::PresentationFailed; m_State = RuntimeState::Failed; return false; }
+    }
     auto clock = std::make_unique<RuntimeClock>();
     if (!clock->Initialize()) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto scene = std::make_unique<SceneWorld>();
@@ -108,6 +113,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
     m_Renderer = std::move(renderer);
+    m_SurfacePresenter = std::move(surfacePresenter);
     m_LastError = RuntimeError::None;
     m_State = RuntimeState::Initialized;
     return true;
@@ -143,6 +149,7 @@ bool NeoRuntime::ReplanRouteMotion() {
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
     if (!FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, *m_Renderer)) { m_LastError = RuntimeError::RenderFailed; return false; }
+    if (m_SurfacePresenter != nullptr && !m_SurfacePresenter->Present(*m_Renderer)) { m_LastError = RuntimeError::PresentationFailed; return false; }
     return true;
 }
 
@@ -153,6 +160,7 @@ bool NeoRuntime::SetPaused(bool paused) {
 
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
+    m_SurfacePresenter.reset();
     m_Renderer.reset();
     m_Clock.reset();
     m_Timers.reset();
