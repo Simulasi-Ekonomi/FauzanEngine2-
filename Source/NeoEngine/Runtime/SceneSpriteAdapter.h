@@ -2,6 +2,7 @@
 
 #include "SceneWorld.h"
 #include "SpriteBatch.h"
+#include "FlipbookFrameSelector.h"
 #include "TextureStaging.h"
 
 #include <cstdint>
@@ -19,6 +20,7 @@ public:
     bool AddStaged(SceneEntity entity, const CpuTextureResource& texture, float width, float height, int16_t layer, int16_t order, uint32_t rgba, float rotationRadians = 0.0F, bool faceCamera = false, bool depthWrite = true, uint16_t sourceX = 0U, uint16_t sourceY = 0U, uint16_t sourceWidth = 0U, uint16_t sourceHeight = 0U);
     bool Queue(const SceneWorld& world, SpriteBatch& batch) const;
     bool QueueTinted(const SceneWorld& world, SpriteBatch& batch, uint32_t frameRgba) const;
+    bool QueueFrame(const SceneWorld& world, SpriteBatch& batch, SpriteSourceRect sourceRect, uint32_t frameRgba = 0xFFFFFFFFU) const;
     void Clear();
     [[nodiscard]] size_t InstanceCount() const { return instances_.size(); }
     [[nodiscard]] SceneSpriteAdapterError LastError() const { return lastError_; }
