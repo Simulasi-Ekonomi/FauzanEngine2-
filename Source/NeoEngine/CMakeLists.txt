@@ -94,6 +94,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanTexturedOffscreen.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/FarmRenderAdapter.cpp
+    Runtime/FarmSpriteRenderAdapter.cpp
     Runtime/AssetRegistry.cpp
     Systems/FarmSystem.cpp
     Systems/FarmWorldTool.cpp
@@ -362,6 +363,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_render_smoke.cpp
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_world_render_smoke.cpp")
     add_xpbd_executable(farm_world_render_smoke ../../Tests/Runtime/farm_world_render_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_sprite_render_smoke.cpp")
+    add_xpbd_executable(farm_sprite_render_smoke ../../Tests/Runtime/farm_sprite_render_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_registry_smoke.cpp")
     add_xpbd_executable(asset_registry_smoke ../../Tests/Runtime/asset_registry_smoke.cpp)
