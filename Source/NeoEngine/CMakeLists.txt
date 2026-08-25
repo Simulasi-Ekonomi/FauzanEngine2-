@@ -60,6 +60,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AnimationSpriteTintBinding.cpp
     Runtime/FlipbookFrameSelector.cpp
     Runtime/FlipbookPlayback.cpp
+    Runtime/FlipbookRenderBridge.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayPhysicsBody.cpp
     Runtime/KinematicCollisionPreflight.cpp
@@ -306,6 +307,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/flipbook_frame_select
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/flipbook_playback_smoke.cpp")
     add_xpbd_executable(flipbook_playback_smoke ../../Tests/Runtime/flipbook_playback_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/flipbook_render_bridge_smoke.cpp")
+    add_xpbd_executable(flipbook_render_bridge_smoke ../../Tests/Runtime/flipbook_render_bridge_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_physics_query_smoke.cpp")
     add_xpbd_executable(gameplay_physics_query_smoke ../../Tests/Runtime/gameplay_physics_query_smoke.cpp)
