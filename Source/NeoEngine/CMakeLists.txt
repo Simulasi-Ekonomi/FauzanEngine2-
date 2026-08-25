@@ -116,6 +116,7 @@ set(XPBD_RUNTIME_SOURCES
     Demos/MotionAnimationSurfaceDemo.cpp
     Demos/TriggerRuntimeSurfaceDemo.cpp
     Demos/TriggerAnimationSurfaceDemo.cpp
+    Demos/KinematicPreflightSurfaceDemo.cpp
     Demos/HybridSurfaceDemo.cpp
     Runtime/FarmRenderAdapter.cpp
     Runtime/FarmSpriteRenderAdapter.cpp
@@ -392,6 +393,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/trigger_runtime_surfa
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/trigger_animation_surface_demo_smoke.cpp")
     add_xpbd_executable(trigger_animation_surface_demo_smoke ../../Tests/Runtime/trigger_animation_surface_demo_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/kinematic_preflight_surface_demo_smoke.cpp")
+    add_xpbd_executable(kinematic_preflight_surface_demo_smoke ../../Tests/Runtime/kinematic_preflight_surface_demo_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Demos/mesh_surface_demo.cpp")
     add_xpbd_executable(mesh_surface_demo ../../Demos/mesh_surface_demo.cpp)

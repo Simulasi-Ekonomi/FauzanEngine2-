@@ -1,0 +1,6 @@
+#include "Demos/KinematicPreflightSurfaceDemo.h"
+
+#include <cstdio>
+#include <fstream>
+
+int main(){using namespace NeoEngine;const char* output="/tmp/fauzanengine_kinematic_preflight_surface_demo_smoke.ppm";KinematicPreflightSurfaceDemoConfig invalid{};invalid.frames=2U;KinematicPreflightSurfaceDemoReceipt receipt{};KinematicPreflightSurfaceDemoError error{};if(RunKinematicPreflightSurfaceDemo(invalid,receipt,error)||error!=KinematicPreflightSurfaceDemoError::InvalidConfiguration)return 1;KinematicPreflightSurfaceDemoConfig config{};config.width=96U;config.height=64U;config.frames=3U;config.hiddenSurface=true;config.ppmPath=output;if(!RunKinematicPreflightSurfaceDemo(config,receipt,error)||receipt.renderedFrames!=3U||receipt.presentedFrames!=3U||receipt.visiblePixels==0U||receipt.delegatedMoves!=2U||receipt.blockedMoves!=1U||receipt.frameHash==0U||receipt.finalX!=-0.25F)return 1;std::ifstream artifact(output,std::ios::binary);char header[2]{};if(!artifact.read(header,2)||header[0]!='P'||header[1]!='6')return 1;artifact.close();std::remove(output);std::printf("KINEMATIC_PREFLIGHT_SURFACE_DEMO_SMOKE_OK frames=%u delegated=%u blocked=%u x=%.3f hash=%llu\n",receipt.renderedFrames,receipt.delegatedMoves,receipt.blockedMoves,receipt.finalX,static_cast<unsigned long long>(receipt.frameHash));return 0;}

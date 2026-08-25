@@ -64,6 +64,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Asset import surface demo | [`ASSET_IMPORT_SURFACE_DEMO_V1.md`](ASSET_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ import-to-staged-resource-to-software-surface proof with PPM artifact. |
 | Motion animation surface demo | [`MOTION_ANIMATION_SURFACE_DEMO_V1.md`](MOTION_ANIMATION_SURFACE_DEMO_V1.md) | Finite single-writer kinematic movement, read-only locomotion animation, and sprite render proof. |
 | Kinematic collision preflight | [`KINEMATIC_COLLISION_PREFLIGHT_V1.md`](KINEMATIC_COLLISION_PREFLIGHT_V1.md) | Read-only XPBD raycast gate that blocks or delegates one kinematic transform write. |
+| Kinematic preflight surface demo | [`KINEMATIC_PREFLIGHT_SURFACE_DEMO_V1.md`](KINEMATIC_PREFLIGHT_SURFACE_DEMO_V1.md) | Finite single-writer kinematic preflight block/delegate proof with software surface artifact. |
 | Gameplay trigger tracker | [`GAMEPLAY_TRIGGER_TRACKER_V1.md`](GAMEPLAY_TRIGGER_TRACKER_V1.md) | Read-only XPBD circle-overlap enter/exit deltas with candidate-commit state. |
 | Scene physics pose sync | [`SCENE_PHYSICS_POSE_SYNC_V1.md`](SCENE_PHYSICS_POSE_SYNC_V1.md) | One-way candidate-validated SceneWorld X/Z mirror into canonical ECS physics positions. |
 | Trigger runtime surface demo | [`TRIGGER_RUNTIME_SURFACE_DEMO_V1.md`](TRIGGER_RUNTIME_SURFACE_DEMO_V1.md) | Finite motion-to-pose-sync-to-XPBD-trigger-to-sprite-render integration proof. |
