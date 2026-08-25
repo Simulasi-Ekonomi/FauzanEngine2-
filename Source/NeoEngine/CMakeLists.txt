@@ -118,6 +118,7 @@ set(XPBD_RUNTIME_SOURCES
     Demos/TriggerRuntimeSurfaceDemo.cpp
     Demos/TriggerAnimationSurfaceDemo.cpp
     Demos/KinematicPreflightSurfaceDemo.cpp
+    Demos/FlipbookSurfaceDemo.cpp
     Demos/HybridSurfaceDemo.cpp
     Runtime/FarmRenderAdapter.cpp
     Runtime/FarmSpriteRenderAdapter.cpp
@@ -394,6 +395,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/material_refresh_surf
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/motion_animation_surface_demo_smoke.cpp")
     add_xpbd_executable(motion_animation_surface_demo_smoke ../../Tests/Runtime/motion_animation_surface_demo_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/flipbook_surface_demo_smoke.cpp")
+    add_xpbd_executable(flipbook_surface_demo_smoke ../../Tests/Runtime/flipbook_surface_demo_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/trigger_runtime_surface_demo_smoke.cpp")
     add_xpbd_executable(trigger_runtime_surface_demo_smoke ../../Tests/Runtime/trigger_runtime_surface_demo_smoke.cpp)

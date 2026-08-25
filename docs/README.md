@@ -55,6 +55,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Animation sprite tint binding | [`ANIMATION_SPRITE_TINT_BINDING_V1.md`](ANIMATION_SPRITE_TINT_BINDING_V1.md) | Frame-local scalar animation sample to sprite tint binding with no SceneWorld transform write. |
 | Flipbook frame selector | [`FLIPBOOK_FRAME_SELECTOR_V1.md`](FLIPBOOK_FRAME_SELECTOR_V1.md) | Bounded deterministic scalar sample to CPU atlas source-rectangle selection. |
 | Flipbook staged sprite proof | [`FLIPBOOK_STAGED_SPRITE_PROOF_V1.md`](FLIPBOOK_STAGED_SPRITE_PROOF_V1.md) | Frame-local selector rectangle passed to staged sprite queue without SceneWorld writes. |
+| Flipbook surface sequence proof | [`FLIPBOOK_SURFACE_SEQUENCE_PROOF_V1.md`](FLIPBOOK_SURFACE_SEQUENCE_PROOF_V1.md) | Finite four-frame selector-to-staged-sprite surface proof with transform-preservation check. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
 | Gameplay physics query ordering | [`GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md`](GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md) | Canonical ascending EntityID overlap output after atomic XPBD collider mapping. |
 | Gameplay physics body | [`GAMEPLAY_PHYSICS_BODY_V1.md`](GAMEPLAY_PHYSICS_BODY_V1.md) | Validated static/dynamic circle-body creation through canonical ECS components. |
