@@ -20,13 +20,13 @@ Fase A telah menghasilkan **baseline renderer software yang lebih terintegrasi d
 
 ## Evidence regresi
 
-Validasi terakhir baseline menjalankan semua executable `*_smoke` non-Vulkan langsung dari build canonical, dengan pengecualian `sdl_audio_bridge_smoke` sesuai konvensi suite yang telah dipakai sebelumnya. Setelah pipeline MTL material in-memory ditambahkan, hasilnya adalah **118/118 Release** dan **118/118 ASAN** dengan `detect_leaks=1`. Vulkan probe dan audio bridge tidak termasuk angka ini; keduanya memerlukan gate environment/runtime sendiri dan tidak boleh disamakan dengan bukti renderer aktif.
+Validasi terakhir baseline menjalankan semua executable `*_smoke` non-Vulkan langsung dari build canonical, dengan pengecualian `sdl_audio_bridge_smoke` sesuai konvensi suite yang telah dipakai sebelumnya. Setelah proof surface PPM/OBJ/MTL finite ditambahkan, hasilnya adalah **119/119 Release** dan **119/119 ASAN** dengan `detect_leaks=1`. Vulkan probe dan audio bridge tidak termasuk angka ini; keduanya memerlukan gate environment/runtime sendiri dan tidak boleh disamakan dengan bukti renderer aktif.
 
 | Gate evidence | Hasil | Arti |
 |---|---|---|
 | Smoke target per milestone | Lulus Release + ASAN | Kontrak lokal setiap increment diuji. |
-| Regression suite non-Vulkan | 118/118 Release | Tidak ada kegagalan smoke canonical dalam cakupan tersebut. |
-| Regression suite non-Vulkan | 118/118 ASAN `detect_leaks=1` | Tidak ada temuan sanitizer pada cakupan tersebut. |
+| Regression suite non-Vulkan | 119/119 Release | Tidak ada kegagalan smoke canonical dalam cakupan tersebut. |
+| Regression suite non-Vulkan | 119/119 ASAN `detect_leaks=1` | Tidak ada temuan sanitizer pada cakupan tersebut. |
 | Source archive | GitHub `main` hingga `b5afd21` sebelum milestone demo mesh ini | Milestone source yang telah dibuktikan dapat direview. |
 
 ## Correctness contract yang sekarang aktif
