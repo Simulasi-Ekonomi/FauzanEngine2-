@@ -24,6 +24,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Software surface presenter | [`SOFTWARE_SURFACE_PRESENTER_V1.md`](SOFTWARE_SURFACE_PRESENTER_V1.md) | Optional SDL upload/present seam from canonical SoftwareRenderer and NeoRuntime Farm. |
 | Software surface lifecycle | [`SOFTWARE_SURFACE_LIFECYCLE_V1.md`](SOFTWARE_SURFACE_LIFECYCLE_V1.md) | Bounded SDL event pump, close request, and fail-closed NeoRuntime presentation behavior. |
 | Farm surface demo | [`FARM_SURFACE_DEMO_V1.md`](FARM_SURFACE_DEMO_V1.md) | Finite native Farm graphical vertical slice with SDL presentation and PPM artifact output. |
+| Mesh surface demo | [`MESH_SURFACE_DEMO_V1.md`](MESH_SURFACE_DEMO_V1.md) | Finite static 3D mesh proof through perspective camera, texture/material/light, SDL presentation, and PPM artifact output. |
 | Render camera orientation | [`RENDER_CAMERA_ORIENTATION_V1.md`](RENDER_CAMERA_ORIENTATION_V1.md) | Validated orientation basis shared by orthographic sprite/Farm and perspective mesh projection. |
 | Sprite alpha and tint | [`SPRITE_ALPHA_TINT_V1.md`](SPRITE_ALPHA_TINT_V1.md) | Deterministic layer/order-preserving alpha composition and textured RGBA tint for SpriteBatch. |
 | Sprite batch atomic flush | [`SPRITE_BATCH_ATOMIC_FLUSH_V1.md`](SPRITE_BATCH_ATOMIC_FLUSH_V1.md) | Candidate-frame flush that preserves the caller framebuffer on sprite projection/raster rejection. |
