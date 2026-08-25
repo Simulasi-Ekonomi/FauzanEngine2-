@@ -8,7 +8,7 @@ Fase A telah menghasilkan **baseline renderer software yang lebih terintegrasi d
 
 | Area | Evidence kanonis | Status yang tepat | Batas utama |
 |---|---|---|---|
-| Presentasi surface | `software_surface_presenter_smoke`, `renderer_capability_smoke`, commit `6c90696` | CPU frame dapat diunggah ke SDL texture dan dipresentasikan secara opt-in. | Bukan swapchain GPU, event loop host lengkap, resize, fullscreen, atau vsync policy. |
+| Presentasi surface | `software_surface_presenter_smoke`, `renderer_capability_smoke`, commit `6c90696` | CPU frame dapat diunggah ke SDL texture dan dipresentasikan opt-in; ukuran window dari resize event dapat diamati tanpa resize framebuffer. | Bukan swapchain GPU, resize renderer, event loop host lengkap, fullscreen, atau vsync policy. |
 | Vertical slice Farm | `farm_surface_demo_smoke`, commit `3bb4a93` | Farm finite merender dan menghasilkan PPM 256×256 melalui NeoRuntime. | Bukan game interaktif, input window, UI, audio, networking, atau APK. |
 | Vertical slice mesh 3D | `mesh_surface_demo_smoke` | Mesh perspektif berpose finite dengan CPU texture, material tint, directional light, lifecycle SDL, dan PPM berjalan melalui jalur renderer kanonis. | Bukan animation system, game 3D playable, atau host desktop persisten. |
 | Kamera | `render_camera_smoke`, commits `db5f21f` dan `534e633` | Orthographic/perspective memakai orientasi forward/up tervalidasi; mesh memakai camera-space. | Tanpa controller, follow target, frustum culling penuh, stereo, atau matrices publik. |

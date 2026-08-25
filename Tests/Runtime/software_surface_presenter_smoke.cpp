@@ -16,12 +16,18 @@ int main() {
     SoftwareRenderer wrongSize;
     if (!require(wrongSize.Initialize(8, 8) && !presenter.Present(wrongSize) && presenter.LastError() == SoftwareSurfacePresenterError::DimensionMismatch && presenter.PresentedFrameCount() == 1U && presenter.LastPresentedHash() == firstHash, "dimension-rejection")) return 1;
     if (!require(source.Clear(0xFFE53935U) && presenter.Present(source) && presenter.PresentedFrameCount() == 2U && presenter.LastPresentedHash() != firstHash, "direct-second-present")) return 1;
+    SDL_Event resizeEvent{};
+    resizeEvent.type = SDL_WINDOWEVENT;
+    resizeEvent.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+    resizeEvent.window.data1 = 24;
+    resizeEvent.window.data2 = 20;
+    if (!require(SDL_PushEvent(&resizeEvent) == 1 && presenter.PumpEvents() && presenter.WindowWidth() == 24U && presenter.WindowHeight() == 20U && presenter.Present(source) && presenter.PresentedFrameCount() == 3U, "resize-observation")) return 1;
     const uint64_t closeFrames = presenter.PresentedFrameCount(), closeHash = presenter.LastPresentedHash();
     SDL_Event closeEvent{};
     closeEvent.type = SDL_QUIT;
     if (!require(SDL_PushEvent(&closeEvent) == 1 && presenter.PumpEvents() && presenter.CloseRequested() && !presenter.Present(source) && presenter.LastError() == SoftwareSurfacePresenterError::CloseRequested && presenter.PresentedFrameCount() == closeFrames && presenter.LastPresentedHash() == closeHash, "close-request")) return 1;
     presenter.Reset();
-    if (!require(!presenter.IsReady() && !presenter.CloseRequested() && !presenter.PumpEvents() && presenter.LastError() == SoftwareSurfacePresenterError::NotInitialized, "reset")) return 1;
+    if (!require(!presenter.IsReady() && !presenter.CloseRequested() && presenter.WindowWidth() == 0U && presenter.WindowHeight() == 0U && !presenter.PumpEvents() && presenter.LastError() == SoftwareSurfacePresenterError::NotInitialized, "reset")) return 1;
 
     NeoRuntime runtime;
     RuntimeConfig config{};
@@ -34,6 +40,6 @@ int main() {
     config.enableSoftwareSurfacePresentation = true;
     config.softwareSurfaceHidden = true;
     if (!require(runtime.Initialize(config) && runtime.Tick() && runtime.RenderFarm() && runtime.SurfacePresenter() != nullptr && runtime.SurfacePresenter()->PresentedFrameCount() == 1U && runtime.SurfacePresenter()->LastPresentedHash() != 0U && runtime.Shutdown(), "neo-runtime-hook")) return 1;
-    std::printf("SOFTWARE_SURFACE_PRESENTER_SMOKE_OK directFrames=2 closeRequest=1 runtimePresent=1 hiddenSurface=1\n");
+    std::printf("SOFTWARE_SURFACE_PRESENTER_SMOKE_OK directFrames=3 resize=1 closeRequest=1 runtimePresent=1 hiddenSurface=1\n");
     return 0;
 }

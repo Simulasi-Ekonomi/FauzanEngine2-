@@ -24,6 +24,8 @@ public:
     [[nodiscard]] uint64_t PresentedFrameCount() const { return presentedFrameCount_; }
     [[nodiscard]] uint64_t LastPresentedHash() const { return lastPresentedHash_; }
     [[nodiscard]] bool CloseRequested() const { return closeRequested_; }
+    [[nodiscard]] uint32_t WindowWidth() const { return windowWidth_; }
+    [[nodiscard]] uint32_t WindowHeight() const { return windowHeight_; }
     [[nodiscard]] SoftwareSurfacePresenterError LastError() const { return lastError_; }
 private:
     bool Fail(SoftwareSurfacePresenterError error);
@@ -32,6 +34,8 @@ private:
     void* texture_ = nullptr;
     uint32_t width_ = 0;
     uint32_t height_ = 0;
+    uint32_t windowWidth_ = 0;
+    uint32_t windowHeight_ = 0;
     uint64_t presentedFrameCount_ = 0;
     uint64_t lastPresentedHash_ = 0;
     bool closeRequested_ = false;
