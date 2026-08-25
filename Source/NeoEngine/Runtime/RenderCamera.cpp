@@ -40,4 +40,18 @@ bool RenderCamera::Project(RenderPoint3 world, RenderPoint3& clip) {
     if (!std::isfinite(clip.x) || !std::isfinite(clip.y) || !std::isfinite(clip.z) || std::fabs(clip.x) > 1.0F || std::fabs(clip.y) > 1.0F || clip.z < 0.0F || clip.z > 1.0F) { lastError_ = RenderCameraError::OutsideClip; return false; }
     lastError_ = RenderCameraError::None; return true;
 }
+bool RenderCamera::SphereIntersectsFrustum(RenderPoint3 center, float radius) {
+    RenderPoint3 view{};
+    if (!WorldToCamera(center, view) || !std::isfinite(radius) || radius < 0.0F) { lastError_ = RenderCameraError::InvalidConfiguration; return false; }
+    if (view.z + radius < config_.nearPlane || view.z - radius > config_.farPlane) { lastError_ = RenderCameraError::None; return false; }
+    if (config_.mode == RenderCameraMode::Orthographic) {
+        const float halfHeight = config_.orthographicHalfHeight, halfWidth = halfHeight * config_.aspect;
+        lastError_ = RenderCameraError::None;
+        return !(view.x - radius > halfWidth || view.x + radius < -halfWidth || view.y - radius > halfHeight || view.y + radius < -halfHeight);
+    }
+    if (view.z - radius <= config_.nearPlane) { lastError_ = RenderCameraError::None; return true; }
+    const float halfHeight = (view.z + radius) * std::tan(config_.verticalFovDegrees * 0.00872664626F), halfWidth = halfHeight * config_.aspect;
+    lastError_ = RenderCameraError::None;
+    return !(view.x - radius > halfWidth || view.x + radius < -halfWidth || view.y - radius > halfHeight || view.y + radius < -halfHeight);
+}
 } // namespace NeoEngine

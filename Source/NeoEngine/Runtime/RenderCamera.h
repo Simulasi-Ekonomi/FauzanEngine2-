@@ -14,6 +14,7 @@ public:
     bool Initialize(const RenderCameraConfig& config);
     bool WorldToCamera(RenderPoint3 world, RenderPoint3& cameraSpace);
     bool Project(RenderPoint3 world, RenderPoint3& clip);
+    bool SphereIntersectsFrustum(RenderPoint3 center, float radius);
     [[nodiscard]] RenderCameraError LastError() const { return lastError_; }
     [[nodiscard]] const RenderCameraConfig& Config() const { return config_; }
 private:
