@@ -23,6 +23,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Software surface presenter | [`SOFTWARE_SURFACE_PRESENTER_V1.md`](SOFTWARE_SURFACE_PRESENTER_V1.md) | Optional SDL upload/present seam from canonical SoftwareRenderer and NeoRuntime Farm. |
 | Farm surface demo | [`FARM_SURFACE_DEMO_V1.md`](FARM_SURFACE_DEMO_V1.md) | Finite native Farm graphical vertical slice with SDL presentation and PPM artifact output. |
 | Render camera orientation | [`RENDER_CAMERA_ORIENTATION_V1.md`](RENDER_CAMERA_ORIENTATION_V1.md) | Validated orientation basis shared by orthographic sprite/Farm and perspective mesh projection. |
+| Sprite alpha and tint | [`SPRITE_ALPHA_TINT_V1.md`](SPRITE_ALPHA_TINT_V1.md) | Deterministic layer/order-preserving alpha composition and textured RGBA tint for SpriteBatch. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
