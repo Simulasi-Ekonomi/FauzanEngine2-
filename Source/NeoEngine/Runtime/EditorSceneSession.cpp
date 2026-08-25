@@ -13,7 +13,7 @@ bool EditorSceneSession::OpenCandidate(const EditorSceneDocument& document, cons
     if (hasKind(EditorSceneActorKind::Mesh)) { EditorSceneMeshBinder binder; if (!binder.BindDocumentAssets(document, documentAdapter, assets, meshStaging, materialStaging, textureStaging, meshes)) { lastError_ = EditorSceneSessionError::MeshBindFailed; return false; } }
     if (hasKind(EditorSceneActorKind::Sprite)) { EditorSceneSpriteBinder binder; if (!binder.BindDocumentAssets(document, documentAdapter, assets, textureStaging, sprites)) { lastError_ = EditorSceneSessionError::SpriteBindFailed; return false; } }
     document_ = document; world_ = std::move(world); documentAdapter_ = std::move(documentAdapter); meshes_ = std::move(meshes); sprites_ = std::move(sprites); renderer_ = {};
-    if (markSaved) savedRevision_ = document_.revision;
+    if (markSaved) { savedDocument_ = document_; savedRevision_ = document_.revision; }
     lastError_ = EditorSceneSessionError::None; return true;
 }
 bool EditorSceneSession::OpenBytes(const std::vector<uint8_t>& bytes, const AssetRegistry& assets) {
@@ -50,13 +50,17 @@ bool EditorSceneSession::DeleteActor(uint32_t actorId, const AssetRegistry& asse
 }
 bool EditorSceneSession::Save(EditorSceneDocument& document) const {
     if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
-    document = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true;
+    document = document_; savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true;
 }
 bool EditorSceneSession::SaveBytes(std::vector<uint8_t>& bytes) const {
     if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     EditorSceneDocumentCodec codec;
     if (!codec.Encode(document_, bytes)) { lastError_ = EditorSceneSessionError::CodecEncodeFailed; return false; }
-    savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true;
+    savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true;
+}
+bool EditorSceneSession::RevertToSaved(const AssetRegistry& assets) {
+    if (document_.revision == 0U || savedRevision_ == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    return OpenCandidate(savedDocument_, assets, true);
 }
 std::vector<EditorSceneActor> EditorSceneSession::HierarchySnapshot() const { std::vector<EditorSceneActor> snapshot = document_.actors; std::sort(snapshot.begin(), snapshot.end(), [](const EditorSceneActor& left, const EditorSceneActor& right) { return left.id < right.id; }); return snapshot; }
 bool EditorSceneSession::InspectActor(uint32_t actorId, EditorSceneActor& actor) const { const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& candidate) { return candidate.id == actorId; }); if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; } actor = *found; lastError_ = EditorSceneSessionError::None; return true; }

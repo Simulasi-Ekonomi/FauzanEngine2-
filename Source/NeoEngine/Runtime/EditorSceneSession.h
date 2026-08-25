@@ -24,6 +24,7 @@ public:
     bool DeleteActor(uint32_t actorId, const AssetRegistry& assets);
     bool Save(EditorSceneDocument& document) const;
     bool SaveBytes(std::vector<uint8_t>& bytes) const;
+    bool RevertToSaved(const AssetRegistry& assets);
     [[nodiscard]] bool HasUnsavedChanges() const { return document_.revision != 0U && document_.revision != savedRevision_; }
     [[nodiscard]] std::vector<EditorSceneActor> HierarchySnapshot() const;
     bool InspectActor(uint32_t actorId, EditorSceneActor& actor) const;
@@ -33,6 +34,7 @@ public:
 private:
     bool OpenCandidate(const EditorSceneDocument& document, const AssetRegistry& assets, bool markSaved);
     EditorSceneDocument document_{};
+    mutable EditorSceneDocument savedDocument_{};
     mutable uint64_t savedRevision_ = 0;
     SceneWorld world_{};
     EditorSceneDocumentAdapter documentAdapter_{};
