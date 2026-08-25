@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <limits>
+#include <vector>
 
 int main() {
     using namespace NeoEngine;
@@ -18,5 +19,9 @@ int main() {
     if(query.Raycast(physics,{0,0,std::numeric_limits<float>::quiet_NaN(),0,10,COLLISION_LAYER_DYNAMIC},hit)||query.LastError()!=GameplayPhysicsQueryError::InvalidRay||hit.entity!=dynamicPreserved.entity)return fail("nan");
     if(query.Raycast(physics,{0,0,-1,0,10,COLLISION_LAYER_DYNAMIC},hit)||query.LastError()!=GameplayPhysicsQueryError::NoHit||hit.entity!=dynamicPreserved.entity)return fail("miss");
     if(query.Raycast(physics,{0,0,1,0,10,COLLISION_LAYER_NONE},hit)||query.LastError()!=GameplayPhysicsQueryError::InvalidMask||hit.entity!=dynamicPreserved.entity)return fail("mask");
+    std::vector<EntityID> overlap; if(!query.OverlapCircle(physics,{2,0,0.25F,COLLISION_LAYER_DYNAMIC},overlap)||overlap.size()!=1U||overlap[0]!=staticEntity)return fail("overlap"); const std::vector<EntityID> overlapPreserved=overlap;
+    if(!query.OverlapCircle(physics,{20,0,0.25F,COLLISION_LAYER_DYNAMIC},overlap)||!overlap.empty())return fail("empty"); overlap=overlapPreserved;
+    if(query.OverlapCircle(physics,{0,0,-1,COLLISION_LAYER_DYNAMIC},overlap)||query.LastError()!=GameplayPhysicsQueryError::InvalidShape||overlap!=overlapPreserved)return fail("shape");
+    if(query.OverlapCircle(physics,{0,0,1,COLLISION_LAYER_NONE},overlap)||query.LastError()!=GameplayPhysicsQueryError::InvalidMask||overlap!=overlapPreserved)return fail("overlapMask");
     JobSystem::Get().Shutdown(); std::printf("GAMEPLAY_PHYSICS_QUERY_SMOKE_OK static=1 dynamic=1 atomic=1 noStepWrite=1\n"); return 0;
 }
