@@ -24,13 +24,16 @@ public:
     bool DeleteActor(uint32_t actorId, const AssetRegistry& assets);
     bool Save(EditorSceneDocument& document) const;
     bool SaveBytes(std::vector<uint8_t>& bytes) const;
+    [[nodiscard]] bool HasUnsavedChanges() const { return document_.revision != 0U && document_.revision != savedRevision_; }
     [[nodiscard]] std::vector<EditorSceneActor> HierarchySnapshot() const;
     bool InspectActor(uint32_t actorId, EditorSceneActor& actor) const;
     bool RenderViewport(RenderCamera& camera, SoftwareRenderer& renderer, const DirectionalLight& light);
     [[nodiscard]] const SceneWorld& World() const { return world_; }
     [[nodiscard]] EditorSceneSessionError LastError() const { return lastError_; }
 private:
+    bool OpenCandidate(const EditorSceneDocument& document, const AssetRegistry& assets, bool markSaved);
     EditorSceneDocument document_{};
+    mutable uint64_t savedRevision_ = 0;
     SceneWorld world_{};
     EditorSceneDocumentAdapter documentAdapter_{};
     SceneMeshAdapter meshes_{};

@@ -46,6 +46,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Editor scene session | [`EDITOR_SCENE_SESSION_V1.md`](EDITOR_SCENE_SESSION_V1.md) | Bounded hierarchy/inspector/save snapshot/viewport foundation over SceneDocument. |
 | Editor SceneDocument codec | [`EDITOR_SCENE_DOCUMENT_CODEC_V1.md`](EDITOR_SCENE_DOCUMENT_CODEC_V1.md) | Bounded deterministic in-memory SceneDocument envelope with atomic decode; not filesystem persistence or an asset importer. |
 | Editor session codec handoff | [`EDITOR_SCENE_SESSION_CODEC_HANDOFF_V1.md`](EDITOR_SCENE_SESSION_CODEC_HANDOFF_V1.md) | Bounded byte open/save seam delegating candidate documents back to canonical session and asset validation. |
+| Editor session dirty state | [`EDITOR_SCENE_SESSION_DIRTY_STATE_V1.md`](EDITOR_SCENE_SESSION_DIRTY_STATE_V1.md) | In-memory clean/dirty tracking around transactional session mutations and snapshot save semantics. |
 | Animation state machine | [`ANIMATION_STATE_MACHINE_V1.md`](ANIMATION_STATE_MACHINE_V1.md) | Bounded scalar states, explicit transitions, and deterministic linear blend over AnimationTimeline. |
 | Animation locomotion bridge | [`ANIMATION_LOCOMOTION_BRIDGE_V1.md`](ANIMATION_LOCOMOTION_BRIDGE_V1.md) | Read-only input-to-state trigger bridge that preserves transform and movement authority ownership. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
