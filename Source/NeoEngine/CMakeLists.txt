@@ -65,6 +65,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/ScenePhysicsPoseSync.cpp
     Runtime/TextureImportPipeline.cpp
     Runtime/MeshImportPipeline.cpp
+    Runtime/MaterialImportPipeline.cpp
     Runtime/TransformAnimationBinding.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/AtomicSaveFile.cpp
@@ -310,6 +311,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_import_pipeli
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_import_pipeline_smoke.cpp")
     add_xpbd_executable(mesh_import_pipeline_smoke ../../Tests/Runtime/mesh_import_pipeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/material_import_pipeline_smoke.cpp")
+    add_xpbd_executable(material_import_pipeline_smoke ../../Tests/Runtime/material_import_pipeline_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/transform_animation_binding_smoke.cpp")
     add_xpbd_executable(transform_animation_binding_smoke ../../Tests/Runtime/transform_animation_binding_smoke.cpp)

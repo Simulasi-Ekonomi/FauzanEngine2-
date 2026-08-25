@@ -56,6 +56,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Gameplay physics body | [`GAMEPLAY_PHYSICS_BODY_V1.md`](GAMEPLAY_PHYSICS_BODY_V1.md) | Validated static/dynamic circle-body creation through canonical ECS components. |
 | Texture import pipeline | [`TEXTURE_IMPORT_PIPELINE_V1.md`](TEXTURE_IMPORT_PIPELINE_V1.md) | Atomic in-memory PPM/BMP import through registry-ready-to-CPU-staging. |
 | Mesh import pipeline | [`MESH_IMPORT_PIPELINE_V1.md`](MESH_IMPORT_PIPELINE_V1.md) | Atomic in-memory OBJ import through registry-ready-to-CPU-mesh staging. |
+| Material import pipeline | [`MATERIAL_IMPORT_PIPELINE_V1.md`](MATERIAL_IMPORT_PIPELINE_V1.md) | Atomic in-memory named MTL material import through registry-ready-to-CPU-material staging. |
 | Asset import surface demo | [`ASSET_IMPORT_SURFACE_DEMO_V1.md`](ASSET_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ import-to-staged-resource-to-software-surface proof with PPM artifact. |
 | Motion animation surface demo | [`MOTION_ANIMATION_SURFACE_DEMO_V1.md`](MOTION_ANIMATION_SURFACE_DEMO_V1.md) | Finite single-writer kinematic movement, read-only locomotion animation, and sprite render proof. |
 | Kinematic collision preflight | [`KINEMATIC_COLLISION_PREFLIGHT_V1.md`](KINEMATIC_COLLISION_PREFLIGHT_V1.md) | Read-only XPBD raycast gate that blocks or delegates one kinematic transform write. |
