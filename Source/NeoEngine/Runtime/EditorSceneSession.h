@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class EditorSceneSessionError : uint8_t { None, InvalidDocument, DocumentLoadFailed, MeshBindFailed, SpriteBindFailed, CodecDecodeFailed, CodecEncodeFailed, UnknownActor, ActorHasChildren, ViewportRenderFailed };
+enum class EditorSceneSessionError : uint8_t { None, InvalidDocument, DocumentLoadFailed, MeshBindFailed, SpriteBindFailed, CodecDecodeFailed, CodecEncodeFailed, HistoryUnavailable, UnknownActor, ActorHasChildren, ViewportRenderFailed };
 
 // Bounded in-engine editor foundation. It owns a loaded SceneDocument snapshot
 // and its canonical runtime adapters; it has no desktop UI, filesystem, network,
@@ -25,17 +25,26 @@ public:
     bool Save(EditorSceneDocument& document) const;
     bool SaveBytes(std::vector<uint8_t>& bytes) const;
     bool RevertToSaved(const AssetRegistry& assets);
+    bool Undo(const AssetRegistry& assets);
+    bool Redo(const AssetRegistry& assets);
     [[nodiscard]] bool HasUnsavedChanges() const { return document_.revision != 0U && document_.revision != savedRevision_; }
+    [[nodiscard]] bool CanUndo() const { return !undoHistory_.empty(); }
+    [[nodiscard]] bool CanRedo() const { return !redoHistory_.empty(); }
     [[nodiscard]] std::vector<EditorSceneActor> HierarchySnapshot() const;
     bool InspectActor(uint32_t actorId, EditorSceneActor& actor) const;
     bool RenderViewport(RenderCamera& camera, SoftwareRenderer& renderer, const DirectionalLight& light);
     [[nodiscard]] const SceneWorld& World() const { return world_; }
     [[nodiscard]] EditorSceneSessionError LastError() const { return lastError_; }
 private:
+    static constexpr size_t kMaxHistory = 32;
     bool OpenCandidate(const EditorSceneDocument& document, const AssetRegistry& assets, bool markSaved);
+    bool CommitMutation(const EditorSceneDocument& candidate, const AssetRegistry& assets);
+    static void PushHistory(std::vector<EditorSceneDocument>& history, const EditorSceneDocument& document);
     EditorSceneDocument document_{};
     mutable EditorSceneDocument savedDocument_{};
     mutable uint64_t savedRevision_ = 0;
+    std::vector<EditorSceneDocument> undoHistory_{};
+    std::vector<EditorSceneDocument> redoHistory_{};
     SceneWorld world_{};
     EditorSceneDocumentAdapter documentAdapter_{};
     SceneMeshAdapter meshes_{};
