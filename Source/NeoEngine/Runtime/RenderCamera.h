@@ -17,6 +17,8 @@ public:
     bool SphereIntersectsFrustum(RenderPoint3 center, float radius);
     [[nodiscard]] RenderCameraError LastError() const { return lastError_; }
     [[nodiscard]] const RenderCameraConfig& Config() const { return config_; }
+    [[nodiscard]] RenderPoint3 Right() const { return right_; }
+    [[nodiscard]] RenderPoint3 Up() const { return correctedUp_; }
 private:
     RenderCameraConfig config_{}; RenderPoint3 right_{1.0F, 0.0F, 0.0F}; RenderPoint3 correctedUp_{0.0F, 1.0F, 0.0F}; RenderCameraError lastError_ = RenderCameraError::InvalidConfiguration; bool ready_ = false;
 };
