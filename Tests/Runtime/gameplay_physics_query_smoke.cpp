@@ -2,6 +2,7 @@
 #include "Runtime/GameplayPhysicsQuery.h"
 #include "Threading/JobSystem.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <limits>
@@ -23,5 +24,7 @@ int main() {
     if(!query.OverlapCircle(physics,{20,0,0.25F,COLLISION_LAYER_DYNAMIC},overlap)||!overlap.empty())return fail("empty"); overlap=overlapPreserved;
     if(query.OverlapCircle(physics,{0,0,-1,COLLISION_LAYER_DYNAMIC},overlap)||query.LastError()!=GameplayPhysicsQueryError::InvalidShape||overlap!=overlapPreserved)return fail("shape");
     if(query.OverlapCircle(physics,{0,0,1,COLLISION_LAYER_NONE},overlap)||query.LastError()!=GameplayPhysicsQueryError::InvalidMask||overlap!=overlapPreserved)return fail("overlapMask");
-    JobSystem::Get().Shutdown(); std::printf("GAMEPLAY_PHYSICS_QUERY_SMOKE_OK static=1 dynamic=1 atomic=1 noStepWrite=1\n"); return 0;
+    const EntityID secondEntity=entities.CreateEntity(flags); entities.SetPosX(secondEntity,2.25F); entities.SetRadius(secondEntity,0.5F); entities.SetInvMass(secondEntity,0.0F); physics.Step(entities,1.0F/60.0F); physics.SetEntityLayer(0,COLLISION_LAYER_DYNAMIC); physics.SetEntityLayer(1,COLLISION_LAYER_DYNAMIC); std::vector<EntityID> sortedOverlap;
+    if(!query.OverlapCircle(physics,{2,0,1.0F,COLLISION_LAYER_DYNAMIC},sortedOverlap)||sortedOverlap.size()!=2U||!std::is_sorted(sortedOverlap.begin(),sortedOverlap.end())||sortedOverlap[0]!=std::min(staticEntity,secondEntity)||sortedOverlap[1]!=std::max(staticEntity,secondEntity))return fail("sortedOverlap");
+    JobSystem::Get().Shutdown(); std::printf("GAMEPLAY_PHYSICS_QUERY_SMOKE_OK static=1 dynamic=1 sorted=1 atomic=1 noStepWrite=1\n"); return 0;
 }

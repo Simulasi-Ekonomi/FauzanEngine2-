@@ -1,5 +1,6 @@
 #include "Runtime/GameplayPhysicsQuery.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace NeoEngine {
@@ -15,7 +16,7 @@ bool GameplayPhysicsQuery::OverlapCircle(const XPBDPhysicsSystem& physics, const
     if (circle.mask == COLLISION_LAYER_NONE) { lastError_ = GameplayPhysicsQueryError::InvalidMask; return false; }
     const std::vector<uint32_t> raw = physics.OverlapSphere(circle.centerX, circle.centerZ, circle.radius, circle.mask);
     if (raw.size() > kMaxOverlapHits) { lastError_ = GameplayPhysicsQueryError::Capacity; return false; }
-    std::vector<EntityID> candidate; candidate.reserve(raw.size()); for (const uint32_t index : raw) { EntityID entity = 0; if (!physics.TryGetEntityId(index, entity)) { lastError_ = GameplayPhysicsQueryError::EntityMappingFailed; return false; } candidate.push_back(entity); }
+    std::vector<EntityID> candidate; candidate.reserve(raw.size()); for (const uint32_t index : raw) { EntityID entity = 0; if (!physics.TryGetEntityId(index, entity)) { lastError_ = GameplayPhysicsQueryError::EntityMappingFailed; return false; } candidate.push_back(entity); } std::sort(candidate.begin(), candidate.end());
     entities = std::move(candidate); lastError_ = GameplayPhysicsQueryError::None; return true;
 }
 } // namespace NeoEngine
