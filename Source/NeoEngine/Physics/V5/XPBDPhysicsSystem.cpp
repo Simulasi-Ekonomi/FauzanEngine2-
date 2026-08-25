@@ -1624,6 +1624,10 @@ bool XPBDPhysicsSystem::Raycast(float ox, float oz, float dx, float dz, float ma
     }
     return hit;
 }
+bool XPBDPhysicsSystem::TryGetEntityId(uint32_t flatIdx, EntityID& entityId) const {
+    if (flatIdx >= m_activeFlatEntities || flatIdx >= m_flatEntityIDs.size()) return false;
+    entityId = m_flatEntityIDs[flatIdx]; return true;
+}
 void XPBDPhysicsSystem::SetEntityLayer(uint32_t flatIdx, CollisionMask layer) { if (flatIdx < m_EntityLayers.size()) m_EntityLayers[flatIdx] = layer; }
 CollisionMask XPBDPhysicsSystem::GetEntityLayer(uint32_t flatIdx) const { return (flatIdx < m_EntityLayers.size()) ? m_EntityLayers[flatIdx] : COLLISION_LAYER_NONE; }
 

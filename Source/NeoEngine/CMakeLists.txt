@@ -57,6 +57,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AnimationTimeline.cpp
     Runtime/AnimationStateMachine.cpp
     Runtime/AnimationLocomotionBridge.cpp
+    Runtime/GameplayPhysicsQuery.cpp
     Runtime/TransformAnimationBinding.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/AtomicSaveFile.cpp
@@ -274,6 +275,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_state_machi
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp")
     add_xpbd_executable(animation_locomotion_bridge_smoke ../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_physics_query_smoke.cpp")
+    add_xpbd_executable(gameplay_physics_query_smoke ../../Tests/Runtime/gameplay_physics_query_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/transform_animation_binding_smoke.cpp")
     add_xpbd_executable(transform_animation_binding_smoke ../../Tests/Runtime/transform_animation_binding_smoke.cpp)

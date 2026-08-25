@@ -175,6 +175,7 @@ public:
     void EnableGPUBroadphase(bool enable);
 
     bool Raycast(float originX, float originZ, float dirX, float dirZ, float maxDist, RayHit& outHit, CollisionMask mask = 0xFFFFFFFF) const;
+    bool TryGetEntityId(uint32_t flatIdx, EntityID& entityId) const;
     void SetEntityLayer(uint32_t flatIdx, CollisionMask layer);
     CollisionMask GetEntityLayer(uint32_t flatIdx) const;
 
