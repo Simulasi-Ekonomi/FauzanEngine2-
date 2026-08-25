@@ -1,6 +1,7 @@
 #include "Runtime/EditorSceneSession.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace NeoEngine {
 bool EditorSceneSession::Open(const EditorSceneDocument& document, const AssetRegistry& assets) {
@@ -11,6 +12,13 @@ bool EditorSceneSession::Open(const EditorSceneDocument& document, const AssetRe
     if (hasKind(EditorSceneActorKind::Mesh)) { EditorSceneMeshBinder binder; if (!binder.BindDocumentAssets(document, documentAdapter, assets, meshStaging, materialStaging, textureStaging, meshes)) { lastError_ = EditorSceneSessionError::MeshBindFailed; return false; } }
     if (hasKind(EditorSceneActorKind::Sprite)) { EditorSceneSpriteBinder binder; if (!binder.BindDocumentAssets(document, documentAdapter, assets, textureStaging, sprites)) { lastError_ = EditorSceneSessionError::SpriteBindFailed; return false; } }
     document_ = document; world_ = std::move(world); documentAdapter_ = std::move(documentAdapter); meshes_ = std::move(meshes); sprites_ = std::move(sprites); renderer_ = {}; lastError_ = EditorSceneSessionError::None; return true;
+}
+bool EditorSceneSession::UpdateTransform(uint32_t actorId, const Transform3& transform, const AssetRegistry& assets) {
+    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    EditorSceneDocument candidate = document_; const auto found = std::find_if(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
+    if (found == candidate.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
+    found->transform = transform; ++candidate.revision;
+    return Open(candidate, assets);
 }
 bool EditorSceneSession::Save(EditorSceneDocument& document) const { if (document_.revision == 0U) return false; document = document_; return true; }
 std::vector<EditorSceneActor> EditorSceneSession::HierarchySnapshot() const { std::vector<EditorSceneActor> snapshot = document_.actors; std::sort(snapshot.begin(), snapshot.end(), [](const EditorSceneActor& left, const EditorSceneActor& right) { return left.id < right.id; }); return snapshot; }
