@@ -31,6 +31,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Mesh camera-space | [`MESH_CAMERA_SPACE_V1.md`](MESH_CAMERA_SPACE_V1.md) | Orientation-correct mesh near clipping and perspective depth through RenderCamera camera-space. |
 | Mesh basic lighting | [`MESH_BASIC_LIGHTING_V1.md`](MESH_BASIC_LIGHTING_V1.md) | Bounded directional intensity and RGBA material tint across software mesh textures. |
 | Mesh renderer atomic draw | [`MESH_RENDERER_ATOMIC_DRAW_V1.md`](MESH_RENDERER_ATOMIC_DRAW_V1.md) | Candidate-frame mesh draw that preserves the caller framebuffer on projection/raster rejection. |
+| Mesh frustum clipping | [`MESH_FRUSTUM_CLIPPING_V1.md`](MESH_FRUSTUM_CLIPPING_V1.md) | Bounded six-plane camera-space clipping, normal off-frustum culling, and preserved atomic draw behavior. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |

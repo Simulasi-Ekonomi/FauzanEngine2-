@@ -33,7 +33,7 @@ bool RunMeshSurfaceDemo(const MeshSurfaceDemoConfig& config, MeshSurfaceDemoRece
     MeshRenderer mesh;
     for (uint32_t frame = 0; frame < config.frames; ++frame) {
         if (!renderer.Clear(kClear)) { error = MeshSurfaceDemoError::ClearFailed; return false; }
-        if (!mesh.Draw(vertices, indices, {{0.0F, 0.0F, 0.0F}, 1.0F, {0.0F, 0.0F, 0.0F}}, material, light, camera, renderer)) { error = MeshSurfaceDemoError::MeshDrawFailed; return false; }
+        if (!mesh.Draw(vertices, indices, {{0.0F, 0.0F, 0.0F}, 1.0F, {0.0F, static_cast<float>(frame) * 0.08F, 0.0F}}, material, light, camera, renderer)) { error = MeshSurfaceDemoError::MeshDrawFailed; return false; }
         if (!surface.PumpEvents()) { error = MeshSurfaceDemoError::SurfacePumpFailed; return false; }
         if (surface.CloseRequested()) { error = MeshSurfaceDemoError::SurfaceCloseRequested; return false; }
         if (!surface.Present(renderer)) { error = MeshSurfaceDemoError::SurfacePresentFailed; return false; }

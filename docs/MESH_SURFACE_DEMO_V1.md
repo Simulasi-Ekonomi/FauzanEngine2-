@@ -4,7 +4,7 @@
 
 `MeshSurfaceDemo` adalah **vertical slice renderer 3D finite** untuk memeriksa satu jalur aktif secara utuh: `RenderCamera` perspektif, `MeshRenderer`, texture CPU 2×2, material tint, directional light, framebuffer `SoftwareRenderer`, lifecycle `SoftwareSurfacePresenter`, dan artefak PPM. Ia tidak menggunakan `NeoRuntime`, Farm, `SceneWorld`, RouteIntent, `MovementAuthorityGate`, registry asset, agent, maupun authority ekonomi.
 
-> Demo ini membuktikan presentasi 3D software yang terbatas dan terukur. Ia **bukan** host desktop interaktif, gameplay, animasi mesh, renderer GPU, APK, atau bukti kesiapan rilis.
+> Demo ini membuktikan presentasi 3D software yang terbatas dan terukur. Ia **bukan** host desktop interaktif, gameplay, animation system, renderer GPU, APK, atau bukti kesiapan rilis.
 
 | Kontrak | Ketentuan fail-closed |
 |---|---|
@@ -21,7 +21,7 @@ Texture checker 2×2 dalam demo adalah `CpuTextureResource` immutable yang valid
 
 Kamera berada di origin dengan mode perspective, FOV vertikal 60°, near clip 0,1, far clip 20, dan aspect ratio yang diturunkan dari konfigurasi surface. Mesh berada pada ruang kamera positif, memakai material `0xFFE6F4FF`, ambient `0,15`, directional `0,85`, serta light menuju `-Z` dengan intensitas 1.
 
-Demo sengaja memakai **pose mesh statis** untuk seluruh frame. Trial rotasi pose piramida tidak diteruskan karena jalur mesh saat ini hanya memiliki near-plane clipping dan belum memenuhi kontrak projection untuk semua pose yang melampaui frustum. Mengganti kegagalan itu dengan klaim animasi akan tidak jujur; animation mesh tetap berada pada Fase C dan clipping frustum lengkap tetap gate Fase A.
+Demo mengubah pose Y piramida secara kecil dan deterministic pada setiap frame finite. Hal ini hanya memeriksa transform mesh bersama clipping frustum aktif; ini bukan playback skeletal, state machine, blend, root motion, atau animation system. Perubahan pose dibatasi agar konfigurasi default tetap menghasilkan pixel non-latar pada frame akhir.
 
 ## Antarmuka executable
 
@@ -47,4 +47,4 @@ build=/home/ubuntu/work/fauzan_engine/build/neoengine
 
 Demo ini memanggil `PumpEvents` sebelum setiap present dan membatalkan operasi jika `CloseRequested`, tetapi ia tidak menyediakan event loop desktop, resize, DPI, vsync, pacing, input, fullscreen, maupun recovery window. Kontrak close injection dan reset tetap diuji pada `software_surface_presenter_smoke`; demo ini hanya mengonsumsi kontrak tersebut secara fail-closed.
 
-Jalur 3D masih tidak mempunyai side/far-plane clipping penuh, scene-wide culling, PBR, shadow, multiple lights, material graph, skeletal playback, physics/collision, profiling frame, GPU render path, atau benchmark device target. Karena itu vertical slice ini tidak membuktikan game 3D playable, host desktop lengkap, atau readiness produksi/rilis.
+Jalur 3D sudah memiliki clipping frustum lokal pada MeshRenderer, tetapi masih tidak mempunyai scene-wide culling, PBR, shadow, multiple lights, material graph, skeletal playback, physics/collision, profiling frame, GPU render path, atau benchmark device target. Karena itu vertical slice ini tidak membuktikan game 3D playable, host desktop lengkap, atau readiness produksi/rilis.
