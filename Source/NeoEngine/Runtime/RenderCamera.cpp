@@ -24,11 +24,17 @@ bool RenderCamera::Initialize(const RenderCameraConfig& config) {
     correctedUp_ = correctedUp;
     ready_ = true; lastError_ = RenderCameraError::None; return true;
 }
-bool RenderCamera::Project(RenderPoint3 world, RenderPoint3& clip) {
-    if (!ready_) { lastError_ = RenderCameraError::InvalidConfiguration; return false; }
-    if (!Finite(world)) { lastError_ = RenderCameraError::InvalidConfiguration; return false; }
+bool RenderCamera::WorldToCamera(RenderPoint3 world, RenderPoint3& cameraSpace) {
+    if (!ready_ || !Finite(world)) { lastError_ = RenderCameraError::InvalidConfiguration; return false; }
     const RenderPoint3 relative{world.x - config_.position.x, world.y - config_.position.y, world.z - config_.position.z};
-    const float x = Dot(relative, right_), y = Dot(relative, correctedUp_), z = Dot(relative, config_.forward);
+    cameraSpace = {Dot(relative, right_), Dot(relative, correctedUp_), Dot(relative, config_.forward)};
+    if (!Finite(cameraSpace)) { lastError_ = RenderCameraError::InvalidConfiguration; return false; }
+    return true;
+}
+bool RenderCamera::Project(RenderPoint3 world, RenderPoint3& clip) {
+    RenderPoint3 cameraSpace{};
+    if (!WorldToCamera(world, cameraSpace)) return false;
+    const float x = cameraSpace.x, y = cameraSpace.y, z = cameraSpace.z;
     if (config_.mode == RenderCameraMode::Orthographic) { const float halfWidth = config_.orthographicHalfHeight * config_.aspect; clip = {x / halfWidth, y / config_.orthographicHalfHeight, (z - config_.nearPlane) / (config_.farPlane - config_.nearPlane)}; }
     else { if (z < config_.nearPlane) { lastError_ = RenderCameraError::BehindCamera; return false; } const float tanHalf = std::tan(config_.verticalFovDegrees * 0.00872664626F); clip = {x / (z * tanHalf * config_.aspect), y / (z * tanHalf), (z - config_.nearPlane) / (config_.farPlane - config_.nearPlane)}; }
     if (!std::isfinite(clip.x) || !std::isfinite(clip.y) || !std::isfinite(clip.z) || std::fabs(clip.x) > 1.0F || std::fabs(clip.y) > 1.0F || clip.z < 0.0F || clip.z > 1.0F) { lastError_ = RenderCameraError::OutsideClip; return false; }
