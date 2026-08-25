@@ -20,7 +20,7 @@ int main() {
     const std::vector<AuthoringCatalogVisualBinding> bindings{{AuthoringSceneObjectKind::Building, 30, "farm.mesh", "farm.material", "grass", "farm.texture"}, {AuthoringSceneObjectKind::Actor, 40, "farm.mesh", "farm.material", "grass", "farm.texture"}};
     if (!binder.Bind(catalog, assets, meshes, materials, textures, bindings, adapter) || adapter.Instances().size() != 2U) return 1;
     RenderCamera camera; SoftwareRenderer renderer;
-    if (!camera.Initialize({RenderCameraMode::Perspective, {0, 0, 0}, 5, 90, 1, 0.1F, 20}) || !renderer.Initialize(64, 64) || !renderer.Clear(0xFF000000U) || !adapter.Draw(world, camera, renderer, {{0, 0, -1}}) || renderer.PixelAt(32, 32) != 0xFFFF0000U) return 1;
+    if (!camera.Initialize({RenderCameraMode::Perspective, {0, 0, 0}, 5, 90, 1, 0.1F, 20}) || !renderer.Initialize(64, 64) || !renderer.Clear(0xFF000000U) || !adapter.Draw(world, camera, renderer, {{0, 0, -1}}) || (renderer.PixelAt(32, 32) & 0x00FF0000U) == 0U) return 1;
     const uint64_t prior = renderer.FrameHash();
     const std::vector<AuthoringCatalogVisualBinding> duplicate{{AuthoringSceneObjectKind::Actor, 40, "farm.mesh", "farm.material", "grass", "farm.texture"}, {AuthoringSceneObjectKind::Actor, 40, "farm.mesh", "farm.material", "grass", "farm.texture"}};
     if (binder.Bind(catalog, assets, meshes, materials, textures, duplicate, adapter) || binder.LastError() != AuthoringCatalogVisualBinderError::DuplicateBinding || adapter.Instances().size() != 2U) return 1;

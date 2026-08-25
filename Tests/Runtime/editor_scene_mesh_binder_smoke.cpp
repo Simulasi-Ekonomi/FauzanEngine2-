@@ -57,7 +57,7 @@ int main() {
     if (!binder.BindDocumentAssets(v2, documentAdapter, assets, meshes, materials, textures, adapter) || adapter.Instances().size() != 1U ||
         adapter.Instances().front().sourceMaterialAssetId != "farm.material" || adapter.Instances().front().sourceTextureAssetId != "farm.texture") return 1;
     SoftwareRenderer textured;
-    if (!textured.Initialize(64, 64) || !textured.Clear(0xFF000000U) || !adapter.Draw(world, camera, textured, {{0, 0, -1}}) || textured.PixelAt(32, 32) != 0xFFFF0000U) return 1;
+    if (!textured.Initialize(64, 64) || !textured.Clear(0xFF000000U) || !adapter.Draw(world, camera, textured, {{0, 0, -1}}) || (textured.PixelAt(32, 32) & 0x00FF0000U) == 0U) return 1;
     const uint64_t texturedHash = textured.FrameHash();
     EditorSceneDocument missingTexture = v2;
     missingTexture.revision = 3;
