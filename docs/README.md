@@ -14,6 +14,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Hermes reconciliation | [`HERMES_ARCHIVE_RECONCILIATION_2026-08-24.md`](HERMES_ARCHIVE_RECONCILIATION_2026-08-24.md) | Reconciliation of the obsolete `1281664` clone scan against current GitHub `main`. |
 | Vault and APK readiness | [`VAULT_APK_ENGINE_READINESS_ASSESSMENT_2026-08-24.md`](VAULT_APK_ENGINE_READINESS_ASSESSMENT_2026-08-24.md) | Evidence-based vault exclusion, APK dependency, and engine readiness assessment. |
 | Phase 1 codebase audit | [`PHASE_1_ENGINE_CODEBASE_AUDIT.md`](PHASE_1_ENGINE_CODEBASE_AUDIT.md) | Active-source, legacy, placeholder, agent, and capability-gap inventory for the game-builder program. |
+| Fase A renderer baseline | [`PHASE_A_RENDERER_BASELINE_2026-08-25.md`](PHASE_A_RENDERER_BASELINE_2026-08-25.md) | Consolidated renderer evidence, active seams, unfulfilled gates, and non-readiness boundary. |
 | Scene mesh binding | [`SCENE_DOCUMENT_MESH_BINDING_V1.md`](SCENE_DOCUMENT_MESH_BINDING_V1.md) | Bounded authoring scene-to-staged mesh/material runtime binding contract and evidence. |
 | SceneDocument v2 | [`SCENE_DOCUMENT_V2.md`](SCENE_DOCUMENT_V2.md) | Versioned mesh/material/texture authoring contract, NAB1 compatibility, NAB2 bridge, and current evidence. |
 | SceneDocument v3 sprite binding | [`SCENE_DOCUMENT_SPRITE_BINDING_V1.md`](SCENE_DOCUMENT_SPRITE_BINDING_V1.md) | Bounded sprite authoring, NAB3 compatibility, staged CPU texture, and software-rendered 2D quad contract. |
