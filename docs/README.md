@@ -18,6 +18,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | SceneDocument v2 | [`SCENE_DOCUMENT_V2.md`](SCENE_DOCUMENT_V2.md) | Versioned mesh/material/texture authoring contract, NAB1 compatibility, NAB2 bridge, and current evidence. |
 | SceneDocument v3 sprite binding | [`SCENE_DOCUMENT_SPRITE_BINDING_V1.md`](SCENE_DOCUMENT_SPRITE_BINDING_V1.md) | Bounded sprite authoring, NAB3 compatibility, staged CPU texture, and software-rendered 2D quad contract. |
 | Farm sprite rendering | [`FARM_SPRITE_RENDERING_V1.md`](FARM_SPRITE_RENDERING_V1.md) | Read-only FarmSystem/FarmWorldTool textured presentation with candidate staging and frame replacement boundary. |
+| Farm player input | [`FARM_PLAYER_INPUT_BRIDGE_V1.md`](FARM_PLAYER_INPUT_BRIDGE_V1.md) | Bounded local input-to-move/crop bridge that routes through existing FarmWorld authority APIs. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
