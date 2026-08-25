@@ -30,6 +30,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Render camera orientation | [`RENDER_CAMERA_ORIENTATION_V1.md`](RENDER_CAMERA_ORIENTATION_V1.md) | Validated orientation basis shared by orthographic sprite/Farm and perspective mesh projection. |
 | Camera sphere frustum | [`RENDER_CAMERA_SPHERE_FRUSTUM_V1.md`](RENDER_CAMERA_SPHERE_FRUSTUM_V1.md) | Reusable conservative oriented camera-space sphere-frustum query. |
 | Sprite alpha and tint | [`SPRITE_ALPHA_TINT_V1.md`](SPRITE_ALPHA_TINT_V1.md) | Deterministic layer/order-preserving alpha composition and textured RGBA tint for SpriteBatch. |
+| Sprite atlas source rectangle | [`SPRITE_ATLAS_SOURCE_RECT_V1.md`](SPRITE_ATLAS_SOURCE_RECT_V1.md) | Bounded CPU texture-atlas source rectangle with preserved full-texture default and atomic flush. |
 | Sprite batch atomic flush | [`SPRITE_BATCH_ATOMIC_FLUSH_V1.md`](SPRITE_BATCH_ATOMIC_FLUSH_V1.md) | Candidate-frame flush that preserves the caller framebuffer on sprite projection/raster rejection. |
 | Sprite frustum clipping | [`SPRITE_FRUSTUM_CLIPPING_V1.md`](SPRITE_FRUSTUM_CLIPPING_V1.md) | Bounded six-plane quad clipping, normal off-frustum culling, and preserved atomic SpriteBatch behavior. |
 | Sprite rotation | [`SPRITE_ROTATION_V1.md`](SPRITE_ROTATION_V1.md) | Finite center-pivot quad rotation before clipping, with preserved tint/alpha/ordering contracts. |
