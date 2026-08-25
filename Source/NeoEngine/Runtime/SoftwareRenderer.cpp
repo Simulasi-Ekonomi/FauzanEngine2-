@@ -47,7 +47,7 @@ bool SoftwareRenderer::Clear(uint32_t rgba) {
     return true;
 }
 
-bool SoftwareRenderer::DrawTriangle(const RenderVertex& a, const RenderVertex& b, const RenderVertex& c, bool alphaBlend) {
+bool SoftwareRenderer::DrawTriangle(const RenderVertex& a, const RenderVertex& b, const RenderVertex& c, bool alphaBlend, bool depthWrite) {
     if (m_Pixels.empty() || !ValidClip(a.x, a.y, a.z) || !ValidClip(b.x, b.y, b.z) || !ValidClip(c.x, c.y, c.z)) return false;
     const auto screenX = [this](float x) { return (x * 0.5F + 0.5F) * static_cast<float>(m_Width - 1U); };
     const auto screenY = [this](float y) { return (1.0F - (y * 0.5F + 0.5F)) * static_cast<float>(m_Height - 1U); };
@@ -66,14 +66,14 @@ bool SoftwareRenderer::DrawTriangle(const RenderVertex& a, const RenderVertex& b
         const size_t index = static_cast<size_t>(y) * m_Width + static_cast<size_t>(x);
         const float depth = wA * a.z + wB * b.z + wC * c.z;
         if (depth <= m_Depth[index]) {
-            m_Depth[index] = depth;
+            if (depthWrite) m_Depth[index] = depth;
             m_Pixels[index] = alphaBlend ? Blend(a.rgba, m_Pixels[index]) : a.rgba;
         }
     }
     return true;
 }
 
-bool SoftwareRenderer::DrawTexturedTriangle(const TexturedRenderVertex& a, const TexturedRenderVertex& b, const TexturedRenderVertex& c, const std::vector<uint8_t>& rgba, uint16_t textureWidth, uint16_t textureHeight, uint32_t tint, bool alphaBlend) {
+bool SoftwareRenderer::DrawTexturedTriangle(const TexturedRenderVertex& a, const TexturedRenderVertex& b, const TexturedRenderVertex& c, const std::vector<uint8_t>& rgba, uint16_t textureWidth, uint16_t textureHeight, uint32_t tint, bool alphaBlend, bool depthWrite) {
     const auto valid = [](const TexturedRenderVertex& value) { return ValidClip(value.x, value.y, value.z) && std::isfinite(value.u) && std::isfinite(value.v) && std::isfinite(value.light) && std::isfinite(value.reciprocalDepth) && value.u >= 0.0F && value.u <= 1.0F && value.v >= 0.0F && value.v <= 1.0F && value.light >= 0.0F && value.light <= 1.0F && value.reciprocalDepth > 0.0F; };
     if (m_Pixels.empty() || textureWidth == 0U || textureHeight == 0U || textureWidth > 4096U || textureHeight > 4096U || rgba.size() != static_cast<size_t>(textureWidth) * textureHeight * 4U || !valid(a) || !valid(b) || !valid(c)) return false;
     const auto screenX = [this](float x) { return (x * 0.5F + 0.5F) * static_cast<float>(m_Width - 1U); };
@@ -104,7 +104,7 @@ bool SoftwareRenderer::DrawTexturedTriangle(const TexturedRenderVertex& a, const
         const size_t texel = (static_cast<size_t>(ty) * textureWidth + tx) * 4U;
         const auto channel = [&](size_t offset) { return static_cast<uint32_t>(std::clamp(std::lround(static_cast<float>(rgba[texel + offset]) * light), 0L, 255L)); };
         const uint32_t texelColor = (static_cast<uint32_t>(rgba[texel + 3U]) << 24U) | (channel(0U) << 16U) | (channel(1U) << 8U) | channel(2U);
-        m_Depth[index] = depth;
+        if (depthWrite) m_Depth[index] = depth;
         const uint32_t source = Modulate(texelColor, tint);
         m_Pixels[index] = alphaBlend ? Blend(source, m_Pixels[index]) : source;
     }

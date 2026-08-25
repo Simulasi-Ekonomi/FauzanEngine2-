@@ -34,6 +34,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Sprite frustum clipping | [`SPRITE_FRUSTUM_CLIPPING_V1.md`](SPRITE_FRUSTUM_CLIPPING_V1.md) | Bounded six-plane quad clipping, normal off-frustum culling, and preserved atomic SpriteBatch behavior. |
 | Sprite rotation | [`SPRITE_ROTATION_V1.md`](SPRITE_ROTATION_V1.md) | Finite center-pivot quad rotation before clipping, with preserved tint/alpha/ordering contracts. |
 | Sprite camera billboard | [`SPRITE_CAMERA_BILLBOARD_V1.md`](SPRITE_CAMERA_BILLBOARD_V1.md) | Opt-in camera-basis sprite billboard retaining local rotation and renderer contracts. |
+| Sprite alpha depth-write | [`SPRITE_ALPHA_DEPTH_WRITE_V1.md`](SPRITE_ALPHA_DEPTH_WRITE_V1.md) | Explicit depth-write policy for alpha SpriteBatch composition. |
 | Mesh camera-space | [`MESH_CAMERA_SPACE_V1.md`](MESH_CAMERA_SPACE_V1.md) | Orientation-correct mesh near clipping and perspective depth through RenderCamera camera-space. |
 | Mesh basic lighting | [`MESH_BASIC_LIGHTING_V1.md`](MESH_BASIC_LIGHTING_V1.md) | Bounded directional intensity and RGBA material tint across software mesh textures. |
 | Mesh renderer atomic draw | [`MESH_RENDERER_ATOMIC_DRAW_V1.md`](MESH_RENDERER_ATOMIC_DRAW_V1.md) | Candidate-frame mesh draw that preserves the caller framebuffer on projection/raster rejection. |
