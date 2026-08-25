@@ -12,7 +12,7 @@ Fase A telah menghasilkan **baseline renderer software yang lebih terintegrasi d
 | Vertical slice Farm | `farm_surface_demo_smoke`, commit `3bb4a93` | Farm finite merender dan menghasilkan PPM 256×256 melalui NeoRuntime. | Bukan game interaktif, input window, UI, audio, networking, atau APK. |
 | Vertical slice mesh 3D | `mesh_surface_demo_smoke` | Mesh perspektif berpose finite dengan CPU texture, material tint, directional light, lifecycle SDL, dan PPM berjalan melalui jalur renderer kanonis. | Bukan animation system, game 3D playable, atau host desktop persisten. |
 | Kamera | `render_camera_smoke`, commits `db5f21f` dan `534e633` | Orthographic/perspective memakai orientasi forward/up tervalidasi; mesh memakai camera-space. | Tanpa controller, follow target, frustum culling penuh, stereo, atau matrices publik. |
-| Sprite | `sprite_batch_smoke`, commits `c30173b` dan `03cbc2d` | Sorting stabil layer/order/sequence, alpha/tint, dan flush framebuffer atomik. | Tanpa atlas, flipbook, clipping quad, GPU batching, atau transparency sort kompleks. |
+| Sprite | `sprite_batch_smoke`, commits `c30173b` dan `03cbc2d` | Sorting stabil layer/order/sequence, alpha/tint, clipping frustum quad enam bidang, dan flush framebuffer atomik. | Tanpa atlas, flipbook, rotation/nine-slice, GPU batching, atau transparency sort kompleks. |
 | Mesh/material/texture | `mesh_renderer_smoke`, commits `534e633`, `21b4466`, dan `94660cb` | Six-plane camera-space clipping/depth, staged PPM/BMP texture, material tint, bounded Lambert intensity, dan draw atomik. | Tanpa scene-wide culling, PBR, shadow, normal map, multiple lights, atau GPU mesh path. |
 | Authoring-to-runtime visual seams | `editor_scene_mesh_binder_smoke`, `authoring_catalog_visual_binder_smoke` | Jalur staged material/texture tetap tervalidasi setelah tint material diterapkan. | Tidak menggantikan editor visual atau tool authoring lengkap. |
 
@@ -39,7 +39,7 @@ Hal yang sama berlaku untuk renderer surface. `NeoRuntime` tetap headless secara
 |---|---|
 | Host window interaktif | Demo finite kini memompa event dan membatalkan present setelah close request, tetapi belum ada pump event window berkelanjutan, resize, DPI, pacing, atau vsync policy. |
 | GPU runtime renderer | Vulkan yang ada masih berupa probe/offscreen terpisah; belum menerima output NeoRuntime/Farm/MeshRenderer aktif. |
-| 2D production path | Atlas, animation/flipbook, clipping, sampler modes, render target, dan performance batching belum ada. |
+| 2D production path | Atlas, animation/flipbook, rotation/nine-slice, sampler modes, render target, dan performance batching belum ada. |
 | 3D production path | Culling scene-wide, PBR, shadows, multiple lights, material graph, skeletal GPU skinning, animation system yang tervalidasi, dan profiling frame belum ada. |
 | Hardware evidence | Belum ada hasil build/run surface visible pada device target, compatibility matrix driver, atau benchmark render workload. |
 | Release evidence | Belum ada installer/package, APK/AAB, UX testing, telemetry release, multiplayer, anti-cheat release, atau Play gate. |
