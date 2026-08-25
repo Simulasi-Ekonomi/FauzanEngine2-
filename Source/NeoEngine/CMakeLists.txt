@@ -55,6 +55,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/UiInputRouter.cpp
     Runtime/UiCanvasRenderer.cpp
     Runtime/AnimationTimeline.cpp
+    Runtime/AnimationStateMachine.cpp
     Runtime/TransformAnimationBinding.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/AtomicSaveFile.cpp
@@ -266,6 +267,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/ui_canvas_renderer_sm
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_timeline_smoke.cpp")
     add_xpbd_executable(animation_timeline_smoke ../../Tests/Runtime/animation_timeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_state_machine_smoke.cpp")
+    add_xpbd_executable(animation_state_machine_smoke ../../Tests/Runtime/animation_state_machine_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/transform_animation_binding_smoke.cpp")
     add_xpbd_executable(transform_animation_binding_smoke ../../Tests/Runtime/transform_animation_binding_smoke.cpp)
