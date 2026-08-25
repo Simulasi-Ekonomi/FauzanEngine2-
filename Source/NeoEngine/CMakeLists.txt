@@ -112,6 +112,7 @@ set(XPBD_RUNTIME_SOURCES
     Demos/MeshSurfaceDemo.cpp
     Demos/AssetImportSurfaceDemo.cpp
     Demos/MaterialImportSurfaceDemo.cpp
+    Demos/MaterialRefreshSurfaceDemo.cpp
     Demos/MotionAnimationSurfaceDemo.cpp
     Demos/TriggerRuntimeSurfaceDemo.cpp
     Demos/TriggerAnimationSurfaceDemo.cpp
@@ -379,6 +380,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_import_surface_
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/material_import_surface_demo_smoke.cpp")
     add_xpbd_executable(material_import_surface_demo_smoke ../../Tests/Runtime/material_import_surface_demo_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/material_refresh_surface_demo_smoke.cpp")
+    add_xpbd_executable(material_refresh_surface_demo_smoke ../../Tests/Runtime/material_refresh_surface_demo_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/motion_animation_surface_demo_smoke.cpp")
     add_xpbd_executable(motion_animation_surface_demo_smoke ../../Tests/Runtime/motion_animation_surface_demo_smoke.cpp)

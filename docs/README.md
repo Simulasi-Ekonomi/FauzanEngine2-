@@ -59,6 +59,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Mesh import pipeline | [`MESH_IMPORT_PIPELINE_V1.md`](MESH_IMPORT_PIPELINE_V1.md) | Atomic in-memory OBJ import through registry-ready-to-CPU-mesh staging. |
 | Material import pipeline | [`MATERIAL_IMPORT_PIPELINE_V1.md`](MATERIAL_IMPORT_PIPELINE_V1.md) | Atomic in-memory named MTL material import through registry-ready-to-CPU-material staging. |
 | Material import pipeline refresh | [`MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md`](MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md) | Explicit candidate/commit in-memory MTL replacement into an existing staged named material. |
+| Material refresh surface demo | [`MATERIAL_REFRESH_SURFACE_DEMO_V1.md`](MATERIAL_REFRESH_SURFACE_DEMO_V1.md) | Caller-invoked MTL replacement plus explicit staged SceneMeshAdapter refresh to a finite software surface. |
 | Material import surface demo | [`MATERIAL_IMPORT_SURFACE_DEMO_V1.md`](MATERIAL_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ/MTL import through staged mesh-plus-material scene binding to a software surface. |
 | Asset import surface demo | [`ASSET_IMPORT_SURFACE_DEMO_V1.md`](ASSET_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ import-to-staged-resource-to-software-surface proof with PPM artifact. |
 | Motion animation surface demo | [`MOTION_ANIMATION_SURFACE_DEMO_V1.md`](MOTION_ANIMATION_SURFACE_DEMO_V1.md) | Finite single-writer kinematic movement, read-only locomotion animation, and sprite render proof. |
