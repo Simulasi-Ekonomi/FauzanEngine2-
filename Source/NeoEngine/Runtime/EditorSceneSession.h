@@ -17,6 +17,7 @@ class EditorSceneSession {
 public:
     bool Open(const EditorSceneDocument& document, const AssetRegistry& assets);
     bool UpdateTransform(uint32_t actorId, const Transform3& transform, const AssetRegistry& assets);
+    bool ReparentActor(uint32_t actorId, uint32_t parentId, const AssetRegistry& assets);
     bool Save(EditorSceneDocument& document) const;
     [[nodiscard]] std::vector<EditorSceneActor> HierarchySnapshot() const;
     bool InspectActor(uint32_t actorId, EditorSceneActor& actor) const;
