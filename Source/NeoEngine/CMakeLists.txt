@@ -96,6 +96,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanPresentProbe.cpp
     Demos/FarmSurfaceDemo.cpp
     Demos/MeshSurfaceDemo.cpp
+    Demos/HybridSurfaceDemo.cpp
     Runtime/FarmRenderAdapter.cpp
     Runtime/FarmSpriteRenderAdapter.cpp
     Runtime/FarmPlayerInputBridge.cpp
@@ -320,6 +321,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_surface_demo_smo
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Demos/mesh_surface_demo.cpp")
     add_xpbd_executable(mesh_surface_demo ../../Demos/mesh_surface_demo.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/hybrid_surface_demo_smoke.cpp")
+    add_xpbd_executable(hybrid_surface_demo_smoke ../../Tests/Runtime/hybrid_surface_demo_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Demos/hybrid_surface_demo.cpp")
+    add_xpbd_executable(hybrid_surface_demo ../../Demos/hybrid_surface_demo.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/ppm_texture_smoke.cpp")
     add_xpbd_executable(ppm_texture_smoke ../../Tests/Runtime/ppm_texture_smoke.cpp)

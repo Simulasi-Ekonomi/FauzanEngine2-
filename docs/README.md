@@ -26,6 +26,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Surface resize observation | [`SOFTWARE_SURFACE_RESIZE_OBSERVATION_V1.md`](SOFTWARE_SURFACE_RESIZE_OBSERVATION_V1.md) | Read-only SDL resize-event observation with unchanged renderer/texture dimensions. |
 | Farm surface demo | [`FARM_SURFACE_DEMO_V1.md`](FARM_SURFACE_DEMO_V1.md) | Finite native Farm graphical vertical slice with SDL presentation and PPM artifact output. |
 | Mesh surface demo | [`MESH_SURFACE_DEMO_V1.md`](MESH_SURFACE_DEMO_V1.md) | Finite static 3D mesh proof through perspective camera, texture/material/light, SDL presentation, and PPM artifact output. |
+| Hybrid surface demo | [`HYBRID_SURFACE_DEMO_V1.md`](HYBRID_SURFACE_DEMO_V1.md) | Finite mesh-texture plus camera-billboard sprite proof through SDL presentation and PPM output. |
 | Render camera orientation | [`RENDER_CAMERA_ORIENTATION_V1.md`](RENDER_CAMERA_ORIENTATION_V1.md) | Validated orientation basis shared by orthographic sprite/Farm and perspective mesh projection. |
 | Camera sphere frustum | [`RENDER_CAMERA_SPHERE_FRUSTUM_V1.md`](RENDER_CAMERA_SPHERE_FRUSTUM_V1.md) | Reusable conservative oriented camera-space sphere-frustum query. |
 | Sprite alpha and tint | [`SPRITE_ALPHA_TINT_V1.md`](SPRITE_ALPHA_TINT_V1.md) | Deterministic layer/order-preserving alpha composition and textured RGBA tint for SpriteBatch. |
