@@ -44,6 +44,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Scene render adapter | [`SCENE_RENDER_ADAPTER_V1.md`](SCENE_RENDER_ADAPTER_V1.md) | Atomic mesh-first plus sprite scene composition entry point. |
 | Scene sprite render properties | [`SCENE_SPRITE_RENDER_PROPERTIES_V1.md`](SCENE_SPRITE_RENDER_PROPERTIES_V1.md) | Staged sprite rotation, camera billboard, and depth-write propagation. |
 | Editor scene session | [`EDITOR_SCENE_SESSION_V1.md`](EDITOR_SCENE_SESSION_V1.md) | Bounded hierarchy/inspector/save snapshot/viewport foundation over SceneDocument. |
+| Editor SceneDocument codec | [`EDITOR_SCENE_DOCUMENT_CODEC_V1.md`](EDITOR_SCENE_DOCUMENT_CODEC_V1.md) | Bounded deterministic in-memory SceneDocument envelope with atomic decode; not filesystem persistence or an asset importer. |
 | Animation state machine | [`ANIMATION_STATE_MACHINE_V1.md`](ANIMATION_STATE_MACHINE_V1.md) | Bounded scalar states, explicit transitions, and deterministic linear blend over AnimationTimeline. |
 | Animation locomotion bridge | [`ANIMATION_LOCOMOTION_BRIDGE_V1.md`](ANIMATION_LOCOMOTION_BRIDGE_V1.md) | Read-only input-to-state trigger bridge that preserves transform and movement authority ownership. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
