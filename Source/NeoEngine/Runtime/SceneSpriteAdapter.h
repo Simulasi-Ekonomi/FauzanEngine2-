@@ -18,6 +18,7 @@ public:
     static constexpr size_t kMaxInstances = 512;
     bool AddStaged(SceneEntity entity, const CpuTextureResource& texture, float width, float height, int16_t layer, int16_t order, uint32_t rgba, float rotationRadians = 0.0F, bool faceCamera = false, bool depthWrite = true);
     bool Queue(const SceneWorld& world, SpriteBatch& batch) const;
+    bool QueueTinted(const SceneWorld& world, SpriteBatch& batch, uint32_t frameRgba) const;
     void Clear();
     [[nodiscard]] size_t InstanceCount() const { return instances_.size(); }
     [[nodiscard]] SceneSpriteAdapterError LastError() const { return lastError_; }
