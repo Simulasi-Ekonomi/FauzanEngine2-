@@ -37,6 +37,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Mesh basic lighting | [`MESH_BASIC_LIGHTING_V1.md`](MESH_BASIC_LIGHTING_V1.md) | Bounded directional intensity and RGBA material tint across software mesh textures. |
 | Mesh renderer atomic draw | [`MESH_RENDERER_ATOMIC_DRAW_V1.md`](MESH_RENDERER_ATOMIC_DRAW_V1.md) | Candidate-frame mesh draw that preserves the caller framebuffer on projection/raster rejection. |
 | Mesh frustum clipping | [`MESH_FRUSTUM_CLIPPING_V1.md`](MESH_FRUSTUM_CLIPPING_V1.md) | Bounded six-plane camera-space clipping, normal off-frustum culling, and preserved atomic draw behavior. |
+| Mesh double-sided material | [`MESH_DOUBLE_SIDED_MATERIAL_V1.md`](MESH_DOUBLE_SIDED_MATERIAL_V1.md) | Default two-sided raster versus explicit back-face culling contract. |
 | Scene mesh oriented culling | [`SCENE_MESH_ORIENTED_CULLING_V1.md`](SCENE_MESH_ORIENTED_CULLING_V1.md) | Conservative instance bounding-sphere culling in oriented camera space. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
