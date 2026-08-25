@@ -45,6 +45,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Scene sprite render properties | [`SCENE_SPRITE_RENDER_PROPERTIES_V1.md`](SCENE_SPRITE_RENDER_PROPERTIES_V1.md) | Staged sprite rotation, camera billboard, and depth-write propagation. |
 | Editor scene session | [`EDITOR_SCENE_SESSION_V1.md`](EDITOR_SCENE_SESSION_V1.md) | Bounded hierarchy/inspector/save snapshot/viewport foundation over SceneDocument. |
 | Animation state machine | [`ANIMATION_STATE_MACHINE_V1.md`](ANIMATION_STATE_MACHINE_V1.md) | Bounded scalar states, explicit transitions, and deterministic linear blend over AnimationTimeline. |
+| Animation locomotion bridge | [`ANIMATION_LOCOMOTION_BRIDGE_V1.md`](ANIMATION_LOCOMOTION_BRIDGE_V1.md) | Read-only input-to-state trigger bridge that preserves transform and movement authority ownership. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
