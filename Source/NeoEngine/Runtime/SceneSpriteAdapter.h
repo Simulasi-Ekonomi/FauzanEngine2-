@@ -16,13 +16,13 @@ enum class SceneSpriteAdapterError : uint8_t { None, Capacity, InvalidResource, 
 class SceneSpriteAdapter {
 public:
     static constexpr size_t kMaxInstances = 512;
-    bool AddStaged(SceneEntity entity, const CpuTextureResource& texture, float width, float height, int16_t layer, int16_t order, uint32_t rgba);
+    bool AddStaged(SceneEntity entity, const CpuTextureResource& texture, float width, float height, int16_t layer, int16_t order, uint32_t rgba, float rotationRadians = 0.0F, bool faceCamera = false, bool depthWrite = true);
     bool Queue(const SceneWorld& world, SpriteBatch& batch) const;
     void Clear();
     [[nodiscard]] size_t InstanceCount() const { return instances_.size(); }
     [[nodiscard]] SceneSpriteAdapterError LastError() const { return lastError_; }
 private:
-    struct Instance { SceneEntity entity{}; CpuTextureResource texture{}; float width = 1.0F; float height = 1.0F; int16_t layer = 0; int16_t order = 0; uint32_t rgba = 0xFFFFFFFFU; };
+    struct Instance { SceneEntity entity{}; CpuTextureResource texture{}; float width = 1.0F; float height = 1.0F; int16_t layer = 0; int16_t order = 0; uint32_t rgba = 0xFFFFFFFFU; float rotationRadians = 0.0F; bool faceCamera = false; bool depthWrite = true; };
     bool Fail(SceneSpriteAdapterError error) const;
     std::deque<Instance> instances_;
     mutable SceneSpriteAdapterError lastError_ = SceneSpriteAdapterError::None;
