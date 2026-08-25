@@ -78,6 +78,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AuthoringCatalogVisualBinder.cpp
     Runtime/LocalAuthoringBridge.cpp
     Runtime/SceneMeshAdapter.cpp
+    Runtime/SceneRenderAdapter.cpp
     Runtime/KinematicMotionController.cpp
     Runtime/MovementAuthority.cpp
     Runtime/InputMotionBridge.cpp
@@ -249,6 +250,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/mesh_staging_smoke.
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/scene_mesh_adapter_smoke.cpp")
     add_xpbd_executable(scene_mesh_adapter_smoke ../../Tests/Rendering/scene_mesh_adapter_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/scene_render_adapter_smoke.cpp")
+    add_xpbd_executable(scene_render_adapter_smoke ../../Tests/Rendering/scene_render_adapter_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/bitmap_text_renderer_smoke.cpp")
     add_xpbd_executable(bitmap_text_renderer_smoke ../../Tests/Rendering/bitmap_text_renderer_smoke.cpp)
