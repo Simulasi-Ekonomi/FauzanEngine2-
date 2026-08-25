@@ -31,6 +31,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Sprite alpha and tint | [`SPRITE_ALPHA_TINT_V1.md`](SPRITE_ALPHA_TINT_V1.md) | Deterministic layer/order-preserving alpha composition and textured RGBA tint for SpriteBatch. |
 | Sprite batch atomic flush | [`SPRITE_BATCH_ATOMIC_FLUSH_V1.md`](SPRITE_BATCH_ATOMIC_FLUSH_V1.md) | Candidate-frame flush that preserves the caller framebuffer on sprite projection/raster rejection. |
 | Sprite frustum clipping | [`SPRITE_FRUSTUM_CLIPPING_V1.md`](SPRITE_FRUSTUM_CLIPPING_V1.md) | Bounded six-plane quad clipping, normal off-frustum culling, and preserved atomic SpriteBatch behavior. |
+| Sprite rotation | [`SPRITE_ROTATION_V1.md`](SPRITE_ROTATION_V1.md) | Finite center-pivot quad rotation before clipping, with preserved tint/alpha/ordering contracts. |
 | Mesh camera-space | [`MESH_CAMERA_SPACE_V1.md`](MESH_CAMERA_SPACE_V1.md) | Orientation-correct mesh near clipping and perspective depth through RenderCamera camera-space. |
 | Mesh basic lighting | [`MESH_BASIC_LIGHTING_V1.md`](MESH_BASIC_LIGHTING_V1.md) | Bounded directional intensity and RGBA material tint across software mesh textures. |
 | Mesh renderer atomic draw | [`MESH_RENDERER_ATOMIC_DRAW_V1.md`](MESH_RENDERER_ATOMIC_DRAW_V1.md) | Candidate-frame mesh draw that preserves the caller framebuffer on projection/raster rejection. |
