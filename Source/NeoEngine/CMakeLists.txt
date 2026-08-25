@@ -59,6 +59,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AnimationLocomotionBridge.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayPhysicsBody.cpp
+    Runtime/KinematicCollisionPreflight.cpp
     Runtime/TextureImportPipeline.cpp
     Runtime/MeshImportPipeline.cpp
     Runtime/TransformAnimationBinding.cpp
@@ -286,6 +287,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_physics_quer
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_physics_body_smoke.cpp")
     add_xpbd_executable(gameplay_physics_body_smoke ../../Tests/Runtime/gameplay_physics_body_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/kinematic_collision_preflight_smoke.cpp")
+    add_xpbd_executable(kinematic_collision_preflight_smoke ../../Tests/Runtime/kinematic_collision_preflight_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_import_pipeline_smoke.cpp")
     add_xpbd_executable(texture_import_pipeline_smoke ../../Tests/Runtime/texture_import_pipeline_smoke.cpp)
