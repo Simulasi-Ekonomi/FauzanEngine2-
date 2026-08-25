@@ -51,6 +51,8 @@ public:
     void SetVelZ(EntityID id, float v) { auto* c = entityToChunk_[id]; if(c&&c->velZ) { c->velZ[entityToIndex_[id]] = v; MarkPhysicsDirty(); } }
     void SetRadius(EntityID id, float v) { auto* c = entityToChunk_[id]; if(c&&c->radius) { c->radius[entityToIndex_[id]] = v; MarkPhysicsDirty(); } }
     void SetInvMass(EntityID id, float v) { auto* c = entityToChunk_[id]; if(c&&c->invMass) { c->invMass[entityToIndex_[id]] = v; MarkPhysicsDirty(); } }
+    [[nodiscard]] bool HasEntity(EntityID id) const { return entityToChunk_.contains(id); }
+    [[nodiscard]] bool HasPosition(EntityID id) const { const auto it = entityToChunk_.find(id); return it != entityToChunk_.end() && it->second != nullptr && it->second->posX != nullptr; }
     void MarkPhysicsDirty() { ++physicsRevision_; }
     uint64_t GetPhysicsRevision() const { return physicsRevision_; }
     

@@ -54,6 +54,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Motion animation surface demo | [`MOTION_ANIMATION_SURFACE_DEMO_V1.md`](MOTION_ANIMATION_SURFACE_DEMO_V1.md) | Finite single-writer kinematic movement, read-only locomotion animation, and sprite render proof. |
 | Kinematic collision preflight | [`KINEMATIC_COLLISION_PREFLIGHT_V1.md`](KINEMATIC_COLLISION_PREFLIGHT_V1.md) | Read-only XPBD raycast gate that blocks or delegates one kinematic transform write. |
 | Gameplay trigger tracker | [`GAMEPLAY_TRIGGER_TRACKER_V1.md`](GAMEPLAY_TRIGGER_TRACKER_V1.md) | Read-only XPBD circle-overlap enter/exit deltas with candidate-commit state. |
+| Scene physics pose sync | [`SCENE_PHYSICS_POSE_SYNC_V1.md`](SCENE_PHYSICS_POSE_SYNC_V1.md) | One-way candidate-validated SceneWorld X/Z mirror into canonical ECS physics positions. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |

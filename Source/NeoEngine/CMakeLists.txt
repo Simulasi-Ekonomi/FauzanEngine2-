@@ -61,6 +61,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/GameplayPhysicsBody.cpp
     Runtime/KinematicCollisionPreflight.cpp
     Runtime/GameplayTriggerTracker.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
     Runtime/TextureImportPipeline.cpp
     Runtime/MeshImportPipeline.cpp
     Runtime/TransformAnimationBinding.cpp
@@ -294,6 +295,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/kinematic_collision_p
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_trigger_tracker_smoke.cpp")
     add_xpbd_executable(gameplay_trigger_tracker_smoke ../../Tests/Runtime/gameplay_trigger_tracker_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_physics_pose_sync_smoke.cpp")
+    add_xpbd_executable(scene_physics_pose_sync_smoke ../../Tests/Runtime/scene_physics_pose_sync_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_import_pipeline_smoke.cpp")
     add_xpbd_executable(texture_import_pipeline_smoke ../../Tests/Runtime/texture_import_pipeline_smoke.cpp)
