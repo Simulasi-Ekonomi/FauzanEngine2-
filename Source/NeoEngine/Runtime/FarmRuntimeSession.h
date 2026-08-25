@@ -1,0 +1,42 @@
+#pragma once
+
+#include "FarmPlayerInputBridge.h"
+#include "FarmSpriteRenderAdapter.h"
+#include "InputState.h"
+
+#include <cstdint>
+
+namespace NeoEngine {
+class AssetRegistry;
+class FarmSystem;
+class FarmWorldTool;
+class SoftwareRenderer;
+class TextureStagingStore;
+
+enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected };
+
+// Explicit host-side lifecycle only. It owns neither simulation authority nor
+// asset registry; it orchestrates existing bounded components for one frame.
+class FarmRuntimeSession {
+public:
+    bool Initialize(FarmSystem& farm, FarmWorldTool& world, const FarmSpriteAssetSet& assets, const AssetRegistry& registry, TextureStagingStore& textures, SoftwareRenderer& renderer);
+    bool Frame(InputState& input, uint32_t simulationTicks = 1);
+    FarmPlayerInputBridge& InputBridge() { return inputBridge_; }
+    [[nodiscard]] uint64_t FrameCount() const { return frameCount_; }
+    [[nodiscard]] FarmRuntimeSessionError LastError() const { return lastError_; }
+    [[nodiscard]] bool IsReady() const { return initialized_; }
+private:
+    bool Fail(FarmRuntimeSessionError error);
+    FarmSystem* farm_ = nullptr;
+    FarmWorldTool* world_ = nullptr;
+    const FarmSpriteAssetSet* assets_ = nullptr;
+    const AssetRegistry* registry_ = nullptr;
+    TextureStagingStore* textures_ = nullptr;
+    SoftwareRenderer* renderer_ = nullptr;
+    FarmPlayerInputBridge inputBridge_{};
+    FarmSpriteRenderAdapter rendererBridge_{};
+    uint64_t frameCount_ = 0;
+    FarmRuntimeSessionError lastError_ = FarmRuntimeSessionError::NotInitialized;
+    bool initialized_ = false;
+};
+} // namespace NeoEngine
