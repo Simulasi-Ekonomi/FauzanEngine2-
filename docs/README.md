@@ -50,6 +50,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Gameplay physics body | [`GAMEPLAY_PHYSICS_BODY_V1.md`](GAMEPLAY_PHYSICS_BODY_V1.md) | Validated static/dynamic circle-body creation through canonical ECS components. |
 | Texture import pipeline | [`TEXTURE_IMPORT_PIPELINE_V1.md`](TEXTURE_IMPORT_PIPELINE_V1.md) | Atomic in-memory PPM/BMP import through registry-ready-to-CPU-staging. |
 | Mesh import pipeline | [`MESH_IMPORT_PIPELINE_V1.md`](MESH_IMPORT_PIPELINE_V1.md) | Atomic in-memory OBJ import through registry-ready-to-CPU-mesh staging. |
+| Asset import surface demo | [`ASSET_IMPORT_SURFACE_DEMO_V1.md`](ASSET_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ import-to-staged-resource-to-software-surface proof with PPM artifact. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
