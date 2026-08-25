@@ -149,7 +149,7 @@ bool NeoRuntime::ReplanRouteMotion() {
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
     if (!FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, *m_Renderer)) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_SurfacePresenter != nullptr && !m_SurfacePresenter->Present(*m_Renderer)) { m_LastError = RuntimeError::PresentationFailed; return false; }
+    if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(*m_Renderer))) { m_LastError = RuntimeError::PresentationFailed; return false; }
     return true;
 }
 

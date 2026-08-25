@@ -19,11 +19,20 @@ bool SoftwareSurfacePresenter::Initialize(SoftwareSurfacePresenterConfig config)
     if (renderer == nullptr) { SDL_DestroyWindow(window); SDL_QuitSubSystem(SDL_INIT_VIDEO); return Fail(SoftwareSurfacePresenterError::RendererFailed); }
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, static_cast<int>(config.width), static_cast<int>(config.height));
     if (texture == nullptr) { SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); SDL_QuitSubSystem(SDL_INIT_VIDEO); return Fail(SoftwareSurfacePresenterError::TextureFailed); }
-    window_ = window; renderer_ = renderer; texture_ = texture; width_ = config.width; height_ = config.height; presentedFrameCount_ = 0; lastPresentedHash_ = 0; lastError_ = SoftwareSurfacePresenterError::None; return true;
+    window_ = window; renderer_ = renderer; texture_ = texture; width_ = config.width; height_ = config.height; presentedFrameCount_ = 0; lastPresentedHash_ = 0; closeRequested_ = false; lastError_ = SoftwareSurfacePresenterError::None; return true;
+}
+
+bool SoftwareSurfacePresenter::PumpEvents() {
+    if (!IsReady()) return Fail(SoftwareSurfacePresenterError::NotInitialized);
+    SDL_Event event{};
+    while (SDL_PollEvent(&event) != 0) if (event.type == SDL_QUIT || (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)) closeRequested_ = true;
+    lastError_ = SoftwareSurfacePresenterError::None;
+    return true;
 }
 
 bool SoftwareSurfacePresenter::Present(const SoftwareRenderer& source) {
     if (!IsReady()) return Fail(SoftwareSurfacePresenterError::NotInitialized);
+    if (closeRequested_) return Fail(SoftwareSurfacePresenterError::CloseRequested);
     if (source.Width() != width_ || source.Height() != height_ || source.Pixels().size() != static_cast<size_t>(width_) * height_) return Fail(SoftwareSurfacePresenterError::DimensionMismatch);
     SDL_Texture* texture = static_cast<SDL_Texture*>(texture_);
     SDL_Renderer* renderer = static_cast<SDL_Renderer*>(renderer_);
@@ -36,6 +45,6 @@ void SoftwareSurfacePresenter::Reset() {
     if (renderer_ != nullptr) SDL_DestroyRenderer(static_cast<SDL_Renderer*>(renderer_));
     if (window_ != nullptr) SDL_DestroyWindow(static_cast<SDL_Window*>(window_));
     if (window_ != nullptr || renderer_ != nullptr || texture_ != nullptr) SDL_QuitSubSystem(SDL_INIT_VIDEO);
-    window_ = nullptr; renderer_ = nullptr; texture_ = nullptr; width_ = 0; height_ = 0; presentedFrameCount_ = 0; lastPresentedHash_ = 0;
+    window_ = nullptr; renderer_ = nullptr; texture_ = nullptr; width_ = 0; height_ = 0; presentedFrameCount_ = 0; lastPresentedHash_ = 0; closeRequested_ = false;
 }
 } // namespace NeoEngine
