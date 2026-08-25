@@ -27,6 +27,19 @@ bool EditorSceneSession::ReparentActor(uint32_t actorId, uint32_t parentId, cons
     found->parentId = parentId; ++candidate.revision;
     return Open(candidate, assets);
 }
+bool EditorSceneSession::AddActor(const EditorSceneActor& actor, const AssetRegistry& assets) {
+    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    EditorSceneDocument candidate = document_; candidate.actors.push_back(actor); ++candidate.revision;
+    return Open(candidate, assets);
+}
+bool EditorSceneSession::DeleteActor(uint32_t actorId, const AssetRegistry& assets) {
+    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    EditorSceneDocument candidate = document_; const auto found = std::find_if(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
+    if (found == candidate.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
+    if (std::any_of(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.parentId == actorId; })) { lastError_ = EditorSceneSessionError::ActorHasChildren; return false; }
+    candidate.actors.erase(found); ++candidate.revision;
+    return Open(candidate, assets);
+}
 bool EditorSceneSession::Save(EditorSceneDocument& document) const { if (document_.revision == 0U) return false; document = document_; return true; }
 std::vector<EditorSceneActor> EditorSceneSession::HierarchySnapshot() const { std::vector<EditorSceneActor> snapshot = document_.actors; std::sort(snapshot.begin(), snapshot.end(), [](const EditorSceneActor& left, const EditorSceneActor& right) { return left.id < right.id; }); return snapshot; }
 bool EditorSceneSession::InspectActor(uint32_t actorId, EditorSceneActor& actor) const { const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& candidate) { return candidate.id == actorId; }); if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; } actor = *found; lastError_ = EditorSceneSessionError::None; return true; }
