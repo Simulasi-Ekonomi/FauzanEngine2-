@@ -73,6 +73,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/TextureStaging.cpp
     Runtime/SceneWorld.cpp
     Runtime/EditorSceneDocument.cpp
+    Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneMeshBinder.cpp
     Runtime/EditorSceneSpriteBinder.cpp
     Runtime/AuthoringCatalogVisualBinder.cpp
@@ -346,6 +347,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_world_smoke.cpp
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_document_smoke.cpp")
     add_xpbd_executable(editor_scene_document_smoke ../../Tests/Runtime/editor_scene_document_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_session_smoke.cpp")
+    add_xpbd_executable(editor_scene_session_smoke ../../Tests/Runtime/editor_scene_session_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_mesh_binder_smoke.cpp")
     add_xpbd_executable(editor_scene_mesh_binder_smoke ../../Tests/Runtime/editor_scene_mesh_binder_smoke.cpp)
