@@ -21,6 +21,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Farm player input | [`FARM_PLAYER_INPUT_BRIDGE_V1.md`](FARM_PLAYER_INPUT_BRIDGE_V1.md) | Bounded local input-to-move/crop bridge that routes through existing FarmWorld authority APIs. |
 | Farm runtime session | [`FARM_RUNTIME_SESSION_V1.md`](FARM_RUNTIME_SESSION_V1.md) | Explicit input → FarmWorld tick → staged sprite frame lifecycle with scoped failure behavior. |
 | Software surface presenter | [`SOFTWARE_SURFACE_PRESENTER_V1.md`](SOFTWARE_SURFACE_PRESENTER_V1.md) | Optional SDL upload/present seam from canonical SoftwareRenderer and NeoRuntime Farm. |
+| Farm surface demo | [`FARM_SURFACE_DEMO_V1.md`](FARM_SURFACE_DEMO_V1.md) | Finite native Farm graphical vertical slice with SDL presentation and PPM artifact output. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
