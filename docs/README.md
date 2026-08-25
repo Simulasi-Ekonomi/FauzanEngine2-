@@ -24,6 +24,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Farm surface demo | [`FARM_SURFACE_DEMO_V1.md`](FARM_SURFACE_DEMO_V1.md) | Finite native Farm graphical vertical slice with SDL presentation and PPM artifact output. |
 | Render camera orientation | [`RENDER_CAMERA_ORIENTATION_V1.md`](RENDER_CAMERA_ORIENTATION_V1.md) | Validated orientation basis shared by orthographic sprite/Farm and perspective mesh projection. |
 | Sprite alpha and tint | [`SPRITE_ALPHA_TINT_V1.md`](SPRITE_ALPHA_TINT_V1.md) | Deterministic layer/order-preserving alpha composition and textured RGBA tint for SpriteBatch. |
+| Sprite batch atomic flush | [`SPRITE_BATCH_ATOMIC_FLUSH_V1.md`](SPRITE_BATCH_ATOMIC_FLUSH_V1.md) | Candidate-frame flush that preserves the caller framebuffer on sprite projection/raster rejection. |
 | Mesh camera-space | [`MESH_CAMERA_SPACE_V1.md`](MESH_CAMERA_SPACE_V1.md) | Orientation-correct mesh near clipping and perspective depth through RenderCamera camera-space. |
 | Mesh basic lighting | [`MESH_BASIC_LIGHTING_V1.md`](MESH_BASIC_LIGHTING_V1.md) | Bounded directional intensity and RGBA material tint across software mesh textures. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |

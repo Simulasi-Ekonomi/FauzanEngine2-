@@ -11,6 +11,7 @@ int main() {
     batch.Clear(); if (!renderer.Clear(0xFF0000FFU) || !batch.Queue({0,0,1,2,2,0,0,0x80FF0000U}) || !batch.Flush(renderer,camera) || renderer.PixelAt(28,32) != 0xFF80007FU) return 1;
     CpuTextureResource texture{"sprite.tint", 1U, TextureSourceFormat::PpmP6, 1, 1, {255U,255U,255U,255U}};
     batch.Clear(); if (!renderer.Clear(0xFF0000FFU) || !batch.Queue({0,0,1,2,2,0,0,0x80FF0000U,&texture}) || !batch.Flush(renderer,camera) || renderer.PixelAt(28,32) != 0xFF80007FU) return 1;
-    const uint64_t hash = renderer.FrameHash(); batch.Clear(); if (batch.Count()!=0 || batch.Queue({0,0,1,0,1,0,0,0xFFFFFFFF}) || batch.LastError()!=SpriteBatchError::InvalidSize) return 1;
-    std::printf("SPRITE_BATCH_SMOKE_OK sprites=2 stableLayer=1 alphaTint=1 pixel=blend hash=%llu\n",static_cast<unsigned long long>(hash)); return 0;
+    const uint64_t hash = renderer.FrameHash(); batch.Clear(); if (!renderer.Clear(0xFF123456U) || !batch.Queue({0,0,1,2,2,0,0,0xFFFFFFFFU}) || !batch.Queue({100,0,1,2,2,0,1,0xFFFFFFFFU})) return 1; const uint64_t prior = renderer.FrameHash(); if (batch.Flush(renderer,camera) || batch.LastError()!=SpriteBatchError::ProjectionFailed || renderer.FrameHash()!=prior) return 1;
+    batch.Clear(); if (batch.Count()!=0 || batch.Queue({0,0,1,0,1,0,0,0xFFFFFFFF}) || batch.LastError()!=SpriteBatchError::InvalidSize) return 1;
+    std::printf("SPRITE_BATCH_SMOKE_OK sprites=2 stableLayer=1 alphaTint=1 atomicReject=1 pixel=blend hash=%llu\n",static_cast<unsigned long long>(hash)); return 0;
 }
