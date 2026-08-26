@@ -368,7 +368,7 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
     return true;
 }
 bool ActorComponentWorld::RestoreSnapshot(const ActorComponentWorldSnapshot& snapshot) {
-    if (dispatching_ || snapshot.actors.size() != actorCount_ || snapshot.componentBytes.size() > kMaxActorComponentWorldSnapshotBytes) return Fail(dispatching_ ? ActorComponentError::MutationDuringDispatch : ActorComponentError::RestoreRejected);
+    if (dispatching_ || snapshot.actors.size() != actorCount_ || snapshot.begunPlay != begunPlay_ || snapshot.componentBytes.size() > kMaxActorComponentWorldSnapshotBytes) return Fail(dispatching_ ? ActorComponentError::MutationDuringDispatch : ActorComponentError::RestoreRejected);
     uint32_t expectedComponentCount = 0U;
     for (const ActorComponentSnapshot& record : snapshot.actors) {
         const ActorSlot* actor = FindActorSlot(record.actor);

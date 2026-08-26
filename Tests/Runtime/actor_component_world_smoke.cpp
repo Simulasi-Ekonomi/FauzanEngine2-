@@ -127,6 +127,9 @@ int main() {
     invalidSnapshot = structuralSnapshot;
     invalidSnapshot.actors[0].componentTypeNames[0] = "DifferentComponent";
     if (actors.RestoreSnapshot(invalidSnapshot) || actors.LastError() != ActorComponentError::RestoreRejected || movementView->snapshotValue != 99U || actors.IsComponentEnabled(hero, 10U)) return 12;
+    invalidSnapshot = structuralSnapshot;
+    invalidSnapshot.begunPlay = false;
+    if (actors.RestoreSnapshot(invalidSnapshot) || actors.LastError() != ActorComponentError::RestoreRejected || movementView->snapshotValue != 99U || actors.IsComponentEnabled(hero, 10U)) return 12;
     if (!actors.RestoreSnapshot(structuralSnapshot) || movementView->snapshotValue != 42U || !actors.IsComponentEnabled(hero, 10U) || !actors.IsComponentActive(hero, 11U)) return 12;
     if (!actors.SetComponentActive(hero, 11U, false) || actors.IsComponentActive(hero, 11U) || renderView->deactivateCount != 1U || !actors.SetComponentActive(hero, 11U, true) || !actors.IsComponentActive(hero, 11U) || renderView->activateCount != 2U) return 10;
     if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 11;
