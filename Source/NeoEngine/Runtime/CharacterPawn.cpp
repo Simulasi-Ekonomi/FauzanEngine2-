@@ -373,6 +373,10 @@ bool CharacterPawn::RestoreSnapshot(std::span<const uint8_t> bytes) {
     if (!DecodeCharacterSnapshot(bytes, snapshot) || !ValidCharacterSnapshot(snapshot, actor_, config_, animation_)) return false;
     return Restore(snapshot);
 }
+bool CharacterPawn::CollectAnimationEvents(const AnimationTimeline& timeline, float fromTime, float toTime, std::vector<std::string>& output) const {
+    if (!attached_) return false;
+    return animation_.CollectAnimationEvents(timeline, fromTime, toTime, output);
+}
 
 bool CharacterPawn::TriggerOverlay(std::string_view transitionId) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);

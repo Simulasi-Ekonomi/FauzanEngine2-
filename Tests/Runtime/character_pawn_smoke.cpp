@@ -26,7 +26,7 @@ int main() {
     ActorComponentWorldReceipt receipt{};
     if (!characterView->SubmitInput({}) || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 1U) return 6;
     std::vector<std::string> animationEvents{"sentinel"};
-    if (!graph.CollectAnimationEvents(timeline, 0.0F, 0.02F, animationEvents) || animationEvents.size() != 1U || animationEvents[0] != "idle_notify") return 7;
+    if (!characterView->CollectAnimationEvents(timeline, 0.0F, 0.02F, animationEvents) || animationEvents.size() != 1U || animationEvents[0] != "idle_notify") return 7;
     animationEvents = {"preserved"};
     if (graph.CollectAnimationEvents(timeline, 1.0F, 0.0F, animationEvents) || animationEvents.size() != 1U || animationEvents[0] != "preserved") return 7;
     CharacterPawnSnapshot snapshot{};

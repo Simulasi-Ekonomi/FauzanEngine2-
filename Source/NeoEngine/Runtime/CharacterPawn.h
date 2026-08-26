@@ -130,6 +130,7 @@ public:
     [[nodiscard]] bool CaptureSnapshot(std::span<uint8_t> bytes) const override;
     [[nodiscard]] bool ValidateSnapshot(std::span<const uint8_t> bytes) const override;
     [[nodiscard]] bool RestoreSnapshot(std::span<const uint8_t> bytes) override;
+    [[nodiscard]] bool CollectAnimationEvents(const AnimationTimeline& timeline, float fromTime, float toTime, std::vector<std::string>& output) const;
 
     [[nodiscard]] bool BindMovementAuthorityGate(MovementAuthorityGate* gate);
     [[nodiscard]] bool BindAnimationResource(AssetResourceManager* resources, AssetResourceHandle handle);
