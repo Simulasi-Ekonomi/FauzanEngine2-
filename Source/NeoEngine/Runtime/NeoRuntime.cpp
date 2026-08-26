@@ -156,8 +156,8 @@ bool NeoRuntime::RenderFarm() {
     if (!FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate)) { m_LastError = RuntimeError::RenderFailed; return false; }
     const uint64_t worldHash = candidate.FrameHash(); const FarmTelemetrySnapshot telemetry = m_Farm->Snapshot(); uint64_t hudHash = 0U;
     if (m_FarmRuntimeHud != nullptr) { const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry}; if (!m_FarmRuntimeHud->Draw(receipt, candidate)) { m_LastError = RuntimeError::HudFailed; return false; } hudHash = candidate.FrameHash(); }
-    const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; m_LastError = RuntimeError::None;
-    if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(*m_Renderer))) { m_LastError = RuntimeError::PresentationFailed; return false; }
+    if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(candidate))) { m_LastError = RuntimeError::PresentationFailed; return false; }
+    const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, m_SurfacePresenter == nullptr ? 0U : m_SurfacePresenter->PresentedFrameCount(), telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; m_LastError = RuntimeError::None;
     return true;
 }
 
