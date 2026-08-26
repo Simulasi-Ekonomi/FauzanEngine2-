@@ -4,6 +4,7 @@
 #include <cstring>
 #include <memory>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,12 @@ class RejectDeactivationComponent final : public ProbeComponent {
 public:
     RejectDeactivationComponent() : ProbeComponent(22U) {}
     bool OnDeactivate(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { return false; }
+};
+
+class ThrowingTickComponent final : public ProbeComponent {
+public:
+    ThrowingTickComponent() : ProbeComponent(23U) {}
+    bool OnFixedTick(NeoEngine::SceneWorld&, NeoEngine::SceneEntity, uint32_t) override { throw std::runtime_error("tick failure"); }
 };
 
 class MissingDependencyComponent final : public ProbeComponent {
@@ -187,5 +194,11 @@ int main() {
     if (!restoreWorld.CaptureSnapshot(restoreSnapshot) || restoreSnapshot.componentBytes.size() != sizeof(uint32_t)) return 30;
     failOnceView->snapshotValue = 99U;
     if (restoreWorld.RestoreSnapshot(restoreSnapshot) || restoreWorld.LastError() != ActorComponentError::RestoreRejected || failOnceView->snapshotValue != 99U) return 30;
+    SceneWorld throwingScene;
+    ActorComponentWorld throwingWorld(throwingScene);
+    SceneEntity throwingActor{};
+    if (!throwingWorld.CreateActor(throwingActor, "ThrowingActor") || !throwingScene.SetTransform(throwingActor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !throwingWorld.AttachComponent(throwingActor, std::make_unique<ThrowingTickComponent>()) || !throwingWorld.BeginPlay()) return 31;
+    ActorComponentWorldReceipt throwingReceipt{9U, 8U, 7U, 6U};
+    if (throwingWorld.TickFixed(1U, throwingReceipt) || throwingWorld.LastError() != ActorComponentError::TickRejected || throwingReceipt.actorCount != 9U || throwingReceipt.componentCount != 8U || throwingReceipt.tickedComponents != 7U || throwingReceipt.registrationRevision != 6U) return 31;
     return 0;
 }
