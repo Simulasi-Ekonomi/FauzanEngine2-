@@ -52,7 +52,7 @@ bool FarmRuntimeSession::RestoreWorldCheckpoint(const std::vector<uint8_t>& byte
     revision = envelope.revision; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 bool FarmRuntimeSession::DrawHud(FarmRuntimeHud& hud, FarmRuntimeHudReceipt& receipt) {
-    if (!initialized_ || lastReceipt_.frame == 0U || lastReceipt_.framebufferHash == 0U || !hud.Draw(lastReceipt_, inputBridge_.SelectedAction(), *renderer_)) return Fail(FarmRuntimeSessionError::HudRejected);
+    if (!initialized_ || lastReceipt_.frame == 0U || lastReceipt_.framebufferHash == 0U || !hud.Draw(lastReceipt_, inputBridge_.SelectedAction(), *registry_, *textures_, assets_->harvestableTile, *renderer_)) return Fail(FarmRuntimeSessionError::HudRejected);
     const FarmRuntimeHudReceipt candidate{lastReceipt_.frame, lastReceipt_.framebufferHash, renderer_->FrameHash(), lastReceipt_.telemetry, lastReceipt_.inventory};
     receipt = candidate; lastError_ = FarmRuntimeSessionError::None; return true;
 }

@@ -1,6 +1,8 @@
 #include "Runtime/FarmRuntimeHud.h"
 
+#include "Runtime/AssetRegistry.h"
 #include "Runtime/SoftwareRenderer.h"
+#include "Runtime/TextureStaging.h"
 
 #include <string>
 #include <vector>
@@ -21,15 +23,21 @@ bool FarmRuntimeHud::EnsureLayout(SoftwareRenderer& renderer) {
     }
     router_ = std::move(candidateRouter); layout_ = std::move(candidateLayout); actionPanel_ = std::move(candidatePanel); layoutWidth_ = renderer.Width(); layoutHeight_ = renderer.Height(); interactive_ = enhanced; configured_ = true; return true;
 }
-bool FarmRuntimeHud::ConfigureCanvas(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, UiCanvasRenderer& canvas) const {
+bool FarmRuntimeHud::ConfigureCanvas(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, const AssetRegistry* registry, const CpuTextureResource* panelIcon, UiCanvasRenderer& canvas) const {
     if (!interactive_) return canvas.SetStyle({1U,0xD0202020U}) && canvas.SetLabel({1U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU}) && canvas.SetStyle({2U,0xD0202020U}) && canvas.SetLabel({2U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU}) && canvas.SetStyle({3U,0xD0202020U}) && canvas.SetLabel({3U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU});
     const bool labels=canvas.SetLabel({2U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({3U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({4U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({5U,"GROW "+std::to_string(receipt.telemetry.growingTiles),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({6U,"READY "+std::to_string(receipt.telemetry.harvestableTiles),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({7U,"WHEAT "+std::to_string(receipt.inventory.wheatProduce),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({11U,"TILL",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({12U,"PLANT",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({13U,"WATER",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({14U,"HARVEST",2U,2U,1U,0xFFFFFFFFU});
-    return labels&&canvas.SetStyle({1U,0xD0202020U})&&canvas.SetStyle({2U,0xC0202020U})&&canvas.SetStyle({3U,0xC0202020U})&&canvas.SetStyle({4U,0xC0202020U})&&canvas.SetStyle({5U,0xC0202020U})&&canvas.SetStyle({6U,0xC0202020U})&&canvas.SetStyle({7U,0xC0202020U})&&canvas.SetStyle({10U,0xD0202020U})&&canvas.SetStyle({11U,ActionColor(selectedAction,FarmPlayerAction::Till)})&&canvas.SetStyle({12U,ActionColor(selectedAction,FarmPlayerAction::PlantWheat)})&&canvas.SetStyle({13U,ActionColor(selectedAction,FarmPlayerAction::Water)})&&canvas.SetStyle({14U,ActionColor(selectedAction,FarmPlayerAction::Harvest)});
+    const bool image=registry==nullptr&&panelIcon==nullptr ? true : (registry!=nullptr&&panelIcon!=nullptr&&canvas.SetImage(*registry,{10U,nullptr,panelIcon}));
+    return labels&&image&&canvas.SetStyle({1U,0xD0202020U})&&canvas.SetStyle({2U,0xC0202020U})&&canvas.SetStyle({3U,0xC0202020U})&&canvas.SetStyle({4U,0xC0202020U})&&canvas.SetStyle({5U,0xC0202020U})&&canvas.SetStyle({6U,0xC0202020U})&&canvas.SetStyle({7U,0xC0202020U})&&canvas.SetStyle({10U,0xD0202020U})&&canvas.SetStyle({11U,ActionColor(selectedAction,FarmPlayerAction::Till)})&&canvas.SetStyle({12U,ActionColor(selectedAction,FarmPlayerAction::PlantWheat)})&&canvas.SetStyle({13U,ActionColor(selectedAction,FarmPlayerAction::Water)})&&canvas.SetStyle({14U,ActionColor(selectedAction,FarmPlayerAction::Harvest)});
 }
 bool FarmRuntimeHud::Draw(const FarmRuntimeFrameReceipt& receipt, SoftwareRenderer& renderer) { return Draw(receipt,FarmPlayerAction::Till,renderer); }
 bool FarmRuntimeHud::Draw(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, SoftwareRenderer& renderer) {
     if (receipt.frame==0U||receipt.framebufferHash==0U||!EnsureLayout(renderer)) { lastError_=receipt.frame==0U||receipt.framebufferHash==0U?FarmRuntimeHudError::InvalidReceipt:FarmRuntimeHudError::SetupFailed; return false; }
-    UiCanvasRenderer canvas; if (!ConfigureCanvas(receipt,selectedAction,canvas)) { lastError_=FarmRuntimeHudError::SetupFailed; return false; }
+    UiCanvasRenderer canvas; if (!ConfigureCanvas(receipt,selectedAction,nullptr,nullptr,canvas)) { lastError_=FarmRuntimeHudError::SetupFailed; return false; }
+    SoftwareRenderer candidate=renderer; if (!canvas.Draw(router_,candidate)) { lastError_=FarmRuntimeHudError::DrawFailed; return false; } renderer=std::move(candidate); lastError_=FarmRuntimeHudError::None; return true;
+}
+bool FarmRuntimeHud::Draw(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, const AssetRegistry& registry, const TextureStagingStore& textures, std::string_view panelIconAsset, SoftwareRenderer& renderer) {
+    if (receipt.frame==0U||receipt.framebufferHash==0U||panelIconAsset.empty()||!EnsureLayout(renderer)) { lastError_=receipt.frame==0U||receipt.framebufferHash==0U?FarmRuntimeHudError::InvalidReceipt:FarmRuntimeHudError::SetupFailed; return false; }
+    UiCanvasRenderer canvas; const CpuTextureResource* icon=textures.Find(panelIconAsset); if (!ConfigureCanvas(receipt,selectedAction,&registry,icon,canvas)) { lastError_=FarmRuntimeHudError::SetupFailed; return false; }
     SoftwareRenderer candidate=renderer; if (!canvas.Draw(router_,candidate)) { lastError_=FarmRuntimeHudError::DrawFailed; return false; } renderer=std::move(candidate); lastError_=FarmRuntimeHudError::None; return true;
 }
 bool FarmRuntimeHud::RoutePointer(float x,float y,UiPointerPhase phase,FarmPlayerInputBridge& bridge,FarmActionPanelReceipt& receipt) { if(!configured_||!interactive_){lastError_=FarmRuntimeHudError::InputUnavailable;return false;}if(!actionPanel_.RoutePointer(router_,x,y,phase,bridge,receipt)){lastError_=FarmRuntimeHudError::InputRejected;return false;}lastError_=FarmRuntimeHudError::None;return true; }

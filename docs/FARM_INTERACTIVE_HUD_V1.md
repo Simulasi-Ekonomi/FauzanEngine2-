@@ -6,4 +6,6 @@
 
 The keyboard path uses the router's existing focus traversal and `Activate` event. An invalid keyboard enum is rejected by the router/controller/session chain and preserves the previously selected Farm action plus caller action receipt. No keyboard binding persistence or remapping is introduced.
 
+On an enhanced session-owned HUD, the action-panel background is a `UiCanvasImage` binding to the already staged, current Farm harvestable-tile texture. The session passes only its existing registry, texture staging store, and configured asset ID. If that texture becomes stale or unavailable, HUD composition rejects before canvas commit and preserves the caller renderer and HUD receipt; the next canonical world render may refresh staging through the existing renderer path.
+
 The session commits wheat seed/produce counts into immutable frame and HUD receipts from `FarmSystem::ItemCount` after a successful world tick and render. Invalid or unframed HUD input fails closed and preserves the selected action and caller receipt. HUD composition uses a candidate software renderer and has no persistence, network authority, advertising/monetization, APK, or production game claim.
