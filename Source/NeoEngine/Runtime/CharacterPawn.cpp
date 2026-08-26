@@ -294,17 +294,22 @@ bool CharacterPawn::SetRootMotionMode(CharacterRootMotionMode mode) {
 bool CharacterPawn::SetTransitionBinding(CharacterTransitionBinding binding) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (binding.from.empty() || binding.to.empty() || binding.transitionId.empty() || binding.from.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.to.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.transitionId.size() > AnimationStateMachine::kMaxIdentifierBytes) return Fail(CharacterPawnError::AnimationRejected);
-    for (uint8_t index = 0U; index < transitionBindingCount_; ++index) {
-        if (transitionBindings_[index].from == binding.from && transitionBindings_[index].to == binding.to) {
-            transitionBindings_[index] = std::move(binding);
-            lastError_ = CharacterPawnError::None;
-            return true;
+    try {
+        for (uint8_t index = 0U; index < transitionBindingCount_; ++index) {
+            if (transitionBindings_[index].from == binding.from && transitionBindings_[index].to == binding.to) {
+                transitionBindings_[index] = std::move(binding);
+                lastError_ = CharacterPawnError::None;
+                return true;
+            }
         }
+        if (transitionBindingCount_ >= kMaxTransitionBindings) return Fail(CharacterPawnError::AnimationRejected);
+        transitionBindings_[transitionBindingCount_] = std::move(binding);
+        ++transitionBindingCount_;
+        lastError_ = CharacterPawnError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        return Fail(CharacterPawnError::AnimationRejected);
     }
-    if (transitionBindingCount_ >= kMaxTransitionBindings) return Fail(CharacterPawnError::AnimationRejected);
-    transitionBindings_[transitionBindingCount_++] = std::move(binding);
-    lastError_ = CharacterPawnError::None;
-    return true;
 }
 const std::string* CharacterPawn::FindTransition(std::string_view from, std::string_view to) const {
     for (uint8_t index = 0U; index < transitionBindingCount_; ++index) if (transitionBindings_[index].from == from && transitionBindings_[index].to == to) return &transitionBindings_[index].transitionId;
