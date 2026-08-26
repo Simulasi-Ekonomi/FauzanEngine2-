@@ -104,7 +104,7 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
             const uint32_t generation = slot.generation;
             slot = {};
             slot.occupied = true;
-            slot.assetId = closureIds[index];
+            slot.assetId = std::move(closureIds[index]);
             slot.generation = generation == 0U ? 1U : generation;
             slot.contentHash = definition->contentHash;
             ++activeResourceCount_;
