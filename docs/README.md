@@ -67,6 +67,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Farm runtime save codec | [`FARM_RUNTIME_SAVE_CODEC_V1.md`](FARM_RUNTIME_SAVE_CODEC_V1.md) | Candidate/commit in-memory Farm envelope with revision and kind validation. |
 | Farm runtime session checkpoint | [`FARM_RUNTIME_SESSION_CHECKPOINT_V1.md`](FARM_RUNTIME_SESSION_CHECKPOINT_V1.md) | Caller-driven in-memory checkpoint/restore handoff that preserves committed session receipts on failure. |
 | Farm runtime session world checkpoint | [`FARM_RUNTIME_SESSION_WORLD_CHECKPOINT_V1.md`](FARM_RUNTIME_SESSION_WORLD_CHECKPOINT_V1.md) | Caller-driven Farm-plus-world in-memory checkpoint handoff with bounded decode preservation. |
+| Farm runtime session HUD | [`FARM_RUNTIME_SESSION_HUD_V1.md`](FARM_RUNTIME_SESSION_HUD_V1.md) | Read-only committed-receipt HUD overlay with separate world and HUD framebuffer hashes. |
 | Farm HUD surface proof | [`FARM_HUD_SURFACE_PROOF_V1.md`](FARM_HUD_SURFACE_PROOF_V1.md) | Finite Farm world artifact with distinct world-only and HUD-overlaid hashes. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
 | Gameplay physics query ordering | [`GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md`](GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md) | Canonical ascending EntityID overlap output after atomic XPBD collider mapping. |

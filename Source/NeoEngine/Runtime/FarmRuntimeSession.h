@@ -13,9 +13,11 @@ class AssetRegistry;
 class FarmWorldTool;
 class SoftwareRenderer;
 class TextureStagingStore;
+class FarmRuntimeHud;
 
-enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed, WorldCheckpointEncodeFailed, WorldCheckpointDecodeFailed };
+enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed, WorldCheckpointEncodeFailed, WorldCheckpointDecodeFailed, HudRejected };
 struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; };
+struct FarmRuntimeHudReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; };
 
 // Explicit host-side lifecycle only. It owns neither simulation authority nor
 // asset registry; it orchestrates existing bounded components for one frame.
@@ -28,6 +30,7 @@ public:
     bool RestoreCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool SaveWorldCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreWorldCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
+    bool DrawHud(FarmRuntimeHud& hud, FarmRuntimeHudReceipt& receipt);
     FarmPlayerInputBridge& InputBridge() { return inputBridge_; }
     [[nodiscard]] uint64_t FrameCount() const { return frameCount_; }
     [[nodiscard]] FarmRuntimeFrameReceipt LastFrameReceipt() const { return lastReceipt_; }

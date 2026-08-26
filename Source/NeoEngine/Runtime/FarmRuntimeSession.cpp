@@ -2,6 +2,7 @@
 
 #include "Runtime/AssetRegistry.h"
 #include "Runtime/FarmRuntimeSaveCodec.h"
+#include "Runtime/FarmRuntimeHud.h"
 #include "Runtime/RuntimePersistence.h"
 #include "Runtime/SoftwareRenderer.h"
 #include "Runtime/TextureStaging.h"
@@ -48,5 +49,10 @@ bool FarmRuntimeSession::RestoreWorldCheckpoint(const std::vector<uint8_t>& byte
     RuntimeSaveEnvelope envelope{}; RuntimePersistenceError error = RuntimePersistenceError::None;
     if (!RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kWorldCheckpointKind || envelope.revision == 0U || !world_->Deserialize(envelope.payload)) return Fail(FarmRuntimeSessionError::WorldCheckpointDecodeFailed);
     revision = envelope.revision; lastError_ = FarmRuntimeSessionError::None; return true;
+}
+bool FarmRuntimeSession::DrawHud(FarmRuntimeHud& hud, FarmRuntimeHudReceipt& receipt) {
+    if (!initialized_ || lastReceipt_.frame == 0U || lastReceipt_.framebufferHash == 0U || !hud.Draw(lastReceipt_, *renderer_)) return Fail(FarmRuntimeSessionError::HudRejected);
+    const FarmRuntimeHudReceipt candidate{lastReceipt_.frame, lastReceipt_.framebufferHash, renderer_->FrameHash(), lastReceipt_.telemetry};
+    receipt = candidate; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 } // namespace NeoEngine
