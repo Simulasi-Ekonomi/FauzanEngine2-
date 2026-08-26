@@ -11,4 +11,16 @@ bool GameplayPhysicsBodyBuilder::CreateCircleBody(ArchetypeManager& entities, co
     entities.SetPosX(candidate, config.positionX); entities.SetPosZ(candidate, config.positionZ); entities.SetVelX(candidate, config.type == GameplayPhysicsBodyType::Static ? 0.0F : config.velocityX); entities.SetVelZ(candidate, config.type == GameplayPhysicsBodyType::Static ? 0.0F : config.velocityZ); entities.SetRadius(candidate, config.radius); entities.SetInvMass(candidate, inverseMass);
     entity = candidate; lastError_ = GameplayPhysicsBodyError::None; return true;
 }
+bool GameplayPhysicsBodyBuilder::SnapshotCircleBody(ArchetypeManager& entities, EntityID entity, GameplayCircleBodySnapshot& snapshot) {
+    for (ArchetypeChunk* chunk : entities.GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
+        for (size_t index = 0; index < chunk->count; ++index) {
+            if (chunk->entities[index] != entity) continue;
+            const float positionX = chunk->posX[index], positionZ = chunk->posZ[index], velocityX = chunk->velX[index], velocityZ = chunk->velZ[index], radius = chunk->radius[index], inverseMass = chunk->invMass[index];
+            if (!std::isfinite(positionX) || !std::isfinite(positionZ) || !std::isfinite(velocityX) || !std::isfinite(velocityZ) || !std::isfinite(radius) || !std::isfinite(inverseMass) || radius <= 0.0F || inverseMass < 0.0F) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
+            if ((inverseMass == 0.0F && (velocityX != 0.0F || velocityZ != 0.0F)) || (inverseMass > 0.0F && !std::isfinite(1.0F / inverseMass))) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
+            snapshot = {inverseMass == 0.0F ? GameplayPhysicsBodyType::Static : GameplayPhysicsBodyType::Dynamic, positionX, positionZ, velocityX, velocityZ, radius, inverseMass}; lastError_ = GameplayPhysicsBodyError::None; return true;
+        }
+    }
+    lastError_ = GameplayPhysicsBodyError::UnknownBody; return false;
+}
 } // namespace NeoEngine
