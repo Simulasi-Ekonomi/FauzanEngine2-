@@ -10,7 +10,7 @@
 
 namespace NeoEngine {
 
-enum class SceneSpriteAdapterError : uint8_t { None, Capacity, InvalidResource, DuplicateEntity, MissingTransform, QueueRejected };
+enum class SceneSpriteAdapterError : uint8_t { None, Capacity, InvalidResource, DuplicateEntity, MissingEntity, MissingTransform, QueueRejected };
 
 // Stores an owned CPU texture snapshot so queued SpriteBatch pointers remain
 // valid throughout a frame. The SceneWorld remains sole owner of entities.
@@ -18,6 +18,7 @@ class SceneSpriteAdapter {
 public:
     static constexpr size_t kMaxInstances = 512;
     bool AddStaged(SceneEntity entity, const CpuTextureResource& texture, float width, float height, int16_t layer, int16_t order, uint32_t rgba, float rotationRadians = 0.0F, bool faceCamera = false, bool depthWrite = true, uint16_t sourceX = 0U, uint16_t sourceY = 0U, uint16_t sourceWidth = 0U, uint16_t sourceHeight = 0U);
+    bool RefreshStaged(SceneEntity entity, const CpuTextureResource& texture);
     bool Queue(const SceneWorld& world, SpriteBatch& batch) const;
     bool QueueTinted(const SceneWorld& world, SpriteBatch& batch, uint32_t frameRgba) const;
     bool QueueFrame(const SceneWorld& world, SpriteBatch& batch, SpriteSourceRect sourceRect, uint32_t frameRgba = 0xFFFFFFFFU) const;

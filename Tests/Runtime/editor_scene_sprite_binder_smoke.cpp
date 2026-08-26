@@ -30,6 +30,16 @@ int main() {
     SpriteBatch batch;
     if (!require(renderer.Initialize(64, 64) && renderer.Clear(0xFF000000U) && camera.Initialize({RenderCameraMode::Orthographic, {}, 5.0F, 60.0F, 1.0F, 0.1F, 10.0F}) && sprites.Queue(world, batch) && batch.Flush(renderer, camera) && renderer.PixelAt(32, 32) == 0xFF28A0E0U, "textured-draw")) return 1;
     const SceneEntity* entity = documentAdapter.EntityForActor(1);
+    const std::vector<uint8_t> refreshedPpm{'P', '6', '\n', '1', ' ', '1', '\n', '2', '5', '5', '\n', static_cast<uint8_t>(0xE0U), static_cast<uint8_t>(0x78U), static_cast<uint8_t>(0x28U)};
+    if (!require(entity != nullptr && assets.ReplaceBytes("farmer.ppm", refreshedPpm) && textures.Refresh(assets, "farmer.ppm") && sprites.RefreshStaged(*entity, *textures.Find("farmer.ppm")), "sprite-refresh")) return 1;
+    batch.Clear();
+    if (!require(renderer.Clear(0xFF000000U) && sprites.Queue(world, batch) && batch.Flush(renderer, camera) && renderer.PixelAt(32, 32) == 0xFFE07828U, "sprite-refresh-draw")) return 1;
+    const uint64_t refreshedHash = renderer.FrameHash();
+    CpuTextureResource malformedRefresh = *textures.Find("farmer.ppm");
+    malformedRefresh.rgba.clear();
+    if (!require(!sprites.RefreshStaged(*entity, malformedRefresh) && sprites.LastError() == SceneSpriteAdapterError::InvalidResource, "sprite-refresh-reject")) return 1;
+    batch.Clear();
+    if (!require(renderer.Clear(0xFF000000U) && sprites.Queue(world, batch) && batch.Flush(renderer, camera) && renderer.FrameHash() == refreshedHash, "sprite-refresh-preserve")) return 1;
     if (!require(entity != nullptr && world.SetTransform(*entity, {3, 0, 1, 0, 0, 0, 1, 1, 1}) && world.UpdateTransforms(), "world-move")) return 1;
     batch.Clear();
     const bool clearMoved = renderer.Clear(0xFF000000U);
