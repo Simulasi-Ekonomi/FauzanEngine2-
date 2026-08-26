@@ -50,6 +50,9 @@ int main() {
     invalidSnapshot.velocity.y = 1.0F;
     if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.velocity.y != savedSnapshot.velocity.y) return 13;
     invalidSnapshot = savedSnapshot;
+    invalidSnapshot.velocity.x = 101.0F;
+    if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.velocity.x != savedSnapshot.velocity.x) return 13;
+    invalidSnapshot = savedSnapshot;
     invalidSnapshot.pendingInput.moveX = 2.0F;
     if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.pendingInput.moveX != savedSnapshot.pendingInput.moveX) return 13;
     invalidSnapshot = savedSnapshot;
