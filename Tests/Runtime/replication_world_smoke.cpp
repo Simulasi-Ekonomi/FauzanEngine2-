@@ -110,6 +110,8 @@ int main() {
     if (!server.ApplyClientAcknowledgement(acknowledgement2) || server.AcknowledgedSequence() != 2U) return 28;
     for (uint64_t tick = 3U; tick <= 66U; ++tick) if (!server.BuildServerSnapshot(tick, snapshot)) return 29;
     if (server.ApplyClientAcknowledgement(acknowledgement2) || server.LastError() != ReplicationError::StaleAcknowledgement || server.AcknowledgedSequence() != 2U || server.ApplyClientAcknowledgement(acknowledgement) || server.LastError() != ReplicationError::StaleAcknowledgement) return 30;
+    ReplicationSnapshot preservedServerSnapshot = snapshot;
+    if (!serverScene.Destroy(serverRemote) || server.BuildServerSnapshot(67U, preservedServerSnapshot) || server.LastError() != ReplicationError::InvalidEntity || preservedServerSnapshot.sequence != snapshot.sequence || preservedServerSnapshot.serverTick != snapshot.serverTick || preservedServerSnapshot.count != snapshot.count || preservedServerSnapshot.checksum != snapshot.checksum || server.SnapshotSequence() != 66U) return 31;
     if (!client.UnregisterEntity(200U) || client.IsRegistered(200U) || client.RegisteredCount() != 1U) return 29;
 
     SceneWorld dynamicScene;
