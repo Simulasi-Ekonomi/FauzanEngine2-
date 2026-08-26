@@ -84,6 +84,16 @@ public:
     bool failNextRestore = true;
 };
 
+class FailAlwaysRestoreComponent final : public ProbeComponent {
+public:
+    FailAlwaysRestoreComponent() : ProbeComponent(41U) {}
+    uint16_t SnapshotSizeBytes() const override { return sizeof(uint32_t); }
+    bool CaptureSnapshot(std::span<uint8_t> bytes) const override { if (bytes.size() != sizeof(uint32_t)) return false; std::memcpy(bytes.data(), &snapshotValue, sizeof(snapshotValue)); return true; }
+    bool ValidateSnapshot(std::span<const uint8_t> bytes) const override { return bytes.size() == sizeof(uint32_t); }
+    bool RestoreSnapshot(std::span<const uint8_t> bytes) override { if (bytes.size() != sizeof(uint32_t)) return false; std::memcpy(&snapshotValue, bytes.data(), sizeof(snapshotValue)); return false; }
+    uint32_t snapshotValue = 0U;
+};
+
 class ReentrantMutationComponent final : public ProbeComponent {
 public:
     ReentrantMutationComponent(NeoEngine::ActorComponentWorld& world, NeoEngine::SceneEntity actor, ProbeComponent& dependency) : ProbeComponent(30U), world_(world), actor_(actor), dependency_(dependency) {}
@@ -200,5 +210,16 @@ int main() {
     if (!throwingWorld.CreateActor(throwingActor, "ThrowingActor") || !throwingScene.SetTransform(throwingActor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !throwingWorld.AttachComponent(throwingActor, std::make_unique<ThrowingTickComponent>()) || !throwingWorld.BeginPlay()) return 31;
     ActorComponentWorldReceipt throwingReceipt{9U, 8U, 7U, 6U};
     if (throwingWorld.TickFixed(1U, throwingReceipt) || throwingWorld.LastError() != ActorComponentError::TickRejected || throwingReceipt.actorCount != 9U || throwingReceipt.componentCount != 8U || throwingReceipt.tickedComponents != 7U || throwingReceipt.registrationRevision != 6U) return 31;
+    SceneWorld rollbackScene;
+    ActorComponentWorld rollbackWorld(rollbackScene);
+    SceneEntity rollbackActor{};
+    if (!rollbackWorld.CreateActor(rollbackActor, "RollbackActor") || !rollbackScene.SetTransform(rollbackActor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 32;
+    auto failAlways = std::make_unique<FailAlwaysRestoreComponent>();
+    FailAlwaysRestoreComponent* failAlwaysView = failAlways.get();
+    if (!rollbackWorld.AttachComponent(rollbackActor, std::move(failAlways)) || !rollbackWorld.BeginPlay()) return 32;
+    ActorComponentWorldSnapshot rollbackSnapshot{};
+    if (!rollbackWorld.CaptureSnapshot(rollbackSnapshot)) return 32;
+    failAlwaysView->snapshotValue = 99U;
+    if (rollbackWorld.RestoreSnapshot(rollbackSnapshot) || rollbackWorld.LastError() != ActorComponentError::RollbackRejected || failAlwaysView->snapshotValue != 99U) return 32;
     return 0;
 }

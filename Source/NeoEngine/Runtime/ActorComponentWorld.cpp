@@ -361,8 +361,8 @@ bool ActorComponentWorld::RestoreSnapshot(const ActorComponentWorldSnapshot& sna
     ActorComponentWorldSnapshot backup{};
     if (!CaptureSnapshot(backup)) return Fail(ActorComponentError::RestoreRejected);
     if (!RestoreValidated(snapshot)) {
-        RestoreValidated(backup);
-        return Fail(ActorComponentError::RestoreRejected);
+        const bool rolledBack = RestoreValidated(backup);
+        return Fail(rolledBack ? ActorComponentError::RestoreRejected : ActorComponentError::RollbackRejected);
     }
     ++registrationRevision_;
     lastReceipt_ = {actorCount_, componentCount_, 0U, registrationRevision_};

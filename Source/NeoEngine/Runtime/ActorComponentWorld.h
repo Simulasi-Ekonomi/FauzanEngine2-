@@ -30,6 +30,7 @@ enum class ActorComponentError : uint8_t {
     EndPlayRejected,
     SnapshotRejected,
     RestoreRejected,
+    RollbackRejected,
     MutationDuringDispatch,
 };
 
