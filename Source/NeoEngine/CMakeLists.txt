@@ -53,6 +53,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/MeshStaging.cpp
     Runtime/BitmapTextRenderer.cpp
     Runtime/UiInputRouter.cpp
+    Runtime/UiLayoutResolver.cpp
     Runtime/UiCanvasRenderer.cpp
     Runtime/AnimationTimeline.cpp
     Runtime/AnimationStateMachine.cpp
@@ -117,6 +118,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanTexturedOffscreen.cpp
     Runtime/VulkanPresentProbe.cpp
     Demos/FarmSurfaceDemo.cpp
+    Demos/FarmInteractiveSurfaceDemo.cpp
     Demos/MeshSurfaceDemo.cpp
     Demos/AssetImportSurfaceDemo.cpp
     Demos/MaterialImportSurfaceDemo.cpp
@@ -131,6 +133,7 @@ set(XPBD_RUNTIME_SOURCES
     Demos/HybridSurfaceDemo.cpp
     Runtime/FarmRenderAdapter.cpp
     Runtime/FarmSpriteRenderAdapter.cpp
+    Runtime/FarmActionPanelController.cpp
     Runtime/FarmPlayerInputBridge.cpp
     Runtime/FarmRuntimeSession.cpp
     Runtime/FarmRuntimeHud.cpp
@@ -298,6 +301,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/ui_input_router_smoke
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/ui_canvas_renderer_smoke.cpp")
     add_xpbd_executable(ui_canvas_renderer_smoke ../../Tests/Runtime/ui_canvas_renderer_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/ui_layout_resolver_smoke.cpp")
+    add_xpbd_executable(ui_layout_resolver_smoke ../../Tests/Runtime/ui_layout_resolver_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_timeline_smoke.cpp")
     add_xpbd_executable(animation_timeline_smoke ../../Tests/Runtime/animation_timeline_smoke.cpp)
@@ -542,11 +548,20 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_player_input_bridge_smoke.cpp")
     add_xpbd_executable(farm_player_input_bridge_smoke ../../Tests/Runtime/farm_player_input_bridge_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_action_panel_controller_smoke.cpp")
+    add_xpbd_executable(farm_action_panel_controller_smoke ../../Tests/Runtime/farm_action_panel_controller_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_session_smoke.cpp")
     add_xpbd_executable(farm_runtime_session_smoke ../../Tests/Runtime/farm_runtime_session_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_hud_smoke.cpp")
     add_xpbd_executable(farm_runtime_hud_smoke ../../Tests/Runtime/farm_runtime_hud_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_interactive_hud_smoke.cpp")
+    add_xpbd_executable(farm_interactive_hud_smoke ../../Tests/Runtime/farm_interactive_hud_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_interactive_surface_demo_smoke.cpp")
+    add_xpbd_executable(farm_interactive_surface_demo_smoke ../../Tests/Runtime/farm_interactive_surface_demo_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_farm_hud_smoke.cpp")
     add_xpbd_executable(runtime_farm_hud_smoke ../../Tests/Runtime/runtime_farm_hud_smoke.cpp)

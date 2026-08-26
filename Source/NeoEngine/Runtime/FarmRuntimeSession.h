@@ -1,5 +1,6 @@
 #pragma once
 
+#include "FarmActionPanelController.h"
 #include "FarmPlayerInputBridge.h"
 #include "FarmSpriteRenderAdapter.h"
 #include "InputState.h"
@@ -15,9 +16,10 @@ class SoftwareRenderer;
 class TextureStagingStore;
 class FarmRuntimeHud;
 
-enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed, WorldCheckpointEncodeFailed, WorldCheckpointDecodeFailed, HudRejected };
-struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; };
-struct FarmRuntimeHudReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; };
+enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed, WorldCheckpointEncodeFailed, WorldCheckpointDecodeFailed, HudRejected, HudInputRejected };
+struct FarmRuntimeInventorySnapshot { uint32_t wheatSeeds = 0U; uint32_t wheatProduce = 0U; };
+struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; };
+struct FarmRuntimeHudReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; };
 
 // Explicit host-side lifecycle only. It owns neither simulation authority nor
 // asset registry; it orchestrates existing bounded components for one frame.
@@ -31,6 +33,8 @@ public:
     bool SaveWorldCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreWorldCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool DrawHud(FarmRuntimeHud& hud, FarmRuntimeHudReceipt& receipt);
+    bool RouteHudPointer(FarmRuntimeHud& hud, float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
+    bool RouteHudKeyboard(FarmRuntimeHud& hud, UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     FarmPlayerInputBridge& InputBridge() { return inputBridge_; }
     [[nodiscard]] uint64_t FrameCount() const { return frameCount_; }
     [[nodiscard]] FarmRuntimeFrameReceipt LastFrameReceipt() const { return lastReceipt_; }

@@ -1,17 +1,32 @@
 #pragma once
 
+#include "FarmActionPanelController.h"
 #include "FarmRuntimeSession.h"
+#include "UiCanvasRenderer.h"
+#include "UiLayoutResolver.h"
 
 #include <cstdint>
 
 namespace NeoEngine {
 class SoftwareRenderer;
-enum class FarmRuntimeHudError : uint8_t { None, InvalidReceipt, SetupFailed, DrawFailed };
+enum class FarmRuntimeHudError : uint8_t { None, InvalidReceipt, SetupFailed, DrawFailed, InputUnavailable, InputRejected };
 class FarmRuntimeHud {
 public:
     bool Draw(const FarmRuntimeFrameReceipt& receipt, SoftwareRenderer& renderer);
+    bool Draw(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, SoftwareRenderer& renderer);
+    bool RoutePointer(float x, float y, UiPointerPhase phase, FarmPlayerInputBridge& bridge, FarmActionPanelReceipt& receipt);
+    bool RouteKeyboard(UiKeyboardKey key, FarmPlayerInputBridge& bridge, FarmActionPanelReceipt& receipt);
     [[nodiscard]] FarmRuntimeHudError LastError() const { return lastError_; }
 private:
+    bool EnsureLayout(SoftwareRenderer& renderer);
+    bool ConfigureCanvas(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, UiCanvasRenderer& canvas) const;
+    UiInputRouter router_{};
+    UiLayoutResolver layout_{};
+    FarmActionPanelController actionPanel_{};
+    uint32_t layoutWidth_ = 0U;
+    uint32_t layoutHeight_ = 0U;
+    bool interactive_ = false;
+    bool configured_ = false;
     FarmRuntimeHudError lastError_ = FarmRuntimeHudError::None;
 };
 } // namespace NeoEngine
