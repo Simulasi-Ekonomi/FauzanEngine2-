@@ -63,7 +63,7 @@ bool ValidConfig(const RuntimeTimeConfig& config) {
            config.dayStartMinute < config.minutesPerDay && config.nightStartMinute < config.minutesPerDay &&
            config.dayStartMinute < config.nightStartMinute && config.defaultTimeScalePermille <= config.maxTimeScalePermille &&
            config.maxTimeScalePermille > 0U && config.maxTimeScalePermille <= RuntimeTimeSystem::kMaxTimeScalePermille &&
-           config.maxEventsPerAdvance > 0U;
+           config.maxEventsPerAdvance > 0U && config.maxEventsPerAdvance <= 1024U;
 }
 }
 
@@ -145,16 +145,51 @@ bool RuntimeTimeSystem::AdvanceFixedTicks(uint32_t hostFixedTicks, std::vector<R
     const bool gameTimeChanged = newTimeUnits != oldTimeUnits;
     const bool dayChanged = candidate.dayIndex != snapshot_.dayIndex;
     const bool phaseChanged = candidate.phase != snapshot_.phase;
-    uint64_t candidateSequence = eventSequence_;
-    std::vector<RuntimeTimeEvent> candidateEvents;
-    candidateEvents.reserve(3U);
-    if (gameTimeChanged && !AppendEvent(candidateEvents, RuntimeTimeEventKind::TimeChanged, candidate, candidateSequence)) return Fail(RuntimeTimeError::EventCapacity);
-    if (dayChanged && !AppendEvent(candidateEvents, RuntimeTimeEventKind::DayChanged, candidate, candidateSequence)) return Fail(RuntimeTimeError::EventCapacity);
-    if (phaseChanged && !AppendEvent(candidateEvents, RuntimeTimeEventKind::PhaseChanged, candidate, candidateSequence)) return Fail(RuntimeTimeError::EventCapacity);
-
     const uint64_t newTotalMinutes = candidate.totalGameMinutes;
     const uint64_t minuteDifference = newTotalMinutes > oldTotalMinutes ? newTotalMinutes - oldTotalMinutes : 0U;
     if (minuteDifference > std::numeric_limits<uint32_t>::max()) return Fail(RuntimeTimeError::Overflow);
+
+    const auto CountThresholds = [&](uint32_t offset) -> uint64_t {
+        if (newTotalMinutes < offset) return 0U;
+        const uint64_t throughNew = (newTotalMinutes - offset) / config_.minutesPerDay + 1U;
+        const uint64_t throughOld = oldTotalMinutes < offset ? 0U : (oldTotalMinutes - offset) / config_.minutesPerDay + 1U;
+        return throughNew - throughOld;
+    };
+    const uint64_t dayTransitions = candidate.dayIndex - snapshot_.dayIndex;
+    const uint64_t phaseTransitions = CountThresholds(config_.dayStartMinute) + CountThresholds(config_.nightStartMinute);
+    const uint64_t requiredEvents = (gameTimeChanged ? 1U : 0U) + dayTransitions + phaseTransitions;
+    if (requiredEvents > config_.maxEventsPerAdvance || requiredEvents > std::numeric_limits<size_t>::max()) return Fail(RuntimeTimeError::EventCapacity);
+
+    struct Transition { uint64_t minute = 0U; RuntimeTimeEventKind kind = RuntimeTimeEventKind::TimeChanged; };
+    std::vector<Transition> transitions;
+    transitions.reserve(static_cast<size_t>(dayTransitions + phaseTransitions));
+    const uint64_t firstDay = snapshot_.dayIndex;
+    const uint64_t lastDay = candidate.dayIndex;
+    for (uint64_t day = firstDay;; ++day) {
+        const uint64_t baseMinute = day * static_cast<uint64_t>(config_.minutesPerDay);
+        if (baseMinute > oldTotalMinutes && baseMinute <= newTotalMinutes) transitions.push_back({baseMinute, RuntimeTimeEventKind::DayChanged});
+        const uint64_t dayMinute = baseMinute + config_.dayStartMinute;
+        if (dayMinute > oldTotalMinutes && dayMinute <= newTotalMinutes) transitions.push_back({dayMinute, RuntimeTimeEventKind::PhaseChanged});
+        const uint64_t nightMinute = baseMinute + config_.nightStartMinute;
+        if (nightMinute > oldTotalMinutes && nightMinute <= newTotalMinutes) transitions.push_back({nightMinute, RuntimeTimeEventKind::PhaseChanged});
+        if (day == lastDay) break;
+    }
+    std::sort(transitions.begin(), transitions.end(), [](const Transition& left, const Transition& right) {
+        if (left.minute != right.minute) return left.minute < right.minute;
+        return static_cast<uint8_t>(left.kind) < static_cast<uint8_t>(right.kind);
+    });
+    if (transitions.size() + (gameTimeChanged ? 1U : 0U) != requiredEvents) return Fail(RuntimeTimeError::EventCapacity);
+
+    uint64_t candidateSequence = eventSequence_;
+    std::vector<RuntimeTimeEvent> candidateEvents;
+    candidateEvents.reserve(static_cast<size_t>(requiredEvents));
+    for (const Transition& transition : transitions) {
+        const uint64_t boundaryUnits = transition.minute * static_cast<uint64_t>(kUnitsPerGameMinute);
+        const RuntimeTimeSnapshot boundary = SnapshotFor(boundaryUnits, newHostFixedStepCount, nextRevision, snapshot_.timeScalePermille, snapshot_.paused);
+        if (!AppendEvent(candidateEvents, transition.kind, boundary, candidateSequence)) return Fail(RuntimeTimeError::EventCapacity);
+    }
+    if (gameTimeChanged && !AppendEvent(candidateEvents, RuntimeTimeEventKind::TimeChanged, candidate, candidateSequence)) return Fail(RuntimeTimeError::EventCapacity);
+
     snapshot_ = candidate;
     simulationTickAccumulatorPermille_ = candidateAccumulator;
     eventSequence_ = candidateSequence;

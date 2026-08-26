@@ -135,7 +135,7 @@ public:
     [[nodiscard]] bool IsReady() const { return initialized_; }
     [[nodiscard]] CurriculumError LastError() const { return lastError_; }
     [[nodiscard]] const CurriculumProgressReceipt& LastReceipt() const { return lastReceipt_; }
-    [[nodiscard]] const CurriculumGraph* Graph() const { return graph_; }
+    [[nodiscard]] const CurriculumGraph* Graph() const { return initialized_ ? &graph_ : nullptr; }
 
 private:
     bool Fail(CurriculumError error);
@@ -144,7 +144,7 @@ private:
     bool BuildReceipt(const CurriculumObservation& observation, CurriculumProgressReceipt& receipt) const;
     bool ValidateProgress(const std::vector<uint8_t>& completed, uint64_t revision) const;
 
-    const CurriculumGraph* graph_ = nullptr;
+    CurriculumGraph graph_{};
     std::vector<uint8_t> completed_{};
     std::vector<uint64_t> completedAtGameMinutes_{};
     std::vector<uint64_t> completionRevisions_{};

@@ -45,12 +45,23 @@ int main() {
     if (!session.Initialize(farm, world, set, assets, textures, renderer, &time, &curriculum) || !session.Frame(input, 1U)) return 7;
     const FarmRuntimeFrameReceipt first = session.LastFrameReceipt();
     if (first.time.totalGameMinutes != 60U || first.telemetry.simulationTick != 1U || first.curriculum.completedLessons != 3U || session.LastCurriculumEvents().size() != 3U) return 8;
+    std::vector<uint8_t> progressCheckpoint;
+    uint64_t checkpointRevision = 0U;
+    if (!session.SaveProgressCheckpoint(7U, progressCheckpoint) || progressCheckpoint.empty()) return 9;
+    if (!time.SetTimeScalePermille(2000U) || !session.Frame(input, 1U) || time.Snapshot().totalGameMinutes != 180U || farm.SimulationTick() != 3U) return 10;
+    if (!session.RestoreProgressCheckpoint(progressCheckpoint, checkpointRevision) || checkpointRevision != 7U || time.Snapshot().totalGameMinutes != first.time.totalGameMinutes || farm.SimulationTick() != first.telemetry.simulationTick || curriculum.LastReceipt().completedLessons != first.curriculum.completedLessons) return 11;
+    const RuntimeTimeSnapshot preservedTime = time.Snapshot();
+    const uint64_t preservedFarmTick = farm.SimulationTick();
+    const uint64_t preservedCurriculumRevision = curriculum.LastReceipt().revision;
+    std::vector<uint8_t> corruptCheckpoint = progressCheckpoint;
+    corruptCheckpoint.back() ^= 0xA5U;
+    if (session.RestoreProgressCheckpoint(corruptCheckpoint, checkpointRevision) || session.LastError() != FarmRuntimeSessionError::CheckpointDecodeFailed || time.Snapshot().totalGameMinutes != preservedTime.totalGameMinutes || farm.SimulationTick() != preservedFarmTick || curriculum.LastReceipt().revision != preservedCurriculumRevision) return 12;
 
-    if (!time.SetPaused(true)) return 9;
+    if (!time.SetPaused(true)) return 13;
     const uint64_t pausedFarmTick = farm.SimulationTick();
-    if (!session.Frame(input, 1U) || session.LastFrameReceipt().time.totalGameMinutes != 60U || farm.SimulationTick() != pausedFarmTick) return 10;
-    if (!time.SetPaused(false) || !time.SetTimeScalePermille(500U)) return 11;
-    if (!session.Frame(input, 1U) || farm.SimulationTick() != pausedFarmTick || session.LastFrameReceipt().time.totalGameMinutes != 90U) return 12;
-    if (!session.Frame(input, 1U) || farm.SimulationTick() != pausedFarmTick + 1U || session.LastFrameReceipt().time.totalGameMinutes != 120U) return 13;
+    if (!session.Frame(input, 1U) || session.LastFrameReceipt().time.totalGameMinutes != 60U || farm.SimulationTick() != pausedFarmTick) return 14;
+    if (!time.SetPaused(false) || !time.SetTimeScalePermille(500U)) return 15;
+    if (!session.Frame(input, 1U) || farm.SimulationTick() != pausedFarmTick || session.LastFrameReceipt().time.totalGameMinutes != 90U) return 16;
+    if (!session.Frame(input, 1U) || farm.SimulationTick() != pausedFarmTick + 1U || session.LastFrameReceipt().time.totalGameMinutes != 120U) return 17;
     return 0;
 }

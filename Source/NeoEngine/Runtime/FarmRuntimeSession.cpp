@@ -9,11 +9,37 @@
 #include "Systems/FarmSystem.h"
 #include "Systems/FarmWorldTool.h"
 
+#include <limits>
+
 namespace NeoEngine {
 namespace {
 FarmActionAvailability AvailabilityAtPlayer(const FarmSystem& farm, const FarmWorldTool& world) {
     const FarmCharacterState& player = world.Character(); const FarmTileState state = farm.TileStateAt(player.x, player.z);
     return {state == FarmTileState::Empty, state == FarmTileState::Tilled && farm.ItemCount(FarmItem::WheatSeed) != 0U, state == FarmTileState::Growing && !farm.IsWateredAt(player.x, player.z), state == FarmTileState::Harvestable};
+}
+constexpr size_t kProgressCheckpointMaxBytes = RuntimeSaveCodec::kMaxPayloadBytes;
+void AppendU32(std::vector<uint8_t>& bytes, uint32_t value) {
+    for (uint8_t shift = 0U; shift < 32U; shift += 8U) bytes.push_back(static_cast<uint8_t>((value >> shift) & 0xFFU));
+}
+bool ReadU32(const std::vector<uint8_t>& bytes, size_t& offset, uint32_t& value) {
+    if (offset > bytes.size() || bytes.size() - offset < sizeof(uint32_t)) return false;
+    value = 0U;
+    for (uint8_t shift = 0U; shift < 32U; shift += 8U) value |= static_cast<uint32_t>(bytes[offset + shift / 8U]) << shift;
+    offset += sizeof(uint32_t);
+    return true;
+}
+bool AppendBlob(std::vector<uint8_t>& bytes, const std::vector<uint8_t>& blob) {
+    if (blob.size() > std::numeric_limits<uint32_t>::max()) return false;
+    AppendU32(bytes, static_cast<uint32_t>(blob.size()));
+    bytes.insert(bytes.end(), blob.begin(), blob.end());
+    return true;
+}
+bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uint8_t>& blob) {
+    uint32_t length = 0U;
+    if (!ReadU32(bytes, offset, length) || offset > bytes.size() || bytes.size() - offset < length) return false;
+    blob.assign(bytes.begin() + static_cast<std::ptrdiff_t>(offset), bytes.begin() + static_cast<std::ptrdiff_t>(offset + length));
+    offset += length;
+    return true;
 }
 }
 bool FarmRuntimeSession::Fail(FarmRuntimeSessionError error) { lastError_ = error; return false; }
@@ -66,6 +92,41 @@ bool FarmRuntimeSession::RestoreWorldCheckpoint(const std::vector<uint8_t>& byte
     RuntimeSaveEnvelope envelope{}; RuntimePersistenceError error = RuntimePersistenceError::None;
     if (!RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kWorldCheckpointKind || envelope.revision == 0U || !world_->Deserialize(envelope.payload)) return Fail(FarmRuntimeSessionError::WorldCheckpointDecodeFailed);
     revision = envelope.revision; lastError_ = FarmRuntimeSessionError::None; return true;
+}
+bool FarmRuntimeSession::SaveProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes) {
+    if (!initialized_) return Fail(FarmRuntimeSessionError::NotInitialized);
+    if (revision == 0U || time_ == nullptr || curriculum_ == nullptr) return Fail(FarmRuntimeSessionError::CheckpointEncodeFailed);
+    const std::vector<uint8_t> farmPayload = farm_->Serialize();
+    const std::vector<uint8_t> timePayload = [&]() { std::vector<uint8_t> value; time_->Serialize(value); return value; }();
+    const std::vector<uint8_t> curriculumPayload = [&]() { std::vector<uint8_t> value; curriculum_->Serialize(value); return value; }();
+    std::vector<uint8_t> payload;
+    if (farmPayload.empty() || timePayload.empty() || curriculumPayload.empty() || !AppendBlob(payload, farmPayload) || !AppendBlob(payload, timePayload) || !AppendBlob(payload, curriculumPayload) || payload.size() > kProgressCheckpointMaxBytes) return Fail(FarmRuntimeSessionError::CheckpointEncodeFailed);
+    RuntimePersistenceError error = RuntimePersistenceError::None;
+    std::vector<uint8_t> candidate;
+    if (!RuntimeSaveCodec::Serialize({kProgressCheckpointKind, revision, std::move(payload)}, candidate, error)) return Fail(FarmRuntimeSessionError::CheckpointEncodeFailed);
+    bytes = std::move(candidate); lastError_ = FarmRuntimeSessionError::None; return true;
+}
+bool FarmRuntimeSession::RestoreProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision) {
+    if (!initialized_) return Fail(FarmRuntimeSessionError::NotInitialized);
+    if (time_ == nullptr || curriculum_ == nullptr) return Fail(FarmRuntimeSessionError::CheckpointDecodeFailed);
+    RuntimeSaveEnvelope envelope{}; RuntimePersistenceError error = RuntimePersistenceError::None;
+    if (!RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kProgressCheckpointKind || envelope.revision == 0U || envelope.payload.size() > kProgressCheckpointMaxBytes) return Fail(FarmRuntimeSessionError::CheckpointDecodeFailed);
+    size_t offset = 0U;
+    std::vector<uint8_t> farmPayload, timePayload, curriculumPayload;
+    if (!ReadBlob(envelope.payload, offset, farmPayload) || !ReadBlob(envelope.payload, offset, timePayload) || !ReadBlob(envelope.payload, offset, curriculumPayload) || offset != envelope.payload.size()) return Fail(FarmRuntimeSessionError::CheckpointDecodeFailed);
+    FarmSystem candidateFarm = *farm_;
+    RuntimeTimeSystem candidateTime = *time_;
+    CurriculumSystem candidateCurriculum = *curriculum_;
+    if (!candidateFarm.Deserialize(farmPayload) || !candidateTime.Deserialize(timePayload) || !candidateCurriculum.Deserialize(curriculumPayload)) return Fail(FarmRuntimeSessionError::CheckpointDecodeFailed);
+    *farm_ = std::move(candidateFarm);
+    *time_ = std::move(candidateTime);
+    *curriculum_ = std::move(candidateCurriculum);
+    frameCount_ = 0U;
+    lastReceipt_ = {};
+    lastTimeEvents_.clear();
+    lastCurriculumEvents_.clear();
+    revision = envelope.revision;
+    lastError_ = FarmRuntimeSessionError::None; return true;
 }
 bool FarmRuntimeSession::DrawHud(FarmRuntimeHud& hud, FarmRuntimeHudReceipt& receipt) {
     if (!initialized_ || lastReceipt_.frame == 0U || lastReceipt_.framebufferHash == 0U) return Fail(FarmRuntimeSessionError::HudRejected);

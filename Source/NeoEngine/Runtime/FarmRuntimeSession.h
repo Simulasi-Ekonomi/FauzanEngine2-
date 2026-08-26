@@ -28,12 +28,15 @@ struct FarmRuntimeHudReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHas
 class FarmRuntimeSession {
 public:
     static constexpr const char* kWorldCheckpointKind = "farm-runtime-world";
+    static constexpr const char* kProgressCheckpointKind = "farm-runtime-progress";
     bool Initialize(FarmSystem& farm, FarmWorldTool& world, const FarmSpriteAssetSet& assets, const AssetRegistry& registry, TextureStagingStore& textures, SoftwareRenderer& renderer, RuntimeTimeSystem* time = nullptr, CurriculumSystem* curriculum = nullptr);
     bool Frame(InputState& input, uint32_t simulationTicks = 1);
     bool SaveCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool SaveWorldCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreWorldCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
+    bool SaveProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
+    bool RestoreProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool DrawHud(FarmRuntimeHud& hud, FarmRuntimeHudReceipt& receipt);
     bool RouteHudPointer(FarmRuntimeHud& hud, float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteHudKeyboard(FarmRuntimeHud& hud, UiKeyboardKey key, FarmActionPanelReceipt& receipt);

@@ -147,16 +147,16 @@ bool CurriculumSystem::Fail(CurriculumError error) { lastError_ = error; return 
 
 bool CurriculumSystem::Initialize(const CurriculumGraph& graph) {
     if (!graph.IsReady()) return Fail(CurriculumError::InvalidConfiguration);
-    graph_ = &graph;
-    completed_.assign(graph.Lessons().size(), 0U);
-    completedAtGameMinutes_.assign(graph.Lessons().size(), 0U);
-    completionRevisions_.assign(graph.Lessons().size(), 0U);
+    graph_ = graph;
+    completed_.assign(graph_.Lessons().size(), 0U);
+    completedAtGameMinutes_.assign(graph_.Lessons().size(), 0U);
+    completionRevisions_.assign(graph_.Lessons().size(), 0U);
     lastReceipt_ = {};
-    lastReceipt_.lessons.reserve(graph.Lessons().size());
+    lastReceipt_.lessons.reserve(graph_.Lessons().size());
     revision_ = 0U;
     initialized_ = true;
     CurriculumObservation initialObservation{};
-    if (!BuildReceipt(initialObservation, lastReceipt_)) { initialized_ = false; graph_ = nullptr; return Fail(CurriculumError::InvalidConfiguration); }
+    if (!BuildReceipt(initialObservation, lastReceipt_)) { initialized_ = false; graph_ = {}; return Fail(CurriculumError::InvalidConfiguration); }
     lastError_ = CurriculumError::None;
     return true;
 }
@@ -178,21 +178,21 @@ bool CurriculumSystem::EvaluateCondition(const LessonCondition& condition, const
 }
 
 bool CurriculumSystem::PrerequisitesCompleted(uint16_t lessonIndex, const std::vector<uint8_t>& completed) const {
-    const LessonNode& lesson = graph_->Lessons()[lessonIndex];
+    const LessonNode& lesson = graph_.Lessons()[lessonIndex];
     for (const std::string& prerequisite : lesson.prerequisites) {
-        const size_t index = FindIndex(graph_->Lessons(), prerequisite);
-        if (index == graph_->Lessons().size() || completed[index] == 0U) return false;
+        const size_t index = FindIndex(graph_.Lessons(), prerequisite);
+        if (index == graph_.Lessons().size() || completed[index] == 0U) return false;
     }
     return true;
 }
 
 bool CurriculumSystem::BuildReceipt(const CurriculumObservation& observation, CurriculumProgressReceipt& receipt) const {
-    if (!initialized_ || graph_ == nullptr || completed_.size() != graph_->Lessons().size()) return false;
+    if (!initialized_ || completed_.size() != graph_.Lessons().size()) return false;
     CurriculumProgressReceipt candidate{};
     candidate.revision = revision_;
-    candidate.lessons.reserve(graph_->Lessons().size());
-    for (uint16_t index = 0U; index < graph_->Lessons().size(); ++index) {
-        const LessonNode& lesson = graph_->Lessons()[index];
+    candidate.lessons.reserve(graph_.Lessons().size());
+    for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
+        const LessonNode& lesson = graph_.Lessons()[index];
         LessonProgress progress{};
         progress.id = lesson.id;
         progress.totalConditions = static_cast<uint16_t>(lesson.completionConditions.size());
@@ -214,16 +214,16 @@ bool CurriculumSystem::BuildReceipt(const CurriculumObservation& observation, Cu
 }
 
 bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::vector<CurriculumEvent>& events) {
-    if (!initialized_ || graph_ == nullptr) return Fail(CurriculumError::NotInitialized);
+    if (!initialized_) return Fail(CurriculumError::NotInitialized);
     std::vector<uint8_t> candidateCompleted = completed_;
     std::vector<uint64_t> candidateCompletedAt = completedAtGameMinutes_;
     std::vector<uint64_t> candidateCompletionRevisions = completionRevisions_;
     bool changed = false;
     uint64_t candidateRevision = revision_;
     if (candidateRevision == std::numeric_limits<uint64_t>::max()) return Fail(CurriculumError::RevisionOverflow);
-    for (const uint16_t index : graph_->EvaluationOrder()) {
+    for (const uint16_t index : graph_.EvaluationOrder()) {
         if (candidateCompleted[index] != 0U || !PrerequisitesCompleted(index, candidateCompleted)) continue;
-        const LessonNode& lesson = graph_->Lessons()[index];
+        const LessonNode& lesson = graph_.Lessons()[index];
         const bool allConditions = std::all_of(lesson.completionConditions.begin(), lesson.completionConditions.end(), [this, &observation](const LessonCondition& condition) { return EvaluateCondition(condition, observation); });
         if (allConditions) {
             candidateCompleted[index] = 1U;
@@ -232,7 +232,7 @@ bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::v
     }
     if (changed) {
         candidateRevision = revision_ + 1U;
-        for (uint16_t index = 0U; index < graph_->Lessons().size(); ++index) {
+        for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
             if (completed_[index] == 0U && candidateCompleted[index] != 0U) {
                 candidateCompletedAt[index] = observation.time.totalGameMinutes;
                 candidateCompletionRevisions[index] = candidateRevision;
@@ -253,10 +253,10 @@ bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::v
     CurriculumProgressReceipt candidateReceipt{};
     if (!BuildReceipt(observation, candidateReceipt)) return Fail(CurriculumError::CorruptPersistence);
     events.clear();
-    for (uint16_t index = 0U; index < graph_->Lessons().size(); ++index) {
+    for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
         if (oldCompleted[index] == 0U && completed_[index] != 0U) {
-            events.push_back({graph_->Lessons()[index].id, LessonStatus::Completed, revision_});
-            candidateReceipt.newlyEarnedRewards.insert(candidateReceipt.newlyEarnedRewards.end(), graph_->Lessons()[index].rewards.begin(), graph_->Lessons()[index].rewards.end());
+            events.push_back({graph_.Lessons()[index].id, LessonStatus::Completed, revision_});
+            candidateReceipt.newlyEarnedRewards.insert(candidateReceipt.newlyEarnedRewards.end(), graph_.Lessons()[index].rewards.begin(), graph_.Lessons()[index].rewards.end());
         }
     }
     lastReceipt_ = std::move(candidateReceipt);
@@ -279,7 +279,7 @@ bool CurriculumSystem::Snapshot(CurriculumProgressReceipt& receipt) const {
 }
 
 bool CurriculumSystem::ValidateProgress(const std::vector<uint8_t>& completed, uint64_t revision) const {
-    if (graph_ == nullptr || completed.size() != graph_->Lessons().size()) return false;
+    if ( completed.size() != graph_.Lessons().size()) return false;
     for (uint16_t index = 0U; index < completed.size(); ++index) {
         if (completed[index] > 1U) return false;
         if (completed[index] != 0U && !PrerequisitesCompleted(index, completed)) return false;
@@ -289,11 +289,11 @@ bool CurriculumSystem::ValidateProgress(const std::vector<uint8_t>& completed, u
 }
 
 bool CurriculumSystem::Serialize(std::vector<uint8_t>& bytes) const {
-    if (!initialized_ || graph_ == nullptr || completed_.size() > std::numeric_limits<uint16_t>::max()) return false;
+    if (!initialized_ || completed_.size() > std::numeric_limits<uint16_t>::max()) return false;
     std::vector<uint8_t> candidate;
     AppendU32(candidate, kMagic);
     AppendU16(candidate, kVersion);
-    AppendU64(candidate, GraphFingerprint(*graph_));
+    AppendU64(candidate, GraphFingerprint(graph_));
     AppendU64(candidate, revision_);
     AppendU16(candidate, static_cast<uint16_t>(completed_.size()));
     for (uint16_t index = 0U; index < completed_.size(); ++index) {
@@ -308,13 +308,13 @@ bool CurriculumSystem::Serialize(std::vector<uint8_t>& bytes) const {
 }
 
 bool CurriculumSystem::Deserialize(std::span<const uint8_t> bytes) {
-    if (!initialized_ || graph_ == nullptr) return Fail(CurriculumError::NotInitialized);
+    if (!initialized_) return Fail(CurriculumError::NotInitialized);
     if (bytes.size() > kMaxSerializedBytes) return Fail(CurriculumError::CorruptPersistence);
     size_t offset = 0U;
     uint32_t magic = 0U;
     uint16_t version = 0U, count = 0U;
     uint64_t graphFingerprint = 0U, revision = 0U, expectedHash = 0U;
-    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, graphFingerprint) || !ReadU64(bytes, offset, revision) || !ReadU16(bytes, offset, count) || magic != kMagic || version != kVersion || graphFingerprint != GraphFingerprint(*graph_) || count != graph_->Lessons().size()) return Fail(CurriculumError::CorruptPersistence);
+    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, graphFingerprint) || !ReadU64(bytes, offset, revision) || !ReadU16(bytes, offset, count) || magic != kMagic || version != kVersion || graphFingerprint != GraphFingerprint(graph_) || count != graph_.Lessons().size()) return Fail(CurriculumError::CorruptPersistence);
     std::vector<uint8_t> candidateCompleted(count, 0U);
     std::vector<uint64_t> candidateCompletedAt(count, 0U);
     std::vector<uint64_t> candidateCompletionRevisions(count, 0U);
