@@ -39,6 +39,11 @@ int main() {
     uint16_t evictedResources = 0U;
     if (!resources.EvictUnleased(evictedResources) || evictedResources != 3U || resources.ActiveResourceCount() != 0U || resources.Query("texture.wheat", textureReceipt) || resources.LastError() != AssetResourceError::InvalidIdentifier) return 18;
     AssetResourceHandle rehydratedHandle{};
-    if (!resources.Acquire("material.crop", rehydratedHandle) || resources.ActiveResourceCount() != 3U || resources.ActiveLeaseCount() != 1U || !resources.Release(rehydratedHandle) || resources.ActiveLeaseCount() != 0U) return 19;
+    if (!resources.Acquire("material.crop", rehydratedHandle) || resources.ActiveResourceCount() != 3U || resources.ActiveLeaseCount() != 1U || resources.ResidentBytes() != 7U) return 19;
+    uint32_t budgetResidentBytes = 999U;
+    uint16_t budgetEvictedResources = 99U;
+    if (resources.EvictToBudget(0U, budgetResidentBytes, budgetEvictedResources) || resources.LastError() != AssetResourceError::BudgetExceeded || budgetResidentBytes != 999U || budgetEvictedResources != 99U || resources.ActiveResourceCount() != 3U) return 20;
+    if (!resources.Release(rehydratedHandle) || resources.ActiveLeaseCount() != 0U || !resources.EvictToBudget(2U, budgetResidentBytes, budgetEvictedResources) || budgetResidentBytes != 2U || resources.ResidentBytes() != budgetResidentBytes || resources.ActiveResourceCount() != 1U || budgetEvictedResources != 2U) return 21;
+    if (!resources.EvictToBudget(0U, budgetResidentBytes, budgetEvictedResources) || budgetResidentBytes != 0U || resources.ResidentBytes() != 0U || resources.ActiveResourceCount() != 0U || budgetEvictedResources != 1U) return 22;
     return 0;
 }

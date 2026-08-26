@@ -23,6 +23,7 @@ enum class AssetResourceError : uint8_t {
     RefcountOverflow,
     RefcountUnderflow,
     HotReloadRejected,
+    BudgetExceeded,
 };
 
 struct AssetResourceHandle {
@@ -58,11 +59,13 @@ public:
     bool SyncHotReload(std::string_view assetId);
     bool ReloadIfSafe(std::string_view assetId);
     bool EvictUnleased(uint16_t& evictedResources);
+    bool EvictToBudget(uint32_t maxResidentBytes, uint32_t& residentBytes, uint16_t& evictedResources);
     bool Query(AssetResourceHandle handle, AssetResourceReceipt& receipt) const;
     bool Query(std::string_view assetId, AssetResourceReceipt& receipt) const;
     const std::vector<uint8_t>* Data(AssetResourceHandle handle) const;
 
     [[nodiscard]] uint16_t ActiveResourceCount() const { return activeResourceCount_; }
+    [[nodiscard]] uint32_t ResidentBytes() const;
     [[nodiscard]] uint32_t TotalLeaseCount() const { return totalLeaseCount_; }
     [[nodiscard]] uint32_t ActiveLeaseCount() const { return activeLeaseCount_; }
     [[nodiscard]] AssetResourceError LastError() const { return lastError_; }
