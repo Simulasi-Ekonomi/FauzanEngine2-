@@ -16,14 +16,18 @@ bool HasEntityAction(const std::vector<AssetRefreshPlanEntry>& entries, AssetRef
 } // namespace
 
 bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene) {
-    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, nullptr);
+    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, nullptr, nullptr);
 }
 
 bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter& sprites) {
-    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, &sprites);
+    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, &sprites, nullptr);
 }
 
-bool AssetRefreshDiagnostics::BuildPlanImpl(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter* sprites) {
+bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const PrefabStagingStore& prefabs) {
+    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, nullptr, &prefabs);
+}
+
+bool AssetRefreshDiagnostics::BuildPlanImpl(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter* sprites, const PrefabStagingStore* prefabs) {
     AssetReloadDiagnostics dependencyPlan;
     if (!dependencyPlan.BuildPlan(registry, changedId)) {
         lastError_ = dependencyPlan.LastError() == AssetReloadDiagnosticsError::MissingAsset ? AssetRefreshDiagnosticsError::MissingAsset : AssetRefreshDiagnosticsError::DependencyPlanFailed;
@@ -60,6 +64,7 @@ bool AssetRefreshDiagnostics::BuildPlanImpl(const AssetRegistry& registry, std::
                 if (!Append(candidates, {AssetRefreshAction::RefreshSpriteInstance, affectedId, {}, binding.entity, expectedHash})) { lastError_ = AssetRefreshDiagnosticsError::Capacity; return false; }
             }
         }
+        if (prefabs != nullptr && prefabs->Find(affectedId) != nullptr && !prefabs->IsCurrent(registry, affectedId) && !Append(candidates, {AssetRefreshAction::RefreshPrefab, affectedId, {}, {}, expectedHash})) { lastError_ = AssetRefreshDiagnosticsError::Capacity; return false; }
     }
     entries_ = std::move(candidates);
     lastError_ = AssetRefreshDiagnosticsError::None;

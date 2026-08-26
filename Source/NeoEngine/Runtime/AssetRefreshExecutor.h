@@ -43,6 +43,9 @@ public:
     // ExecuteSpritesAtomic against one shared candidate set. Existing APIs stay
     // unchanged; all supplied stores and receipts commit only on full success.
     bool ExecuteCombinedAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene, SceneSpriteAdapter& sprites);
+    // Executes a bounded staged-prefab subset on a candidate store. It refreshes
+    // data only and never instantiates or mutates an EditorSceneSession.
+    bool ExecutePrefabsAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, PrefabStagingStore& prefabs);
     [[nodiscard]] const std::vector<AssetRefreshPreflightReceipt>& PreflightReceipts() const { return preflightReceipts_; }
     [[nodiscard]] const std::vector<AssetRefreshReceipt>& Receipts() const { return receipts_; }
     [[nodiscard]] AssetRefreshExecutorError LastError() const { return lastError_; }

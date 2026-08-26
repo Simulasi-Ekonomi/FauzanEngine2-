@@ -151,6 +151,30 @@ bool AssetRefreshExecutor::ExecuteCombinedAtomic(const std::vector<AssetRefreshP
     return true;
 }
 
+bool AssetRefreshExecutor::ExecutePrefabsAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, PrefabStagingStore& prefabs) {
+    if (plan.size() > kMaxReceipts || HasDuplicateAction(plan)) { lastError_ = plan.size() > kMaxReceipts ? AssetRefreshExecutorError::Capacity : AssetRefreshExecutorError::PlanInvalid; return false; }
+    AssetRefreshExecutor candidate = *this; PrefabStagingStore candidatePrefabs = prefabs;
+    std::vector<AssetRefreshPreflightReceipt> preflight; preflight.reserve(plan.size());
+    for (const AssetRefreshPlanEntry& entry : plan) {
+        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        if (entry.action != AssetRefreshAction::RefreshPrefab) { lastError_ = AssetRefreshExecutorError::PlanInvalid; return false; }
+        if (!MatchesExpectedHash(registry, entry)) { lastError_ = AssetRefreshExecutorError::PlanStale; return false; }
+        const bool valid = candidatePrefabs.Find(entry.assetId) != nullptr && !candidatePrefabs.IsCurrent(registry, entry.assetId) && candidatePrefabs.CanRefresh(registry, entry.assetId);
+        receipt.structurallyValid = valid; preflight.push_back(std::move(receipt));
+        if (!valid) { lastError_ = candidatePrefabs.Find(entry.assetId) != nullptr ? AssetRefreshExecutorError::ProbeFailed : AssetRefreshExecutorError::StaleResource; return false; }
+    }
+    std::vector<AssetRefreshReceipt> results; results.reserve(plan.size());
+    for (const AssetRefreshPlanEntry& entry : plan) {
+        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        const bool refreshed = candidatePrefabs.Refresh(registry, entry.assetId);
+        receipt.succeeded = refreshed; results.push_back(std::move(receipt));
+        if (!refreshed) { lastError_ = AssetRefreshExecutorError::ActionFailed; return false; }
+    }
+    candidate.preflightReceipts_ = std::move(preflight); candidate.receipts_ = std::move(results);
+    prefabs = std::move(candidatePrefabs); preflightReceipts_ = std::move(candidate.preflightReceipts_); receipts_ = std::move(candidate.receipts_); lastError_ = AssetRefreshExecutorError::None;
+    return true;
+}
+
 bool AssetRefreshExecutor::ExecuteSpritesAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, SceneSpriteAdapter& sprites) {
     if (plan.size() > kMaxReceipts || HasDuplicateAction(plan)) { lastError_ = plan.size() > kMaxReceipts ? AssetRefreshExecutorError::Capacity : AssetRefreshExecutorError::PlanInvalid; return false; }
     AssetRefreshExecutor candidate = *this; TextureStagingStore candidateTextures = textures; SceneSpriteAdapter candidateSprites = sprites;
