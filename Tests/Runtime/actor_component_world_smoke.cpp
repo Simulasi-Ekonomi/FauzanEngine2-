@@ -22,6 +22,8 @@ public:
     uint8_t TickOrder() const override { return typeId_ == 10U ? 1U : 0U; }
     uint16_t SnapshotSizeBytes() const override { return typeId_ == 10U ? sizeof(uint32_t) : 0U; }
     bool CaptureSnapshot(std::span<uint8_t> bytes) const override { if (typeId_ != 10U) return bytes.empty(); if (bytes.size() != sizeof(uint32_t)) return false; if (snapshotWorld_ != nullptr && (snapshotWorld_->SetComponentEnabled(snapshotActor_, typeId_, false) || snapshotWorld_->LastError() != NeoEngine::ActorComponentError::MutationDuringDispatch)) return false; std::memcpy(bytes.data(), &snapshotValue, sizeof(snapshotValue)); return true; }
+    bool ValidateSnapshot(std::span<const uint8_t> bytes) const override { return typeId_ != 10U ? bytes.empty() : bytes.size() == sizeof(uint32_t); }
+    bool RestoreSnapshot(std::span<const uint8_t> bytes) override { if (typeId_ != 10U) return bytes.empty(); if (bytes.size() != sizeof(uint32_t)) return false; std::memcpy(&snapshotValue, bytes.data(), sizeof(snapshotValue)); return true; }
     uint32_t snapshotValue = 0U;
     NeoEngine::ActorComponentWorld* snapshotWorld_ = nullptr;
     NeoEngine::SceneEntity snapshotActor_{};
@@ -99,6 +101,12 @@ int main() {
     if (!actors.CollectActors(actorQuery) || actorQuery.size() != 1U || actorQuery[0] != hero || !actors.CollectComponentTypes(hero, componentQuery) || componentQuery.size() != 2U || componentQuery[0] != 10U || componentQuery[1] != 11U || !actors.CaptureSnapshot(structuralSnapshot) || structuralSnapshot.actors.size() != 1U || structuralSnapshot.begunPlay || structuralSnapshot.componentBytes.size() != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotSizes[0] != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotOffsets[0] != 0U || std::memcmp(structuralSnapshot.componentBytes.data(), &movementView->snapshotValue, sizeof(uint32_t)) != 0) return 7;
     if (!actors.BeginPlay() || !structuralSnapshot.actors.empty() && structuralSnapshot.actors[0].begunPlay || movementView->beginPlayCount != 1U || renderView->beginPlayCount != 1U) return 8;
     if (!actors.CaptureSnapshot(structuralSnapshot) || !structuralSnapshot.begunPlay || structuralSnapshot.actors[0].begunPlay != true || structuralSnapshot.componentBytes.size() != sizeof(uint32_t)) return 9;
+    movementView->snapshotValue = 99U;
+    if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 10;
+    ActorComponentWorldSnapshot invalidSnapshot = structuralSnapshot;
+    invalidSnapshot.actors[0].snapshotOffsets[0] = kMaxActorComponentWorldSnapshotBytes;
+    if (actors.RestoreSnapshot(invalidSnapshot) || actors.LastError() != ActorComponentError::RestoreRejected || movementView->snapshotValue != 99U || actors.IsComponentEnabled(hero, 10U)) return 11;
+    if (!actors.RestoreSnapshot(structuralSnapshot) || movementView->snapshotValue != 42U || !actors.IsComponentEnabled(hero, 10U) || !actors.IsComponentActive(hero, 11U)) return 12;
     if (!actors.SetComponentActive(hero, 11U, false) || actors.IsComponentActive(hero, 11U) || renderView->deactivateCount != 1U || !actors.SetComponentActive(hero, 11U, true) || !actors.IsComponentActive(hero, 11U) || renderView->activateCount != 1U) return 10;
     if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 11;
 

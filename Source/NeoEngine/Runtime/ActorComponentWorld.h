@@ -28,6 +28,7 @@ enum class ActorComponentError : uint8_t {
     BeginPlayRejected,
     EndPlayRejected,
     SnapshotRejected,
+    RestoreRejected,
     MutationDuringDispatch,
 };
 
@@ -50,6 +51,7 @@ public:
     [[nodiscard]] virtual uint16_t TickDependencyTypeId(uint8_t) const { return 0U; }
     [[nodiscard]] virtual uint16_t SnapshotSizeBytes() const { return 0U; }
     [[nodiscard]] virtual bool CaptureSnapshot(std::span<uint8_t> bytes) const { return bytes.empty(); }
+    [[nodiscard]] virtual bool ValidateSnapshot(std::span<const uint8_t> bytes) const { return bytes.size() == SnapshotSizeBytes(); }
     [[nodiscard]] virtual bool RestoreSnapshot(std::span<const uint8_t> bytes) { return bytes.empty(); }
     [[nodiscard]] virtual bool OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) = 0;
 };
@@ -103,6 +105,7 @@ public:
     bool EndPlay();
     bool TickFixed(uint32_t fixedTicks, ActorComponentWorldReceipt& receipt);
     bool CaptureSnapshot(ActorComponentWorldSnapshot& snapshot) const;
+    bool RestoreSnapshot(const ActorComponentWorldSnapshot& snapshot);
     bool CollectActors(std::vector<SceneEntity>& output) const;
     bool CollectComponentTypes(SceneEntity actor, std::vector<uint16_t>& output) const;
 

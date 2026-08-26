@@ -348,6 +348,48 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
     return true;
 }
 
+bool ActorComponentWorld::RestoreSnapshot(const ActorComponentWorldSnapshot& snapshot) {
+    if (dispatching_ || snapshot.actors.size() != actorCount_ || snapshot.componentBytes.size() > kMaxActorComponentWorldSnapshotBytes) return Fail(dispatching_ ? ActorComponentError::MutationDuringDispatch : ActorComponentError::RestoreRejected);
+    uint32_t expectedComponentCount = 0U;
+    for (const ActorComponentSnapshot& record : snapshot.actors) {
+        const ActorSlot* actor = FindActorSlot(record.actor);
+        if (actor == nullptr || record.name != actor->name || record.componentCount > kMaxComponentsPerActor || record.begunPlay != actor->begunPlay) return Fail(ActorComponentError::RestoreRejected);
+        expectedComponentCount += record.componentCount;
+        if (expectedComponentCount > componentCount_) return Fail(ActorComponentError::RestoreRejected);
+        for (uint8_t componentIndex = 0U; componentIndex < record.componentCount; ++componentIndex) {
+            const uint16_t typeId = record.componentTypeIds[componentIndex];
+            const ComponentSlot* component = FindSlot(record.actor, typeId);
+            const uint32_t offset = record.snapshotOffsets[componentIndex];
+            const uint16_t size = record.snapshotSizes[componentIndex];
+            if (component == nullptr || component->component == nullptr || component->component->TypeId() != typeId || offset > snapshot.componentBytes.size() || snapshot.componentBytes.size() - offset < size || size > kMaxActorComponentSnapshotBytes || component->component->SnapshotSizeBytes() != size) return Fail(ActorComponentError::RestoreRejected);
+            for (uint8_t priorIndex = 0U; priorIndex < componentIndex; ++priorIndex) if (record.componentTypeIds[priorIndex] == typeId) return Fail(ActorComponentError::RestoreRejected);
+            dispatching_ = true;
+            const bool valid = component->component->ValidateSnapshot(std::span<const uint8_t>(snapshot.componentBytes.data() + offset, size));
+            dispatching_ = false;
+            if (!valid) return Fail(ActorComponentError::RestoreRejected);
+        }
+    }
+    if (expectedComponentCount != componentCount_) return Fail(ActorComponentError::RestoreRejected);
+    for (const ActorComponentSnapshot& record : snapshot.actors) {
+        for (uint8_t componentIndex = 0U; componentIndex < record.componentCount; ++componentIndex) {
+            ComponentSlot* component = FindSlot(record.actor, record.componentTypeIds[componentIndex]);
+            const uint32_t offset = record.snapshotOffsets[componentIndex];
+            const uint16_t size = record.snapshotSizes[componentIndex];
+            dispatching_ = true;
+            const bool restored = component->component->RestoreSnapshot(std::span<const uint8_t>(snapshot.componentBytes.data() + offset, size));
+            dispatching_ = false;
+            if (!restored) return Fail(ActorComponentError::RestoreRejected);
+            component->enabled = record.componentEnabled[componentIndex];
+            component->active = record.componentActive[componentIndex];
+        }
+    }
+    if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
+    ++registrationRevision_;
+    lastReceipt_ = {actorCount_, componentCount_, 0U, registrationRevision_};
+    lastError_ = ActorComponentError::None;
+    return true;
+}
+
 bool ActorComponentWorld::CollectActors(std::vector<SceneEntity>& output) const {
     std::vector<SceneEntity> candidate;
     try {
