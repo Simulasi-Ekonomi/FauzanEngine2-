@@ -53,6 +53,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Editor session history | [`EDITOR_SCENE_SESSION_HISTORY_V1.md`](EDITOR_SCENE_SESSION_HISTORY_V1.md) | Bounded snapshot undo/redo through canonical candidate Open and asset validation. |
 | Animation state machine | [`ANIMATION_STATE_MACHINE_V1.md`](ANIMATION_STATE_MACHINE_V1.md) | Bounded scalar states, explicit transitions, and deterministic linear blend over AnimationTimeline. |
 | Animation locomotion bridge | [`ANIMATION_LOCOMOTION_BRIDGE_V1.md`](ANIMATION_LOCOMOTION_BRIDGE_V1.md) | Read-only input-to-state trigger bridge that preserves transform and movement authority ownership. |
+| Physics animation locomotion bridge | [`PHYSICS_ANIMATION_LOCOMOTION_BRIDGE_V1.md`](PHYSICS_ANIMATION_LOCOMOTION_BRIDGE_V1.md) | Read-only ECS velocity snapshot delegated to scalar locomotion selection. |
 | Animation sprite tint binding | [`ANIMATION_SPRITE_TINT_BINDING_V1.md`](ANIMATION_SPRITE_TINT_BINDING_V1.md) | Frame-local scalar animation sample to sprite tint binding with no SceneWorld transform write. |
 | Flipbook frame selector | [`FLIPBOOK_FRAME_SELECTOR_V1.md`](FLIPBOOK_FRAME_SELECTOR_V1.md) | Bounded deterministic scalar sample to CPU atlas source-rectangle selection. |
 | Flipbook playback | [`FLIPBOOK_PLAYBACK_V1.md`](FLIPBOOK_PLAYBACK_V1.md) | Bounded caller-driven normalized sample clock with loop/clamp and atomic invalid-delta rejection. |

@@ -59,6 +59,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AnimationLocomotionBridge.cpp
     Runtime/AnimationSpriteTintBinding.cpp
     Runtime/AnimationPlaybackControlBinding.cpp
+    Runtime/PhysicsAnimationLocomotionBridge.cpp
     Runtime/FlipbookFrameSelector.cpp
     Runtime/FlipbookPlayback.cpp
     Runtime/FlipbookRenderBridge.cpp
@@ -301,6 +302,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_state_machi
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp")
     add_xpbd_executable(animation_locomotion_bridge_smoke ../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/physics_animation_locomotion_bridge_smoke.cpp")
+    add_xpbd_executable(physics_animation_locomotion_bridge_smoke ../../Tests/Runtime/physics_animation_locomotion_bridge_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp")
     add_xpbd_executable(animation_sprite_tint_binding_smoke ../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp)
