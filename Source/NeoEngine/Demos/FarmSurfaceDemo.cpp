@@ -1,6 +1,5 @@
 #include "Demos/FarmSurfaceDemo.h"
 
-#include "Runtime/FarmRuntimeHud.h"
 #include "Runtime/NeoRuntime.h"
 
 namespace NeoEngine {
@@ -15,6 +14,7 @@ bool RunFarmSurfaceDemo(const FarmSurfaceDemoConfig& config, FarmSurfaceDemoRece
     runtimeConfig.renderHeight = static_cast<uint16_t>(config.height);
     runtimeConfig.farmNpcCount = 5;
     runtimeConfig.authoringWorldSide = 32;
+    runtimeConfig.enableFarmRuntimeHud = true;
     runtimeConfig.enableSoftwareSurfacePresentation = true;
     runtimeConfig.softwareSurfaceHidden = config.hiddenSurface;
     if (!runtime.Initialize(runtimeConfig)) { error = FarmSurfaceDemoError::RuntimeInitializeFailed; return false; }
@@ -28,12 +28,12 @@ bool RunFarmSurfaceDemo(const FarmSurfaceDemoConfig& config, FarmSurfaceDemoRece
     const SoftwareSurfacePresenter* surface = runtime.SurfacePresenter();
     const FarmWorldSnapshot snapshot = world->Snapshot();
     const FarmSystem* farm = runtime.Farm();
-    if (renderer == nullptr || surface == nullptr || farm == nullptr || surface->PresentedFrameCount() != config.frames) { runtime.Shutdown(); error = FarmSurfaceDemoError::ArtifactWriteFailed; return false; }
-    const uint64_t worldHash = renderer->FrameHash(); FarmRuntimeHud hud; const FarmRuntimeFrameReceipt frameReceipt{config.frames, worldHash, farm->Snapshot()};
-    if (!hud.Draw(frameReceipt, *renderer)) { runtime.Shutdown(); error = FarmSurfaceDemoError::HudFailed; return false; }
-    const uint64_t hudHash = renderer->FrameHash();
+    const RuntimeFarmRenderReceipt* runtimeReceipt = runtime.LastFarmRenderReceipt();
+    if (renderer == nullptr || surface == nullptr || farm == nullptr || runtimeReceipt == nullptr || surface->PresentedFrameCount() != config.frames || runtimeReceipt->frame != config.frames || runtimeReceipt->presentedFrameCount != config.frames || runtimeReceipt->worldFramebufferHash == 0U || runtimeReceipt->hudFramebufferHash != renderer->FrameHash() || runtimeReceipt->hudFramebufferHash == runtimeReceipt->worldFramebufferHash) { runtime.Shutdown(); error = FarmSurfaceDemoError::ArtifactWriteFailed; return false; }
+    const uint64_t worldHash = runtimeReceipt->worldFramebufferHash;
+    const uint64_t hudHash = runtimeReceipt->hudFramebufferHash;
     if (!renderer->WritePpm(config.ppmPath)) { runtime.Shutdown(); error = FarmSurfaceDemoError::ArtifactWriteFailed; return false; }
-    const FarmSurfaceDemoReceipt candidate{config.frames, hudHash, static_cast<uint32_t>(surface->PresentedFrameCount()), snapshot.buildings, snapshot.npcs, worldHash, hudHash};
+    const FarmSurfaceDemoReceipt candidate{config.frames, hudHash, static_cast<uint32_t>(runtimeReceipt->presentedFrameCount), snapshot.buildings, snapshot.npcs, worldHash, hudHash};
     if (!runtime.Shutdown()) { error = FarmSurfaceDemoError::ShutdownFailed; return false; }
     receipt = candidate;
     return true;

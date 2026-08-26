@@ -8,8 +8,8 @@
 |---|---|---|
 | Inisialisasi | `NeoRuntime` + `TrustSafetySystem` + `FarmWorldTool` | Runtime dan SDL surface optional harus berhasil. |
 | Setup scene | Permit Barn dan aksi Farm pemain yang tervalidasi | Snapshot memuat satu building dan lima NPC. |
-| Frame | `NeoRuntime::Tick` lalu `RenderFarm` | Frame CPU diraster dan dipresentasikan ke SDL surface. |
-| Artefak | `SoftwareRenderer::WritePpm` | PPM `P6` berisi frame akhir untuk inspeksi. |
+| Frame | `NeoRuntime::Tick` lalu `RenderFarm` dengan Farm HUD runtime | Kandidat CPU world+HUD dipresentasikan ke SDL surface sebelum receipt/renderer dikomit. |
+| Artefak | `SoftwareRenderer::WritePpm` pada renderer yang telah dikomit | PPM `P6`, `worldFrameHash`, `hudFrameHash`, dan jumlah presentasi berasal dari receipt runtime yang sama. |
 
 ## Penggunaan
 
@@ -22,9 +22,9 @@ Mode default memakai surface tersembunyi untuk determinisme smoke. Opsi `--visib
 
 ## Bukti
 
-`farm_surface_demo_smoke` menjalankan empat frame hidden surface, memverifikasi receipt dengan empat frame present, satu building, lima NPC, hash frame nonnol, dan artefak PPM valid. Ia juga membuktikan konfigurasi ukuran di bawah batas ditolak. Executable digunakan pada Release dan ASAN dengan `detect_leaks=1` untuk menghasilkan tiga frame beserta PPM.
+`farm_surface_demo_smoke` menjalankan empat frame hidden surface, memverifikasi receipt runtime dengan empat frame present, satu building, lima NPC, hash world/HUD yang berbeda, dan artefak PPM valid. Ia juga membuktikan konfigurasi ukuran di bawah batas ditolak. Executable digunakan pada Release dan ASAN dengan `detect_leaks=1` untuk menghasilkan frame beserta PPM.
 
-Suite non-Vulkan penuh mencapai **95/95 Release** dan **95/95 ASAN**. Artefak demonstrasi Release yang terpisah dihasilkan sebagai PPM 256×256 dengan hash frame `6179471946010819966`; artefak tidak disimpan ke GitHub karena merupakan output build, bukan source.
+Suite non-Vulkan penuh dicatat oleh runner regresi canonical; artefak demonstrasi tidak disimpan ke GitHub karena merupakan output build, bukan source.
 
 ## Batas
 
