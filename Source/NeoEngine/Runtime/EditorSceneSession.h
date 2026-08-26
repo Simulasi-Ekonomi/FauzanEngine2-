@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class EditorSceneSessionError : uint8_t { None, InvalidDocument, DocumentLoadFailed, MeshBindFailed, SpriteBindFailed, CodecDecodeFailed, CodecEncodeFailed, HistoryUnavailable, UnknownActor, ActorHasChildren, ViewportRenderFailed };
+enum class EditorSceneSessionError : uint8_t { None, InvalidDocument, DocumentLoadFailed, MeshBindFailed, SpriteBindFailed, CodecDecodeFailed, CodecEncodeFailed, HistoryUnavailable, UnknownActor, NoSelection, ActorHasChildren, ViewportRenderFailed };
 
 // Bounded in-engine editor foundation. It owns a loaded SceneDocument snapshot
 // and its canonical runtime adapters; it has no desktop UI, filesystem, network,
@@ -36,6 +36,7 @@ public:
     [[nodiscard]] uint32_t SelectedActorId() const { return selectedActorId_; }
     [[nodiscard]] std::vector<EditorSceneActor> HierarchySnapshot() const;
     bool InspectActor(uint32_t actorId, EditorSceneActor& actor) const;
+    bool InspectSelected(EditorSceneActor& actor) const;
     bool RenderViewport(RenderCamera& camera, SoftwareRenderer& renderer, const DirectionalLight& light);
     [[nodiscard]] const SceneWorld& World() const { return world_; }
     [[nodiscard]] EditorSceneSessionError LastError() const { return lastError_; }

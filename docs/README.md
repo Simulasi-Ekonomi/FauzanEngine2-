@@ -61,6 +61,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Flipbook surface sequence proof | [`FLIPBOOK_SURFACE_SEQUENCE_PROOF_V1.md`](FLIPBOOK_SURFACE_SEQUENCE_PROOF_V1.md) | Finite four-frame selector-to-staged-sprite surface proof with transform-preservation check. |
 | Kinematic collision preflight probe | [`KINEMATIC_COLLISION_PREFLIGHT_PROBE_V1.md`](KINEMATIC_COLLISION_PREFLIGHT_PROBE_V1.md) | Read-only blocker receipt for proposed planar motion with atomic caller output. |
 | Editor selection | [`EDITOR_SELECTION_V1.md`](EDITOR_SELECTION_V1.md) | Bounded transient actor selection that remains outside document, transform, and history ownership. |
+| Editor selected inspector | [`EDITOR_SELECTED_INSPECTOR_V1.md`](EDITOR_SELECTED_INSPECTOR_V1.md) | Read-only selected-actor document snapshot with no-selection output preservation. |
 | Material import batch | [`MATERIAL_IMPORT_BATCH_V1.md`](MATERIAL_IMPORT_BATCH_V1.md) | Candidate/commit staging of an explicit ordered multi-material MTL set. |
 | Farm runtime frame receipt | [`FARM_RUNTIME_FRAME_RECEIPT_V1.md`](FARM_RUNTIME_FRAME_RECEIPT_V1.md) | Committed software-frame number/hash receipt with failure preservation. |
 | Farm runtime HUD | [`FARM_RUNTIME_HUD_V1.md`](FARM_RUNTIME_HUD_V1.md) | Finite candidate-rendered read-only receipt telemetry panel. |
