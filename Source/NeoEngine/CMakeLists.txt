@@ -92,6 +92,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SceneWorld.cpp
     Runtime/ActorComponentWorld.cpp
     Runtime/CharacterPawn.cpp
+    Runtime/ReplicationWorld.cpp
     Runtime/EditorSceneDocument.cpp
     Runtime/EditorSceneDocumentCodec.cpp
     Runtime/EditorScenePrefab.cpp
@@ -279,6 +280,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/actor_component_world
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/character_pawn_smoke.cpp")
     add_xpbd_executable(character_pawn_smoke ../../Tests/Runtime/character_pawn_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/replication_world_smoke.cpp")
+    add_xpbd_executable(replication_world_smoke ../../Tests/Runtime/replication_world_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_object_pool_smoke.cpp")
     add_xpbd_executable(runtime_object_pool_smoke ../../Tests/Runtime/runtime_object_pool_smoke.cpp)
