@@ -119,6 +119,7 @@ set(XPBD_RUNTIME_SOURCES
     Demos/MaterialImportSurfaceDemo.cpp
     Demos/MaterialRefreshSurfaceDemo.cpp
     Demos/MotionAnimationSurfaceDemo.cpp
+    Demos/PhysicsAnimationSurfaceDemo.cpp
     Demos/TriggerRuntimeSurfaceDemo.cpp
     Demos/TriggerAnimationSurfaceDemo.cpp
     Demos/KinematicPreflightSurfaceDemo.cpp
@@ -413,6 +414,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/material_refresh_surf
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/motion_animation_surface_demo_smoke.cpp")
     add_xpbd_executable(motion_animation_surface_demo_smoke ../../Tests/Runtime/motion_animation_surface_demo_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/physics_animation_surface_demo_smoke.cpp")
+    add_xpbd_executable(physics_animation_surface_demo_smoke ../../Tests/Runtime/physics_animation_surface_demo_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/flipbook_surface_demo_smoke.cpp")
     add_xpbd_executable(flipbook_surface_demo_smoke ../../Tests/Runtime/flipbook_surface_demo_smoke.cpp)
