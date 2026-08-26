@@ -94,6 +94,13 @@ public:
     uint32_t snapshotValue = 0U;
 };
 
+class RejectEndPlayOnceComponent final : public ProbeComponent {
+public:
+    RejectEndPlayOnceComponent() : ProbeComponent(42U) {}
+    bool OnEndPlay(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { if (rejectNext) { rejectNext = false; return false; } return true; }
+    bool rejectNext = true;
+};
+
 class ReentrantMutationComponent final : public ProbeComponent {
 public:
     ReentrantMutationComponent(NeoEngine::ActorComponentWorld& world, NeoEngine::SceneEntity actor, ProbeComponent& dependency) : ProbeComponent(30U), world_(world), actor_(actor), dependency_(dependency) {}
@@ -221,5 +228,13 @@ int main() {
     if (!rollbackWorld.CaptureSnapshot(rollbackSnapshot)) return 32;
     failAlwaysView->snapshotValue = 99U;
     if (rollbackWorld.RestoreSnapshot(rollbackSnapshot) || rollbackWorld.LastError() != ActorComponentError::RollbackRejected || failAlwaysView->snapshotValue != 99U) return 32;
+    SceneWorld retryScene;
+    ActorComponentWorld retryWorld(retryScene);
+    SceneEntity retryActor{};
+    if (!retryWorld.CreateActor(retryActor, "RetryActor") || !retryScene.SetTransform(retryActor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 33;
+    if (!retryWorld.AttachComponent(retryActor, std::make_unique<RejectEndPlayOnceComponent>()) || !retryWorld.BeginPlay()) return 33;
+    if (retryWorld.EndPlay() || retryWorld.LastError() != ActorComponentError::EndPlayRejected) return 33;
+    ActorComponentWorldSnapshot endedSnapshot{};
+    if (!retryWorld.EndPlay() || !retryWorld.CaptureSnapshot(endedSnapshot) || endedSnapshot.begunPlay || endedSnapshot.actors.size() != 1U || endedSnapshot.actors[0].begunPlay) return 33;
     return 0;
 }
