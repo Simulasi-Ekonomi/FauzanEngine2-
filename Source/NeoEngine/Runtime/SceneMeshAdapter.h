@@ -17,6 +17,11 @@ struct SceneMeshInstance { SceneEntity entity{}; std::vector<MeshVertex> vertice
 class SceneMeshAdapter {
 public:
     static constexpr uint16_t kMaxInstances = 64;
+    SceneMeshAdapter() = default;
+    SceneMeshAdapter(const SceneMeshAdapter& other);
+    SceneMeshAdapter& operator=(const SceneMeshAdapter& other);
+    SceneMeshAdapter(SceneMeshAdapter&& other);
+    SceneMeshAdapter& operator=(SceneMeshAdapter&& other);
     bool Add(SceneMeshInstance instance);
     bool AddStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material);
     bool AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material);
@@ -32,6 +37,7 @@ public:
     [[nodiscard]] SceneMeshAdapterError LastError() const { return lastError_; }
     [[nodiscard]] uint16_t LastCulledCount() const { return lastCulledCount_; }
 private:
+    void RebindEmbeddedTexturePointers();
     std::deque<SceneMeshInstance> instances_;
     SceneMeshAdapterError lastError_ = SceneMeshAdapterError::None;
     uint16_t lastCulledCount_ = 0;

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace NeoEngine {
 namespace {
@@ -23,6 +24,11 @@ bool PrepareInstance(SceneMeshInstance& instance) {
     if(!std::isfinite(radius)||!CopyTexture(instance))return false;instance.localBoundsRadius=radius;return true;
 }
 }
+SceneMeshAdapter::SceneMeshAdapter(const SceneMeshAdapter& other):instances_(other.instances_),lastError_(other.lastError_),lastCulledCount_(other.lastCulledCount_){RebindEmbeddedTexturePointers();}
+SceneMeshAdapter& SceneMeshAdapter::operator=(const SceneMeshAdapter& other){if(this==&other)return *this;instances_=other.instances_;lastError_=other.lastError_;lastCulledCount_=other.lastCulledCount_;RebindEmbeddedTexturePointers();return *this;}
+SceneMeshAdapter::SceneMeshAdapter(SceneMeshAdapter&& other):instances_(std::move(other.instances_)),lastError_(other.lastError_),lastCulledCount_(other.lastCulledCount_){RebindEmbeddedTexturePointers();}
+SceneMeshAdapter& SceneMeshAdapter::operator=(SceneMeshAdapter&& other){if(this==&other)return *this;instances_=std::move(other.instances_);lastError_=other.lastError_;lastCulledCount_=other.lastCulledCount_;RebindEmbeddedTexturePointers();return *this;}
+void SceneMeshAdapter::RebindEmbeddedTexturePointers(){for(SceneMeshInstance& instance:instances_)instance.material.texture=instance.sourceTextureHash==0U?nullptr:&instance.texture;}
 bool SceneMeshAdapter::Add(SceneMeshInstance instance){if(instance.entity.index==0xFFFFU){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}if(!PrepareInstance(instance)){lastError_=instance.material.texture==nullptr?SceneMeshAdapterError::InvalidMesh:SceneMeshAdapterError::InvalidTexture;return false;}if(std::any_of(instances_.begin(),instances_.end(),[&instance](const SceneMeshInstance& other){return other.entity==instance.entity;})){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}if(instances_.size()>=kMaxInstances){lastError_=SceneMeshAdapterError::Capacity;return false;}instances_.push_back(std::move(instance));if(instances_.back().sourceTextureHash!=0U)instances_.back().material.texture=&instances_.back().texture;lastError_=SceneMeshAdapterError::None;return true;}
 bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material){
     if(resource.assetId.empty()||resource.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}

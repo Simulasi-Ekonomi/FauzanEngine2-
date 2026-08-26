@@ -43,6 +43,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Mesh frustum clipping | [`MESH_FRUSTUM_CLIPPING_V1.md`](MESH_FRUSTUM_CLIPPING_V1.md) | Bounded six-plane camera-space clipping, normal off-frustum culling, and preserved atomic draw behavior. |
 | Mesh double-sided material | [`MESH_DOUBLE_SIDED_MATERIAL_V1.md`](MESH_DOUBLE_SIDED_MATERIAL_V1.md) | Default two-sided raster versus explicit back-face culling contract. |
 | Scene mesh oriented culling | [`SCENE_MESH_ORIENTED_CULLING_V1.md`](SCENE_MESH_ORIENTED_CULLING_V1.md) | Conservative instance bounding-sphere culling in oriented camera space. |
+| Scene mesh adapter value semantics | [`SCENE_MESH_ADAPTER_VALUE_SEMANTICS_V1.md`](SCENE_MESH_ADAPTER_VALUE_SEMANTICS_V1.md) | Copy/move-safe rebinding of per-instance embedded CPU texture pointers. |
 | Scene render adapter | [`SCENE_RENDER_ADAPTER_V1.md`](SCENE_RENDER_ADAPTER_V1.md) | Atomic mesh-first plus sprite scene composition entry point. |
 | Scene sprite render properties | [`SCENE_SPRITE_RENDER_PROPERTIES_V1.md`](SCENE_SPRITE_RENDER_PROPERTIES_V1.md) | Staged sprite rotation, camera billboard, and depth-write propagation. |
 | Editor scene session | [`EDITOR_SCENE_SESSION_V1.md`](EDITOR_SCENE_SESSION_V1.md) | Bounded hierarchy/inspector/save snapshot/viewport foundation over SceneDocument. |
