@@ -139,17 +139,22 @@ bool CharacterAnimationGraph::TriggerOverlay(std::string_view transitionId) {
 
 bool CharacterAnimationGraph::Tick(float deltaSeconds) {
     if (!Finite(deltaSeconds) || deltaSeconds <= 0.0F || deltaSeconds > kMaxFixedSeconds) { lastError_ = AnimationStateMachineError::InvalidDelta; return false; }
-    CharacterAnimationGraph candidate = *this;
-    if (candidate.baseStarted_ && !candidate.base_.Update(deltaSeconds)) { lastError_ = candidate.base_.LastError(); return false; }
-    if (candidate.overlayStarted_ && !candidate.overlay_.Update(deltaSeconds)) { lastError_ = candidate.overlay_.LastError(); return false; }
-    if (candidate.baseStarted_) candidate.baseState_ = candidate.base_.ActiveStateId();
-    if (candidate.overlayStarted_) candidate.overlayState_ = candidate.overlay_.ActiveStateId();
-    base_ = std::move(candidate.base_);
-    overlay_ = std::move(candidate.overlay_);
-    baseState_ = std::move(candidate.baseState_);
-    overlayState_ = std::move(candidate.overlayState_);
-    lastError_ = AnimationStateMachineError::None;
-    return true;
+    try {
+        CharacterAnimationGraph candidate = *this;
+        if (candidate.baseStarted_ && !candidate.base_.Update(deltaSeconds)) { lastError_ = candidate.base_.LastError(); return false; }
+        if (candidate.overlayStarted_ && !candidate.overlay_.Update(deltaSeconds)) { lastError_ = candidate.overlay_.LastError(); return false; }
+        if (candidate.baseStarted_) candidate.baseState_ = candidate.base_.ActiveStateId();
+        if (candidate.overlayStarted_) candidate.overlayState_ = candidate.overlay_.ActiveStateId();
+        base_ = std::move(candidate.base_);
+        overlay_ = std::move(candidate.overlay_);
+        baseState_ = std::move(candidate.baseState_);
+        overlayState_ = std::move(candidate.overlayState_);
+        lastError_ = AnimationStateMachineError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
+    }
 }
 
 bool CharacterAnimationGraph::SetOverlayWeightPermille(uint16_t weightPermille) {
@@ -177,7 +182,8 @@ bool CharacterAnimationGraph::CollectAnimationEvents(const AnimationTimeline& ti
     if (overlayStarted_ && overlayWeightPermille_ != 0U) {
         std::vector<std::string> overlayEvents;
         if (!overlay_.CollectEvents(timeline, fromTime, toTime, overlayEvents) || candidate.size() > 256U || overlayEvents.size() > 256U - candidate.size()) { lastError_ = AnimationStateMachineError::EventCollectionFailed; return false; }
-        candidate.insert(candidate.end(), overlayEvents.begin(), overlayEvents.end());
+        try { candidate.insert(candidate.end(), overlayEvents.begin(), overlayEvents.end()); }
+        catch (const std::bad_alloc&) { lastError_ = AnimationStateMachineError::Capacity; return false; }
     }
     output = std::move(candidate);
     lastError_ = AnimationStateMachineError::None;
