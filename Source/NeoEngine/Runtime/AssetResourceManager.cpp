@@ -257,15 +257,16 @@ bool AssetResourceManager::EvictToBudget(uint32_t maxResidentBytes, uint32_t& re
 }
 
 bool AssetResourceManager::EvictUnleased(uint16_t& evictedResources) {
-    evictedResources = 0U;
     for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation >= std::numeric_limits<uint32_t>::max() - 2U) return Fail(AssetResourceError::Capacity);
+    uint16_t candidateEvicted = 0U;
     for (Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U) {
         const uint32_t nextGeneration = slot.generation + 1U;
         slot = {};
         slot.generation = nextGeneration == 0U ? 1U : nextGeneration;
         --activeResourceCount_;
-        ++evictedResources;
+        ++candidateEvicted;
     }
+    evictedResources = candidateEvicted;
     lastError_ = AssetResourceError::None;
     return true;
 }
