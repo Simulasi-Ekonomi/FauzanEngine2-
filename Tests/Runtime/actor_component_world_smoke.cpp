@@ -67,6 +67,12 @@ public:
     bool OnFixedTick(NeoEngine::SceneWorld&, NeoEngine::SceneEntity, uint32_t) override { throw std::runtime_error("tick failure"); }
 };
 
+class ThrowingBeginPlayComponent final : public ProbeComponent {
+public:
+    ThrowingBeginPlayComponent() : ProbeComponent(43U) {}
+    bool OnBeginPlay(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { throw std::runtime_error("begin play failure"); }
+};
+
 class MissingDependencyComponent final : public ProbeComponent {
 public:
     MissingDependencyComponent() : ProbeComponent(31U) {}
@@ -117,6 +123,17 @@ public:
     ProbeComponent& dependency_;
     bool mutationRejected = false;
 };
+
+bool RunBeginPlayExceptionRegression() {
+    using namespace NeoEngine;
+    auto scene = std::make_unique<SceneWorld>();
+    auto world = std::make_unique<ActorComponentWorld>(*scene);
+    SceneEntity actor{};
+    if (!world->CreateActor(actor, "BeginActor") || !scene->SetTransform(actor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !world->AttachComponent(actor, std::make_unique<ThrowingBeginPlayComponent>())) return false;
+    if (world->BeginPlay() || world->LastError() != ActorComponentError::BeginPlayRejected || world->ActorCount() != 1U || world->ComponentCount() != 1U || !world->SetComponentEnabled(actor, 43U, false)) return false;
+    auto snapshot = std::make_unique<ActorComponentWorldSnapshot>();
+    return world->CaptureSnapshot(*snapshot) && !snapshot->begunPlay && snapshot->actors.size() == 1U && !snapshot->actors[0].begunPlay;
+}
 }
 
 int main() {
@@ -236,5 +253,6 @@ int main() {
     if (retryWorld.EndPlay() || retryWorld.LastError() != ActorComponentError::EndPlayRejected) return 33;
     ActorComponentWorldSnapshot endedSnapshot{};
     if (!retryWorld.EndPlay() || !retryWorld.CaptureSnapshot(endedSnapshot) || endedSnapshot.begunPlay || endedSnapshot.actors.size() != 1U || endedSnapshot.actors[0].begunPlay) return 33;
+    if (!RunBeginPlayExceptionRegression()) return 34;
     return 0;
 }
