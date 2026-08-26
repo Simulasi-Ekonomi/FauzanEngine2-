@@ -371,6 +371,7 @@ bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInpu
 }
 bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) {
     if (!attached_ || actor_ != actor || fixedTicks == 0U) return Fail(CharacterPawnError::NotInitialized);
+    if (fixedTicks > ActorComponentWorld::kMaxFixedTicks) return Fail(CharacterPawnError::InvalidTickCount);
     if (animationResources_ != nullptr && animationResources_->Data(animationResource_) == nullptr) return Fail(CharacterPawnError::AnimationRejected);
     if (authorityGate_ == &ownedAuthorityGate_) authorityGate_->BeginFrame();
     for (uint32_t tick = 0U; tick < fixedTicks; ++tick) {

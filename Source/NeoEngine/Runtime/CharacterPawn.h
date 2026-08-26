@@ -19,6 +19,7 @@ enum class CharacterPawnError : uint8_t {
     NotInitialized,
     InvalidConfig,
     InvalidInput,
+    InvalidTickCount,
     InvalidRootMotion,
     AuthorityRejected,
     SceneApplyRejected,
