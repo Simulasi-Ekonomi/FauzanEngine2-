@@ -124,7 +124,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
 
 ReplicationWorld::ReplicationWorld(SceneWorld& sceneWorld, ReplicationRole role, uint32_t localClientId, bool allowDynamicLifecycle) : sceneWorld_(sceneWorld), role_(role), localClientId_(localClientId), allowDynamicLifecycle_(allowDynamicLifecycle && role == ReplicationRole::Client) {}
 
-bool ReplicationWorld::Fail(ReplicationError error) { lastError_ = error; return false; }
+bool ReplicationWorld::Fail(ReplicationError error) const { lastError_ = error; return false; }
 bool ReplicationWorld::ValidTransform(const Transform3& transform) const { return std::isfinite(transform.x) && std::isfinite(transform.y) && std::isfinite(transform.z) && std::isfinite(transform.rx) && std::isfinite(transform.ry) && std::isfinite(transform.rz) && std::isfinite(transform.sx) && std::isfinite(transform.sy) && std::isfinite(transform.sz) && transform.sx > 0.0F && transform.sy > 0.0F && transform.sz > 0.0F; }
 ReplicationWorld::Slot* ReplicationWorld::FindSlot(uint32_t networkId) { for (Slot& slot : slots_) if (slot.registered && slot.networkId == networkId) return &slot; return nullptr; }
 const ReplicationWorld::Slot* ReplicationWorld::FindSlot(uint32_t networkId) const { for (const Slot& slot : slots_) if (slot.registered && slot.networkId == networkId) return &slot; return nullptr; }
@@ -193,6 +193,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     snapshot = std::move(snapshotCandidate);
     snapshotSequence_ = snapshot.sequence;
     lastServerTick_ = serverTick;
+    lastSnapshotChecksum_ = snapshot.checksum;
     lastError_ = ReplicationError::None;
     return true;
 }
@@ -213,6 +214,23 @@ bool ReplicationWorld::ApplyTransform(const Slot& slot, const Transform3& transf
 bool ReplicationWorld::SetDynamicLifecycleEnabled(bool enabled) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
     allowDynamicLifecycle_ = enabled;
+    lastError_ = ReplicationError::None;
+    return true;
+}
+
+bool ReplicationWorld::BuildClientAcknowledgement(ReplicationAcknowledgement& acknowledgement) const {
+    if (role_ != ReplicationRole::Client || snapshotSequence_ == 0U || lastSnapshotChecksum_ == 0U) return Fail(role_ == ReplicationRole::Client ? ReplicationError::InvalidAcknowledgement : ReplicationError::NotClient);
+    acknowledgement = {snapshotSequence_, lastServerTick_, lastSnapshotChecksum_};
+    lastError_ = ReplicationError::None;
+    return true;
+}
+
+bool ReplicationWorld::ApplyClientAcknowledgement(const ReplicationAcknowledgement& acknowledgement) {
+    if (role_ != ReplicationRole::Server) return Fail(ReplicationError::NotServer);
+    if (acknowledgement.sequence == 0U || acknowledgement.sequence > snapshotSequence_ || acknowledgement.serverTick > lastServerTick_ || acknowledgement.checksum == 0U || acknowledgement.checksum != lastSnapshotChecksum_) return Fail(ReplicationError::InvalidAcknowledgement);
+    if (acknowledgement.sequence < acknowledgedSequence_) return Fail(ReplicationError::StaleAcknowledgement);
+    acknowledgedSequence_ = acknowledgement.sequence;
+    acknowledgedServerTick_ = acknowledgement.serverTick;
     lastError_ = ReplicationError::None;
     return true;
 }
@@ -306,6 +324,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
     }
     snapshotSequence_ = snapshot.sequence;
     lastServerTick_ = snapshot.serverTick;
+    lastSnapshotChecksum_ = snapshot.checksum;
     candidateReceipt.accepted = true;
     receipt = candidateReceipt;
     lastError_ = ReplicationError::None;

@@ -28,6 +28,8 @@ enum class ReplicationError : uint8_t {
     CorruptSnapshot,
     SpawnRejected,
     DespawnRejected,
+    InvalidAcknowledgement,
+    StaleAcknowledgement,
 };
 
 struct ReplicatedEntityState {
@@ -63,6 +65,12 @@ struct ReplicationPredictionReceipt {
     Transform3 predictedTransform{};
 };
 
+struct ReplicationAcknowledgement {
+    uint64_t sequence = 0U;
+    uint64_t serverTick = 0U;
+    uint64_t checksum = 0U;
+};
+
 class ReplicationSnapshotCodec {
 public:
     static constexpr size_t kMaxBytes = 1024U * 1024U;
@@ -84,6 +92,8 @@ public:
     bool UnregisterEntity(uint32_t networkId);
     bool BuildServerSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot);
     bool ApplyServerSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
+    bool BuildClientAcknowledgement(ReplicationAcknowledgement& acknowledgement) const;
+    bool ApplyClientAcknowledgement(const ReplicationAcknowledgement& acknowledgement);
     bool SetInterpolationAlphaPermille(uint16_t alphaPermille);
     bool ApplyInterpolation(ReplicationApplyReceipt& receipt);
     bool PredictLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
@@ -94,6 +104,7 @@ public:
     [[nodiscard]] uint16_t RegisteredCount() const { return registeredCount_; }
     [[nodiscard]] uint64_t SnapshotSequence() const { return snapshotSequence_; }
     [[nodiscard]] uint64_t PredictionSequence() const { return predictionSequence_; }
+    [[nodiscard]] uint64_t AcknowledgedSequence() const { return acknowledgedSequence_; }
     [[nodiscard]] ReplicationRole Role() const { return role_; }
     [[nodiscard]] ReplicationError LastError() const { return lastError_; }
 
@@ -111,7 +122,7 @@ private:
         bool hasPrediction = false;
     };
 
-    bool Fail(ReplicationError error);
+    bool Fail(ReplicationError error) const;
     bool ValidTransform(const Transform3& transform) const;
     Slot* FindSlot(uint32_t networkId);
     const Slot* FindSlot(uint32_t networkId) const;
@@ -127,9 +138,12 @@ private:
     uint16_t registeredCount_ = 0U;
     uint64_t snapshotSequence_ = 0U;
     uint64_t lastServerTick_ = 0U;
+    uint64_t lastSnapshotChecksum_ = 0U;
+    uint64_t acknowledgedSequence_ = 0U;
+    uint64_t acknowledgedServerTick_ = 0U;
     uint64_t predictionSequence_ = 0U;
     uint16_t interpolationAlphaPermille_ = 1000U;
-    ReplicationError lastError_ = ReplicationError::None;
+    mutable ReplicationError lastError_ = ReplicationError::None;
 };
 
 } // namespace NeoEngine
