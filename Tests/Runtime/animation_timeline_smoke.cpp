@@ -13,5 +13,9 @@ int main() {
     if(!timeline.CollectEvents("crop-growth", 2.5F, 3.5F, AnimationPlayback::Loop, events)||events.size()!=3U||events[0]!="harvest"||events[1]!="start"||events[2]!="sprout") return 4;
     events = {"preserve"};
     if(timeline.CollectEvents("crop-growth", 1.0F, 0.0F, AnimationPlayback::Clamp, events)||timeline.LastError()!=AnimationError::InvalidEvent||events.size()!=1U||events[0]!="preserve") return 5;
+    events = {"invalid-preserve"};
+    value = 77.0F;
+    const AnimationPlayback invalidPlayback = static_cast<AnimationPlayback>(255U);
+    if(timeline.CollectEvents("crop-growth", 0.0F, 0.5F, invalidPlayback, events)||timeline.LastError()!=AnimationError::InvalidPlayback||events.size()!=1U||events[0]!="invalid-preserve"||timeline.Sample("crop-growth", 0.5F, invalidPlayback, value)||timeline.LastError()!=AnimationError::InvalidPlayback||value!=77.0F) return 6;
     std::printf("ANIMATION_TIMELINE_SMOKE_OK tracks=1 interpolate=1 clamp=1 loop=1 markers=1 validation=1\n"); return 0;
 }

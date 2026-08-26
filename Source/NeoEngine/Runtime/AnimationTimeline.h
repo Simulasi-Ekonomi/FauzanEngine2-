@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class AnimationError : uint8_t { None, InvalidTrack, DuplicateTrack, Capacity, InvalidKeys, MissingTrack, InvalidEvent, DuplicateEvent };
+enum class AnimationError : uint8_t { None, InvalidTrack, DuplicateTrack, Capacity, InvalidKeys, MissingTrack, InvalidEvent, DuplicateEvent, InvalidPlayback };
 enum class AnimationPlayback : uint8_t { Clamp, Loop };
 struct AnimationKeyframe { float time = 0.0F; float value = 0.0F; };
 struct AnimationEventMarker { std::string id; float time = 0.0F; };
