@@ -21,6 +21,7 @@ public:
     static constexpr uint16_t kMaxEventsPerCollection = 128U;
     static constexpr uint8_t kMaxIdentifierBytes = 64;
     static constexpr float kMaxDeltaSeconds = 1.0F;
+    static constexpr float kMaxTransitionDurationSeconds = 10.0F;
     bool AddState(AnimationStateSpec state);
     bool AddTransition(AnimationTransitionSpec transition);
     bool Start(const std::string& stateId);
