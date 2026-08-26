@@ -37,6 +37,8 @@ bool RunFarmInteractiveSurfaceDemo(const FarmInteractiveSurfaceDemoConfig& confi
         return presenter.PumpEvents() && presenter.Present(renderer);
     };
     if (!frameAndPresent()) { presenter.Reset(); error = FarmInteractiveSurfaceDemoError::FrameFailed; return false; }
+    if (!input.Push(kRight,true) || !frameAndPresent() || world.Character().x != 2U || world.Character().z != 1U) { presenter.Reset(); error = FarmInteractiveSurfaceDemoError::FrameFailed; return false; }
+    if (!input.Push(kRight,false) || !frameAndPresent() || world.Character().x != 2U || world.Character().z != 1U) { presenter.Reset(); error = FarmInteractiveSurfaceDemoError::FrameFailed; return false; }
     uint8_t actionMask = 0U;
     const auto selectAction = [&](float y, FarmPlayerAction expected, uint8_t bit) {
         FarmActionPanelReceipt actionReceipt{};
@@ -52,8 +54,8 @@ bool RunFarmInteractiveSurfaceDemo(const FarmInteractiveSurfaceDemoConfig& confi
     for (uint8_t tick = 0U; tick < 9U; ++tick) if (!frameAndPresent()) { presenter.Reset(); error = FarmInteractiveSurfaceDemoError::FrameFailed; return false; }
     if (session.LastFrameReceipt().telemetry.harvestableTiles != 1U || !selectAction(54.0F,FarmPlayerAction::Harvest,0x8U) || !input.Push(kInteract,true) || !frameAndPresent() || session.LastFrameReceipt().telemetry.harvestableTiles != 0U || session.LastFrameReceipt().inventory.wheatProduce != 2U || !renderer.WritePpm(config.ppmPath)) { presenter.Reset(); error = FarmInteractiveSurfaceDemoError::ArtifactWriteFailed; return false; }
     const FarmRuntimeFrameReceipt worldReceipt = session.LastFrameReceipt();
-    const FarmInteractiveSurfaceDemoReceipt candidate{session.FrameCount(),presenter.PresentedFrameCount(),worldReceipt.framebufferHash,hudReceipt.hudFramebufferHash,session.InputBridge().SelectedAction(),actionMask,worldReceipt.telemetry,worldReceipt.inventory};
-    if (candidate.frames != 17U || candidate.presentedFrames != candidate.frames || candidate.worldFramebufferHash == 0U || candidate.hudFramebufferHash == candidate.worldFramebufferHash || candidate.selectedActionMask != 0xFU || presenter.LastPresentedHash() != candidate.hudFramebufferHash) { presenter.Reset(); error = FarmInteractiveSurfaceDemoError::PresentFailed; return false; }
+    const FarmInteractiveSurfaceDemoReceipt candidate{session.FrameCount(),presenter.PresentedFrameCount(),worldReceipt.framebufferHash,hudReceipt.hudFramebufferHash,session.InputBridge().SelectedAction(),actionMask,world.Character().x,world.Character().z,worldReceipt.telemetry,worldReceipt.inventory};
+    if (candidate.frames != 19U || candidate.presentedFrames != candidate.frames || candidate.worldFramebufferHash == 0U || candidate.hudFramebufferHash == candidate.worldFramebufferHash || candidate.selectedActionMask != 0xFU || candidate.characterX != 2U || candidate.characterZ != 1U || presenter.LastPresentedHash() != candidate.hudFramebufferHash) { presenter.Reset(); error = FarmInteractiveSurfaceDemoError::PresentFailed; return false; }
     presenter.Reset(); receipt = candidate; return true;
 }
 
