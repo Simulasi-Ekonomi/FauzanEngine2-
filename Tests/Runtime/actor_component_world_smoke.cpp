@@ -61,6 +61,16 @@ public:
     uint16_t TickDependencyTypeId(uint8_t) const override { return 999U; }
 };
 
+class FailOnceRestoreComponent final : public ProbeComponent {
+public:
+    FailOnceRestoreComponent() : ProbeComponent(40U) {}
+    uint16_t SnapshotSizeBytes() const override { return sizeof(uint32_t); }
+    bool CaptureSnapshot(std::span<uint8_t> bytes) const override { if (bytes.size() != sizeof(uint32_t)) return false; std::memcpy(bytes.data(), &snapshotValue, sizeof(snapshotValue)); return true; }
+    bool ValidateSnapshot(std::span<const uint8_t> bytes) const override { return bytes.size() == sizeof(uint32_t); }
+    bool RestoreSnapshot(std::span<const uint8_t> bytes) override { if (bytes.size() != sizeof(uint32_t)) return false; std::memcpy(&snapshotValue, bytes.data(), sizeof(snapshotValue)); if (failNextRestore) { failNextRestore = false; return false; } return true; }
+    bool failNextRestore = true;
+};
+
 class ReentrantMutationComponent final : public ProbeComponent {
 public:
     ReentrantMutationComponent(NeoEngine::ActorComponentWorld& world, NeoEngine::SceneEntity actor, ProbeComponent& dependency) : ProbeComponent(30U), world_(world), actor_(actor), dependency_(dependency) {}
@@ -154,5 +164,18 @@ int main() {
     if (!actors.AttachComponent(replacement, std::make_unique<MissingDependencyComponent>())) return 28;
     const ActorComponentWorldReceipt beforeRejectedTick = receipt;
     if (actors.TickFixed(1U, receipt) || actors.LastError() != ActorComponentError::DependencyRejected || receipt.tickedComponents != beforeRejectedTick.tickedComponents || actors.FindComponent(replacement, 31U) == nullptr) return 29;
+
+    SceneWorld restoreScene;
+    ActorComponentWorld restoreWorld(restoreScene);
+    SceneEntity restoreActor{};
+    if (!restoreWorld.CreateActor(restoreActor, "RestoreActor") || !restoreScene.SetTransform(restoreActor, {1.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 30;
+    auto failOnce = std::make_unique<FailOnceRestoreComponent>();
+    FailOnceRestoreComponent* failOnceView = failOnce.get();
+    if (!restoreWorld.AttachComponent(restoreActor, std::move(failOnce)) || !restoreWorld.BeginPlay()) return 30;
+    failOnceView->snapshotValue = 7U;
+    ActorComponentWorldSnapshot restoreSnapshot{};
+    if (!restoreWorld.CaptureSnapshot(restoreSnapshot) || restoreSnapshot.componentBytes.size() != sizeof(uint32_t)) return 30;
+    failOnceView->snapshotValue = 99U;
+    if (restoreWorld.RestoreSnapshot(restoreSnapshot) || restoreWorld.LastError() != ActorComponentError::RestoreRejected || failOnceView->snapshotValue != 99U) return 30;
     return 0;
 }

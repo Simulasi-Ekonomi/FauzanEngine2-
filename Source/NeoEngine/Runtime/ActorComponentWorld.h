@@ -143,6 +143,7 @@ private:
     };
 
     bool Fail(ActorComponentError error) const;
+    bool RestoreValidated(const ActorComponentWorldSnapshot& snapshot);
     bool BeginActorPlay(ActorSlot& actor);
     bool EndActorPlay(ActorSlot& actor);
     bool ValidActor(SceneEntity actor) const;

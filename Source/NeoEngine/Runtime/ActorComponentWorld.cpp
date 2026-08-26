@@ -1,12 +1,8 @@
 #include "ActorComponentWorld.h"
-
 #include <limits>
 #include <new>
-
 namespace NeoEngine {
-
 ActorComponentWorld::ActorComponentWorld(SceneWorld& sceneWorld) : sceneWorld_(sceneWorld) {}
-
 ActorComponentWorld::~ActorComponentWorld() {
     for (uint16_t index = 0U; index < kCapacity; ++index) {
         if (!actors_[index].registered) continue;
@@ -18,12 +14,10 @@ ActorComponentWorld::~ActorComponentWorld() {
         }
     }
 }
-
 bool ActorComponentWorld::Fail(ActorComponentError error) const {
     lastError_ = error;
     return false;
 }
-
 bool ActorComponentWorld::BeginActorPlay(ActorSlot& actor) {
     if (actor.begunPlay) return true;
     for (ComponentSlot& slot : actor.components) {
@@ -71,7 +65,6 @@ bool ActorComponentWorld::BeginActorPlay(ActorSlot& actor) {
     }
     return true;
 }
-
 bool ActorComponentWorld::EndActorPlay(ActorSlot& actor) {
     if (!actor.begunPlay) return true;
     for (ComponentSlot& slot : actor.components) {
@@ -85,33 +78,27 @@ bool ActorComponentWorld::EndActorPlay(ActorSlot& actor) {
     actor.begunPlay = false;
     return true;
 }
-
 bool ActorComponentWorld::ValidActor(SceneEntity actor) const {
     return actor.index < kCapacity && actors_[actor.index].registered && actors_[actor.index].scene == actor && sceneWorld_.GetTransform(actor) != nullptr;
 }
-
 ActorComponentWorld::ActorSlot* ActorComponentWorld::FindActorSlot(SceneEntity actor) {
     return ValidActor(actor) ? &actors_[actor.index] : nullptr;
 }
-
 const ActorComponentWorld::ActorSlot* ActorComponentWorld::FindActorSlot(SceneEntity actor) const {
     return ValidActor(actor) ? &actors_[actor.index] : nullptr;
 }
-
 ActorComponentWorld::ComponentSlot* ActorComponentWorld::FindSlot(SceneEntity actor, uint16_t typeId) {
     ActorSlot* slot = FindActorSlot(actor);
     if (slot == nullptr || typeId == 0U) return nullptr;
     for (ComponentSlot& component : slot->components) if (component.component != nullptr && component.component->TypeId() == typeId) return &component;
     return nullptr;
 }
-
 const ActorComponentWorld::ComponentSlot* ActorComponentWorld::FindSlot(SceneEntity actor, uint16_t typeId) const {
     const ActorSlot* slot = FindActorSlot(actor);
     if (slot == nullptr || typeId == 0U) return nullptr;
     for (const ComponentSlot& component : slot->components) if (component.component != nullptr && component.component->TypeId() == typeId) return &component;
     return nullptr;
 }
-
 bool ActorComponentWorld::CreateActor(SceneEntity& output, std::string name) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (name.size() > kMaxNameBytes || name.find('\0') != std::string::npos) return Fail(ActorComponentError::InvalidName);
@@ -141,7 +128,6 @@ bool ActorComponentWorld::CreateActor(SceneEntity& output, std::string name) {
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::DestroyActor(SceneEntity actor) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     ActorSlot* slot = FindActorSlot(actor);
@@ -165,7 +151,6 @@ bool ActorComponentWorld::DestroyActor(SceneEntity actor) {
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IActorComponent> component) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (!ValidActor(actor)) return Fail(ActorComponentError::InvalidActor);
@@ -213,7 +198,6 @@ bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IAc
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::DetachComponent(SceneEntity actor, uint16_t typeId) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     ComponentSlot* slot = FindSlot(actor, typeId);
@@ -246,7 +230,6 @@ bool ActorComponentWorld::DetachComponent(SceneEntity actor, uint16_t typeId) {
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::SetComponentEnabled(SceneEntity actor, uint16_t typeId, bool enabled) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     ComponentSlot* slot = FindSlot(actor, typeId);
@@ -259,7 +242,6 @@ bool ActorComponentWorld::SetComponentEnabled(SceneEntity actor, uint16_t typeId
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::SetComponentActive(SceneEntity actor, uint16_t typeId, bool active) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     ComponentSlot* slot = FindSlot(actor, typeId);
@@ -278,7 +260,6 @@ bool ActorComponentWorld::SetComponentActive(SceneEntity actor, uint16_t typeId,
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::BeginPlay() {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (begunPlay_) { lastError_ = ActorComponentError::None; return true; }
@@ -291,7 +272,6 @@ bool ActorComponentWorld::BeginPlay() {
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::EndPlay() {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (!begunPlay_) { lastError_ = ActorComponentError::None; return true; }
@@ -300,7 +280,6 @@ bool ActorComponentWorld::EndPlay() {
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldReceipt& receipt) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (fixedTicks == 0U) return Fail(ActorComponentError::TickRejected);
@@ -338,7 +317,6 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot) const {
     ActorComponentWorldSnapshot candidate{};
     candidate.begunPlay = begunPlay_;
@@ -389,7 +367,6 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::RestoreSnapshot(const ActorComponentWorldSnapshot& snapshot) {
     if (dispatching_ || snapshot.actors.size() != actorCount_ || snapshot.componentBytes.size() > kMaxActorComponentWorldSnapshotBytes) return Fail(dispatching_ ? ActorComponentError::MutationDuringDispatch : ActorComponentError::RestoreRejected);
     uint32_t expectedComponentCount = 0U;
@@ -413,26 +390,30 @@ bool ActorComponentWorld::RestoreSnapshot(const ActorComponentWorldSnapshot& sna
         }
     }
     if (expectedComponentCount != componentCount_) return Fail(ActorComponentError::RestoreRejected);
-    for (const ActorComponentSnapshot& record : snapshot.actors) {
-        for (uint8_t componentIndex = 0U; componentIndex < record.componentCount; ++componentIndex) {
-            ComponentSlot* component = FindSlot(record.actor, record.componentTypeIds[componentIndex]);
-            const uint32_t offset = record.snapshotOffsets[componentIndex];
-            const uint16_t size = record.snapshotSizes[componentIndex];
-            dispatching_ = true;
-            const bool restored = component->component->RestoreSnapshot(std::span<const uint8_t>(snapshot.componentBytes.data() + offset, size));
-            dispatching_ = false;
-            if (!restored) return Fail(ActorComponentError::RestoreRejected);
-            component->enabled = record.componentEnabled[componentIndex];
-            component->active = record.componentActive[componentIndex];
-        }
-    }
     if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
+    ActorComponentWorldSnapshot backup{};
+    if (!CaptureSnapshot(backup)) return Fail(ActorComponentError::RestoreRejected);
+    if (!RestoreValidated(snapshot)) {
+        RestoreValidated(backup);
+        return Fail(ActorComponentError::RestoreRejected);
+    }
     ++registrationRevision_;
     lastReceipt_ = {actorCount_, componentCount_, 0U, registrationRevision_};
     lastError_ = ActorComponentError::None;
     return true;
 }
-
+bool ActorComponentWorld::RestoreValidated(const ActorComponentWorldSnapshot& snapshot) {
+    for (const ActorComponentSnapshot& record : snapshot.actors) for (uint8_t componentIndex = 0U; componentIndex < record.componentCount; ++componentIndex) {
+        ComponentSlot* component = FindSlot(record.actor, record.componentTypeIds[componentIndex]);
+        const uint32_t offset = record.snapshotOffsets[componentIndex]; const uint16_t size = record.snapshotSizes[componentIndex];
+        dispatching_ = true;
+        const bool restored = component != nullptr && component->component != nullptr && component->component->RestoreSnapshot(std::span<const uint8_t>(snapshot.componentBytes.data() + offset, size));
+        dispatching_ = false;
+        if (!restored) return false;
+        component->enabled = record.componentEnabled[componentIndex]; component->active = record.componentActive[componentIndex];
+    }
+    return true;
+}
 bool ActorComponentWorld::CollectActors(std::vector<SceneEntity>& output) const {
     std::vector<SceneEntity> candidate;
     try {
@@ -445,7 +426,6 @@ bool ActorComponentWorld::CollectActors(std::vector<SceneEntity>& output) const 
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::CollectComponentTypes(SceneEntity actor, std::vector<uint16_t>& output) const {
     const ActorSlot* slot = FindActorSlot(actor);
     if (slot == nullptr) return Fail(ActorComponentError::InvalidActor);
@@ -460,34 +440,27 @@ bool ActorComponentWorld::CollectComponentTypes(SceneEntity actor, std::vector<u
     lastError_ = ActorComponentError::None;
     return true;
 }
-
 bool ActorComponentWorld::IsActorAlive(SceneEntity actor) const { return ValidActor(actor); }
-
 const std::string* ActorComponentWorld::ActorName(SceneEntity actor) const {
     const ActorSlot* slot = FindActorSlot(actor);
     return slot == nullptr ? nullptr : &slot->name;
 }
-
 IActorComponent* ActorComponentWorld::FindComponent(SceneEntity actor, uint16_t typeId) {
     ComponentSlot* slot = FindSlot(actor, typeId);
     return slot == nullptr ? nullptr : slot->component.get();
 }
-
 const IActorComponent* ActorComponentWorld::FindComponent(SceneEntity actor, uint16_t typeId) const {
     const ComponentSlot* slot = FindSlot(actor, typeId);
     return slot == nullptr ? nullptr : slot->component.get();
 }
-
 bool ActorComponentWorld::IsComponentEnabled(SceneEntity actor, uint16_t typeId) const {
     const ComponentSlot* slot = FindSlot(actor, typeId);
     return slot != nullptr && slot->enabled;
 }
-
 bool ActorComponentWorld::IsComponentActive(SceneEntity actor, uint16_t typeId) const {
     const ComponentSlot* slot = FindSlot(actor, typeId);
     return slot != nullptr && slot->active;
 }
-
 uint8_t ActorComponentWorld::ComponentCount(SceneEntity actor) const {
     const ActorSlot* slot = FindActorSlot(actor);
     if (slot == nullptr) return 0U;
@@ -495,5 +468,4 @@ uint8_t ActorComponentWorld::ComponentCount(SceneEntity actor) const {
     for (const ComponentSlot& component : slot->components) if (component.component != nullptr) ++count;
     return count;
 }
-
 } // namespace NeoEngine
