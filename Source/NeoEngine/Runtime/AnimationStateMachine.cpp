@@ -7,7 +7,7 @@
 namespace NeoEngine {
 int AnimationStateMachine::FindState(const std::string& stateId) const { const auto found = std::find_if(states_.begin(), states_.end(), [&stateId](const State& state) { return state.spec.id == stateId; }); return found == states_.end() ? -1 : static_cast<int>(found - states_.begin()); }
 bool AnimationStateMachine::AddState(AnimationStateSpec state) {
-    if (state.id.empty() || state.trackId.empty() || state.id.size() > kMaxIdentifierBytes || state.trackId.size() > kMaxIdentifierBytes) { lastError_ = AnimationStateMachineError::InvalidState; return false; }
+    if (state.id.empty() || state.trackId.empty() || state.id.size() > kMaxIdentifierBytes || state.trackId.size() > kMaxIdentifierBytes || (state.playback != AnimationPlayback::Clamp && state.playback != AnimationPlayback::Loop)) { lastError_ = AnimationStateMachineError::InvalidState; return false; }
     if (FindState(state.id) >= 0) { lastError_ = AnimationStateMachineError::DuplicateState; return false; }
     if (states_.size() >= kMaxStates) { lastError_ = AnimationStateMachineError::Capacity; return false; }
     try { states_.push_back({std::move(state)}); }
