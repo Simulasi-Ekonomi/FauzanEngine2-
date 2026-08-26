@@ -4,6 +4,7 @@
 #include "EditorSceneMeshBinder.h"
 #include "EditorScenePrefab.h"
 #include "EditorSceneSpriteBinder.h"
+#include "PrefabStaging.h"
 #include "SceneRenderAdapter.h"
 
 #include <cstdint>
@@ -25,6 +26,7 @@ public:
     bool DeleteActor(uint32_t actorId, const AssetRegistry& assets);
     bool CapturePrefab(uint32_t rootActorId, EditorScenePrefab& prefab) const;
     bool InstantiatePrefab(const EditorScenePrefab& prefab, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets);
+    bool InstantiateStagedPrefab(const PrefabStagingStore& prefabs, std::string_view assetId, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets);
     bool SelectActor(uint32_t actorId);
     void ClearSelection() { selectedActorId_ = 0U; }
     bool Save(EditorSceneDocument& document) const;

@@ -92,6 +92,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/EditorSceneDocumentCodec.cpp
     Runtime/EditorScenePrefab.cpp
     Runtime/EditorScenePrefabCodec.cpp
+    Runtime/PrefabStaging.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneMeshBinder.cpp
     Runtime/EditorSceneSpriteBinder.cpp
@@ -468,6 +469,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_prefab_s
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_prefab_codec_smoke.cpp")
     add_xpbd_executable(editor_scene_prefab_codec_smoke ../../Tests/Runtime/editor_scene_prefab_codec_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/prefab_staging_smoke.cpp")
+    add_xpbd_executable(prefab_staging_smoke ../../Tests/Runtime/prefab_staging_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_session_smoke.cpp")
     add_xpbd_executable(editor_scene_session_smoke ../../Tests/Runtime/editor_scene_session_smoke.cpp)

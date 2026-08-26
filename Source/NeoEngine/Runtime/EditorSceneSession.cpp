@@ -60,6 +60,11 @@ bool EditorSceneSession::InstantiatePrefab(const EditorScenePrefab& prefab, uint
     if (!adapter.AppendInstance(document_, prefab, parentActorId, instanceActorIds, candidate)) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     return CommitMutation(candidate, assets);
 }
+bool EditorSceneSession::InstantiateStagedPrefab(const PrefabStagingStore& prefabs, std::string_view assetId, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets) {
+    const CpuPrefabResource* resource = prefabs.Find(assetId);
+    if (resource == nullptr || !prefabs.IsCurrent(assets, assetId)) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    return InstantiatePrefab(resource->prefab, parentActorId, instanceActorIds, assets);
+}
 bool EditorSceneSession::SelectActor(uint32_t actorId) {
     const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
     if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }

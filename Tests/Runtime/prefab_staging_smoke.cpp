@@ -1,0 +1,38 @@
+#include "Runtime/EditorScenePrefabCodec.h"
+#include "Runtime/EditorSceneSession.h"
+#include "Runtime/PrefabStaging.h"
+
+#include <cstdio>
+#include <vector>
+
+int main() {
+    using namespace NeoEngine;
+    const EditorScenePrefab source{20U, {
+        {20U, 0U, EditorSceneActorKind::Empty, {2, 0, 0, 0, 0, 0, 1, 1, 1}},
+        {21U, 20U, EditorSceneActorKind::Marker, {1, 0, 0, 0, 0, 0, 1, 1, 1}},
+    }};
+    EditorScenePrefabCodec codec;
+    std::vector<uint8_t> prefabBytes;
+    if (!codec.Encode(source, prefabBytes)) return 1;
+    AssetRegistry assets;
+    const std::vector<uint8_t> broken{'B', 'A', 'D'};
+    if (!assets.ImportBytes("farm.house", AssetKind::Prefab, {}, prefabBytes) || !assets.MarkReady("farm.house") || !assets.ImportBytes("farm.broken", AssetKind::Prefab, {}, broken) || !assets.MarkReady("farm.broken")) return 1;
+    PrefabStagingStore staging;
+    if (!staging.Stage(assets, "farm.house") || !staging.IsCurrent(assets, "farm.house") || staging.ResourceCount() != 1U || staging.StagedActors() != 2U || staging.Stage(assets, "farm.broken") || staging.LastError() != PrefabStagingError::DecodeFailed || staging.ResourceCount() != 1U || staging.StagedActors() != 2U) return 1;
+
+    const EditorSceneDocument document{EditorSceneDocument::kVersion, "prefab-staging", 1U, {{10U, 0U, EditorSceneActorKind::Empty, {10, 0, 0, 0, 0, 0, 1, 1, 1}}}};
+    EditorSceneSession session;
+    if (!session.Open(document, assets) || !session.InstantiateStagedPrefab(staging, "farm.house", 10U, {100U, 101U}, assets)) return 1;
+    EditorSceneDocument saved{};
+    EditorSceneActor root{};
+    EditorSceneActor child{};
+    if (!session.Save(saved) || saved.revision != 2U || saved.actors.size() != 3U || !session.InspectActor(100U, root) || !session.InspectActor(101U, child) || root.parentId != 10U || child.parentId != 100U) return 1;
+    const uint64_t preservedRevision = saved.revision;
+
+    std::vector<uint8_t> changedBytes = prefabBytes;
+    changedBytes[0] = 'X';
+    if (!assets.ReplaceBytes("farm.house", changedBytes) || staging.IsCurrent(assets, "farm.house") || staging.CanRefresh(assets, "farm.house") || session.InstantiateStagedPrefab(staging, "farm.house", 10U, {102U, 103U}, assets) || session.LastError() != EditorSceneSessionError::InvalidDocument || !session.Save(saved) || saved.revision != preservedRevision || saved.actors.size() != 3U) return 1;
+    if (!assets.ReplaceBytes("farm.house", prefabBytes) || !staging.CanRefresh(assets, "farm.house") || !staging.Refresh(assets, "farm.house") || !staging.IsCurrent(assets, "farm.house") || !session.InstantiateStagedPrefab(staging, "farm.house", 10U, {102U, 103U}, assets) || !session.Save(saved) || saved.revision != 3U || saved.actors.size() != 5U) return 1;
+    std::printf("PREFAB_STAGING_SMOKE_OK ready=1 stale=1 atomic=1 refreshed=1 actors=%u\n", session.World().AliveCount());
+    return 0;
+}
