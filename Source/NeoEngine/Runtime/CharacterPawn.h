@@ -115,6 +115,7 @@ public:
 
     explicit CharacterPawn(CharacterPawnConfig config = {});
     [[nodiscard]] uint16_t TypeId() const override { return kTypeId; }
+    [[nodiscard]] std::string_view TypeName() const override { return "CharacterPawn"; }
     [[nodiscard]] bool OnAttach(SceneWorld& world, SceneEntity actor) override;
     [[nodiscard]] bool OnDetach(SceneWorld& world, SceneEntity actor) override;
     [[nodiscard]] bool OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) override;

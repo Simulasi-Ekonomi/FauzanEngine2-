@@ -39,6 +39,7 @@ class IActorComponent {
 public:
     virtual ~IActorComponent() = default;
     [[nodiscard]] virtual uint16_t TypeId() const = 0;
+    [[nodiscard]] virtual std::string_view TypeName() const { return {}; }
     [[nodiscard]] virtual bool OnAttach(SceneWorld& world, SceneEntity actor) = 0;
     [[nodiscard]] virtual bool OnDetach(SceneWorld& world, SceneEntity actor) = 0;
     [[nodiscard]] virtual bool OnBeginPlay(SceneWorld&, SceneEntity) { return true; }
@@ -61,6 +62,7 @@ struct ActorComponentSnapshot {
     std::string name{};
     uint8_t componentCount = 0U;
     std::array<uint16_t, 16U> componentTypeIds{};
+    std::array<std::string, 16U> componentTypeNames{};
     std::array<bool, 16U> componentEnabled{};
     std::array<bool, 16U> componentActive{};
     std::array<uint32_t, 16U> snapshotOffsets{};
@@ -87,6 +89,7 @@ public:
     static constexpr uint16_t kCapacity = SceneWorld::kCapacity;
     static constexpr uint8_t kMaxComponentsPerActor = 16U;
     static constexpr uint8_t kMaxNameBytes = 64U;
+    static constexpr uint8_t kMaxComponentTypeNameBytes = 64U;
     static constexpr uint8_t kMaxTickGroups = 8U;
     static constexpr uint8_t kMaxTickOrders = 8U;
 

@@ -12,6 +12,7 @@ class ProbeComponent : public NeoEngine::IActorComponent {
 public:
     explicit ProbeComponent(uint16_t typeId, uint32_t* detachSink = nullptr, uint32_t* endPlaySink = nullptr) : typeId_(typeId), detachSink_(detachSink), endPlaySink_(endPlaySink) {}
     uint16_t TypeId() const override { return typeId_; }
+    std::string_view TypeName() const override { return "ProbeComponent"; }
     bool OnAttach(NeoEngine::SceneWorld& world, NeoEngine::SceneEntity actor) override { ++attachCount; return world.GetTransform(actor) != nullptr; }
     bool OnDetach(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { ++detachCount; if (detachSink_ != nullptr) ++*detachSink_; return true; }
     bool OnBeginPlay(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { ++beginPlayCount; return true; }
@@ -45,6 +46,12 @@ class RejectDetachComponent final : public ProbeComponent {
 public:
     RejectDetachComponent() : ProbeComponent(20U) {}
     bool OnDetach(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { return false; }
+};
+
+class RejectActivationComponent final : public ProbeComponent {
+public:
+    RejectActivationComponent() : ProbeComponent(21U) {}
+    bool OnActivate(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { return false; }
 };
 
 class MissingDependencyComponent final : public ProbeComponent {
@@ -99,15 +106,19 @@ int main() {
     movementView->snapshotWorld_ = &actors;
     movementView->snapshotActor_ = hero;
     if (!actors.CollectActors(actorQuery) || actorQuery.size() != 1U || actorQuery[0] != hero || !actors.CollectComponentTypes(hero, componentQuery) || componentQuery.size() != 2U || componentQuery[0] != 10U || componentQuery[1] != 11U || !actors.CaptureSnapshot(structuralSnapshot) || structuralSnapshot.actors.size() != 1U || structuralSnapshot.begunPlay || structuralSnapshot.componentBytes.size() != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotSizes[0] != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotOffsets[0] != 0U || std::memcmp(structuralSnapshot.componentBytes.data(), &movementView->snapshotValue, sizeof(uint32_t)) != 0) return 7;
-    if (!actors.BeginPlay() || !structuralSnapshot.actors.empty() && structuralSnapshot.actors[0].begunPlay || movementView->beginPlayCount != 1U || renderView->beginPlayCount != 1U) return 8;
+    if (!actors.BeginPlay() || !structuralSnapshot.actors.empty() && structuralSnapshot.actors[0].begunPlay || movementView->beginPlayCount != 1U || renderView->beginPlayCount != 1U || movementView->activateCount != 1U || renderView->activateCount != 1U) return 8;
     if (!actors.CaptureSnapshot(structuralSnapshot) || !structuralSnapshot.begunPlay || structuralSnapshot.actors[0].begunPlay != true || structuralSnapshot.componentBytes.size() != sizeof(uint32_t)) return 9;
+    if (actors.AttachComponent(hero, std::make_unique<RejectActivationComponent>()) || actors.LastError() != ActorComponentError::ActivationRejected || actors.ComponentCount(hero) != 2U) return 9;
     movementView->snapshotValue = 99U;
     if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 10;
     ActorComponentWorldSnapshot invalidSnapshot = structuralSnapshot;
     invalidSnapshot.actors[0].snapshotOffsets[0] = kMaxActorComponentWorldSnapshotBytes;
     if (actors.RestoreSnapshot(invalidSnapshot) || actors.LastError() != ActorComponentError::RestoreRejected || movementView->snapshotValue != 99U || actors.IsComponentEnabled(hero, 10U)) return 11;
+    invalidSnapshot = structuralSnapshot;
+    invalidSnapshot.actors[0].componentTypeNames[0] = "DifferentComponent";
+    if (actors.RestoreSnapshot(invalidSnapshot) || actors.LastError() != ActorComponentError::RestoreRejected || movementView->snapshotValue != 99U || actors.IsComponentEnabled(hero, 10U)) return 12;
     if (!actors.RestoreSnapshot(structuralSnapshot) || movementView->snapshotValue != 42U || !actors.IsComponentEnabled(hero, 10U) || !actors.IsComponentActive(hero, 11U)) return 12;
-    if (!actors.SetComponentActive(hero, 11U, false) || actors.IsComponentActive(hero, 11U) || renderView->deactivateCount != 1U || !actors.SetComponentActive(hero, 11U, true) || !actors.IsComponentActive(hero, 11U) || renderView->activateCount != 1U) return 10;
+    if (!actors.SetComponentActive(hero, 11U, false) || actors.IsComponentActive(hero, 11U) || renderView->deactivateCount != 1U || !actors.SetComponentActive(hero, 11U, true) || !actors.IsComponentActive(hero, 11U) || renderView->activateCount != 2U) return 10;
     if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 11;
 
     ActorComponentWorldReceipt receipt{};

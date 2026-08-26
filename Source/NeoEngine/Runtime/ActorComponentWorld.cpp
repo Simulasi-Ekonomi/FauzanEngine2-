@@ -42,6 +42,33 @@ bool ActorComponentWorld::BeginActorPlay(ActorSlot& actor) {
         slot.begunPlay = true;
     }
     actor.begunPlay = true;
+    uint8_t activatedCount = 0U;
+    for (uint8_t componentIndex = 0U; componentIndex < kMaxComponentsPerActor; ++componentIndex) {
+        ComponentSlot& slot = actor.components[componentIndex];
+        if (slot.component == nullptr || !slot.active) continue;
+        dispatching_ = true;
+        const bool activated = slot.component->OnActivate(sceneWorld_, actor.scene);
+        dispatching_ = false;
+        if (!activated) {
+            for (int rollbackIndex = static_cast<int>(componentIndex) - 1; rollbackIndex >= 0; --rollbackIndex) {
+                ComponentSlot& rollback = actor.components[static_cast<uint8_t>(rollbackIndex)];
+                if (rollback.component == nullptr || !rollback.active) continue;
+                dispatching_ = true;
+                rollback.component->OnDeactivate(sceneWorld_, actor.scene);
+                dispatching_ = false;
+                --activatedCount;
+            }
+            for (ComponentSlot& rollback : actor.components) if (rollback.component != nullptr && rollback.begunPlay) {
+                dispatching_ = true;
+                rollback.component->OnEndPlay(sceneWorld_, actor.scene);
+                dispatching_ = false;
+                rollback.begunPlay = false;
+            }
+            actor.begunPlay = false;
+            return Fail(ActorComponentError::ActivationRejected);
+        }
+        ++activatedCount;
+    }
     return true;
 }
 
@@ -143,6 +170,8 @@ bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IAc
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (!ValidActor(actor)) return Fail(ActorComponentError::InvalidActor);
     if (component == nullptr || component->TypeId() == 0U) return Fail(ActorComponentError::InvalidComponent);
+    const std::string_view typeName = component->TypeName();
+    if (typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos) return Fail(ActorComponentError::InvalidComponent);
     if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
     ActorSlot* slot = &actors_[actor.index];
     for (const ComponentSlot& existing : slot->components) if (existing.component != nullptr && existing.component->TypeId() == component->TypeId()) return Fail(ActorComponentError::DuplicateComponent);
@@ -162,6 +191,16 @@ bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IAc
             component->OnDetach(sceneWorld_, actor);
             dispatching_ = false;
             return Fail(ActorComponentError::BeginPlayRejected);
+        }
+        dispatching_ = true;
+        const bool activated = component->OnActivate(sceneWorld_, actor);
+        dispatching_ = false;
+        if (!activated) {
+            dispatching_ = true;
+            component->OnEndPlay(sceneWorld_, actor);
+            component->OnDetach(sceneWorld_, actor);
+            dispatching_ = false;
+            return Fail(ActorComponentError::ActivationRejected);
         }
     }
     target->component = std::move(component);
@@ -318,7 +357,10 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
                 const uint16_t snapshotSize = component.component->SnapshotSizeBytes();
                 if (snapshotSize > kMaxActorComponentSnapshotBytes || candidate.componentBytes.size() > kMaxActorComponentWorldSnapshotBytes - snapshotSize) return Fail(ActorComponentError::SnapshotRejected);
                 const uint32_t offset = static_cast<uint32_t>(candidate.componentBytes.size());
+                const std::string_view typeName = component.component->TypeName();
+                if (typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos) return Fail(ActorComponentError::SnapshotRejected);
                 record.componentTypeIds[record.componentCount] = component.component->TypeId();
+                record.componentTypeNames[record.componentCount] = typeName;
                 record.componentEnabled[record.componentCount] = component.enabled;
                 record.componentActive[record.componentCount] = component.active;
                 record.snapshotOffsets[record.componentCount] = offset;
@@ -361,7 +403,8 @@ bool ActorComponentWorld::RestoreSnapshot(const ActorComponentWorldSnapshot& sna
             const ComponentSlot* component = FindSlot(record.actor, typeId);
             const uint32_t offset = record.snapshotOffsets[componentIndex];
             const uint16_t size = record.snapshotSizes[componentIndex];
-            if (component == nullptr || component->component == nullptr || component->component->TypeId() != typeId || offset > snapshot.componentBytes.size() || snapshot.componentBytes.size() - offset < size || size > kMaxActorComponentSnapshotBytes || component->component->SnapshotSizeBytes() != size) return Fail(ActorComponentError::RestoreRejected);
+            const std::string_view typeName = component == nullptr || component->component == nullptr ? std::string_view{} : component->component->TypeName();
+            if (component == nullptr || component->component == nullptr || typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos || record.componentTypeNames[componentIndex] != typeName || component->component->TypeId() != typeId || offset > snapshot.componentBytes.size() || snapshot.componentBytes.size() - offset < size || size > kMaxActorComponentSnapshotBytes || component->component->SnapshotSizeBytes() != size) return Fail(ActorComponentError::RestoreRejected);
             for (uint8_t priorIndex = 0U; priorIndex < componentIndex; ++priorIndex) if (record.componentTypeIds[priorIndex] == typeId) return Fail(ActorComponentError::RestoreRejected);
             dispatching_ = true;
             const bool valid = component->component->ValidateSnapshot(std::span<const uint8_t>(snapshot.componentBytes.data() + offset, size));
