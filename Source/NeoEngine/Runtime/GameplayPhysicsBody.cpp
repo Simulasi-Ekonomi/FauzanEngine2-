@@ -36,4 +36,27 @@ bool GameplayPhysicsBodyBuilder::SetDynamicPlanarVelocity(ArchetypeManager& enti
     }
     lastError_ = GameplayPhysicsBodyError::UnknownBody; return false;
 }
+bool GameplayPhysicsBodyBuilder::SetDynamicPlanarVelocitySet(ArchetypeManager& entities, const std::vector<GameplayPlanarVelocityCommand>& commands) {
+    if (commands.empty()) { lastError_ = GameplayPhysicsBodyError::InvalidConfiguration; return false; }
+    if (commands.size() > kMaxVelocityCommands) { lastError_ = GameplayPhysicsBodyError::Capacity; return false; }
+    struct Pending { ArchetypeChunk* chunk = nullptr; size_t index = 0U; float velocityX = 0.0F; float velocityZ = 0.0F; };
+    std::vector<Pending> pending; pending.reserve(commands.size());
+    for (size_t commandIndex = 0U; commandIndex < commands.size(); ++commandIndex) {
+        const GameplayPlanarVelocityCommand& command = commands[commandIndex];
+        if (!std::isfinite(command.velocityX) || !std::isfinite(command.velocityZ)) { lastError_ = GameplayPhysicsBodyError::InvalidConfiguration; return false; }
+        for (size_t prior = 0U; prior < commandIndex; ++prior) if (commands[prior].entity == command.entity) { lastError_ = GameplayPhysicsBodyError::DuplicateBody; return false; }
+        ArchetypeChunk* foundChunk = nullptr; size_t foundIndex = 0U;
+        for (ArchetypeChunk* chunk : entities.GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
+            for (size_t index = 0U; index < chunk->count; ++index) if (chunk->entities[index] == command.entity) { foundChunk = chunk; foundIndex = index; break; }
+            if (foundChunk != nullptr) break;
+        }
+        if (foundChunk == nullptr) { lastError_ = GameplayPhysicsBodyError::UnknownBody; return false; }
+        const float inverseMass = foundChunk->invMass[foundIndex], radius = foundChunk->radius[foundIndex];
+        if (!std::isfinite(inverseMass) || !std::isfinite(radius) || inverseMass < 0.0F || radius <= 0.0F) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
+        if (inverseMass == 0.0F) { lastError_ = GameplayPhysicsBodyError::StaticBody; return false; }
+        pending.push_back({foundChunk, foundIndex, command.velocityX, command.velocityZ});
+    }
+    for (const Pending& command : pending) { command.chunk->velX[command.index] = command.velocityX; command.chunk->velZ[command.index] = command.velocityZ; }
+    entities.MarkPhysicsDirty(); lastError_ = GameplayPhysicsBodyError::None; return true;
+}
 } // namespace NeoEngine
