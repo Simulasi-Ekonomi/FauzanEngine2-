@@ -80,7 +80,9 @@ int main() {
     if (client.SetInterpolationAlphaPermille(1001U) || client.LastError() != ReplicationError::InvalidInput) return 26;
     if (server.ApplyServerSnapshot(snapshot, apply) || server.LastError() != ReplicationError::NotClient || server.BuildServerSnapshot(2U, snapshot) == false) return 27;
     ReplicationAcknowledgement acknowledgement2{snapshot.sequence, snapshot.serverTick, snapshot.checksum};
-    if (!server.ApplyClientAcknowledgement(acknowledgement2) || server.AcknowledgedSequence() != 2U || server.ApplyClientAcknowledgement(acknowledgement) || server.LastError() != ReplicationError::StaleAcknowledgement || server.AcknowledgedSequence() != 2U) return 28;
+    if (!server.ApplyClientAcknowledgement(acknowledgement2) || server.AcknowledgedSequence() != 2U) return 28;
+    for (uint64_t tick = 3U; tick <= 66U; ++tick) if (!server.BuildServerSnapshot(tick, snapshot)) return 29;
+    if (server.ApplyClientAcknowledgement(acknowledgement2) || server.LastError() != ReplicationError::StaleAcknowledgement || server.AcknowledgedSequence() != 2U || server.ApplyClientAcknowledgement(acknowledgement) || server.LastError() != ReplicationError::StaleAcknowledgement) return 30;
     if (!client.UnregisterEntity(200U) || client.IsRegistered(200U) || client.RegisteredCount() != 1U) return 29;
 
     SceneWorld dynamicScene;
