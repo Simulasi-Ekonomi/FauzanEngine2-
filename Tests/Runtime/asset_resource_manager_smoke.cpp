@@ -13,24 +13,27 @@ int main() {
     if (!resources.Acquire("material.crop", materialHandle) || materialHandle.generation == 0U || resources.ActiveResourceCount() != 3U || resources.TotalLeaseCount() != 3U) return 2;
     AssetResourceReceipt materialReceipt{};
     if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.assetId != "material.crop" || materialReceipt.refCount != 1U || materialReceipt.dependencyCount != 2U || resources.Data(materialHandle) == nullptr) return 3;
+    AssetResourceHandle materialHandle2{};
+    if (!resources.Acquire("material.crop", materialHandle2) || materialHandle2.slot == materialHandle.slot || materialHandle2.generation == 0U || resources.TotalLeaseCount() != 6U || !resources.Query(materialHandle, materialReceipt) || materialReceipt.refCount != 2U) return 4;
     AssetResourceReceipt textureReceipt{};
-    if (!resources.Query("texture.wheat", textureReceipt) || textureReceipt.refCount != 1U) return 4;
+    if (!resources.Query("texture.wheat", textureReceipt) || textureReceipt.refCount != 2U) return 5;
 
+    if (!resources.Release(materialHandle2) || resources.TotalLeaseCount() != 3U || resources.Query(materialHandle2, materialReceipt) || resources.LastError() != AssetResourceError::InvalidHandle || !resources.Query(materialHandle, materialReceipt) || materialReceipt.refCount != 1U) return 6;
     AssetResourceHandle textureHandle{};
-    if (!resources.Acquire("texture.wheat", textureHandle) || resources.TotalLeaseCount() != 4U || textureHandle.slot == materialHandle.slot) return 5;
-    if (!resources.Release(materialHandle) || resources.TotalLeaseCount() != 1U || resources.Query(materialHandle, materialReceipt) || resources.LastError() != AssetResourceError::InvalidHandle) return 6;
-    if (!resources.Release(textureHandle) || resources.TotalLeaseCount() != 0U) return 7;
+    if (!resources.Acquire("texture.wheat", textureHandle) || resources.TotalLeaseCount() != 4U || textureHandle.slot == materialHandle.slot) return 7;
+    if (!resources.Release(materialHandle) || resources.TotalLeaseCount() != 1U || resources.Query(materialHandle, materialReceipt) || resources.LastError() != AssetResourceError::InvalidHandle) return 8;
+    if (!resources.Release(textureHandle) || resources.TotalLeaseCount() != 0U) return 9;
 
-    if (!registry.ReplaceBytes("texture.wheat", {9U, 8U, 7U}) || !resources.SyncHotReload("texture.wheat") || resources.Query("texture.wheat", textureReceipt) == false || textureReceipt.state != AssetResourceState::Ready || textureReceipt.contentHash == 0U) return 8;
+    if (!registry.ReplaceBytes("texture.wheat", {9U, 8U, 7U}) || !resources.SyncHotReload("texture.wheat") || resources.Query("texture.wheat", textureReceipt) == false || textureReceipt.state != AssetResourceState::Ready || textureReceipt.contentHash == 0U) return 10;
     AssetResourceHandle meshHandle{};
-    if (!resources.Acquire("mesh.crop", meshHandle) || resources.ActiveResourceCount() != 3U) return 9;
-    if (!registry.ReplaceBytes("texture.wheat", {10U, 11U}) || resources.SyncHotReload("texture.wheat") || resources.LastError() != AssetResourceError::StaleInUse) return 10;
-    if (!resources.Query(meshHandle, materialReceipt) || materialReceipt.state != AssetResourceState::Ready) return 11;
-    if (!resources.Release(meshHandle) || resources.TotalLeaseCount() != 0U || !resources.SyncHotReload("texture.wheat") || !resources.Query("texture.wheat", textureReceipt) || textureReceipt.state != AssetResourceState::Ready) return 12;
+    if (!resources.Acquire("mesh.crop", meshHandle) || resources.ActiveResourceCount() != 3U) return 11;
+    if (!registry.ReplaceBytes("texture.wheat", {10U, 11U}) || resources.SyncHotReload("texture.wheat") || resources.LastError() != AssetResourceError::StaleInUse) return 12;
+    if (!resources.Query(meshHandle, materialReceipt) || materialReceipt.state != AssetResourceState::Ready) return 13;
+    if (!resources.Release(meshHandle) || resources.TotalLeaseCount() != 0U || !resources.SyncHotReload("texture.wheat") || !resources.Query("texture.wheat", textureReceipt) || textureReceipt.state != AssetResourceState::Ready) return 14;
 
     AssetResourceHandle invalid{0U, 999999U};
-    if (resources.Release(invalid) || resources.LastError() != AssetResourceError::InvalidHandle || resources.Data(invalid) != nullptr) return 13;
-    if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency) return 14;
-    if (!resources.ReloadIfSafe("never-loaded") || resources.LastError() != AssetResourceError::None) return 15;
+    if (resources.Release(invalid) || resources.LastError() != AssetResourceError::InvalidHandle || resources.Data(invalid) != nullptr) return 15;
+    if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency) return 16;
+    if (!resources.ReloadIfSafe("never-loaded") || resources.LastError() != AssetResourceError::None) return 17;
     return 0;
 }

@@ -22,6 +22,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!world->Initialize(*farm, *trustSafety, "runtime-farm-player", worldConfig)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto authority = std::make_unique<FarmAuthoritativeService>();
     if (!authority->Initialize(*world, *trustSafety, "runtime-farm-player", "runtime-farm-session")) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto assets = std::make_unique<AssetRegistry>();
+    auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
     if (!renderer->Initialize(config.renderWidth, config.renderHeight)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto surfacePresenter = std::unique_ptr<SoftwareSurfacePresenter>{};
@@ -40,6 +42,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     authoringWorldConfig.side = config.authoringWorldSide;
     authoringWorldConfig.seed = config.authoringWorldSeed;
     if (!authoringWorld->Generate(authoringWorldConfig) || !authoringWorld->BindScene(*scene)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto actors = std::make_unique<ActorComponentWorld>(*scene);
+    auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId);
 
     auto input = std::unique_ptr<InputState>{};
     auto kinematicMotion = std::unique_ptr<KinematicMotionController>{};
@@ -94,7 +98,10 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Farm = std::move(farm);
     m_FarmWorld = std::move(world);
     m_FarmAuthority = std::move(authority);
-    m_Assets = std::make_unique<AssetRegistry>();
+    m_Assets = std::move(assets);
+    m_Resources = std::move(resources);
+    m_Actors = std::move(actors);
+    m_Replication = std::move(replication);
     m_Authoring = std::make_unique<AuthoringCatalog>();
     m_AuthoringWorld = std::move(authoringWorld);
     m_Clock = std::move(clock);
@@ -127,7 +134,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
 }
 
 bool NeoRuntime::Tick() {
-    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     std::vector<RuntimeTimerFire> fires;
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
@@ -147,6 +154,8 @@ bool NeoRuntime::Tick() {
         const bool routeSucceeded = m_UsesSkeletalRouteMotion ? (m_RouteNavigation != nullptr && m_SkeletalRouteMotionController != nullptr && m_RouteRootMotionAdapter != nullptr && m_MotionAuthority != nullptr && m_RouteRootMotionAdapter->Advance(m_Clock->Snapshot().scaledDeltaSeconds, *m_RouteFollower, *m_SkeletalRouteMotionController, *m_Scene, m_RouteMotionEntity_, *m_RouteNavigation, *m_MotionAuthority, m_SkeletalRoutePalette)) : (m_RouteNavigation != nullptr && m_RouteMotionController != nullptr && m_MotionAuthority != nullptr && m_RouteFollower->StepGuarded(*m_Scene, m_RouteMotionEntity_, *m_RouteMotionController, *m_RouteNavigation, m_Clock->Snapshot().scaledDeltaSeconds, *m_MotionAuthority));
         if (!routeSucceeded) { m_LastError = RuntimeError::RouteMotionFailed; m_State = RuntimeState::Failed; return false; }
     }
+    ActorComponentWorldReceipt actorReceipt{};
+    if (m_Actors == nullptr || !m_Actors->TickFixed(simulatedTicks, actorReceipt)) { m_LastError = RuntimeError::ActorComponentTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
@@ -217,6 +226,9 @@ bool NeoRuntime::Shutdown() {
     m_UsesSkeletalRouteMotion = false;
     m_RouteMotionEntity_ = {0xFFFFU, 0U};
     m_MotionAuthority.reset();
+    m_Replication.reset();
+    m_Actors.reset();
+    m_Resources.reset();
     m_Authoring.reset();
     m_AuthoringWorld.reset();
     m_Scene.reset();

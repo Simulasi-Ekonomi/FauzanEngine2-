@@ -6,6 +6,9 @@
 #include "RuntimeClock.h"
 #include "RuntimeTimeSystem.h"
 #include "RuntimeTimerQueue.h"
+#include "ActorComponentWorld.h"
+#include "AssetResourceManager.h"
+#include "ReplicationWorld.h"
 #include "EventSignalBus.h"
 #include "FarmRuntimeHud.h"
 #include "InputMotionBridge.h"
@@ -24,10 +27,10 @@
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, PresentationFailed, TimeFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, PresentationFailed, TimeFailed, ActorComponentTickFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
-struct RuntimeConfig { uint16_t farmWidth = 8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableFarmRuntimeHud=false; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;     std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; };
+struct RuntimeConfig { uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableFarmRuntimeHud=false; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;     std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; };
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
@@ -49,6 +52,12 @@ public:
     const TrustSafetySystem* TrustSafety() const { return m_TrustSafety.get(); }
     AssetRegistry* Assets() { return m_Assets.get(); }
     const AssetRegistry* Assets() const { return m_Assets.get(); }
+    AssetResourceManager* Resources() { return m_Resources.get(); }
+    const AssetResourceManager* Resources() const { return m_Resources.get(); }
+    ActorComponentWorld* Actors() { return m_Actors.get(); }
+    const ActorComponentWorld* Actors() const { return m_Actors.get(); }
+    ReplicationWorld* Replication() { return m_Replication.get(); }
+    const ReplicationWorld* Replication() const { return m_Replication.get(); }
     AuthoringCatalog* Authoring() { return m_Authoring.get(); }
     const AuthoringCatalog* Authoring() const { return m_Authoring.get(); }
     WorldAuthoring* AuthoringWorld() { return m_AuthoringWorld.get(); }
@@ -85,6 +94,9 @@ private:
     std::unique_ptr<FarmWorldTool> m_FarmWorld;
     std::unique_ptr<FarmAuthoritativeService> m_FarmAuthority;
     std::unique_ptr<AssetRegistry> m_Assets;
+    std::unique_ptr<AssetResourceManager> m_Resources;
+    std::unique_ptr<ActorComponentWorld> m_Actors;
+    std::unique_ptr<ReplicationWorld> m_Replication;
     std::unique_ptr<AuthoringCatalog> m_Authoring;
     std::unique_ptr<WorldAuthoring> m_AuthoringWorld;
     std::unique_ptr<RuntimeClock> m_Clock;

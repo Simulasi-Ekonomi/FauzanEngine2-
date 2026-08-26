@@ -46,6 +46,7 @@ public:
     static constexpr uint16_t kMaxResources = static_cast<uint16_t>(AssetRegistry::kMaxAssets);
     static constexpr uint8_t kMaxDependencyDepth = 16U;
     static constexpr uint16_t kMaxDependencyClosure = 64U;
+    static constexpr uint16_t kMaxLeases = 8192U;
 
     explicit AssetResourceManager(const AssetRegistry& registry);
     AssetResourceManager(const AssetResourceManager&) = delete;
@@ -76,15 +77,24 @@ private:
         std::array<uint16_t, kMaxDependencyClosure> dependencySlots{};
     };
 
+    struct LeaseSlot {
+        bool occupied = false;
+        uint32_t generation = 1U;
+        uint16_t rootResourceSlot = 0xFFFFU;
+        uint16_t dependencyCount = 0U;
+        std::array<uint16_t, kMaxDependencyClosure> dependencySlots{};
+    };
+
     bool Fail(AssetResourceError error) const;
     bool BuildDependencyClosure(std::string_view assetId, std::array<std::string, kMaxDependencyClosure>& ids, uint16_t& count, std::array<std::string_view, kMaxDependencyDepth>& path, uint8_t depth) const;
     uint16_t FindSlot(std::string_view assetId) const;
     bool ValidHandle(AssetResourceHandle handle) const;
     bool RefreshUnleasedSlot(Slot& slot, const AssetDefinition& definition);
-    bool FillReceipt(const Slot& slot, AssetResourceReceipt& receipt) const;
+    bool FillReceipt(const Slot& slot, AssetResourceHandle handle, AssetResourceReceipt& receipt) const;
 
     const AssetRegistry& registry_;
     std::array<Slot, kMaxResources> slots_{};
+    std::array<LeaseSlot, kMaxLeases> leases_{};
     uint16_t activeResourceCount_ = 0U;
     uint32_t totalLeaseCount_ = 0U;
     mutable AssetResourceError lastError_ = AssetResourceError::None;
