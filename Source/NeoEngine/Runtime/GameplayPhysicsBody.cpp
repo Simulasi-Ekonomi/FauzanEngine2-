@@ -23,4 +23,17 @@ bool GameplayPhysicsBodyBuilder::SnapshotCircleBody(ArchetypeManager& entities, 
     }
     lastError_ = GameplayPhysicsBodyError::UnknownBody; return false;
 }
+bool GameplayPhysicsBodyBuilder::SetDynamicPlanarVelocity(ArchetypeManager& entities, EntityID entity, float velocityX, float velocityZ) {
+    if (!std::isfinite(velocityX) || !std::isfinite(velocityZ)) { lastError_ = GameplayPhysicsBodyError::InvalidConfiguration; return false; }
+    for (ArchetypeChunk* chunk : entities.GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
+        for (size_t index = 0; index < chunk->count; ++index) {
+            if (chunk->entities[index] != entity) continue;
+            const float inverseMass = chunk->invMass[index], radius = chunk->radius[index];
+            if (!std::isfinite(inverseMass) || !std::isfinite(radius) || inverseMass < 0.0F || radius <= 0.0F) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
+            if (inverseMass == 0.0F) { lastError_ = GameplayPhysicsBodyError::StaticBody; return false; }
+            chunk->velX[index] = velocityX; chunk->velZ[index] = velocityZ; entities.MarkPhysicsDirty(); lastError_ = GameplayPhysicsBodyError::None; return true;
+        }
+    }
+    lastError_ = GameplayPhysicsBodyError::UnknownBody; return false;
+}
 } // namespace NeoEngine
