@@ -56,6 +56,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Flipbook frame selector | [`FLIPBOOK_FRAME_SELECTOR_V1.md`](FLIPBOOK_FRAME_SELECTOR_V1.md) | Bounded deterministic scalar sample to CPU atlas source-rectangle selection. |
 | Flipbook playback | [`FLIPBOOK_PLAYBACK_V1.md`](FLIPBOOK_PLAYBACK_V1.md) | Bounded caller-driven normalized sample clock with loop/clamp and atomic invalid-delta rejection. |
 | Flipbook render bridge | [`FLIPBOOK_RENDER_BRIDGE_V1.md`](FLIPBOOK_RENDER_BRIDGE_V1.md) | Candidate playback-to-selector-to-staged-sprite queue bridge with atomic output preservation. |
+| Animation playback control binding | [`ANIMATION_PLAYBACK_CONTROL_BINDING_V1.md`](ANIMATION_PLAYBACK_CONTROL_BINDING_V1.md) | Explicit state-to-pause/resume bridge with unmapped-state preservation. |
 | Flipbook staged sprite proof | [`FLIPBOOK_STAGED_SPRITE_PROOF_V1.md`](FLIPBOOK_STAGED_SPRITE_PROOF_V1.md) | Frame-local selector rectangle passed to staged sprite queue without SceneWorld writes. |
 | Flipbook surface sequence proof | [`FLIPBOOK_SURFACE_SEQUENCE_PROOF_V1.md`](FLIPBOOK_SURFACE_SEQUENCE_PROOF_V1.md) | Finite four-frame selector-to-staged-sprite surface proof with transform-preservation check. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
