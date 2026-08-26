@@ -34,9 +34,13 @@ int main() {
     CharacterPawnSnapshot invalidSnapshot = savedSnapshot;
     invalidSnapshot.actor.generation += 1U;
     if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != savedSnapshot.animation.overlay.activeStateId) return 12;
-    if (!characterView->Restore(savedSnapshot) || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != "aim" || snapshot.animation.overlayWeightPermille != 500U) return 13;
-    if (!characterView->SubmitInput({0.0F, 0.0F, false, true}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.grounded || snapshot.velocity.y <= 0.0F) return 14;
-    if (!actors.TickFixed(60U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.grounded || std::abs(snapshot.velocity.y) > 0.0001F) return 15;
+    invalidSnapshot = savedSnapshot;
+    invalidSnapshot.grounded = true;
+    invalidSnapshot.velocity.y = 1.0F;
+    if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.velocity.y != savedSnapshot.velocity.y) return 13;
+    if (!characterView->Restore(savedSnapshot) || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != "aim" || snapshot.animation.overlayWeightPermille != 500U) return 14;
+    if (!characterView->SubmitInput({0.0F, 0.0F, false, true}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.grounded || snapshot.velocity.y <= 0.0F) return 15;
+    if (!actors.TickFixed(60U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.grounded || std::abs(snapshot.velocity.y) > 0.0001F) return 16;
 
     const Transform3* beforeRoot = scene.GetTransform(player);
     if (beforeRoot == nullptr) return 14;
