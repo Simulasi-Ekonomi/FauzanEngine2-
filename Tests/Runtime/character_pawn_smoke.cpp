@@ -12,6 +12,11 @@ int main() {
     ActorComponentWorld actors(scene);
     SceneEntity player{};
     if (!actors.CreateActor(player, "Player")) return 1;
+    CharacterPawnConfig invalidConfig{};
+    invalidConfig.fixedSeconds = 1.0F;
+    invalidConfig.runSpeed = 101.0F;
+    CharacterPawn invalidCharacter(invalidConfig);
+    if (invalidCharacter.OnAttach(scene, player) || invalidCharacter.LastError() != CharacterPawnError::InvalidConfig || invalidCharacter.IsAttached()) return 1;
 
     auto character = std::make_unique<CharacterPawn>();
     CharacterPawn* characterView = character.get();

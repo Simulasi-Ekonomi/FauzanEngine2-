@@ -10,7 +10,7 @@ constexpr float kMaxRootMotionMagnitude = 100.0F;
 constexpr float kMaxFixedSeconds = 1.0F;
 bool Finite(float value) { return std::isfinite(value); }
 bool ValidConfig(const CharacterPawnConfig& config) {
-    return Finite(config.fixedSeconds) && config.fixedSeconds > 0.0F && config.fixedSeconds <= kMaxFixedSeconds && Finite(config.walkSpeed) && config.walkSpeed >= 0.0F && Finite(config.runSpeed) && config.runSpeed >= config.walkSpeed && Finite(config.jumpVelocity) && config.jumpVelocity >= 0.0F && Finite(config.gravity) && config.gravity >= 0.0F && Finite(config.maxPlanarInput) && config.maxPlanarInput > 0.0F && config.maxPlanarInput <= 1.0F;
+    return Finite(config.fixedSeconds) && config.fixedSeconds > 0.0F && config.fixedSeconds <= kMaxFixedSeconds && Finite(config.walkSpeed) && config.walkSpeed >= 0.0F && config.walkSpeed <= kMaxRootMotionMagnitude / config.fixedSeconds && Finite(config.runSpeed) && config.runSpeed >= config.walkSpeed && config.runSpeed <= kMaxRootMotionMagnitude / config.fixedSeconds && Finite(config.jumpVelocity) && config.jumpVelocity >= 0.0F && config.jumpVelocity <= kMaxRootMotionMagnitude / config.fixedSeconds && Finite(config.gravity) && config.gravity >= 0.0F && config.gravity <= kMaxRootMotionMagnitude / config.fixedSeconds && Finite(config.maxPlanarInput) && config.maxPlanarInput > 0.0F && config.maxPlanarInput <= 1.0F;
 }
 bool ValidRootMotion(const CharacterRootMotionDelta& delta) {
     return Finite(delta.x) && Finite(delta.y) && Finite(delta.z) && std::abs(delta.x) <= kMaxRootMotionMagnitude && std::abs(delta.y) <= kMaxRootMotionMagnitude && std::abs(delta.z) <= kMaxRootMotionMagnitude;
