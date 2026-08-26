@@ -64,6 +64,8 @@ struct CharacterPawnSnapshot {
     CharacterRootMotionMode rootMotionMode = CharacterRootMotionMode::Kinematic;
     CharacterRootMotionDelta velocity{};
     bool grounded = true;
+    CharacterPawnInput pendingInput{};
+    CharacterRootMotionDelta pendingRootMotion{};
     CharacterAnimationGraphSnapshot animation{};
 };
 

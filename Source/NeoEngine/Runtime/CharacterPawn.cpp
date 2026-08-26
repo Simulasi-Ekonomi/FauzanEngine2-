@@ -62,21 +62,23 @@ bool EncodeCharacterSnapshot(const CharacterPawnSnapshot& snapshot, std::span<ui
     std::fill(bytes.begin(), bytes.end(), 0U); size_t offset = 0U;
     if (!WriteU16(bytes, offset, snapshot.actor.index) || !WriteU16(bytes, offset, snapshot.actor.generation) || offset + 2U > bytes.size()) return false;
     bytes[offset++] = static_cast<uint8_t>(snapshot.authority); bytes[offset++] = static_cast<uint8_t>(snapshot.rootMotionMode);
-    if (!WriteFloat(bytes, offset, snapshot.velocity.x) || !WriteFloat(bytes, offset, snapshot.velocity.y) || !WriteFloat(bytes, offset, snapshot.velocity.z) || offset >= bytes.size()) return false;
-    bytes[offset++] = snapshot.grounded ? 1U : 0U;
-    if (!WriteStateSnapshot(bytes, offset, snapshot.animation.base) || !WriteStateSnapshot(bytes, offset, snapshot.animation.overlay) || !WriteU16(bytes, offset, snapshot.animation.overlayWeightPermille) || offset >= bytes.size()) return false;
+    if (!WriteFloat(bytes, offset, snapshot.velocity.x) || !WriteFloat(bytes, offset, snapshot.velocity.y) || !WriteFloat(bytes, offset, snapshot.velocity.z) || !WriteFloat(bytes, offset, snapshot.pendingInput.moveX) || !WriteFloat(bytes, offset, snapshot.pendingInput.moveZ) || offset + 2U > bytes.size()) return false;
+    bytes[offset++] = snapshot.grounded ? 1U : 0U; bytes[offset++] = snapshot.pendingInput.sprint ? 1U : 0U; bytes[offset++] = snapshot.pendingInput.jump ? 1U : 0U;
+    if (!WriteFloat(bytes, offset, snapshot.pendingRootMotion.x) || !WriteFloat(bytes, offset, snapshot.pendingRootMotion.y) || !WriteFloat(bytes, offset, snapshot.pendingRootMotion.z) || !WriteStateSnapshot(bytes, offset, snapshot.animation.base) || !WriteStateSnapshot(bytes, offset, snapshot.animation.overlay) || !WriteU16(bytes, offset, snapshot.animation.overlayWeightPermille) || offset >= bytes.size()) return false;
     bytes[offset++] = snapshot.animation.hasOverlay ? 1U : 0U; return true;
 }
 bool DecodeCharacterSnapshot(std::span<const uint8_t> bytes, CharacterPawnSnapshot& snapshot) {
     size_t offset = 0U; uint16_t index = 0U; uint16_t generation = 0U;
     if (bytes.size() != CharacterPawn::kComponentSnapshotBytes || !ReadU16(bytes, offset, index) || !ReadU16(bytes, offset, generation) || offset + 2U > bytes.size()) return false;
     snapshot.actor = {index, generation}; snapshot.authority = static_cast<CharacterMovementAuthority>(bytes[offset++]); snapshot.rootMotionMode = static_cast<CharacterRootMotionMode>(bytes[offset++]);
-    if (!ReadFloat(bytes, offset, snapshot.velocity.x) || !ReadFloat(bytes, offset, snapshot.velocity.y) || !ReadFloat(bytes, offset, snapshot.velocity.z) || offset >= bytes.size() || bytes[offset] > 1U) return false;
-    snapshot.grounded = bytes[offset++] != 0U; if (!ReadStateSnapshot(bytes, offset, snapshot.animation.base) || !ReadStateSnapshot(bytes, offset, snapshot.animation.overlay) || !ReadU16(bytes, offset, snapshot.animation.overlayWeightPermille) || offset >= bytes.size() || bytes[offset] > 1U) return false;
+    if (!ReadFloat(bytes, offset, snapshot.velocity.x) || !ReadFloat(bytes, offset, snapshot.velocity.y) || !ReadFloat(bytes, offset, snapshot.velocity.z) || !ReadFloat(bytes, offset, snapshot.pendingInput.moveX) || !ReadFloat(bytes, offset, snapshot.pendingInput.moveZ) || offset + 2U > bytes.size() || bytes[offset] > 1U || bytes[offset + 1U] > 1U || bytes[offset + 2U] > 1U) return false;
+    snapshot.grounded = bytes[offset++] != 0U; snapshot.pendingInput.sprint = bytes[offset++] != 0U; snapshot.pendingInput.jump = bytes[offset++] != 0U;
+    if (!ReadFloat(bytes, offset, snapshot.pendingRootMotion.x) || !ReadFloat(bytes, offset, snapshot.pendingRootMotion.y) || !ReadFloat(bytes, offset, snapshot.pendingRootMotion.z) || !ReadStateSnapshot(bytes, offset, snapshot.animation.base) || !ReadStateSnapshot(bytes, offset, snapshot.animation.overlay) || !ReadU16(bytes, offset, snapshot.animation.overlayWeightPermille) || offset >= bytes.size() || bytes[offset] > 1U) return false;
     snapshot.animation.hasOverlay = bytes[offset++] != 0U; return true;
 }
-bool ValidCharacterSnapshot(const CharacterPawnSnapshot& snapshot, SceneEntity actor, const CharacterAnimationGraph& currentAnimation) {
-    if (snapshot.actor != actor || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || snapshot.animation.overlayWeightPermille > 1000U) return false;
+bool ValidCharacterSnapshot(const CharacterPawnSnapshot& snapshot, SceneEntity actor, const CharacterPawnConfig& config, const CharacterAnimationGraph& currentAnimation) {
+    const float inputMagnitudeSquared = snapshot.pendingInput.moveX * snapshot.pendingInput.moveX + snapshot.pendingInput.moveZ * snapshot.pendingInput.moveZ;
+    if (snapshot.actor != actor || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || !Finite(inputMagnitudeSquared) || inputMagnitudeSquared > config.maxPlanarInput * config.maxPlanarInput || !ValidRootMotion(snapshot.pendingRootMotion) || snapshot.animation.overlayWeightPermille > 1000U) return false;
     CharacterAnimationGraph candidate = currentAnimation; return candidate.Restore(snapshot.animation);
 }
 }
@@ -363,12 +365,12 @@ bool CharacterPawn::CaptureSnapshot(std::span<uint8_t> bytes) const {
 }
 bool CharacterPawn::ValidateSnapshot(std::span<const uint8_t> bytes) const {
     if (!attached_ || bytes.size() != kComponentSnapshotBytes) return false;
-    CharacterPawnSnapshot snapshot{}; return DecodeCharacterSnapshot(bytes, snapshot) && ValidCharacterSnapshot(snapshot, actor_, animation_);
+    CharacterPawnSnapshot snapshot{}; return DecodeCharacterSnapshot(bytes, snapshot) && ValidCharacterSnapshot(snapshot, actor_, config_, animation_);
 }
 bool CharacterPawn::RestoreSnapshot(std::span<const uint8_t> bytes) {
     if (!attached_ || bytes.size() != kComponentSnapshotBytes) return false;
     CharacterPawnSnapshot snapshot{};
-    if (!DecodeCharacterSnapshot(bytes, snapshot) || !ValidCharacterSnapshot(snapshot, actor_, animation_)) return false;
+    if (!DecodeCharacterSnapshot(bytes, snapshot) || !ValidCharacterSnapshot(snapshot, actor_, config_, animation_)) return false;
     return Restore(snapshot);
 }
 
@@ -424,13 +426,15 @@ bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
     candidate.rootMotionMode = rootMotionMode_;
     candidate.velocity = velocity_;
     candidate.grounded = grounded_;
+    candidate.pendingInput = pendingInput_;
+    candidate.pendingRootMotion = pendingRootMotion_;
     if (!animation_.Snapshot(candidate.animation)) return false;
     snapshot = std::move(candidate);
     return true;
 }
 
 bool CharacterPawn::Restore(const CharacterPawnSnapshot& snapshot) {
-    if (!attached_ || snapshot.actor != actor_ || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AnimationRejected);
+    if (!attached_ || snapshot.actor != actor_ || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || !ValidateInput(snapshot.pendingInput) || !ValidRootMotion(snapshot.pendingRootMotion) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AnimationRejected);
     CharacterAnimationGraph candidateAnimation = animation_;
     if (!candidateAnimation.Restore(snapshot.animation)) return Fail(CharacterPawnError::AnimationRejected);
     animation_ = std::move(candidateAnimation);
@@ -438,6 +442,8 @@ bool CharacterPawn::Restore(const CharacterPawnSnapshot& snapshot) {
     lastAuthority_ = snapshot.authority;
     velocity_ = snapshot.velocity;
     grounded_ = snapshot.grounded;
+    pendingInput_ = snapshot.pendingInput;
+    pendingRootMotion_ = snapshot.pendingRootMotion;
     lastError_ = CharacterPawnError::None;
     return true;
 }
