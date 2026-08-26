@@ -90,8 +90,8 @@ bool SameTransform(const Transform3& left, const Transform3& right) {
     return std::memcmp(&left, &right, sizeof(Transform3)) == 0;
 }
 Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPermille) {
-    const float alpha = static_cast<float>(alphaPermille) / 1000.0F;
-    const auto mix = [alpha](float a, float b) { return a + (b - a) * alpha; };
+    const double alpha = static_cast<double>(alphaPermille) / 1000.0;
+    const auto mix = [alpha](float a, float b) { return static_cast<float>(static_cast<double>(a) + (static_cast<double>(b) - static_cast<double>(a)) * alpha); };
     return {mix(from.x, to.x), mix(from.y, to.y), mix(from.z, to.z), mix(from.rx, to.rx), mix(from.ry, to.ry), mix(from.rz, to.rz), mix(from.sx, to.sx), mix(from.sy, to.sy), mix(from.sz, to.sz)};
 }
 }
