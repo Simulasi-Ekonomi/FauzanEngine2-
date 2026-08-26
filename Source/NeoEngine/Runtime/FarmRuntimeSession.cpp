@@ -17,20 +17,30 @@ FarmActionAvailability AvailabilityAtPlayer(const FarmSystem& farm, const FarmWo
 }
 }
 bool FarmRuntimeSession::Fail(FarmRuntimeSessionError error) { lastError_ = error; return false; }
-bool FarmRuntimeSession::Initialize(FarmSystem& farm, FarmWorldTool& world, const FarmSpriteAssetSet& assets, const AssetRegistry& registry, TextureStagingStore& textures, SoftwareRenderer& renderer) {
-    initialized_ = false; frameCount_ = 0; lastReceipt_ = {};
-    if (!farm.IsReady() || !world.IsReady() || renderer.Width() == 0U || renderer.Height() == 0U || !inputBridge_.Initialize()) return Fail(FarmRuntimeSessionError::NotInitialized);
-    farm_ = &farm; world_ = &world; assets_ = &assets; registry_ = &registry; textures_ = &textures; renderer_ = &renderer; initialized_ = true; lastError_ = FarmRuntimeSessionError::None; return true;
+bool FarmRuntimeSession::Initialize(FarmSystem& farm, FarmWorldTool& world, const FarmSpriteAssetSet& assets, const AssetRegistry& registry, TextureStagingStore& textures, SoftwareRenderer& renderer, RuntimeTimeSystem* time, CurriculumSystem* curriculum) {
+    initialized_ = false; frameCount_ = 0; lastReceipt_ = {}; lastTimeEvents_.clear(); lastCurriculumEvents_.clear();
+    if (!farm.IsReady() || !world.IsReady() || renderer.Width() == 0U || renderer.Height() == 0U || !inputBridge_.Initialize() || (time != nullptr && !time->IsReady()) || (curriculum != nullptr && !curriculum->IsReady())) return Fail(FarmRuntimeSessionError::NotInitialized);
+    farm_ = &farm; world_ = &world; assets_ = &assets; registry_ = &registry; textures_ = &textures; renderer_ = &renderer; time_ = time; curriculum_ = curriculum; initialized_ = true; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 bool FarmRuntimeSession::Frame(InputState& input, uint32_t simulationTicks) {
     if (!initialized_) return Fail(FarmRuntimeSessionError::NotInitialized);
     if (simulationTicks == 0U) return Fail(FarmRuntimeSessionError::InvalidFrameTicks);
     input.BeginFrame();
-    if (!inputBridge_.Step(input, *world_)) return Fail(FarmRuntimeSessionError::InputRejected);
-    if (!world_->Tick(simulationTicks)) return Fail(FarmRuntimeSessionError::WorldTickRejected);
+    uint32_t effectiveSimulationTicks = simulationTicks;
+    lastTimeEvents_.clear();
+    if (time_ != nullptr && !time_->AdvanceFixedTicks(simulationTicks, lastTimeEvents_, effectiveSimulationTicks)) return Fail(FarmRuntimeSessionError::TimeRejected);
+    if (effectiveSimulationTicks != 0U && !inputBridge_.Step(input, *world_)) return Fail(FarmRuntimeSessionError::InputRejected);
+    if (effectiveSimulationTicks != 0U && !world_->Tick(effectiveSimulationTicks)) return Fail(FarmRuntimeSessionError::WorldTickRejected);
     if (!rendererBridge_.RenderWorld(*farm_, *world_, *assets_, *registry_, *textures_, *renderer_)) return Fail(FarmRuntimeSessionError::RenderRejected);
     const FarmRuntimeInventorySnapshot inventory{farm_->ItemCount(FarmItem::WheatSeed), farm_->ItemCount(FarmItem::WheatProduce)};
-    const uint64_t candidateFrame = frameCount_ + 1U; const FarmRuntimeFrameReceipt candidateReceipt{candidateFrame, renderer_->FrameHash(), farm_->Snapshot(), inventory, inputBridge_.LastReceipt(), AvailabilityAtPlayer(*farm_, *world_)};
+    const RuntimeTimeSnapshot timeSnapshot = time_ == nullptr ? RuntimeTimeSnapshot{} : time_->Snapshot();
+    CurriculumProgressReceipt curriculumReceipt{};
+    lastCurriculumEvents_.clear();
+    if (curriculum_ != nullptr) {
+        const CurriculumObservation observation{timeSnapshot, farm_->Snapshot()};
+        if (!curriculum_->Evaluate(observation, lastCurriculumEvents_) || !curriculum_->Snapshot(curriculumReceipt)) return Fail(FarmRuntimeSessionError::CurriculumRejected);
+    }
+    const uint64_t candidateFrame = frameCount_ + 1U; const FarmRuntimeFrameReceipt candidateReceipt{candidateFrame, renderer_->FrameHash(), farm_->Snapshot(), inventory, inputBridge_.LastReceipt(), AvailabilityAtPlayer(*farm_, *world_), timeSnapshot, curriculumReceipt};
     ++frameCount_; lastReceipt_ = candidateReceipt; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 bool FarmRuntimeSession::SaveCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes) {

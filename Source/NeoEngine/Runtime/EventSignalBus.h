@@ -1,11 +1,13 @@
 #pragma once
 
+#include "RuntimeTimeSystem.h"
+
 #include <cstdint>
 #include <vector>
 
 namespace NeoEngine {
 
-enum class RuntimeEventKind : uint8_t { RuntimePaused, RuntimeResumed, TimerFired, InputAction, WorldMutation, AuthoringMutation };
+enum class RuntimeEventKind : uint8_t { RuntimePaused, RuntimeResumed, TimerFired, InputAction, WorldMutation, AuthoringMutation, GameTimeChanged, GameDayChanged, GamePhaseChanged };
 struct RuntimeEvent { RuntimeEventKind kind = RuntimeEventKind::RuntimePaused; uint32_t subjectId = 0; int32_t value = 0; uint64_t tick = 0; };
 enum class EventSignalError : uint8_t { None, DuplicateListener, MissingListener, Capacity, QueueFull };
 

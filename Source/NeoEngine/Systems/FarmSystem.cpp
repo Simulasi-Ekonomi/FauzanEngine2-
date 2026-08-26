@@ -7,7 +7,7 @@
 namespace NeoEngine {
 namespace {
 constexpr uint32_t kMagic = 0x4D524146U; // FARM
-constexpr uint16_t kVersion = 1;
+constexpr uint16_t kVersion = 2;
 
 template <typename T>
 void Append(std::vector<uint8_t>& output, T value) {
@@ -136,8 +136,11 @@ bool FarmSystem::Harvest(uint16_t x, uint16_t z, uint32_t& harvestedUnits) {
     if (!IsCoordinateValid(x, z)) return SetError(FarmError::InvalidCoordinate);
     Tile& tile = TileAt(x, z);
     if (tile.state != FarmTileState::Harvestable) return SetError(FarmError::InvalidAction);
+    if (m_HarvestedUnits > std::numeric_limits<uint64_t>::max() - 2U || m_HarvestActions == std::numeric_limits<uint64_t>::max()) return SetError(FarmError::InvalidAction);
     if (!AddItem(ProduceFor(tile.crop), 2)) return false;
     harvestedUnits = 2;
+    m_HarvestedUnits += harvestedUnits;
+    ++m_HarvestActions;
     tile = {};
     ++m_QuestHarvestProgress;
     if (!m_QuestCompleted && m_QuestHarvestProgress >= kQuestHarvestTarget) { m_QuestCompleted = true; Emit(FarmEventType::QuestCompleted); }
@@ -169,7 +172,7 @@ uint32_t FarmSystem::ItemCount(FarmItem item) const { const size_t slot = static
 FarmTelemetrySnapshot FarmSystem::Snapshot() const {
     FarmTelemetrySnapshot snapshot{};
     snapshot.simulationTick = m_SimulationTick; snapshot.stateRevision = m_StateRevision; snapshot.eventSequence = m_EventSequence; snapshot.coins = m_Coins;
-    snapshot.animals = static_cast<uint32_t>(m_Animals.size()); snapshot.questHarvestProgress = m_QuestHarvestProgress; snapshot.questCompleted = m_QuestCompleted; snapshot.lastError = m_LastError;
+    snapshot.animals = static_cast<uint32_t>(m_Animals.size()); snapshot.questHarvestProgress = m_QuestHarvestProgress; snapshot.harvestedUnits = m_HarvestedUnits; snapshot.harvestActions = m_HarvestActions; snapshot.questCompleted = m_QuestCompleted; snapshot.lastError = m_LastError;
     for (const Tile& tile : m_Tiles) { if (tile.state == FarmTileState::Tilled) ++snapshot.tilledTiles; if (tile.state == FarmTileState::Growing) ++snapshot.growingTiles; if (tile.state == FarmTileState::Harvestable) ++snapshot.harvestableTiles; }
     return snapshot;
 }
@@ -181,21 +184,21 @@ std::vector<uint8_t> FarmSystem::Serialize() const {
     for (uint32_t value : m_Inventory) Append<uint32_t>(output, value);
     for (const Tile& tile : m_Tiles) { Append<uint8_t>(output, static_cast<uint8_t>(tile.state)); Append<uint8_t>(output, static_cast<uint8_t>(tile.crop)); Append<uint32_t>(output, tile.growthTicks); Append<uint8_t>(output, tile.watered ? 1U : 0U); }
     Append<uint32_t>(output, static_cast<uint32_t>(m_Animals.size())); for (const AnimalState& animal : m_Animals) { Append<uint8_t>(output, static_cast<uint8_t>(animal.animal)); Append<uint32_t>(output, animal.productionTicks); }
-    Append<uint32_t>(output, m_QuestHarvestProgress); Append<uint8_t>(output, m_QuestCompleted ? 1U : 0U); Append<uint32_t>(output, m_RejectedTransactionCount);
+    Append<uint32_t>(output, m_QuestHarvestProgress); Append<uint64_t>(output, m_HarvestedUnits); Append<uint64_t>(output, m_HarvestActions); Append<uint8_t>(output, m_QuestCompleted ? 1U : 0U); Append<uint32_t>(output, m_RejectedTransactionCount);
     auto appendLedger = [&output](const std::unordered_set<uint64_t>& ledger) { std::vector<uint64_t> ids(ledger.begin(), ledger.end()); std::sort(ids.begin(), ids.end()); Append<uint32_t>(output, static_cast<uint32_t>(ids.size())); for (uint64_t id : ids) Append<uint64_t>(output, id); };
     appendLedger(m_AppliedReceiptIds); appendLedger(m_AppliedSaleIds); return output;
 }
 
 bool FarmSystem::Deserialize(std::span<const uint8_t> bytes) {
     size_t offset = 0; uint32_t magic = 0; uint16_t version = 0, width = 0, height = 0; int64_t coins = 0; uint64_t tick = 0, revision = 0, eventSequence = 0;
-    if (!Read(bytes, offset, magic) || !Read(bytes, offset, version) || !Read(bytes, offset, width) || !Read(bytes, offset, height) || magic != kMagic || version != kVersion || static_cast<size_t>(width) * height > kMaxTiles || width == 0 || height == 0 || !Read(bytes, offset, coins) || !Read(bytes, offset, tick) || !Read(bytes, offset, revision) || !Read(bytes, offset, eventSequence) || coins < 0) return SetError(FarmError::CorruptPersistence);
+    if (!Read(bytes, offset, magic) || !Read(bytes, offset, version) || !Read(bytes, offset, width) || !Read(bytes, offset, height) || magic != kMagic || (version != 1 && version != kVersion) || static_cast<size_t>(width) * height > kMaxTiles || width == 0 || height == 0 || !Read(bytes, offset, coins) || !Read(bytes, offset, tick) || !Read(bytes, offset, revision) || !Read(bytes, offset, eventSequence) || coins < 0) return SetError(FarmError::CorruptPersistence);
     std::array<uint32_t, static_cast<size_t>(FarmItem::Count)> inventory{}; for (uint32_t& value : inventory) if (!Read(bytes, offset, value)) return SetError(FarmError::CorruptPersistence);
     std::vector<Tile> tiles(static_cast<size_t>(width) * height); for (Tile& tile : tiles) { uint8_t state = 0, crop = 0, watered = 0; if (!Read(bytes, offset, state) || !Read(bytes, offset, crop) || !Read(bytes, offset, tile.growthTicks) || !Read(bytes, offset, watered) || state > static_cast<uint8_t>(FarmTileState::Harvestable) || crop > static_cast<uint8_t>(FarmCrop::Tomato) || watered > 1) return SetError(FarmError::CorruptPersistence); tile.state = static_cast<FarmTileState>(state); tile.crop = static_cast<FarmCrop>(crop); tile.watered = watered != 0; }
     uint32_t animalCount = 0; if (!Read(bytes, offset, animalCount) || animalCount > 128) return SetError(FarmError::CorruptPersistence); std::vector<AnimalState> animals(animalCount); for (AnimalState& animal : animals) { uint8_t type = 0; if (!Read(bytes, offset, type) || !Read(bytes, offset, animal.productionTicks) || type > static_cast<uint8_t>(FarmAnimal::Hen)) return SetError(FarmError::CorruptPersistence); animal.animal = static_cast<FarmAnimal>(type); }
-    uint32_t quest = 0, rejectedTransactions = 0; uint8_t completed = 0; if (!Read(bytes, offset, quest) || !Read(bytes, offset, completed) || !Read(bytes, offset, rejectedTransactions) || completed > 1) return SetError(FarmError::CorruptPersistence);
+    uint32_t quest = 0, rejectedTransactions = 0; uint64_t harvestedUnits = 0, harvestActions = 0; uint8_t completed = 0; if (!Read(bytes, offset, quest) || (version >= 2 && (!Read(bytes, offset, harvestedUnits) || !Read(bytes, offset, harvestActions))) || !Read(bytes, offset, completed) || !Read(bytes, offset, rejectedTransactions) || completed > 1) return SetError(FarmError::CorruptPersistence);
     auto readLedger = [&bytes, &offset](std::unordered_set<uint64_t>& ledger) { uint32_t count = 0; if (!Read(bytes, offset, count) || count > kMaxLedgerEntries) return false; for (uint32_t i = 0; i < count; ++i) { uint64_t id = 0; if (!Read(bytes, offset, id) || id == 0 || !ledger.insert(id).second) return false; } return true; };
     std::unordered_set<uint64_t> receipts, sales; if (!readLedger(receipts) || !readLedger(sales) || offset != bytes.size()) return SetError(FarmError::CorruptPersistence);
-    m_Width = width; m_Height = height; m_Coins = coins; m_SimulationTick = tick; m_StateRevision = revision; m_EventSequence = eventSequence; m_Inventory = inventory; m_Tiles = std::move(tiles); m_Animals = std::move(animals); m_QuestHarvestProgress = quest; m_QuestCompleted = completed != 0; m_RejectedTransactionCount = rejectedTransactions; m_AppliedReceiptIds = std::move(receipts); m_AppliedSaleIds = std::move(sales); m_RecentEvents.clear(); m_Ready = true; m_LastError = FarmError::None; return true;
+    m_Width = width; m_Height = height; m_Coins = coins; m_SimulationTick = tick; m_StateRevision = revision; m_EventSequence = eventSequence; m_Inventory = inventory; m_Tiles = std::move(tiles); m_Animals = std::move(animals); m_QuestHarvestProgress = quest; m_HarvestedUnits = harvestedUnits; m_HarvestActions = harvestActions; m_QuestCompleted = completed != 0; m_RejectedTransactionCount = rejectedTransactions; m_AppliedReceiptIds = std::move(receipts); m_AppliedSaleIds = std::move(sales); m_RecentEvents.clear(); m_Ready = true; m_LastError = FarmError::None; return true;
 }
 
 } // namespace NeoEngine

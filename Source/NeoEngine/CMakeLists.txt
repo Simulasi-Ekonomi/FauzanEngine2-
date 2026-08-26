@@ -41,6 +41,7 @@ set(XPBD_RUNTIME_SOURCES
     Physics/V5/XPBDPhysicsSystem.cpp
     Runtime/NeoRuntime.cpp
     Runtime/RuntimeClock.cpp
+    Runtime/RuntimeTimeSystem.cpp
     Runtime/RuntimeTimerQueue.cpp
     Runtime/RenderCamera.cpp
     Runtime/SpriteBatch.cpp
@@ -140,6 +141,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/FarmRuntimeSaveCodec.cpp
     Runtime/AssetRegistry.cpp
     Systems/FarmSystem.cpp
+    Systems/CurriculumSystem.cpp
+    Systems/AgricultureCurriculum.cpp
     Systems/FarmWorldTool.cpp
     Systems/FarmAuthoritativeService.cpp
     Systems/FarmAuthorityCheckpoint.cpp
@@ -253,6 +256,18 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_smoke.cpp")
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_clock_smoke.cpp")
     add_xpbd_executable(runtime_clock_smoke ../../Tests/Runtime/runtime_clock_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_time_system_smoke.cpp")
+    add_xpbd_executable(runtime_time_system_smoke ../../Tests/Runtime/runtime_time_system_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/time_curriculum_vertical_slice_smoke.cpp")
+    add_xpbd_executable(time_curriculum_vertical_slice_smoke ../../Tests/Runtime/time_curriculum_vertical_slice_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_session_curriculum_smoke.cpp")
+    add_xpbd_executable(farm_runtime_session_curriculum_smoke ../../Tests/Runtime/farm_runtime_session_curriculum_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_time_integration_smoke.cpp")
+    add_xpbd_executable(runtime_time_integration_smoke ../../Tests/Runtime/runtime_time_integration_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_object_pool_smoke.cpp")
     add_xpbd_executable(runtime_object_pool_smoke ../../Tests/Runtime/runtime_object_pool_smoke.cpp)

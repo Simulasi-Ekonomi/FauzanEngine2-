@@ -55,6 +55,8 @@ struct FarmTelemetrySnapshot {
     uint32_t harvestableTiles = 0;
     uint32_t animals = 0;
     uint32_t questHarvestProgress = 0;
+    uint64_t harvestedUnits = 0;
+    uint64_t harvestActions = 0;
     bool questCompleted = false;
     FarmError lastError = FarmError::None;
 };
@@ -138,6 +140,8 @@ private:
     std::unordered_set<uint64_t> m_AppliedReceiptIds;
     std::unordered_set<uint64_t> m_AppliedSaleIds;
     uint32_t m_QuestHarvestProgress = 0;
+    uint64_t m_HarvestedUnits = 0;
+    uint64_t m_HarvestActions = 0;
     uint32_t m_RejectedTransactionCount = 0;
     static constexpr uint32_t kQuestHarvestTarget = 5;
     bool m_QuestCompleted = false;

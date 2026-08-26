@@ -31,6 +31,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     }
     auto clock = std::make_unique<RuntimeClock>();
     if (!clock->Initialize()) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto gameTime = std::make_unique<RuntimeTimeSystem>();
+    if (!gameTime->Initialize(config.timeConfig) || !clock->SetTimeScale(static_cast<float>(config.timeConfig.defaultTimeScalePermille) / 1000.0F)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto scene = std::make_unique<SceneWorld>();
     if (!world->PopulateScene(*scene)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto authoringWorld = std::make_unique<WorldAuthoring>();
@@ -96,6 +98,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Authoring = std::make_unique<AuthoringCatalog>();
     m_AuthoringWorld = std::move(authoringWorld);
     m_Clock = std::move(clock);
+    m_Time = std::move(gameTime);
     m_Timers = std::make_unique<RuntimeTimerQueue>();
     m_Events = std::make_unique<EventSignalBus>();
     m_Input = std::move(input);
@@ -129,16 +132,24 @@ bool NeoRuntime::Tick() {
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_Input != nullptr) m_Input->BeginFrame();
-    if (m_Clock->Snapshot().paused) return m_Events->Dispatch();
+    std::vector<RuntimeTimeEvent> timeEvents;
+    uint32_t simulatedTicks = 0U;
+    if (m_Time == nullptr || !m_Time->AdvanceFixedTicks(m_FixedTicksPerFrame, timeEvents, simulatedTicks)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (timeEvents.size() > EventSignalBus::kMaxEvents - m_Events->PendingCount()) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    for (const RuntimeTimeEvent& event : timeEvents) {
+        const RuntimeEventKind kind = event.kind == RuntimeTimeEventKind::TimeChanged ? RuntimeEventKind::GameTimeChanged : event.kind == RuntimeTimeEventKind::DayChanged ? RuntimeEventKind::GameDayChanged : RuntimeEventKind::GamePhaseChanged;
+        if (!m_Events->Queue({kind, 0U, static_cast<int32_t>(event.snapshot.minuteOfDay), event.snapshot.hostFixedStepCount})) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    }
+    if (m_Clock->Snapshot().paused || simulatedTicks == 0U) return m_Events->Dispatch();
     if (m_MotionAuthority != nullptr) m_MotionAuthority->BeginFrame();
     if (m_InputMotion != nullptr && (m_Input == nullptr || m_KinematicMotion == nullptr || !m_InputMotion->Step(*m_Input, *m_KinematicMotion, *m_Scene, m_InputMotionEntity_, m_Clock->Snapshot().scaledDeltaSeconds))) { m_LastError = RuntimeError::InputMotionFailed; m_State = RuntimeState::Failed; return false; }
     if (m_RouteFollower != nullptr && !m_RouteFollower->ReachedGoal()) {
         const bool routeSucceeded = m_UsesSkeletalRouteMotion ? (m_RouteNavigation != nullptr && m_SkeletalRouteMotionController != nullptr && m_RouteRootMotionAdapter != nullptr && m_MotionAuthority != nullptr && m_RouteRootMotionAdapter->Advance(m_Clock->Snapshot().scaledDeltaSeconds, *m_RouteFollower, *m_SkeletalRouteMotionController, *m_Scene, m_RouteMotionEntity_, *m_RouteNavigation, *m_MotionAuthority, m_SkeletalRoutePalette)) : (m_RouteNavigation != nullptr && m_RouteMotionController != nullptr && m_MotionAuthority != nullptr && m_RouteFollower->StepGuarded(*m_Scene, m_RouteMotionEntity_, *m_RouteMotionController, *m_RouteNavigation, m_Clock->Snapshot().scaledDeltaSeconds, *m_MotionAuthority));
         if (!routeSucceeded) { m_LastError = RuntimeError::RouteMotionFailed; m_State = RuntimeState::Failed; return false; }
     }
-    if (!m_FarmWorld->Tick(m_FixedTicksPerFrame)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
-    if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(m_FixedTicksPerFrame)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
     return m_Events->Dispatch();
 }
 
@@ -162,8 +173,23 @@ bool NeoRuntime::RenderFarm() {
 }
 
 bool NeoRuntime::SetPaused(bool paused) {
-    if (m_State != RuntimeState::Initialized || !m_Clock || !m_Clock->SetPaused(paused)) { m_LastError = RuntimeError::InvalidState; return false; }
-    return m_Events != nullptr && m_Events->Queue({paused ? RuntimeEventKind::RuntimePaused : RuntimeEventKind::RuntimeResumed, 0, 0, m_Clock->Snapshot().fixedStepCount});
+    if (m_State != RuntimeState::Initialized || !m_Clock || !m_Time || !m_Events || m_Events->PendingCount() >= EventSignalBus::kMaxEvents) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!m_Clock->SetPaused(paused) || !m_Time->SetPaused(paused) || !m_Events->Queue({paused ? RuntimeEventKind::RuntimePaused : RuntimeEventKind::RuntimeResumed, 0, 0, m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::TimeFailed; return false; }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::SetTimeScalePermille(uint16_t scalePermille) {
+    if (m_State != RuntimeState::Initialized || !m_Clock || !m_Time) { m_LastError = RuntimeError::InvalidState; return false; }
+    const uint16_t previous = m_Time->Snapshot().timeScalePermille;
+    if (!m_Time->SetTimeScalePermille(scalePermille)) { m_LastError = RuntimeError::TimeFailed; return false; }
+    if (!m_Clock->SetTimeScale(static_cast<float>(scalePermille) / 1000.0F)) {
+        m_Time->SetTimeScalePermille(previous);
+        m_LastError = RuntimeError::TimeFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
 }
 
 bool NeoRuntime::Shutdown() {
@@ -175,6 +201,7 @@ bool NeoRuntime::Shutdown() {
     m_HasFarmRenderReceipt = false;
     m_Renderer.reset();
     m_Clock.reset();
+    m_Time.reset();
     m_Timers.reset();
     m_Events.reset();
     m_InputMotion.reset();

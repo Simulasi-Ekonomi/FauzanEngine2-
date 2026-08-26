@@ -4,6 +4,7 @@
 #include "SoftwareRenderer.h"
 #include "SoftwareSurfacePresenter.h"
 #include "RuntimeClock.h"
+#include "RuntimeTimeSystem.h"
 #include "RuntimeTimerQueue.h"
 #include "EventSignalBus.h"
 #include "FarmRuntimeHud.h"
@@ -23,15 +24,16 @@
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, PresentationFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, PresentationFailed, TimeFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
-struct RuntimeConfig { uint16_t farmWidth = 8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableFarmRuntimeHud=false; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide; std::vector<GridCell> routeMotionRoute{}; };
+struct RuntimeConfig { uint16_t farmWidth = 8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableFarmRuntimeHud=false; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;     std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; };
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
     bool Tick();
     bool SetPaused(bool paused);
+    bool SetTimeScalePermille(uint16_t scalePermille);
     bool ReplanRouteMotion();
     bool RenderFarm();
     bool Shutdown();
@@ -62,6 +64,8 @@ public:
     RuntimeTimerQueue* Timers() { return m_Timers.get(); }
     const RuntimeTimerQueue* Timers() const { return m_Timers.get(); }
     EventSignalBus* Events() { return m_Events.get(); }
+    RuntimeTimeSystem* Time() { return m_Time.get(); }
+    const RuntimeTimeSystem* Time() const { return m_Time.get(); }
     const EventSignalBus* Events() const { return m_Events.get(); }
     InputState* Input() { return m_Input.get(); }
     const InputState* Input() const { return m_Input.get(); }
@@ -84,6 +88,7 @@ private:
     std::unique_ptr<AuthoringCatalog> m_Authoring;
     std::unique_ptr<WorldAuthoring> m_AuthoringWorld;
     std::unique_ptr<RuntimeClock> m_Clock;
+    std::unique_ptr<RuntimeTimeSystem> m_Time;
     std::unique_ptr<RuntimeTimerQueue> m_Timers;
     std::unique_ptr<EventSignalBus> m_Events;
     std::unique_ptr<InputState> m_Input;
