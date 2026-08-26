@@ -64,6 +64,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Material import batch | [`MATERIAL_IMPORT_BATCH_V1.md`](MATERIAL_IMPORT_BATCH_V1.md) | Candidate/commit staging of an explicit ordered multi-material MTL set. |
 | Farm runtime frame receipt | [`FARM_RUNTIME_FRAME_RECEIPT_V1.md`](FARM_RUNTIME_FRAME_RECEIPT_V1.md) | Committed software-frame number/hash receipt with failure preservation. |
 | Farm runtime HUD | [`FARM_RUNTIME_HUD_V1.md`](FARM_RUNTIME_HUD_V1.md) | Finite candidate-rendered read-only receipt telemetry panel. |
+| Farm runtime save codec | [`FARM_RUNTIME_SAVE_CODEC_V1.md`](FARM_RUNTIME_SAVE_CODEC_V1.md) | Candidate/commit in-memory Farm envelope with revision and kind validation. |
 | Farm HUD surface proof | [`FARM_HUD_SURFACE_PROOF_V1.md`](FARM_HUD_SURFACE_PROOF_V1.md) | Finite Farm world artifact with distinct world-only and HUD-overlaid hashes. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
 | Gameplay physics query ordering | [`GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md`](GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md) | Canonical ascending EntityID overlap output after atomic XPBD collider mapping. |

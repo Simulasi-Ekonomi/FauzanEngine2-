@@ -128,6 +128,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/FarmPlayerInputBridge.cpp
     Runtime/FarmRuntimeSession.cpp
     Runtime/FarmRuntimeHud.cpp
+    Runtime/FarmRuntimeSaveCodec.cpp
     Runtime/AssetRegistry.cpp
     Systems/FarmSystem.cpp
     Systems/FarmWorldTool.cpp
@@ -522,6 +523,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_session_
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_hud_smoke.cpp")
     add_xpbd_executable(farm_runtime_hud_smoke ../../Tests/Runtime/farm_runtime_hud_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp")
+    add_xpbd_executable(farm_runtime_save_codec_smoke ../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_registry_smoke.cpp")
     add_xpbd_executable(asset_registry_smoke ../../Tests/Runtime/asset_registry_smoke.cpp)
