@@ -14,17 +14,20 @@ class FarmWorldTool;
 class SoftwareRenderer;
 class TextureStagingStore;
 
-enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed };
+enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed, WorldCheckpointEncodeFailed, WorldCheckpointDecodeFailed };
 struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; };
 
 // Explicit host-side lifecycle only. It owns neither simulation authority nor
 // asset registry; it orchestrates existing bounded components for one frame.
 class FarmRuntimeSession {
 public:
+    static constexpr const char* kWorldCheckpointKind = "farm-runtime-world";
     bool Initialize(FarmSystem& farm, FarmWorldTool& world, const FarmSpriteAssetSet& assets, const AssetRegistry& registry, TextureStagingStore& textures, SoftwareRenderer& renderer);
     bool Frame(InputState& input, uint32_t simulationTicks = 1);
     bool SaveCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
+    bool SaveWorldCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
+    bool RestoreWorldCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     FarmPlayerInputBridge& InputBridge() { return inputBridge_; }
     [[nodiscard]] uint64_t FrameCount() const { return frameCount_; }
     [[nodiscard]] FarmRuntimeFrameReceipt LastFrameReceipt() const { return lastReceipt_; }

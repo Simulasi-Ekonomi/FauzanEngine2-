@@ -2,6 +2,7 @@
 
 #include "Runtime/AssetRegistry.h"
 #include "Runtime/FarmRuntimeSaveCodec.h"
+#include "Runtime/RuntimePersistence.h"
 #include "Runtime/SoftwareRenderer.h"
 #include "Runtime/TextureStaging.h"
 #include "Systems/FarmSystem.h"
@@ -35,5 +36,17 @@ bool FarmRuntimeSession::RestoreCheckpoint(const std::vector<uint8_t>& bytes, ui
     FarmRuntimeSaveError error = FarmRuntimeSaveError::None;
     if (!FarmRuntimeSaveCodec::Decode(*farm_, bytes, revision, error)) return Fail(FarmRuntimeSessionError::CheckpointDecodeFailed);
     lastError_ = FarmRuntimeSessionError::None; return true;
+}
+bool FarmRuntimeSession::SaveWorldCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes) {
+    if (!initialized_) return Fail(FarmRuntimeSessionError::NotInitialized);
+    const std::vector<uint8_t> payload = world_->Serialize(); RuntimePersistenceError error = RuntimePersistenceError::None; std::vector<uint8_t> candidate;
+    if (revision == 0U || payload.empty() || !RuntimeSaveCodec::Serialize({kWorldCheckpointKind, revision, payload}, candidate, error)) return Fail(FarmRuntimeSessionError::WorldCheckpointEncodeFailed);
+    bytes = std::move(candidate); lastError_ = FarmRuntimeSessionError::None; return true;
+}
+bool FarmRuntimeSession::RestoreWorldCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision) {
+    if (!initialized_) return Fail(FarmRuntimeSessionError::NotInitialized);
+    RuntimeSaveEnvelope envelope{}; RuntimePersistenceError error = RuntimePersistenceError::None;
+    if (!RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kWorldCheckpointKind || envelope.revision == 0U || !world_->Deserialize(envelope.payload)) return Fail(FarmRuntimeSessionError::WorldCheckpointDecodeFailed);
+    revision = envelope.revision; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 } // namespace NeoEngine
