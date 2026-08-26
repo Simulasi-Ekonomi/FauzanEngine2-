@@ -17,6 +17,9 @@ struct AssetRefreshReceipt {
     std::string materialName;
     SceneEntity entity{};
     bool succeeded = false;
+    // Exact registry hash approved by the diagnostics plan; it is copied into
+    // committed receipts so callers do not infer version identity from mutable state.
+    uint64_t expectedHash = 0U;
 };
 
 struct AssetRefreshPreflightReceipt {
@@ -25,6 +28,8 @@ struct AssetRefreshPreflightReceipt {
     std::string materialName;
     SceneEntity entity{};
     bool structurallyValid = false;
+    // Exact registry hash approved by the diagnostics plan for this check.
+    uint64_t expectedHash = 0U;
 };
 
 class AssetRefreshExecutor {

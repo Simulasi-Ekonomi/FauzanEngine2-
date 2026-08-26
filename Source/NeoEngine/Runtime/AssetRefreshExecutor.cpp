@@ -36,7 +36,7 @@ bool AssetRefreshExecutor::Preflight(const std::vector<AssetRefreshPlanEntry>& p
     results.reserve(plan.size());
     prior.reserve(plan.size());
     for (const AssetRefreshPlanEntry& entry : plan) {
-        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false, entry.expectedHash};
         if (!MatchesExpectedHash(registry, entry)) { lastError_ = AssetRefreshExecutorError::PlanStale; results.push_back(std::move(receipt)); preflightReceipts_ = std::move(results); return false; }
         bool valid = false;
         switch (entry.action) {
@@ -73,7 +73,7 @@ bool AssetRefreshExecutor::Execute(const std::vector<AssetRefreshPlanEntry>& pla
     std::vector<AssetRefreshReceipt> results;
     results.reserve(plan.size());
     for (const AssetRefreshPlanEntry& entry : plan) {
-        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false, entry.expectedHash};
         if (!MatchesExpectedHash(registry, entry)) { lastError_ = AssetRefreshExecutorError::PlanStale; results.push_back(std::move(receipt)); receipts_ = std::move(results); return false; }
         bool succeeded = false;
         switch (entry.action) {
@@ -145,7 +145,7 @@ bool AssetRefreshExecutor::ExecuteCombinedAtomic(const std::vector<AssetRefreshP
     if (!spriteEntries.empty() && !candidate.ExecuteSpritesAtomic(spriteEntries, registry, candidateTextures, candidateSprites)) { lastError_ = candidate.LastError(); return false; }
     std::vector<AssetRefreshPreflightReceipt> combinedPreflight; std::vector<AssetRefreshReceipt> combinedReceipts;
     combinedPreflight.reserve(plan.size()); combinedReceipts.reserve(plan.size());
-    for (const AssetRefreshPlanEntry& entry : plan) { combinedPreflight.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true}); combinedReceipts.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true}); }
+    for (const AssetRefreshPlanEntry& entry : plan) { combinedPreflight.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true, entry.expectedHash}); combinedReceipts.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true, entry.expectedHash}); }
     textures = std::move(candidateTextures); meshes = std::move(candidateMeshes); materials = std::move(candidateMaterials); scene = std::move(candidateScene); sprites = std::move(candidateSprites);
     preflightReceipts_ = std::move(combinedPreflight); receipts_ = std::move(combinedReceipts); lastError_ = AssetRefreshExecutorError::None;
     return true;
@@ -156,7 +156,7 @@ bool AssetRefreshExecutor::ExecutePrefabsAtomic(const std::vector<AssetRefreshPl
     AssetRefreshExecutor candidate = *this; PrefabStagingStore candidatePrefabs = prefabs;
     std::vector<AssetRefreshPreflightReceipt> preflight; preflight.reserve(plan.size());
     for (const AssetRefreshPlanEntry& entry : plan) {
-        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false, entry.expectedHash};
         if (entry.action != AssetRefreshAction::RefreshPrefab) { lastError_ = AssetRefreshExecutorError::PlanInvalid; return false; }
         if (!MatchesExpectedHash(registry, entry)) { lastError_ = AssetRefreshExecutorError::PlanStale; return false; }
         const bool valid = candidatePrefabs.Find(entry.assetId) != nullptr && !candidatePrefabs.IsCurrent(registry, entry.assetId) && candidatePrefabs.CanRefresh(registry, entry.assetId);
@@ -165,7 +165,7 @@ bool AssetRefreshExecutor::ExecutePrefabsAtomic(const std::vector<AssetRefreshPl
     }
     std::vector<AssetRefreshReceipt> results; results.reserve(plan.size());
     for (const AssetRefreshPlanEntry& entry : plan) {
-        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false, entry.expectedHash};
         const bool refreshed = candidatePrefabs.Refresh(registry, entry.assetId);
         receipt.succeeded = refreshed; results.push_back(std::move(receipt));
         if (!refreshed) { lastError_ = AssetRefreshExecutorError::ActionFailed; return false; }
@@ -191,7 +191,7 @@ bool AssetRefreshExecutor::ExecuteAllAtomic(const std::vector<AssetRefreshPlanEn
     if (!spriteEntries.empty() && !candidate.ExecuteSpritesAtomic(spriteEntries, registry, candidateTextures, candidateSprites)) { lastError_ = candidate.LastError(); return false; }
     if (!prefabEntries.empty() && !candidate.ExecutePrefabsAtomic(prefabEntries, registry, candidatePrefabs)) { lastError_ = candidate.LastError(); return false; }
     std::vector<AssetRefreshPreflightReceipt> combinedPreflight; std::vector<AssetRefreshReceipt> combinedReceipts; combinedPreflight.reserve(plan.size()); combinedReceipts.reserve(plan.size());
-    for (const AssetRefreshPlanEntry& entry : plan) { combinedPreflight.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true}); combinedReceipts.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true}); }
+    for (const AssetRefreshPlanEntry& entry : plan) { combinedPreflight.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true, entry.expectedHash}); combinedReceipts.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true, entry.expectedHash}); }
     textures = std::move(candidateTextures); meshes = std::move(candidateMeshes); materials = std::move(candidateMaterials); scene = std::move(candidateScene); sprites = std::move(candidateSprites); prefabs = std::move(candidatePrefabs);
     preflightReceipts_ = std::move(combinedPreflight); receipts_ = std::move(combinedReceipts); lastError_ = AssetRefreshExecutorError::None;
     return true;
@@ -203,7 +203,7 @@ bool AssetRefreshExecutor::ExecuteSpritesAtomic(const std::vector<AssetRefreshPl
     auto fail = [this, &candidate](AssetRefreshExecutorError error) { candidate.lastError_ = error; lastError_ = error; return false; };
     std::vector<AssetRefreshPreflightReceipt> preflight; std::vector<AssetRefreshPlanEntry> prior; preflight.reserve(plan.size()); prior.reserve(plan.size());
     for (const AssetRefreshPlanEntry& entry : plan) {
-        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false, entry.expectedHash};
         if (!MatchesExpectedHash(registry, entry)) return fail(AssetRefreshExecutorError::PlanStale);
         bool valid = false;
         if (entry.action == AssetRefreshAction::RefreshTexture) valid = candidateTextures.Find(entry.assetId) != nullptr && !candidateTextures.IsCurrent(registry, entry.assetId) && candidateTextures.CanRefresh(registry, entry.assetId);
@@ -220,7 +220,7 @@ bool AssetRefreshExecutor::ExecuteSpritesAtomic(const std::vector<AssetRefreshPl
     }
     std::vector<AssetRefreshReceipt> results; results.reserve(plan.size());
     for (const AssetRefreshPlanEntry& entry : plan) {
-        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false, entry.expectedHash};
         if (!MatchesExpectedHash(registry, entry)) return fail(AssetRefreshExecutorError::PlanStale);
         bool ok = false;
         if (entry.action == AssetRefreshAction::RefreshTexture) ok = candidateTextures.Find(entry.assetId) != nullptr && !candidateTextures.IsCurrent(registry, entry.assetId) && candidateTextures.Refresh(registry, entry.assetId);
