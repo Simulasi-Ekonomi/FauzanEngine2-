@@ -22,6 +22,7 @@ int main() {
     if (!timeline.AddTrack("idle", {{0.0F, 1.0F}, {1.0F, 1.0F}}) || !timeline.AddTrack("walk", {{0.0F, 2.0F}, {1.0F, 2.0F}}) || !timeline.AddTrack("run", {{0.0F, 3.0F}, {1.0F, 3.0F}}) || !timeline.AddTrack("none", {{0.0F, 0.0F}, {1.0F, 0.0F}}) || !timeline.AddTrack("aim", {{0.0F, 10.0F}, {1.0F, 10.0F}}) || !timeline.AddEventMarker("idle", {"idle_notify", 0.01F}) || !timeline.AddEventMarker("walk", {"walk_notify", 0.20F}) || !timeline.AddEventMarker("aim", {"aim_notify", 0.20F})) return 4;
     if (!actors.AttachComponent(player, std::move(character)) || !characterView->IsAttached()) return 5;
     if (!characterView->SetTransitionBinding({"idle", "walk", "idle_walk"}) || !characterView->SetTransitionBinding({"walk", "idle", "walk_idle"}) || !characterView->SetTransitionBinding({"walk", "run", "walk_run"}) || !characterView->SetTransitionBinding({"run", "idle", "run_idle"})) return 6;
+    if (characterView->SetTransitionBinding({std::string("idle\0bad", 8U), "walk", "idle_walk"}) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->SetTransitionBinding({"idle", "walk", "idle_walk"})) return 6;
 
     ActorComponentWorldReceipt receipt{};
     if (!characterView->SubmitInput({}) || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 1U) return 6;

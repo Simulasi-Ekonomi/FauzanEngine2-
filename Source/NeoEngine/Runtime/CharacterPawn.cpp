@@ -293,7 +293,7 @@ bool CharacterPawn::SetRootMotionMode(CharacterRootMotionMode mode) {
 }
 bool CharacterPawn::SetTransitionBinding(CharacterTransitionBinding binding) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
-    if (binding.from.empty() || binding.to.empty() || binding.transitionId.empty() || binding.from.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.to.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.transitionId.size() > AnimationStateMachine::kMaxIdentifierBytes) return Fail(CharacterPawnError::AnimationRejected);
+    if (binding.from.empty() || binding.to.empty() || binding.transitionId.empty() || binding.from.find('\0') != std::string::npos || binding.to.find('\0') != std::string::npos || binding.transitionId.find('\0') != std::string::npos || binding.from.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.to.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.transitionId.size() > AnimationStateMachine::kMaxIdentifierBytes) return Fail(CharacterPawnError::AnimationRejected);
     try {
         CharacterTransitionBinding candidate(binding);
         for (uint8_t index = 0U; index < transitionBindingCount_; ++index) {
