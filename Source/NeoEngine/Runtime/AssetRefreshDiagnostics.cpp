@@ -10,12 +10,20 @@ bool Append(std::vector<AssetRefreshPlanEntry>& entries, AssetRefreshPlanEntry e
     return true;
 }
 
-bool HasRebind(const std::vector<AssetRefreshPlanEntry>& entries, SceneEntity entity) {
-    return std::any_of(entries.begin(), entries.end(), [entity](const AssetRefreshPlanEntry& entry) { return entry.action == AssetRefreshAction::RebindSceneInstance && entry.entity == entity; });
+bool HasEntityAction(const std::vector<AssetRefreshPlanEntry>& entries, AssetRefreshAction action, SceneEntity entity) {
+    return std::any_of(entries.begin(), entries.end(), [action, entity](const AssetRefreshPlanEntry& entry) { return entry.action == action && entry.entity == entity; });
 }
 } // namespace
 
 bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene) {
+    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, nullptr);
+}
+
+bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter& sprites) {
+    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, &sprites);
+}
+
+bool AssetRefreshDiagnostics::BuildPlanImpl(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter* sprites) {
     AssetReloadDiagnostics dependencyPlan;
     if (!dependencyPlan.BuildPlan(registry, changedId)) {
         lastError_ = dependencyPlan.LastError() == AssetReloadDiagnosticsError::MissingAsset ? AssetRefreshDiagnosticsError::MissingAsset : AssetRefreshDiagnosticsError::DependencyPlanFailed;
@@ -44,7 +52,13 @@ bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::stri
             const bool meshNeedsRebind = instance.sourceAssetId == affectedId && mesh != nullptr && (!meshes.IsCurrent(registry, instance.sourceAssetId) || instance.sourceHash != mesh->sourceHash);
             const bool materialNeedsRebind = instance.sourceMaterialAssetId == affectedId && material != nullptr && (!materials.IsCurrent(registry, instance.sourceMaterialAssetId, instance.sourceMaterialName) || instance.sourceMaterialHash != material->sourceHash);
             const bool textureNeedsRebind = instance.sourceTextureAssetId == affectedId && texture != nullptr && (!textures.IsCurrent(registry, instance.sourceTextureAssetId) || instance.sourceTextureHash != texture->sourceHash);
-            if ((meshNeedsRebind || materialNeedsRebind || textureNeedsRebind) && !HasRebind(candidates, instance.entity) && !Append(candidates, {AssetRefreshAction::RebindSceneInstance, affectedId, {}, instance.entity, expectedHash})) { lastError_ = AssetRefreshDiagnosticsError::Capacity; return false; }
+            if ((meshNeedsRebind || materialNeedsRebind || textureNeedsRebind) && !HasEntityAction(candidates, AssetRefreshAction::RebindSceneInstance, instance.entity) && !Append(candidates, {AssetRefreshAction::RebindSceneInstance, affectedId, {}, instance.entity, expectedHash})) { lastError_ = AssetRefreshDiagnosticsError::Capacity; return false; }
+        }
+        if (sprites != nullptr && textures.Find(affectedId) != nullptr) {
+            for (const SceneSpriteBindingSnapshot& binding : sprites->BindingSnapshots()) {
+                if (binding.sourceAssetId != affectedId || binding.sourceHash == expectedHash || HasEntityAction(candidates, AssetRefreshAction::RefreshSpriteInstance, binding.entity)) continue;
+                if (!Append(candidates, {AssetRefreshAction::RefreshSpriteInstance, affectedId, {}, binding.entity, expectedHash})) { lastError_ = AssetRefreshDiagnosticsError::Capacity; return false; }
+            }
         }
     }
     entries_ = std::move(candidates);

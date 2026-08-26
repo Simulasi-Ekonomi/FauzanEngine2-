@@ -36,7 +36,8 @@ public:
     bool Execute(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene);
     // Runs the same bounded plan against candidate staging/scene copies and commits all only after success.
     bool ExecuteAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene);
-    // Manual bounded texture-plus-sprite plan. It copies both stores and commits only on full success.
+    // Bounded texture-plus-sprite plan. Diagnostics may supply multiple distinct
+    // sprite-instance actions; both stores and receipts commit only on success.
     bool ExecuteSpritesAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, SceneSpriteAdapter& sprites);
     [[nodiscard]] const std::vector<AssetRefreshPreflightReceipt>& PreflightReceipts() const { return preflightReceipts_; }
     [[nodiscard]] const std::vector<AssetRefreshReceipt>& Receipts() const { return receipts_; }

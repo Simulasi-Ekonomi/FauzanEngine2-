@@ -4,6 +4,7 @@
 #include "MaterialStaging.h"
 #include "MeshStaging.h"
 #include "SceneMeshAdapter.h"
+#include "SceneSpriteAdapter.h"
 #include "TextureStaging.h"
 
 #include <cstdint>
@@ -25,13 +26,17 @@ struct AssetRefreshPlanEntry {
 
 class AssetRefreshDiagnostics {
 public:
-    static constexpr size_t kMaxEntries = TextureStagingStore::kMaxTextures + MeshStagingStore::kMaxMeshes + MaterialStagingStore::kMaxMaterials + SceneMeshAdapter::kMaxInstances;
+    static constexpr size_t kMaxEntries = TextureStagingStore::kMaxTextures + MeshStagingStore::kMaxMeshes + MaterialStagingStore::kMaxMaterials + SceneMeshAdapter::kMaxInstances + SceneSpriteAdapter::kMaxInstances;
 
     bool BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene);
+    // Extends the mesh-only plan with stale sprite bindings in adapter insertion
+    // order. The mesh-only overload remains unchanged for existing callers.
+    bool BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter& sprites);
     [[nodiscard]] const std::vector<AssetRefreshPlanEntry>& Entries() const { return entries_; }
     [[nodiscard]] AssetRefreshDiagnosticsError LastError() const { return lastError_; }
 
 private:
+    bool BuildPlanImpl(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter* sprites);
     std::vector<AssetRefreshPlanEntry> entries_;
     AssetRefreshDiagnosticsError lastError_ = AssetRefreshDiagnosticsError::None;
 };

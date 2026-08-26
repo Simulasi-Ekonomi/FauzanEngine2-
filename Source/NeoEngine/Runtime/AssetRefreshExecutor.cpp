@@ -18,7 +18,7 @@ bool MatchesExpectedHash(const AssetRegistry& registry, const AssetRefreshPlanEn
 }
 bool SameActionTarget(const AssetRefreshPlanEntry& left, const AssetRefreshPlanEntry& right) {
     if (left.action != right.action) return false;
-    if (left.action == AssetRefreshAction::RebindSceneInstance) return left.entity == right.entity;
+    if (left.action == AssetRefreshAction::RebindSceneInstance || left.action == AssetRefreshAction::RefreshSpriteInstance) return left.entity == right.entity;
     return left.assetId == right.assetId && left.materialName == right.materialName;
 }
 bool HasDuplicateAction(const std::vector<AssetRefreshPlanEntry>& plan) {
@@ -132,18 +132,38 @@ bool AssetRefreshExecutor::ExecuteAtomic(const std::vector<AssetRefreshPlanEntry
 
 bool AssetRefreshExecutor::ExecuteSpritesAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, SceneSpriteAdapter& sprites) {
     if (plan.size() > kMaxReceipts || HasDuplicateAction(plan)) { lastError_ = plan.size() > kMaxReceipts ? AssetRefreshExecutorError::Capacity : AssetRefreshExecutorError::PlanInvalid; return false; }
-    AssetRefreshExecutor candidate = *this; TextureStagingStore candidateTextures = textures; SceneSpriteAdapter candidateSprites = sprites; std::vector<AssetRefreshReceipt> results; results.reserve(plan.size());
+    AssetRefreshExecutor candidate = *this; TextureStagingStore candidateTextures = textures; SceneSpriteAdapter candidateSprites = sprites;
+    auto fail = [this, &candidate](AssetRefreshExecutorError error) { candidate.lastError_ = error; lastError_ = error; return false; };
+    std::vector<AssetRefreshPreflightReceipt> preflight; std::vector<AssetRefreshPlanEntry> prior; preflight.reserve(plan.size()); prior.reserve(plan.size());
+    for (const AssetRefreshPlanEntry& entry : plan) {
+        AssetRefreshPreflightReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        if (!MatchesExpectedHash(registry, entry)) return fail(AssetRefreshExecutorError::PlanStale);
+        bool valid = false;
+        if (entry.action == AssetRefreshAction::RefreshTexture) valid = candidateTextures.Find(entry.assetId) != nullptr && !candidateTextures.IsCurrent(registry, entry.assetId) && candidateTextures.CanRefresh(registry, entry.assetId);
+        else if (entry.action == AssetRefreshAction::RefreshSpriteInstance) {
+            std::string sourceId; uint64_t sourceHash = 0U;
+            if (!candidateSprites.InspectStagedTexture(entry.entity, sourceId, sourceHash)) return fail(AssetRefreshExecutorError::MissingInstance);
+            const CpuTextureResource* texture = candidateTextures.Find(entry.assetId);
+            const bool textureReady = texture != nullptr && (candidateTextures.IsCurrent(registry, entry.assetId) || ContainsRefresh(prior, AssetRefreshAction::RefreshTexture, entry.assetId));
+            valid = sourceId == entry.assetId && sourceHash != entry.expectedHash && textureReady;
+        } else return fail(AssetRefreshExecutorError::PlanInvalid);
+        receipt.structurallyValid = valid; preflight.push_back(std::move(receipt));
+        if (!valid) return fail(candidateTextures.Find(entry.assetId) != nullptr ? AssetRefreshExecutorError::ProbeFailed : AssetRefreshExecutorError::StaleResource);
+        prior.push_back(entry);
+    }
+    std::vector<AssetRefreshReceipt> results; results.reserve(plan.size());
     for (const AssetRefreshPlanEntry& entry : plan) {
         AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
-        if (!MatchesExpectedHash(registry, entry)) { candidate.lastError_ = AssetRefreshExecutorError::PlanStale; return false; }
+        if (!MatchesExpectedHash(registry, entry)) return fail(AssetRefreshExecutorError::PlanStale);
         bool ok = false;
         if (entry.action == AssetRefreshAction::RefreshTexture) ok = candidateTextures.Find(entry.assetId) != nullptr && !candidateTextures.IsCurrent(registry, entry.assetId) && candidateTextures.Refresh(registry, entry.assetId);
-        else if (entry.action == AssetRefreshAction::RefreshSpriteInstance) { std::string sourceId; uint64_t sourceHash = 0U; const CpuTextureResource* texture = candidateTextures.Find(entry.assetId); ok = candidateSprites.InspectStagedTexture(entry.entity, sourceId, sourceHash) && sourceId == entry.assetId && texture != nullptr && candidateTextures.IsCurrent(registry, entry.assetId) && candidateSprites.RefreshStaged(entry.entity, *texture); }
-        else { candidate.lastError_ = AssetRefreshExecutorError::PlanInvalid; return false; }
+        else if (entry.action == AssetRefreshAction::RefreshSpriteInstance) { std::string sourceId; uint64_t sourceHash = 0U; const CpuTextureResource* texture = candidateTextures.Find(entry.assetId); ok = candidateSprites.InspectStagedTexture(entry.entity, sourceId, sourceHash) && sourceId == entry.assetId && texture != nullptr && candidateTextures.IsCurrent(registry, entry.assetId) && sourceHash != texture->sourceHash && candidateSprites.RefreshStaged(entry.entity, *texture); }
+        else return fail(AssetRefreshExecutorError::PlanInvalid);
         receipt.succeeded = ok; results.push_back(std::move(receipt));
-        if (!ok) { candidate.lastError_ = AssetRefreshExecutorError::ActionFailed; return false; }
+        if (!ok) return fail(AssetRefreshExecutorError::ActionFailed);
     }
-    textures = std::move(candidateTextures); sprites = std::move(candidateSprites); receipts_ = std::move(results); lastError_ = AssetRefreshExecutorError::None; return true;
+    candidate.preflightReceipts_ = std::move(preflight); candidate.receipts_ = std::move(results);
+    textures = std::move(candidateTextures); sprites = std::move(candidateSprites); preflightReceipts_ = std::move(candidate.preflightReceipts_); receipts_ = std::move(candidate.receipts_); lastError_ = AssetRefreshExecutorError::None; return true;
 }
 
 } // namespace NeoEngine
