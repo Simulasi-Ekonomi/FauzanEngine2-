@@ -31,7 +31,7 @@ public:
     [[nodiscard]] uint64_t DeterministicState() const;
     [[nodiscard]] WorldAuthoringError LastError() const { return lastError_; }
 private:
-    bool Valid(GridCell cell) const; uint32_t Index(GridCell cell) const; bool Fail(WorldAuthoringError error); uint64_t HashCell(uint16_t x, uint16_t z) const; bool MarkBuilding(const WorldBuildingPlacement& placement, bool blocked);
+    bool Valid(GridCell cell) const; uint32_t Index(GridCell cell) const; bool Fail(WorldAuthoringError error); uint64_t HashCell(uint16_t x, uint16_t z) const; bool MarkBuilding(const WorldBuildingPlacement& placement, bool blocked); bool RebuildNavigation();
     WorldAuthoringConfig config_{}; GridNavigation navigation_{}; std::vector<WorldBiome> biomes_; std::vector<uint8_t> occupied_; std::vector<GridCell> trees_; std::vector<WorldBuildingPlacement> buildings_; std::vector<SceneEntity> entities_; SceneWorld* scene_ = nullptr; bool generated_ = false; WorldAuthoringError lastError_ = WorldAuthoringError::None;
 };
 
