@@ -1,6 +1,7 @@
 #include "Runtime/AssetResourceManager.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 int main() {
@@ -35,6 +36,19 @@ int main() {
     AssetResourceHandle invalid{0U, 999999U};
     if (resources.Release(invalid) || resources.LastError() != AssetResourceError::InvalidHandle || resources.Data(invalid) != nullptr) return 15;
     if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency) return 16;
+    if (!registry.Declare("declared.asset", AssetKind::Audio, {})) return 16;
+    const uint16_t resourcesBeforeNotReady = resources.ActiveResourceCount();
+    if (resources.Acquire("declared.asset", materialHandle) || resources.LastError() != AssetResourceError::NotReady || resources.ActiveResourceCount() != resourcesBeforeNotReady || resources.ActiveLeaseCount() != 0U) return 16;
+    AssetRegistry depthRegistry;
+    if (!depthRegistry.ImportBytes("depth0", AssetKind::Prefab, {}, {1U}) || !depthRegistry.MarkReady("depth0")) return 16;
+    for (uint8_t depth = 1U; depth <= 16U; ++depth) {
+        const std::string id = "depth" + std::to_string(depth);
+        const std::string dependency = "depth" + std::to_string(static_cast<uint8_t>(depth - 1U));
+        if (!depthRegistry.ImportBytes(id, AssetKind::Prefab, {dependency}, {1U}) || !depthRegistry.MarkReady(id)) return 16;
+    }
+    AssetResourceManager depthResources(depthRegistry);
+    const uint16_t depthResourcesBefore = depthResources.ActiveResourceCount();
+    if (depthResources.Acquire("depth16", materialHandle) || depthResources.LastError() != AssetResourceError::Capacity || depthResources.ActiveResourceCount() != depthResourcesBefore || depthResources.ActiveLeaseCount() != 0U) return 16;
     if (!resources.ReloadIfSafe("never-loaded") || resources.LastError() != AssetResourceError::None) return 17;
     uint16_t evictedResources = 0U;
     if (!resources.EvictUnleased(evictedResources) || evictedResources != 3U || resources.ActiveResourceCount() != 0U || resources.Query("texture.wheat", textureReceipt) || resources.LastError() != AssetResourceError::InvalidIdentifier) return 18;

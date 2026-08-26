@@ -92,7 +92,7 @@ private:
     };
 
     bool Fail(AssetResourceError error) const;
-    bool BuildDependencyClosure(std::string_view assetId, std::array<std::string, kMaxDependencyClosure>& ids, uint16_t& count, std::array<std::string_view, kMaxDependencyDepth>& path, uint8_t depth) const;
+    bool BuildDependencyClosure(std::string_view assetId, std::array<std::string, kMaxDependencyClosure>& ids, uint16_t& count, std::array<std::string_view, kMaxDependencyDepth>& path, uint8_t depth, AssetResourceError& error) const;
     uint16_t FindSlot(std::string_view assetId) const;
     bool ValidHandle(AssetResourceHandle handle) const;
     bool RefreshUnleasedSlot(Slot& slot, const AssetDefinition& definition);

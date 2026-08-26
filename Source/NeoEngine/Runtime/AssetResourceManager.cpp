@@ -23,16 +23,18 @@ bool AssetResourceManager::ValidHandle(AssetResourceHandle handle) const {
     return lease.occupied && lease.generation == handle.generation && lease.rootResourceSlot < kMaxResources && slots_[lease.rootResourceSlot].occupied;
 }
 
-bool AssetResourceManager::BuildDependencyClosure(std::string_view assetId, std::array<std::string, kMaxDependencyClosure>& ids, uint16_t& count, std::array<std::string_view, kMaxDependencyDepth>& path, uint8_t depth) const {
-    if (assetId.empty() || depth >= kMaxDependencyDepth) return false;
-    for (uint8_t index = 0U; index < depth; ++index) if (path[index] == assetId) return false;
+bool AssetResourceManager::BuildDependencyClosure(std::string_view assetId, std::array<std::string, kMaxDependencyClosure>& ids, uint16_t& count, std::array<std::string_view, kMaxDependencyDepth>& path, uint8_t depth, AssetResourceError& error) const {
+    if (assetId.empty()) { error = AssetResourceError::MissingDependency; return false; }
+    if (depth >= kMaxDependencyDepth) { error = AssetResourceError::Capacity; return false; }
+    for (uint8_t index = 0U; index < depth; ++index) if (path[index] == assetId) { error = AssetResourceError::DependencyCycle; return false; }
     const AssetDefinition* definition = registry_.Find(assetId);
-    if (definition == nullptr || definition->state != AssetState::Ready) return false;
+    if (definition == nullptr) { error = AssetResourceError::MissingDependency; return false; }
+    if (definition->state != AssetState::Ready) { error = AssetResourceError::NotReady; return false; }
     for (uint16_t index = 0U; index < count; ++index) if (ids[index] == assetId) return true;
-    if (count >= kMaxDependencyClosure) return false;
+    if (count >= kMaxDependencyClosure) { error = AssetResourceError::Capacity; return false; }
     ids[count++] = std::string(assetId);
     path[depth] = assetId;
-    for (const std::string& dependency : definition->dependencies) if (!BuildDependencyClosure(dependency, ids, count, path, static_cast<uint8_t>(depth + 1U))) return false;
+    for (const std::string& dependency : definition->dependencies) if (!BuildDependencyClosure(dependency, ids, count, path, static_cast<uint8_t>(depth + 1U), error)) return false;
     return true;
 }
 
@@ -58,7 +60,8 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
     std::array<std::string, kMaxDependencyClosure> closureIds{};
     std::array<std::string_view, kMaxDependencyDepth> path{};
     uint16_t closureCount = 0U;
-    if (!BuildDependencyClosure(assetId, closureIds, closureCount, path, 0U)) return Fail(AssetResourceError::MissingDependency);
+    AssetResourceError closureError = AssetResourceError::MissingDependency;
+    if (!BuildDependencyClosure(assetId, closureIds, closureCount, path, 0U, closureError)) return Fail(closureError);
 
     std::array<uint16_t, kMaxDependencyClosure> targetSlots{};
     uint16_t missing = 0U;
@@ -154,7 +157,8 @@ bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
     std::array<std::string, kMaxDependencyClosure> closureIds{};
     std::array<std::string_view, kMaxDependencyDepth> path{};
     uint16_t closureCount = 0U;
-    if (!BuildDependencyClosure(assetId, closureIds, closureCount, path, 0U)) return Fail(AssetResourceError::MissingDependency);
+    AssetResourceError closureError = AssetResourceError::MissingDependency;
+    if (!BuildDependencyClosure(assetId, closureIds, closureCount, path, 0U, closureError)) return Fail(closureError);
     std::array<uint16_t, kMaxDependencyClosure> targetSlots{};
     for (uint16_t index = 0U; index < closureCount; ++index) {
         targetSlots[index] = FindSlot(closureIds[index]);
