@@ -44,13 +44,14 @@ bool ActorComponentWorld::BeginActorPlay(ActorSlot& actor) {
         if (slot.component == nullptr || !slot.active) continue;
         const bool activated = InvokeDispatch(dispatching_, [&] { return slot.component->OnActivate(sceneWorld_, actor.scene); });
         if (!activated) {
+            bool rollbackRejected = false;
             for (int rollbackIndex = static_cast<int>(componentIndex) - 1; rollbackIndex >= 0; --rollbackIndex) {
                 ComponentSlot& rollback = actor.components[static_cast<uint8_t>(rollbackIndex)];
                 if (rollback.component == nullptr || !rollback.active) continue;
-                (void)InvokeDispatch(dispatching_, [&] { return rollback.component->OnDeactivate(sceneWorld_, actor.scene); });
-                --activatedCount;
+                const bool deactivated = InvokeDispatch(dispatching_, [&] { return rollback.component->OnDeactivate(sceneWorld_, actor.scene); });
+                if (!deactivated) rollbackRejected = true;
+                if (activatedCount > 0U) --activatedCount;
             }
-            bool rollbackRejected = false;
             for (ComponentSlot& rollback : actor.components) if (rollback.component != nullptr && rollback.begunPlay) {
                 const bool ended = InvokeDispatch(dispatching_, [&] { return rollback.component->OnEndPlay(sceneWorld_, actor.scene); });
                 if (ended) rollback.begunPlay = false; else rollbackRejected = true;

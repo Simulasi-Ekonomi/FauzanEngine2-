@@ -154,6 +154,15 @@ bool RunBeginPlayRollbackRetryRegression() {
     return world->BeginPlay() && world->LastError() == ActorComponentError::None && world->EndPlay();
 }
 
+bool RunActivationRollbackRegression() {
+    using namespace NeoEngine;
+    auto scene = std::make_unique<SceneWorld>();
+    auto world = std::make_unique<ActorComponentWorld>(*scene);
+    SceneEntity actor{};
+    if (!world->CreateActor(actor, "ActivationActor") || !scene->SetTransform(actor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !world->AttachComponent(actor, std::make_unique<RejectDeactivationComponent>()) || !world->AttachComponent(actor, std::make_unique<RejectActivationComponent>())) return false;
+    return !world->BeginPlay() && world->LastError() == ActorComponentError::RollbackRejected && world->ComponentCount() == 2U;
+}
+
 bool RunAttachCallbackRollbackRegression() {
     using namespace NeoEngine;
     auto scene = std::make_unique<SceneWorld>();
@@ -294,6 +303,6 @@ int main() {
     if (retryWorld.EndPlay() || retryWorld.LastError() != ActorComponentError::EndPlayRejected) return 33;
     ActorComponentWorldSnapshot endedSnapshot{};
     if (!retryWorld.EndPlay() || !retryWorld.CaptureSnapshot(endedSnapshot) || endedSnapshot.begunPlay || endedSnapshot.actors.size() != 1U || endedSnapshot.actors[0].begunPlay) return 33;
-    if (!RunBeginPlayRollbackRetryRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression()) return 34;
+    if (!RunBeginPlayRollbackRetryRegression() || !RunActivationRollbackRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression()) return 34;
     return 0;
 }
