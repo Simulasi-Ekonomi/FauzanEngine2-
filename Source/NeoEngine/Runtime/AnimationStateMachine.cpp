@@ -68,18 +68,23 @@ bool AnimationStateMachine::CollectEvents(const AnimationTimeline& timeline, flo
 }
 bool AnimationStateMachine::Snapshot(AnimationStateMachineSnapshot& snapshot) const {
     if (activeStateIndex_ < 0) { lastError_ = AnimationStateMachineError::NotStarted; return false; }
-    AnimationStateMachineSnapshot candidate{};
-    candidate.activeStateId = states_[static_cast<size_t>(activeStateIndex_)].spec.id;
-    candidate.activeTimeSeconds = activeTime_;
-    candidate.targetTimeSeconds = targetTime_;
-    candidate.blending = transitionIndex_ >= 0;
-    if (candidate.blending) {
-        const Transition& transition = transitions_[static_cast<size_t>(transitionIndex_)];
-        candidate.targetStateId = states_[blendTargetIndex_].spec.id;
-        candidate.transitionId = transition.spec.id;
-        candidate.blendFraction = std::clamp(blendElapsed_ / transition.spec.durationSeconds, 0.0F, 1.0F);
+    try {
+        AnimationStateMachineSnapshot candidate{};
+        candidate.activeStateId = states_[static_cast<size_t>(activeStateIndex_)].spec.id;
+        candidate.activeTimeSeconds = activeTime_;
+        candidate.targetTimeSeconds = targetTime_;
+        candidate.blending = transitionIndex_ >= 0;
+        if (candidate.blending) {
+            const Transition& transition = transitions_[static_cast<size_t>(transitionIndex_)];
+            candidate.targetStateId = states_[blendTargetIndex_].spec.id;
+            candidate.transitionId = transition.spec.id;
+            candidate.blendFraction = std::clamp(blendElapsed_ / transition.spec.durationSeconds, 0.0F, 1.0F);
+        }
+        snapshot = std::move(candidate); lastError_ = AnimationStateMachineError::None; return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
     }
-    snapshot = std::move(candidate); lastError_ = AnimationStateMachineError::None; return true;
 }
 bool AnimationStateMachine::Restore(const AnimationStateMachineSnapshot& snapshot) {
     if (snapshot.activeStateId.empty() || snapshot.activeStateId.size() > kMaxIdentifierBytes || snapshot.targetStateId.size() > kMaxIdentifierBytes || snapshot.transitionId.size() > kMaxIdentifierBytes || !std::isfinite(snapshot.activeTimeSeconds) || !std::isfinite(snapshot.targetTimeSeconds) || snapshot.activeTimeSeconds < 0.0F || snapshot.targetTimeSeconds < 0.0F || !std::isfinite(snapshot.blendFraction) || snapshot.blendFraction < 0.0F || snapshot.blendFraction > 1.0F) { lastError_ = AnimationStateMachineError::InvalidSnapshot; return false; }
