@@ -31,7 +31,7 @@ bool AnimationStateMachine::Trigger(const std::string& transitionId) {
 }
 bool AnimationStateMachine::Update(float deltaSeconds) {
     if (activeStateIndex_ < 0) { lastError_ = AnimationStateMachineError::NotStarted; return false; }
-    if (!std::isfinite(deltaSeconds) || deltaSeconds < 0.0F || !std::isfinite(activeTime_ + deltaSeconds) || (transitionIndex_ >= 0 && (!std::isfinite(targetTime_ + deltaSeconds) || !std::isfinite(blendElapsed_ + deltaSeconds)))) { lastError_ = AnimationStateMachineError::InvalidDelta; return false; }
+    if (!std::isfinite(deltaSeconds) || deltaSeconds < 0.0F || deltaSeconds > kMaxDeltaSeconds || !std::isfinite(activeTime_ + deltaSeconds) || (transitionIndex_ >= 0 && (!std::isfinite(targetTime_ + deltaSeconds) || !std::isfinite(blendElapsed_ + deltaSeconds)))) { lastError_ = AnimationStateMachineError::InvalidDelta; return false; }
     activeTime_ += deltaSeconds;
     if (transitionIndex_ >= 0) { targetTime_ += deltaSeconds; blendElapsed_ += deltaSeconds; const Transition& transition = transitions_[static_cast<size_t>(transitionIndex_)]; if (blendElapsed_ >= transition.spec.durationSeconds) { activeStateIndex_ = static_cast<int>(blendTargetIndex_); activeTime_ = targetTime_; transitionIndex_ = -1; blendElapsed_ = 0.0F; } }
     lastError_ = AnimationStateMachineError::None; return true;
