@@ -18,8 +18,8 @@ class FarmRuntimeHud;
 
 enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed, WorldCheckpointEncodeFailed, WorldCheckpointDecodeFailed, HudRejected, HudInputRejected };
 struct FarmRuntimeInventorySnapshot { uint32_t wheatSeeds = 0U; uint32_t wheatProduce = 0U; };
-struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; };
-struct FarmRuntimeHudReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; };
+struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; FarmPlayerInputReceipt input{}; };
+struct FarmRuntimeHudReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; FarmPlayerInputReceipt input{}; };
 
 // Explicit host-side lifecycle only. It owns neither simulation authority nor
 // asset registry; it orchestrates existing bounded components for one frame.

@@ -8,7 +8,15 @@
 #include <vector>
 
 namespace NeoEngine {
-namespace { uint32_t ActionColor(FarmPlayerAction selected, FarmPlayerAction action) { return selected == action ? 0xFF2E8B57U : 0xFF304050U; } }
+namespace {
+uint32_t ActionColor(FarmPlayerAction selected, FarmPlayerAction action) { return selected == action ? 0xFF2E8B57U : 0xFF304050U; }
+const char* InputStatus(const FarmPlayerInputReceipt& input) {
+    if (input.kind == FarmPlayerInputKind::Movement) return "MOVE";
+    if (input.kind != FarmPlayerInputKind::Action) return "READY";
+    switch (input.action) { case FarmPlayerAction::Till: return "ACT TILL"; case FarmPlayerAction::PlantWheat: return "ACT PLANT"; case FarmPlayerAction::Water: return "ACT WATER"; case FarmPlayerAction::Harvest: return "ACT HARV"; }
+    return "READY";
+}
+}
 bool FarmRuntimeHud::EnsureLayout(SoftwareRenderer& renderer) {
     if (configured_ && layoutWidth_ == renderer.Width() && layoutHeight_ == renderer.Height()) return true;
     UiInputRouter candidateRouter; UiLayoutResolver candidateLayout; FarmActionPanelController candidatePanel;
@@ -25,7 +33,7 @@ bool FarmRuntimeHud::EnsureLayout(SoftwareRenderer& renderer) {
 }
 bool FarmRuntimeHud::ConfigureCanvas(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, const AssetRegistry* registry, const CpuTextureResource* panelIcon, UiCanvasRenderer& canvas) const {
     if (!interactive_) return canvas.SetStyle({1U,0xD0202020U}) && canvas.SetLabel({1U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU}) && canvas.SetStyle({2U,0xD0202020U}) && canvas.SetLabel({2U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU}) && canvas.SetStyle({3U,0xD0202020U}) && canvas.SetLabel({3U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU});
-    const bool labels=canvas.SetLabel({2U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({3U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({4U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({5U,"GROW "+std::to_string(receipt.telemetry.growingTiles),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({6U,"READY "+std::to_string(receipt.telemetry.harvestableTiles),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({7U,"WHEAT "+std::to_string(receipt.inventory.wheatProduce),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({11U,"TILL",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({12U,"PLANT",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({13U,"WATER",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({14U,"HARVEST",2U,2U,1U,0xFFFFFFFFU});
+    const bool labels=canvas.SetLabel({2U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({3U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({4U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({5U,"GROW "+std::to_string(receipt.telemetry.growingTiles),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({6U,InputStatus(receipt.input),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({7U,"WHEAT "+std::to_string(receipt.inventory.wheatProduce),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({11U,"TILL",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({12U,"PLANT",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({13U,"WATER",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({14U,"HARVEST",2U,2U,1U,0xFFFFFFFFU});
     const bool image=registry==nullptr&&panelIcon==nullptr ? true : (registry!=nullptr&&panelIcon!=nullptr&&canvas.SetImage(*registry,{10U,nullptr,panelIcon}));
     return labels&&image&&canvas.SetStyle({1U,0xD0202020U})&&canvas.SetStyle({2U,0xC0202020U})&&canvas.SetStyle({3U,0xC0202020U})&&canvas.SetStyle({4U,0xC0202020U})&&canvas.SetStyle({5U,0xC0202020U})&&canvas.SetStyle({6U,0xC0202020U})&&canvas.SetStyle({7U,0xC0202020U})&&canvas.SetStyle({10U,0xD0202020U})&&canvas.SetStyle({11U,ActionColor(selectedAction,FarmPlayerAction::Till)})&&canvas.SetStyle({12U,ActionColor(selectedAction,FarmPlayerAction::PlantWheat)})&&canvas.SetStyle({13U,ActionColor(selectedAction,FarmPlayerAction::Water)})&&canvas.SetStyle({14U,ActionColor(selectedAction,FarmPlayerAction::Harvest)});
 }
