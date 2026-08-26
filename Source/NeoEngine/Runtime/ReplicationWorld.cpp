@@ -293,7 +293,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             ++registeredCount_;
             continue;
         }
-        if (state.ownerId == localClientId_) slot.hasPrediction = false;
+        slot.hasPrediction = false;
         slot.previousAuthoritative = slot.authoritative;
         slot.authoritative = state.transform;
         slot.ownerId = state.ownerId;

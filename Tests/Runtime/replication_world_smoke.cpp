@@ -55,9 +55,22 @@ int main() {
     std::vector<uint8_t> staleBytes;
     if (!ReplicationSnapshotCodec::Serialize(perEntityStale, staleBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(staleBytes, decoded, codecError) || client.ApplyServerSnapshot(decoded, apply) || client.LastError() != ReplicationError::StaleSnapshot) return 19;
     if (client.PredictLocalInput(200U, 1.0F, 0.0F, prediction) || client.LastError() != ReplicationError::OwnershipRejected) return 20;
-    if (client.SetInterpolationAlphaPermille(1001U) || client.LastError() != ReplicationError::InvalidInput) return 21;
-    if (server.ApplyServerSnapshot(snapshot, apply) || server.LastError() != ReplicationError::NotClient || server.BuildServerSnapshot(2U, snapshot) == false) return 22;
-    if (!client.UnregisterEntity(200U) || client.IsRegistered(200U) || client.RegisteredCount() != 1U) return 23;
+    if (!client.PredictLocalInput(100U, 0.5F, 0.0F, prediction)) return 21;
+    ReplicationSnapshot ownershipTransfer = snapshot;
+    ownershipTransfer.sequence = 2U;
+    ownershipTransfer.serverTick = 2U;
+    ownershipTransfer.states[0].ownerId = 8U;
+    ownershipTransfer.states[0].transform.x = 8.0F;
+    std::vector<uint8_t> ownershipTransferBytes;
+    if (!ReplicationSnapshotCodec::Serialize(ownershipTransfer, ownershipTransferBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(ownershipTransferBytes, decoded, codecError) || !client.ApplyServerSnapshot(decoded, apply) || apply.reconciledPredictions != 0U) return 22;
+    ownershipTransfer.sequence = 3U;
+    ownershipTransfer.serverTick = 3U;
+    ownershipTransfer.states[0].ownerId = 7U;
+    ownershipTransfer.states[0].transform.x = 9.0F;
+    if (!ReplicationSnapshotCodec::Serialize(ownershipTransfer, ownershipTransferBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(ownershipTransferBytes, decoded, codecError) || !client.ApplyServerSnapshot(decoded, apply) || apply.reconciledPredictions != 0U || !client.PredictLocalInput(100U, 0.25F, 0.0F, prediction)) return 23;
+    if (client.SetInterpolationAlphaPermille(1001U) || client.LastError() != ReplicationError::InvalidInput) return 24;
+    if (server.ApplyServerSnapshot(snapshot, apply) || server.LastError() != ReplicationError::NotClient || server.BuildServerSnapshot(2U, snapshot) == false) return 25;
+    if (!client.UnregisterEntity(200U) || client.IsRegistered(200U) || client.RegisteredCount() != 1U) return 26;
 
     SceneWorld dynamicScene;
     ReplicationWorld dynamicClient(dynamicScene, ReplicationRole::Client, 7U, true);
@@ -67,11 +80,11 @@ int main() {
     spawnSnapshot.count = 1U;
     spawnSnapshot.states[0] = {300U, 8U, 1U, {30.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
     std::vector<uint8_t> spawnBytes;
-    if (!ReplicationSnapshotCodec::Serialize(spawnSnapshot, spawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(spawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.spawnedEntities != 1U || apply.appliedEntities != 1U || dynamicClient.RegisteredCount() != 1U || !dynamicClient.IsRegistered(300U)) return 24;
+    if (!ReplicationSnapshotCodec::Serialize(spawnSnapshot, spawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(spawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.spawnedEntities != 1U || apply.appliedEntities != 1U || dynamicClient.RegisteredCount() != 1U || !dynamicClient.IsRegistered(300U)) return 27;
     ReplicationSnapshot despawnSnapshot{};
     despawnSnapshot.sequence = 2U;
     despawnSnapshot.serverTick = 11U;
     std::vector<uint8_t> despawnBytes;
-    if (!ReplicationSnapshotCodec::Serialize(despawnSnapshot, despawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(despawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.despawnedEntities != 1U || dynamicClient.RegisteredCount() != 0U || dynamicClient.IsRegistered(300U)) return 25;
+    if (!ReplicationSnapshotCodec::Serialize(despawnSnapshot, despawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(despawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.despawnedEntities != 1U || dynamicClient.RegisteredCount() != 0U || dynamicClient.IsRegistered(300U)) return 28;
     return 0;
 }
