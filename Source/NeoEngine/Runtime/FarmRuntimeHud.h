@@ -19,6 +19,7 @@ public:
     bool Draw(const FarmRuntimeFrameReceipt& receipt, SoftwareRenderer& renderer);
     bool Draw(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, SoftwareRenderer& renderer);
     bool Draw(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, const AssetRegistry& registry, const TextureStagingStore& textures, std::string_view panelIconAsset, SoftwareRenderer& renderer);
+    void SetActionAvailability(FarmActionAvailability availability) { actionPanel_.SetAvailability(availability); availability_ = availability; }
     bool RoutePointer(float x, float y, UiPointerPhase phase, FarmPlayerInputBridge& bridge, FarmActionPanelReceipt& receipt);
     bool RouteKeyboard(UiKeyboardKey key, FarmPlayerInputBridge& bridge, FarmActionPanelReceipt& receipt);
     [[nodiscard]] FarmRuntimeHudError LastError() const { return lastError_; }
@@ -32,6 +33,7 @@ private:
     uint32_t layoutHeight_ = 0U;
     bool interactive_ = false;
     bool configured_ = false;
+    FarmActionAvailability availability_{true, true, true, true};
     FarmRuntimeHudError lastError_ = FarmRuntimeHudError::None;
 };
 } // namespace NeoEngine

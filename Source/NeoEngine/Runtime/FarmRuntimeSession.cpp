@@ -10,6 +10,12 @@
 #include "Systems/FarmWorldTool.h"
 
 namespace NeoEngine {
+namespace {
+FarmActionAvailability AvailabilityAtPlayer(const FarmSystem& farm, const FarmWorldTool& world) {
+    const FarmCharacterState& player = world.Character(); const FarmTileState state = farm.TileStateAt(player.x, player.z);
+    return {state == FarmTileState::Empty, state == FarmTileState::Tilled && farm.ItemCount(FarmItem::WheatSeed) != 0U, state == FarmTileState::Growing && !farm.IsWateredAt(player.x, player.z), state == FarmTileState::Harvestable};
+}
+}
 bool FarmRuntimeSession::Fail(FarmRuntimeSessionError error) { lastError_ = error; return false; }
 bool FarmRuntimeSession::Initialize(FarmSystem& farm, FarmWorldTool& world, const FarmSpriteAssetSet& assets, const AssetRegistry& registry, TextureStagingStore& textures, SoftwareRenderer& renderer) {
     initialized_ = false; frameCount_ = 0; lastReceipt_ = {};
@@ -24,7 +30,7 @@ bool FarmRuntimeSession::Frame(InputState& input, uint32_t simulationTicks) {
     if (!world_->Tick(simulationTicks)) return Fail(FarmRuntimeSessionError::WorldTickRejected);
     if (!rendererBridge_.RenderWorld(*farm_, *world_, *assets_, *registry_, *textures_, *renderer_)) return Fail(FarmRuntimeSessionError::RenderRejected);
     const FarmRuntimeInventorySnapshot inventory{farm_->ItemCount(FarmItem::WheatSeed), farm_->ItemCount(FarmItem::WheatProduce)};
-    const uint64_t candidateFrame = frameCount_ + 1U; const FarmRuntimeFrameReceipt candidateReceipt{candidateFrame, renderer_->FrameHash(), farm_->Snapshot(), inventory, inputBridge_.LastReceipt()};
+    const uint64_t candidateFrame = frameCount_ + 1U; const FarmRuntimeFrameReceipt candidateReceipt{candidateFrame, renderer_->FrameHash(), farm_->Snapshot(), inventory, inputBridge_.LastReceipt(), AvailabilityAtPlayer(*farm_, *world_)};
     ++frameCount_; lastReceipt_ = candidateReceipt; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 bool FarmRuntimeSession::SaveCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes) {
@@ -52,8 +58,10 @@ bool FarmRuntimeSession::RestoreWorldCheckpoint(const std::vector<uint8_t>& byte
     revision = envelope.revision; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 bool FarmRuntimeSession::DrawHud(FarmRuntimeHud& hud, FarmRuntimeHudReceipt& receipt) {
-    if (!initialized_ || lastReceipt_.frame == 0U || lastReceipt_.framebufferHash == 0U || !hud.Draw(lastReceipt_, inputBridge_.SelectedAction(), *registry_, *textures_, assets_->harvestableTile, *renderer_)) return Fail(FarmRuntimeSessionError::HudRejected);
-    const FarmRuntimeHudReceipt candidate{lastReceipt_.frame, lastReceipt_.framebufferHash, renderer_->FrameHash(), lastReceipt_.telemetry, lastReceipt_.inventory, lastReceipt_.input};
+    if (!initialized_ || lastReceipt_.frame == 0U || lastReceipt_.framebufferHash == 0U) return Fail(FarmRuntimeSessionError::HudRejected);
+    hud.SetActionAvailability(lastReceipt_.availability);
+    if (!hud.Draw(lastReceipt_, inputBridge_.SelectedAction(), *registry_, *textures_, assets_->harvestableTile, *renderer_)) return Fail(FarmRuntimeSessionError::HudRejected);
+    const FarmRuntimeHudReceipt candidate{lastReceipt_.frame, lastReceipt_.framebufferHash, renderer_->FrameHash(), lastReceipt_.telemetry, lastReceipt_.inventory, lastReceipt_.input, lastReceipt_.availability};
     receipt = candidate; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 bool FarmRuntimeSession::RouteHudPointer(FarmRuntimeHud& hud, float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt) {

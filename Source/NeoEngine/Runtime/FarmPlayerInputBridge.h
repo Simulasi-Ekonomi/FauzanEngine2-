@@ -13,6 +13,7 @@ enum class FarmPlayerInputBridgeError : uint8_t { None, InvalidConfiguration, No
 enum class FarmPlayerInputKind : uint8_t { None, Movement, Action };
 struct FarmPlayerInputBindings { std::string moveUp = "farm_move_up"; std::string moveDown = "farm_move_down"; std::string moveLeft = "farm_move_left"; std::string moveRight = "farm_move_right"; std::string interact = "farm_interact"; };
 struct FarmPlayerInputReceipt { FarmPlayerInputKind kind = FarmPlayerInputKind::None; FarmPlayerAction action = FarmPlayerAction::Till; uint16_t x = 0U; uint16_t z = 0U; uint32_t harvestedUnits = 0U; };
+struct FarmActionAvailability { bool till = false; bool plantWheat = false; bool water = false; bool harvest = false; [[nodiscard]] bool Allows(FarmPlayerAction action) const { switch (action) { case FarmPlayerAction::Till: return till; case FarmPlayerAction::PlantWheat: return plantWheat; case FarmPlayerAction::Water: return water; case FarmPlayerAction::Harvest: return harvest; } return false; } };
 
 // Maps a bounded local input snapshot to existing FarmWorldTool player APIs.
 // It cannot sell, top up, issue permits, change bans, or mutate agent authority.

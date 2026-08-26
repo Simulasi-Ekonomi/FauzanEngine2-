@@ -12,4 +12,6 @@ Each successful `FarmPlayerInputBridge::Step` now commits one immutable input re
 
 The enhanced retained HUD separately renders `SEED` from canonical wheat-seed inventory and `WHEAT` from canonical harvested-produce inventory. UI code only reads the committed session snapshot; planting and harvesting continue to mutate inventory exclusively through later canonical Farm input frames.
 
+Each committed Farm frame also records an action-availability snapshot for the current character tile. The session supplies it to the HUD/controller before routing. Unavailable buttons render disabled and fail closed on direct, pointer, or focused keyboard activation; they do not change the selected Farm action or caller action receipt. Availability is computed read-only from tile state, watering state, and wheat-seed count, never by UI prediction or mutation.
+
 The session commits wheat seed/produce counts into immutable frame and HUD receipts from `FarmSystem::ItemCount` after a successful world tick and render. Invalid or unframed HUD input fails closed and preserves the selected action and caller receipt. HUD composition uses a candidate software renderer and has no persistence, network authority, advertising/monetization, APK, or production game claim.

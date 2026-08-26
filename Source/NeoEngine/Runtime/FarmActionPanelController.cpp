@@ -21,6 +21,7 @@ const FarmActionPanelBinding* FarmActionPanelController::FindBinding(uint16_t wi
     const auto found = std::find_if(bindings_.begin(), bindings_.end(), [widgetId](const FarmActionPanelBinding& binding) { return binding.widgetId == widgetId; });
     return found == bindings_.end() ? nullptr : &*found;
 }
+bool FarmActionPanelController::IsAvailableWidget(uint16_t widgetId) const { const FarmActionPanelBinding* binding = FindBinding(widgetId); return binding != nullptr && availability_.Allows(binding->action); }
 
 bool FarmActionPanelController::Initialize(const std::vector<FarmActionPanelBinding>& bindings) {
     if (bindings.size() != kActionCount) { lastError_ = FarmActionPanelError::InvalidConfiguration; return false; }
@@ -42,6 +43,7 @@ bool FarmActionPanelController::ApplySelection(uint16_t widgetId, FarmPlayerInpu
     if (!initialized_) { lastError_ = FarmActionPanelError::NotInitialized; return false; }
     const FarmActionPanelBinding* binding = FindBinding(widgetId);
     if (binding == nullptr) { lastError_ = FarmActionPanelError::UnknownWidget; return false; }
+    if (!availability_.Allows(binding->action)) { lastError_ = FarmActionPanelError::ActionUnavailable; return false; }
     if (!bridge.IsReady()) { lastError_ = FarmActionPanelError::BridgeNotReady; return false; }
     FarmActionPanelReceipt candidate{widgetId, binding->action, true};
     bridge.SetSelectedAction(binding->action);
@@ -54,6 +56,8 @@ bool FarmActionPanelController::SelectWidget(uint16_t widgetId, FarmPlayerInputB
 
 bool FarmActionPanelController::RoutePointer(UiInputRouter& router, float x, float y, UiPointerPhase phase, FarmPlayerInputBridge& bridge, FarmActionPanelReceipt& receipt) {
     if (!initialized_) { lastError_ = FarmActionPanelError::NotInitialized; return false; }
+    const uint16_t guarded = phase == UiPointerPhase::Release ? router.CapturedWidget() : router.HitTest(x, y);
+    if (guarded != 0U && FindBinding(guarded) != nullptr && !IsAvailableWidget(guarded)) { lastError_ = FarmActionPanelError::ActionUnavailable; return false; }
     const UiPointerResult routed = router.RoutePointer(x, y, phase);
     if (phase != UiPointerPhase::Release || routed.targetId == 0U || FindBinding(routed.targetId) == nullptr) {
         receipt = {0U, bridge.SelectedAction(), false};
@@ -65,6 +69,7 @@ bool FarmActionPanelController::RoutePointer(UiInputRouter& router, float x, flo
 
 bool FarmActionPanelController::RouteKeyboard(UiInputRouter& router, UiKeyboardKey key, FarmPlayerInputBridge& bridge, FarmActionPanelReceipt& receipt) {
     if (!initialized_) { lastError_ = FarmActionPanelError::NotInitialized; return false; }
+    if (key == UiKeyboardKey::Activate && router.FocusedWidget() != 0U && FindBinding(router.FocusedWidget()) != nullptr && !IsAvailableWidget(router.FocusedWidget())) { lastError_ = FarmActionPanelError::ActionUnavailable; return false; }
     const UiKeyboardResult routed = router.RouteKeyboard(key);
     if (router.LastError() != UiError::None) { lastError_ = FarmActionPanelError::RouterRejected; return false; }
     if (!routed.activated || routed.targetId == 0U || FindBinding(routed.targetId) == nullptr) {

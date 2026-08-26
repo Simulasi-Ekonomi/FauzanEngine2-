@@ -23,6 +23,11 @@ int main() {
     if (!router.SetFocus(5U) || !panel.RouteKeyboard(router, UiKeyboardKey::Activate, bridge, receipt) || !receipt.selected || receipt.activatedWidget != 5U || receipt.selectedAction != FarmPlayerAction::Harvest || bridge.SelectedAction() != FarmPlayerAction::Harvest) return 1;
     const FarmActionPanelReceipt preserved = receipt;
     if (panel.RouteKeyboard(router, static_cast<UiKeyboardKey>(99), bridge, receipt) || panel.LastError() != FarmActionPanelError::RouterRejected || bridge.SelectedAction() != FarmPlayerAction::Harvest || receipt.activatedWidget != preserved.activatedWidget || receipt.selectedAction != preserved.selectedAction || receipt.selected != preserved.selected) return 1;
-    std::printf("FARM_ACTION_PANEL_CONTROLLER_SMOKE_OK bindings=4 pointer=1 keyboard=1 selection=1 ignored=1 atomic=1\n");
+    panel.SetAvailability({false, false, false, false});
+    const FarmActionPanelReceipt unavailable = receipt;
+    if (panel.SelectWidget(2U, bridge, receipt) || panel.LastError() != FarmActionPanelError::ActionUnavailable || bridge.SelectedAction() != FarmPlayerAction::Harvest || receipt.activatedWidget != unavailable.activatedWidget || receipt.selectedAction != unavailable.selectedAction || receipt.selected != unavailable.selected) return 1;
+    if (panel.RoutePointer(router, 8, 6, UiPointerPhase::Press, bridge, receipt) || panel.LastError() != FarmActionPanelError::ActionUnavailable || router.CapturedWidget() != 0U || router.FocusedWidget() != 5U || bridge.SelectedAction() != FarmPlayerAction::Harvest || receipt.activatedWidget != unavailable.activatedWidget) return 1;
+    if (panel.RouteKeyboard(router, UiKeyboardKey::Activate, bridge, receipt) || panel.LastError() != FarmActionPanelError::ActionUnavailable || router.FocusedWidget() != 5U || bridge.SelectedAction() != FarmPlayerAction::Harvest || receipt.activatedWidget != unavailable.activatedWidget) return 1;
+    std::printf("FARM_ACTION_PANEL_CONTROLLER_SMOKE_OK bindings=4 pointer=1 keyboard=1 availability=1 selection=1 ignored=1 atomic=1\n");
     return 0;
 }

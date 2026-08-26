@@ -54,6 +54,7 @@ bool FarmSystem::IsCoordinateValid(uint16_t x, uint16_t z) const { return m_Read
 FarmSystem::Tile& FarmSystem::TileAt(uint16_t x, uint16_t z) { return m_Tiles[static_cast<size_t>(z) * m_Width + x]; }
 const FarmSystem::Tile& FarmSystem::TileAt(uint16_t x, uint16_t z) const { return m_Tiles[static_cast<size_t>(z) * m_Width + x]; }
 FarmTileState FarmSystem::TileStateAt(uint16_t x, uint16_t z) const { return IsCoordinateValid(x, z) ? TileAt(x, z).state : FarmTileState::Empty; }
+bool FarmSystem::IsWateredAt(uint16_t x, uint16_t z) const { return IsCoordinateValid(x, z) && TileAt(x, z).watered; }
 
 FarmItem FarmSystem::SeedFor(FarmCrop crop) {
     switch (crop) { case FarmCrop::Wheat: return FarmItem::WheatSeed; case FarmCrop::Corn: return FarmItem::CornSeed; case FarmCrop::Tomato: return FarmItem::TomatoSeed; }

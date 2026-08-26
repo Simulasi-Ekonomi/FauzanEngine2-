@@ -76,6 +76,7 @@ public:
     int64_t Coins() const { return m_Coins; }
     uint64_t SimulationTick() const { return m_SimulationTick; }
     FarmTileState TileStateAt(uint16_t x, uint16_t z) const;
+    bool IsWateredAt(uint16_t x, uint16_t z) const;
     uint32_t AcceptedReceiptCount() const { return static_cast<uint32_t>(m_AppliedReceiptIds.size()); }
     uint32_t RejectedTransactionCount() const { return m_RejectedTransactionCount; }
 
