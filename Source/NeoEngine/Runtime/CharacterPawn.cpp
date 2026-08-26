@@ -1,11 +1,9 @@
 #include "CharacterPawn.h"
-
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <new>
-
 namespace NeoEngine {
 namespace {
 constexpr float kMaxRootMotionMagnitude = 100.0F;
@@ -82,61 +80,88 @@ bool ValidCharacterSnapshot(const CharacterPawnSnapshot& snapshot, SceneEntity a
     CharacterAnimationGraph candidate = currentAnimation; return candidate.Restore(snapshot.animation);
 }
 }
-
 bool CharacterAnimationGraph::AddBaseState(AnimationStateSpec state) {
     if (!base_.AddState(std::move(state))) { lastError_ = base_.LastError(); return false; }
     hasBase_ = true;
     lastError_ = AnimationStateMachineError::None;
     return true;
 }
-
 bool CharacterAnimationGraph::AddBaseTransition(AnimationTransitionSpec transition) {
     if (!base_.AddTransition(std::move(transition))) { lastError_ = base_.LastError(); return false; }
     lastError_ = AnimationStateMachineError::None;
     return true;
 }
-
 bool CharacterAnimationGraph::StartBase(std::string_view stateId) {
-    if (!base_.Start(std::string(stateId))) { lastError_ = base_.LastError(); return false; }
-    baseState_ = std::string(stateId);
-    baseStarted_ = true;
-    lastError_ = AnimationStateMachineError::None;
-    return true;
+    try {
+        CharacterAnimationGraph candidate = *this;
+        const std::string candidateState(stateId);
+        if (!candidate.base_.Start(candidateState)) { lastError_ = candidate.base_.LastError(); return false; }
+        candidate.baseState_ = candidateState;
+        candidate.baseStarted_ = true;
+        base_ = std::move(candidate.base_);
+        baseState_ = std::move(candidate.baseState_);
+        baseStarted_ = candidate.baseStarted_;
+        lastError_ = AnimationStateMachineError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
+    }
 }
-
 bool CharacterAnimationGraph::TriggerBase(std::string_view transitionId) {
-    if (!base_.Trigger(std::string(transitionId))) { lastError_ = base_.LastError(); return false; }
-    lastError_ = AnimationStateMachineError::None;
-    return true;
+    try {
+        CharacterAnimationGraph candidate = *this;
+        const std::string candidateTransition(transitionId);
+        if (!candidate.base_.Trigger(candidateTransition)) { lastError_ = candidate.base_.LastError(); return false; }
+        base_ = std::move(candidate.base_);
+        lastError_ = AnimationStateMachineError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
+    }
 }
-
 bool CharacterAnimationGraph::AddOverlayState(AnimationStateSpec state) {
     if (!overlay_.AddState(std::move(state))) { lastError_ = overlay_.LastError(); return false; }
     hasOverlay_ = true;
     lastError_ = AnimationStateMachineError::None;
     return true;
 }
-
 bool CharacterAnimationGraph::AddOverlayTransition(AnimationTransitionSpec transition) {
     if (!overlay_.AddTransition(std::move(transition))) { lastError_ = overlay_.LastError(); return false; }
     lastError_ = AnimationStateMachineError::None;
     return true;
 }
-
 bool CharacterAnimationGraph::StartOverlay(std::string_view stateId) {
-    if (!overlay_.Start(std::string(stateId))) { lastError_ = overlay_.LastError(); return false; }
-    overlayState_ = std::string(stateId);
-    overlayStarted_ = true;
-    lastError_ = AnimationStateMachineError::None;
-    return true;
+    try {
+        CharacterAnimationGraph candidate = *this;
+        const std::string candidateState(stateId);
+        if (!candidate.overlay_.Start(candidateState)) { lastError_ = candidate.overlay_.LastError(); return false; }
+        candidate.overlayState_ = candidateState;
+        candidate.overlayStarted_ = true;
+        overlay_ = std::move(candidate.overlay_);
+        overlayState_ = std::move(candidate.overlayState_);
+        overlayStarted_ = candidate.overlayStarted_;
+        lastError_ = AnimationStateMachineError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
+    }
 }
-
 bool CharacterAnimationGraph::TriggerOverlay(std::string_view transitionId) {
-    if (!overlay_.Trigger(std::string(transitionId))) { lastError_ = overlay_.LastError(); return false; }
-    lastError_ = AnimationStateMachineError::None;
-    return true;
+    try {
+        CharacterAnimationGraph candidate = *this;
+        const std::string candidateTransition(transitionId);
+        if (!candidate.overlay_.Trigger(candidateTransition)) { lastError_ = candidate.overlay_.LastError(); return false; }
+        overlay_ = std::move(candidate.overlay_);
+        lastError_ = AnimationStateMachineError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
+    }
 }
-
 bool CharacterAnimationGraph::Tick(float deltaSeconds) {
     if (!Finite(deltaSeconds) || deltaSeconds <= 0.0F || deltaSeconds > kMaxFixedSeconds) { lastError_ = AnimationStateMachineError::InvalidDelta; return false; }
     try {
@@ -156,14 +181,12 @@ bool CharacterAnimationGraph::Tick(float deltaSeconds) {
         return false;
     }
 }
-
 bool CharacterAnimationGraph::SetOverlayWeightPermille(uint16_t weightPermille) {
     if (weightPermille > 1000U) { lastError_ = AnimationStateMachineError::InvalidState; return false; }
     overlayWeightPermille_ = weightPermille;
     lastError_ = AnimationStateMachineError::None;
     return true;
 }
-
 bool CharacterAnimationGraph::Sample(const AnimationTimeline& timeline, float& value) const {
     float baseValue = 0.0F;
     if (!baseStarted_ || !base_.Sample(timeline, baseValue)) { lastError_ = base_.LastError(); return false; }
@@ -189,7 +212,6 @@ bool CharacterAnimationGraph::CollectAnimationEvents(const AnimationTimeline& ti
     lastError_ = AnimationStateMachineError::None;
     return true;
 }
-
 bool CharacterAnimationGraph::Snapshot(CharacterAnimationGraphSnapshot& snapshot) const {
     try {
         CharacterAnimationGraphSnapshot candidate{};
@@ -205,17 +227,13 @@ bool CharacterAnimationGraph::Snapshot(CharacterAnimationGraphSnapshot& snapshot
         return false;
     }
 }
-
 CharacterPawn::CharacterPawn(CharacterPawnConfig config) : config_(config) {}
-
 bool CharacterPawn::Fail(CharacterPawnError error) { lastError_ = error; return false; }
-
 bool CharacterPawn::ValidateInput(const CharacterPawnInput& input) const {
     if (!Finite(input.moveX) || !Finite(input.moveZ)) return false;
     const float magnitudeSquared = input.moveX * input.moveX + input.moveZ * input.moveZ;
     return Finite(magnitudeSquared) && magnitudeSquared <= config_.maxPlanarInput * config_.maxPlanarInput;
 }
-
 bool CharacterPawn::OnAttach(SceneWorld& world, SceneEntity actor) {
     if (!ValidConfig(config_) || world.GetTransform(actor) == nullptr) return Fail(CharacterPawnError::InvalidConfig);
     actor_ = actor;
@@ -228,7 +246,6 @@ bool CharacterPawn::OnAttach(SceneWorld& world, SceneEntity actor) {
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterPawn::OnDetach(SceneWorld&, SceneEntity actor) {
     if (!attached_ || actor_ != actor) return Fail(CharacterPawnError::NotInitialized);
     attached_ = false;
@@ -240,14 +257,12 @@ bool CharacterPawn::OnDetach(SceneWorld&, SceneEntity actor) {
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterPawn::BindMovementAuthorityGate(MovementAuthorityGate* gate) {
     if (attached_ || gate == nullptr) return Fail(CharacterPawnError::AuthorityRejected);
     authorityGate_ = gate;
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterPawn::BindAnimationResource(AssetResourceManager* resources, AssetResourceHandle handle) {
     if (attached_ || resources == nullptr || resources->Data(handle) == nullptr) return Fail(CharacterPawnError::AnimationRejected);
     animationResources_ = resources;
@@ -255,7 +270,6 @@ bool CharacterPawn::BindAnimationResource(AssetResourceManager* resources, Asset
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterPawn::SubmitInput(const CharacterPawnInput& input) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (!ValidateInput(input)) return Fail(CharacterPawnError::InvalidInput);
@@ -263,7 +277,6 @@ bool CharacterPawn::SubmitInput(const CharacterPawnInput& input) {
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterPawn::SubmitRootMotion(const CharacterRootMotionDelta& delta) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (!ValidRootMotion(delta)) return Fail(CharacterPawnError::InvalidRootMotion);
@@ -271,7 +284,6 @@ bool CharacterPawn::SubmitRootMotion(const CharacterRootMotionDelta& delta) {
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterPawn::SetRootMotionMode(CharacterRootMotionMode mode) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (mode != CharacterRootMotionMode::Kinematic && mode != CharacterRootMotionMode::SkeletalRoot) return Fail(CharacterPawnError::InvalidRootMotion);
@@ -279,7 +291,6 @@ bool CharacterPawn::SetRootMotionMode(CharacterRootMotionMode mode) {
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterPawn::SetTransitionBinding(CharacterTransitionBinding binding) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (binding.from.empty() || binding.to.empty() || binding.transitionId.empty() || binding.from.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.to.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.transitionId.size() > AnimationStateMachine::kMaxIdentifierBytes) return Fail(CharacterPawnError::AnimationRejected);
@@ -295,12 +306,10 @@ bool CharacterPawn::SetTransitionBinding(CharacterTransitionBinding binding) {
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 const std::string* CharacterPawn::FindTransition(std::string_view from, std::string_view to) const {
     for (uint8_t index = 0U; index < transitionBindingCount_; ++index) if (transitionBindings_[index].from == from && transitionBindings_[index].to == to) return &transitionBindings_[index].transitionId;
     return nullptr;
 }
-
 bool CharacterPawn::SelectLocomotionState(const CharacterPawnInput& input) {
     if (!animation_.HasBase() || animation_.ActiveBaseState().empty() || animation_.IsBaseBlending()) return true;
     const bool moving = std::abs(input.moveX) > 0.0001F || std::abs(input.moveZ) > 0.0001F;
@@ -311,7 +320,6 @@ bool CharacterPawn::SelectLocomotionState(const CharacterPawnInput& input) {
     if (!animation_.TriggerBase(*transition)) return Fail(CharacterPawnError::AnimationRejected);
     return true;
 }
-
 bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInput& input, const CharacterRootMotionDelta& rootMotion) {
     const Transform3* local = world.GetLocalTransform(actor_);
     if (local == nullptr) return Fail(CharacterPawnError::SceneApplyRejected);
@@ -355,7 +363,6 @@ bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInpu
     lastAuthority_ = nextAuthority;
     return true;
 }
-
 bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) {
     if (!attached_ || actor_ != actor || fixedTicks == 0U) return Fail(CharacterPawnError::NotInitialized);
     if (animationResources_ != nullptr && animationResources_->Data(animationResource_) == nullptr) return Fail(CharacterPawnError::AnimationRejected);
@@ -388,14 +395,12 @@ bool CharacterPawn::CollectAnimationEvents(const AnimationTimeline& timeline, fl
     if (!attached_) return false;
     return animation_.CollectAnimationEvents(timeline, fromTime, toTime, output);
 }
-
 bool CharacterPawn::TriggerOverlay(std::string_view transitionId) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (!animation_.TriggerOverlay(transitionId)) return Fail(CharacterPawnError::AnimationRejected);
     lastError_ = CharacterPawnError::None;
     return true;
 }
-
 bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& snapshot) {
     if (snapshot.overlayWeightPermille > 1000U) { lastError_ = AnimationStateMachineError::InvalidSnapshot; return false; }
     try {
@@ -437,7 +442,6 @@ bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& sna
         return false;
     }
 }
-
 bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
     if (!attached_) return false;
     try {
@@ -456,7 +460,6 @@ bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
         return false;
     }
 }
-
 bool CharacterPawn::Restore(const CharacterPawnSnapshot& snapshot) {
     if (!attached_ || snapshot.actor != actor_ || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || !ValidateInput(snapshot.pendingInput) || !ValidRootMotion(snapshot.pendingRootMotion) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AnimationRejected);
     try {
@@ -475,5 +478,4 @@ bool CharacterPawn::Restore(const CharacterPawnSnapshot& snapshot) {
         return Fail(CharacterPawnError::AnimationRejected);
     }
 }
-
 } // namespace NeoEngine
