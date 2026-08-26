@@ -18,6 +18,14 @@ int main() {
     if (client.RegisterEntity(clientLocal, 200U, 7U) || client.LastError() != ReplicationError::DuplicateNetworkId) return 4;
     if (client.RegisterEntity(clientLocal, 201U, 7U) || client.LastError() != ReplicationError::DuplicateEntity || client.RegisteredCount() != 2U) return 4;
     if (server.RegisterEntity(serverLocal, 0U, 7U) || server.LastError() != ReplicationError::InvalidNetworkId || !serverScene.SetTransform(serverLocal, {6.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 5;
+    SceneWorld staleScene;
+    SceneEntity staleEntity{};
+    if (!staleScene.Create(staleEntity) || !staleScene.SetTransform(staleEntity, {1.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 5;
+    ReplicationWorld staleWorld(staleScene, ReplicationRole::Server);
+    if (!staleWorld.RegisterEntity(staleEntity, 900U, 1U) || !staleScene.Destroy(staleEntity)) return 5;
+    SceneEntity recycledEntity{};
+    if (!staleScene.Create(recycledEntity) || recycledEntity.index != staleEntity.index || !staleScene.SetTransform(recycledEntity, {2.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 5;
+    if (staleWorld.RegisterEntity(recycledEntity, 901U, 1U) || staleWorld.LastError() != ReplicationError::InvalidEntity || staleWorld.RegisteredCount() != 1U || !staleWorld.UnregisterEntity(900U) || !staleWorld.RegisterEntity(recycledEntity, 901U, 1U)) return 5;
 
     ReplicationSnapshot snapshot{};
     if (!server.BuildServerSnapshot(1U, snapshot) || snapshot.count != 2U || snapshot.sequence != 1U || snapshot.states[0].networkId != 100U || snapshot.states[1].networkId != 200U) return 6;
