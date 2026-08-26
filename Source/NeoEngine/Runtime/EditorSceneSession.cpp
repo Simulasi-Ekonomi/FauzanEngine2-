@@ -47,6 +47,19 @@ bool EditorSceneSession::DeleteActor(uint32_t actorId, const AssetRegistry& asse
     if (std::any_of(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.parentId == actorId; })) { lastError_ = EditorSceneSessionError::ActorHasChildren; return false; }
     candidate.actors.erase(found); ++candidate.revision; return CommitMutation(candidate, assets);
 }
+bool EditorSceneSession::CapturePrefab(uint32_t rootActorId, EditorScenePrefab& prefab) const {
+    if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    EditorScenePrefabAdapter adapter;
+    if (!adapter.Capture(document_, rootActorId, prefab)) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    lastError_ = EditorSceneSessionError::None;
+    return true;
+}
+bool EditorSceneSession::InstantiatePrefab(const EditorScenePrefab& prefab, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets) {
+    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    EditorScenePrefabAdapter adapter; EditorSceneDocument candidate{};
+    if (!adapter.AppendInstance(document_, prefab, parentActorId, instanceActorIds, candidate)) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    return CommitMutation(candidate, assets);
+}
 bool EditorSceneSession::SelectActor(uint32_t actorId) {
     const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
     if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
