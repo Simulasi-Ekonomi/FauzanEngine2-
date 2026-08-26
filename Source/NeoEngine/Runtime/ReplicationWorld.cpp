@@ -315,7 +315,9 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             if (state.ownerId == localClientId_ && sceneWorld_.GetTransform(slot->entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
         }
     }
-    auto candidateScene = std::make_unique<SceneWorld>(sceneWorld_);
+    std::unique_ptr<SceneWorld> candidateScene;
+    try { candidateScene = std::make_unique<SceneWorld>(sceneWorld_); }
+    catch (const std::bad_alloc&) { return Fail(ReplicationError::Capacity); }
     ReplicationApplyReceipt candidateReceipt{};
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
@@ -388,7 +390,9 @@ bool ReplicationWorld::SetInterpolationAlphaPermille(uint16_t alphaPermille) {
 
 bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
-    auto candidateScene = std::make_unique<SceneWorld>(sceneWorld_);
+    std::unique_ptr<SceneWorld> candidateScene;
+    try { candidateScene = std::make_unique<SceneWorld>(sceneWorld_); }
+    catch (const std::bad_alloc&) { return Fail(ReplicationError::Capacity); }
     uint16_t interpolated = 0U;
     for (const Slot& slot : slots_) {
         if (!slot.registered || slot.ownerId == localClientId_ || !slot.hasAuthoritative) continue;
