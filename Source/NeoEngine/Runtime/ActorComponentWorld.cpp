@@ -28,7 +28,10 @@ bool ActorComponentWorld::BeginActorPlay(ActorSlot& actor) {
     if (actor.begunPlay) return true;
     for (ComponentSlot& slot : actor.components) {
         if (slot.component == nullptr || slot.begunPlay) continue;
-        if (!slot.component->OnBeginPlay(sceneWorld_, actor.scene)) {
+        dispatching_ = true;
+        const bool began = slot.component->OnBeginPlay(sceneWorld_, actor.scene);
+        dispatching_ = false;
+        if (!began) {
             for (ComponentSlot& rollback : actor.components) if (rollback.component != nullptr && rollback.begunPlay) {
                 rollback.component->OnEndPlay(sceneWorld_, actor.scene);
                 rollback.begunPlay = false;
@@ -46,7 +49,10 @@ bool ActorComponentWorld::EndActorPlay(ActorSlot& actor) {
     if (!actor.begunPlay) return true;
     for (ComponentSlot& slot : actor.components) {
         if (slot.component == nullptr || !slot.begunPlay) continue;
-        if (!slot.component->OnEndPlay(sceneWorld_, actor.scene)) return Fail(ActorComponentError::EndPlayRejected);
+        dispatching_ = true;
+        const bool ended = slot.component->OnEndPlay(sceneWorld_, actor.scene);
+        dispatching_ = false;
+        if (!ended) return Fail(ActorComponentError::EndPlayRejected);
         slot.begunPlay = false;
     }
     actor.begunPlay = false;
@@ -80,6 +86,7 @@ const ActorComponentWorld::ComponentSlot* ActorComponentWorld::FindSlot(SceneEnt
 }
 
 bool ActorComponentWorld::CreateActor(SceneEntity& output, std::string name) {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (name.size() > kMaxNameBytes || name.find('\0') != std::string::npos) return Fail(ActorComponentError::InvalidName);
     if (actorCount_ >= kCapacity || registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
     SceneEntity candidate{};
@@ -109,13 +116,18 @@ bool ActorComponentWorld::CreateActor(SceneEntity& output, std::string name) {
 }
 
 bool ActorComponentWorld::DestroyActor(SceneEntity actor) {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     ActorSlot* slot = FindActorSlot(actor);
     if (slot == nullptr) return Fail(ActorComponentError::InvalidActor);
     if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
     const uint8_t detachedCount = ComponentCount(actor);
     if (!EndActorPlay(*slot)) return false;
     for (const ComponentSlot& component : slot->components) {
-        if (component.component != nullptr && !component.component->OnDetach(sceneWorld_, actor)) return Fail(ActorComponentError::DetachRejected);
+        if (component.component == nullptr) continue;
+        dispatching_ = true;
+        const bool detached = component.component->OnDetach(sceneWorld_, actor);
+        dispatching_ = false;
+        if (!detached) return Fail(ActorComponentError::DetachRejected);
     }
     if (!sceneWorld_.Destroy(actor)) return Fail(ActorComponentError::InvalidActor);
     componentCount_ -= detachedCount;
@@ -128,6 +140,7 @@ bool ActorComponentWorld::DestroyActor(SceneEntity actor) {
 }
 
 bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IActorComponent> component) {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (!ValidActor(actor)) return Fail(ActorComponentError::InvalidActor);
     if (component == nullptr || component->TypeId() == 0U) return Fail(ActorComponentError::InvalidComponent);
     if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
@@ -136,10 +149,20 @@ bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IAc
     ComponentSlot* target = nullptr;
     for (ComponentSlot& existing : slot->components) if (existing.component == nullptr) { target = &existing; break; }
     if (target == nullptr) return Fail(ActorComponentError::Capacity);
-    if (!component->OnAttach(sceneWorld_, actor)) return Fail(ActorComponentError::AttachRejected);
-    if (slot->begunPlay && !component->OnBeginPlay(sceneWorld_, actor)) {
-        component->OnDetach(sceneWorld_, actor);
-        return Fail(ActorComponentError::BeginPlayRejected);
+    dispatching_ = true;
+    const bool attached = component->OnAttach(sceneWorld_, actor);
+    dispatching_ = false;
+    if (!attached) return Fail(ActorComponentError::AttachRejected);
+    if (slot->begunPlay) {
+        dispatching_ = true;
+        const bool began = component->OnBeginPlay(sceneWorld_, actor);
+        dispatching_ = false;
+        if (!began) {
+            dispatching_ = true;
+            component->OnDetach(sceneWorld_, actor);
+            dispatching_ = false;
+            return Fail(ActorComponentError::BeginPlayRejected);
+        }
     }
     target->component = std::move(component);
     target->enabled = true;
@@ -152,16 +175,23 @@ bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IAc
 }
 
 bool ActorComponentWorld::DetachComponent(SceneEntity actor, uint16_t typeId) {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     ComponentSlot* slot = FindSlot(actor, typeId);
     if (slot == nullptr) return Fail(ActorComponentError::InvalidComponent);
     if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
     ActorSlot* actorSlot = FindActorSlot(actor);
     if (actorSlot == nullptr) return Fail(ActorComponentError::InvalidActor);
     if (slot->begunPlay) {
-        if (!slot->component->OnEndPlay(sceneWorld_, actor)) return Fail(ActorComponentError::EndPlayRejected);
+        dispatching_ = true;
+        const bool ended = slot->component->OnEndPlay(sceneWorld_, actor);
+        dispatching_ = false;
+        if (!ended) return Fail(ActorComponentError::EndPlayRejected);
         slot->begunPlay = false;
     }
-    if (!slot->component->OnDetach(sceneWorld_, actor)) return Fail(ActorComponentError::DetachRejected);
+    dispatching_ = true;
+    const bool detached = slot->component->OnDetach(sceneWorld_, actor);
+    dispatching_ = false;
+    if (!detached) return Fail(ActorComponentError::DetachRejected);
     slot->component.reset();
     slot->enabled = true;
     --componentCount_;
@@ -177,6 +207,7 @@ bool ActorComponentWorld::DetachComponent(SceneEntity actor, uint16_t typeId) {
 }
 
 bool ActorComponentWorld::SetComponentEnabled(SceneEntity actor, uint16_t typeId, bool enabled) {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     ComponentSlot* slot = FindSlot(actor, typeId);
     if (slot == nullptr) return Fail(ActorComponentError::InvalidComponent);
     if (slot->enabled == enabled) { lastError_ = ActorComponentError::None; return true; }
@@ -189,6 +220,7 @@ bool ActorComponentWorld::SetComponentEnabled(SceneEntity actor, uint16_t typeId
 }
 
 bool ActorComponentWorld::BeginPlay() {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (begunPlay_) { lastError_ = ActorComponentError::None; return true; }
     for (ActorSlot& actor : actors_) if (actor.registered && !BeginActorPlay(actor)) {
         for (ActorSlot& rollback : actors_) if (rollback.registered && rollback.begunPlay) EndActorPlay(rollback);
@@ -201,6 +233,7 @@ bool ActorComponentWorld::BeginPlay() {
 }
 
 bool ActorComponentWorld::EndPlay() {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (!begunPlay_) { lastError_ = ActorComponentError::None; return true; }
     for (ActorSlot& actor : actors_) if (actor.registered && !EndActorPlay(actor)) return false;
     begunPlay_ = false;
@@ -209,6 +242,7 @@ bool ActorComponentWorld::EndPlay() {
 }
 
 bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldReceipt& receipt) {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (fixedTicks == 0U) return Fail(ActorComponentError::TickRejected);
     if (!begunPlay_ && !BeginPlay()) return false;
     for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled && (slot.component->TickGroup() >= kMaxTickGroups || slot.component->TickOrder() >= kMaxTickOrders)) return Fail(ActorComponentError::TickRejected);
@@ -218,7 +252,10 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
         if (!actor.registered) continue;
         for (ComponentSlot& slot : actor.components) {
             if (slot.component == nullptr || !slot.enabled || slot.component->TickGroup() != group || slot.component->TickOrder() != order) continue;
-            if (!slot.component->OnFixedTick(sceneWorld_, actor.scene, fixedTicks)) {
+            dispatching_ = true;
+            const bool tickedSuccessfully = slot.component->OnFixedTick(sceneWorld_, actor.scene, fixedTicks);
+            dispatching_ = false;
+            if (!tickedSuccessfully) {
                 lastReceipt_ = {actorCount_, componentCount_, ticked, registrationRevision_};
                 return Fail(ActorComponentError::TickRejected);
             }

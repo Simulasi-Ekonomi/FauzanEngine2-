@@ -204,6 +204,20 @@ bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
     return true;
 }
 
+bool AssetResourceManager::EvictUnleased(uint16_t& evictedResources) {
+    evictedResources = 0U;
+    for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation == std::numeric_limits<uint32_t>::max()) return Fail(AssetResourceError::Capacity);
+    for (Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U) {
+        const uint32_t nextGeneration = slot.generation + 1U;
+        slot = {};
+        slot.generation = nextGeneration == 0U ? 1U : nextGeneration;
+        --activeResourceCount_;
+        ++evictedResources;
+    }
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
 bool AssetResourceManager::Query(AssetResourceHandle handle, AssetResourceReceipt& receipt) const {
     if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
     const LeaseSlot& lease = leases_[handle.slot];

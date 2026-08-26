@@ -57,6 +57,7 @@ public:
     bool Release(AssetResourceHandle handle);
     bool SyncHotReload(std::string_view assetId);
     bool ReloadIfSafe(std::string_view assetId);
+    bool EvictUnleased(uint16_t& evictedResources);
     bool Query(AssetResourceHandle handle, AssetResourceReceipt& receipt) const;
     bool Query(std::string_view assetId, AssetResourceReceipt& receipt) const;
     const std::vector<uint8_t>* Data(AssetResourceHandle handle) const;

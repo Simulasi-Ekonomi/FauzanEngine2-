@@ -33,6 +33,19 @@ public:
     RejectDetachComponent() : ProbeComponent(20U) {}
     bool OnDetach(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { return false; }
 };
+
+class ReentrantMutationComponent final : public ProbeComponent {
+public:
+    ReentrantMutationComponent(NeoEngine::ActorComponentWorld& world, NeoEngine::SceneEntity actor) : ProbeComponent(30U), world_(world), actor_(actor) {}
+    bool OnFixedTick(NeoEngine::SceneWorld&, NeoEngine::SceneEntity, uint32_t fixedTicks) override {
+        tickedFixedTicks += fixedTicks;
+        mutationRejected = !world_.SetComponentEnabled(actor_, typeId_, false) && world_.LastError() == NeoEngine::ActorComponentError::MutationDuringDispatch;
+        return mutationRejected;
+    }
+    NeoEngine::ActorComponentWorld& world_;
+    NeoEngine::SceneEntity actor_{};
+    bool mutationRejected = false;
+};
 }
 
 int main() {
@@ -87,5 +100,8 @@ int main() {
     if (actors.DestroyActor(child) || actors.LastError() != ActorComponentError::DetachRejected || !actors.IsActorAlive(child) || actors.ComponentCount() != 2U) return 23;
     if (actors.DetachComponent(child, 20U) || actors.LastError() != ActorComponentError::DetachRejected || actors.FindComponent(child, 20U) == nullptr) return 24;
     if (actors.AttachComponent(hero, std::make_unique<ProbeComponent>(30U)) || actors.LastError() != ActorComponentError::InvalidActor) return 25;
+    auto reentrant = std::make_unique<ReentrantMutationComponent>(actors, replacement);
+    ReentrantMutationComponent* reentrantView = reentrant.get();
+    if (!actors.AttachComponent(replacement, std::move(reentrant)) || !actors.TickFixed(1U, receipt) || !reentrantView->mutationRejected || receipt.tickedComponents != 3U || actors.IsComponentEnabled(replacement, 30U) == false) return 26;
     return 0;
 }

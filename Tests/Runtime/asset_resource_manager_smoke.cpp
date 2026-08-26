@@ -36,5 +36,9 @@ int main() {
     if (resources.Release(invalid) || resources.LastError() != AssetResourceError::InvalidHandle || resources.Data(invalid) != nullptr) return 15;
     if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency) return 16;
     if (!resources.ReloadIfSafe("never-loaded") || resources.LastError() != AssetResourceError::None) return 17;
+    uint16_t evictedResources = 0U;
+    if (!resources.EvictUnleased(evictedResources) || evictedResources != 3U || resources.ActiveResourceCount() != 0U || resources.Query("texture.wheat", textureReceipt) || resources.LastError() != AssetResourceError::InvalidIdentifier) return 18;
+    AssetResourceHandle rehydratedHandle{};
+    if (!resources.Acquire("material.crop", rehydratedHandle) || resources.ActiveResourceCount() != 3U || resources.ActiveLeaseCount() != 1U || !resources.Release(rehydratedHandle) || resources.ActiveLeaseCount() != 0U) return 19;
     return 0;
 }
