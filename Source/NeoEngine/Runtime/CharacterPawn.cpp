@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
+#include <new>
 
 namespace NeoEngine {
 namespace {
@@ -14,6 +16,68 @@ bool ValidConfig(const CharacterPawnConfig& config) {
 }
 bool ValidRootMotion(const CharacterRootMotionDelta& delta) {
     return Finite(delta.x) && Finite(delta.y) && Finite(delta.z) && std::abs(delta.x) <= kMaxRootMotionMagnitude && std::abs(delta.y) <= kMaxRootMotionMagnitude && std::abs(delta.z) <= kMaxRootMotionMagnitude;
+}
+bool WriteU16(std::span<uint8_t> bytes, size_t& offset, uint16_t value) {
+    if (offset > bytes.size() || bytes.size() - offset < 2U) return false;
+    bytes[offset++] = static_cast<uint8_t>(value & 0xFFU); bytes[offset++] = static_cast<uint8_t>(value >> 8U); return true;
+}
+bool WriteU32(std::span<uint8_t> bytes, size_t& offset, uint32_t value) {
+    if (offset > bytes.size() || bytes.size() - offset < 4U) return false;
+    for (uint8_t shift = 0U; shift < 32U; shift += 8U) bytes[offset++] = static_cast<uint8_t>(value >> shift); return true;
+}
+bool WriteFloat(std::span<uint8_t> bytes, size_t& offset, float value) {
+    uint32_t raw = 0U; std::memcpy(&raw, &value, sizeof(raw)); return WriteU32(bytes, offset, raw);
+}
+bool WriteString(std::span<uint8_t> bytes, size_t& offset, std::string_view value) {
+    if (value.size() > AnimationStateMachine::kMaxIdentifierBytes || value.find('\0') != std::string_view::npos || offset >= bytes.size() || value.size() > 255U || bytes.size() - offset < value.size() + 1U) return false;
+    bytes[offset++] = static_cast<uint8_t>(value.size()); std::memcpy(bytes.data() + offset, value.data(), value.size()); offset += value.size(); return true;
+}
+bool ReadU16(std::span<const uint8_t> bytes, size_t& offset, uint16_t& value) {
+    if (offset > bytes.size() || bytes.size() - offset < 2U) return false;
+    value = static_cast<uint16_t>(bytes[offset]) | static_cast<uint16_t>(bytes[offset + 1U]) << 8U; offset += 2U; return true;
+}
+bool ReadU32(std::span<const uint8_t> bytes, size_t& offset, uint32_t& value) {
+    if (offset > bytes.size() || bytes.size() - offset < 4U) return false;
+    value = 0U; for (uint8_t shift = 0U; shift < 32U; shift += 8U) value |= static_cast<uint32_t>(bytes[offset++]) << shift; return true;
+}
+bool ReadFloat(std::span<const uint8_t> bytes, size_t& offset, float& value) {
+    uint32_t raw = 0U; if (!ReadU32(bytes, offset, raw)) return false; std::memcpy(&value, &raw, sizeof(value)); return true;
+}
+bool ReadString(std::span<const uint8_t> bytes, size_t& offset, std::string& value) {
+    if (offset >= bytes.size()) return false; const uint8_t length = bytes[offset++];
+    if (length > AnimationStateMachine::kMaxIdentifierBytes || bytes.size() - offset < length) return false;
+    for (uint8_t index = 0U; index < length; ++index) if (bytes[offset + index] == 0U) return false;
+    value.assign(reinterpret_cast<const char*>(bytes.data() + offset), length); offset += length; return true;
+}
+bool WriteStateSnapshot(std::span<uint8_t> bytes, size_t& offset, const AnimationStateMachineSnapshot& snapshot) {
+    if (!WriteString(bytes, offset, snapshot.activeStateId) || !WriteString(bytes, offset, snapshot.targetStateId) || !WriteString(bytes, offset, snapshot.transitionId) || offset >= bytes.size()) return false;
+    bytes[offset++] = snapshot.blending ? 1U : 0U;
+    return WriteFloat(bytes, offset, snapshot.blendFraction) && WriteFloat(bytes, offset, snapshot.activeTimeSeconds) && WriteFloat(bytes, offset, snapshot.targetTimeSeconds);
+}
+bool ReadStateSnapshot(std::span<const uint8_t> bytes, size_t& offset, AnimationStateMachineSnapshot& snapshot) {
+    if (!ReadString(bytes, offset, snapshot.activeStateId) || !ReadString(bytes, offset, snapshot.targetStateId) || !ReadString(bytes, offset, snapshot.transitionId) || offset >= bytes.size() || bytes[offset] > 1U) return false;
+    snapshot.blending = bytes[offset++] != 0U; return ReadFloat(bytes, offset, snapshot.blendFraction) && ReadFloat(bytes, offset, snapshot.activeTimeSeconds) && ReadFloat(bytes, offset, snapshot.targetTimeSeconds);
+}
+bool EncodeCharacterSnapshot(const CharacterPawnSnapshot& snapshot, std::span<uint8_t> bytes) {
+    std::fill(bytes.begin(), bytes.end(), 0U); size_t offset = 0U;
+    if (!WriteU16(bytes, offset, snapshot.actor.index) || !WriteU16(bytes, offset, snapshot.actor.generation) || offset + 2U > bytes.size()) return false;
+    bytes[offset++] = static_cast<uint8_t>(snapshot.authority); bytes[offset++] = static_cast<uint8_t>(snapshot.rootMotionMode);
+    if (!WriteFloat(bytes, offset, snapshot.velocity.x) || !WriteFloat(bytes, offset, snapshot.velocity.y) || !WriteFloat(bytes, offset, snapshot.velocity.z) || offset >= bytes.size()) return false;
+    bytes[offset++] = snapshot.grounded ? 1U : 0U;
+    if (!WriteStateSnapshot(bytes, offset, snapshot.animation.base) || !WriteStateSnapshot(bytes, offset, snapshot.animation.overlay) || !WriteU16(bytes, offset, snapshot.animation.overlayWeightPermille) || offset >= bytes.size()) return false;
+    bytes[offset++] = snapshot.animation.hasOverlay ? 1U : 0U; return true;
+}
+bool DecodeCharacterSnapshot(std::span<const uint8_t> bytes, CharacterPawnSnapshot& snapshot) {
+    size_t offset = 0U; uint16_t index = 0U; uint16_t generation = 0U;
+    if (bytes.size() != CharacterPawn::kComponentSnapshotBytes || !ReadU16(bytes, offset, index) || !ReadU16(bytes, offset, generation) || offset + 2U > bytes.size()) return false;
+    snapshot.actor = {index, generation}; snapshot.authority = static_cast<CharacterMovementAuthority>(bytes[offset++]); snapshot.rootMotionMode = static_cast<CharacterRootMotionMode>(bytes[offset++]);
+    if (!ReadFloat(bytes, offset, snapshot.velocity.x) || !ReadFloat(bytes, offset, snapshot.velocity.y) || !ReadFloat(bytes, offset, snapshot.velocity.z) || offset >= bytes.size() || bytes[offset] > 1U) return false;
+    snapshot.grounded = bytes[offset++] != 0U; if (!ReadStateSnapshot(bytes, offset, snapshot.animation.base) || !ReadStateSnapshot(bytes, offset, snapshot.animation.overlay) || !ReadU16(bytes, offset, snapshot.animation.overlayWeightPermille) || offset >= bytes.size() || bytes[offset] > 1U) return false;
+    snapshot.animation.hasOverlay = bytes[offset++] != 0U; return true;
+}
+bool ValidCharacterSnapshot(const CharacterPawnSnapshot& snapshot, SceneEntity actor, const CharacterAnimationGraph& currentAnimation) {
+    if (snapshot.actor != actor || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || snapshot.animation.overlayWeightPermille > 1000U) return false;
+    CharacterAnimationGraph candidate = currentAnimation; return candidate.Restore(snapshot.animation);
 }
 }
 
@@ -291,6 +355,22 @@ bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t f
     lastError_ = CharacterPawnError::None;
     return true;
 }
+bool CharacterPawn::CaptureSnapshot(std::span<uint8_t> bytes) const {
+    if (bytes.size() != kComponentSnapshotBytes) return false;
+    CharacterPawnSnapshot snapshot{}; std::array<uint8_t, kComponentSnapshotBytes> candidate{};
+    if (!Snapshot(snapshot) || !EncodeCharacterSnapshot(snapshot, candidate)) return false;
+    std::copy(candidate.begin(), candidate.end(), bytes.begin()); return true;
+}
+bool CharacterPawn::ValidateSnapshot(std::span<const uint8_t> bytes) const {
+    if (!attached_ || bytes.size() != kComponentSnapshotBytes) return false;
+    CharacterPawnSnapshot snapshot{}; return DecodeCharacterSnapshot(bytes, snapshot) && ValidCharacterSnapshot(snapshot, actor_, animation_);
+}
+bool CharacterPawn::RestoreSnapshot(std::span<const uint8_t> bytes) {
+    if (!attached_ || bytes.size() != kComponentSnapshotBytes) return false;
+    CharacterPawnSnapshot snapshot{};
+    if (!DecodeCharacterSnapshot(bytes, snapshot) || !ValidCharacterSnapshot(snapshot, actor_, animation_)) return false;
+    return Restore(snapshot);
+}
 
 bool CharacterPawn::TriggerOverlay(std::string_view transitionId) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
@@ -319,6 +399,7 @@ bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& sna
         candidate.overlayState_ = candidate.overlay_.ActiveStateId();
     } else {
         if (!candidate.overlay_.Reset()) return false;
+        candidate.hasOverlay_ = false;
         candidate.overlayStarted_ = false;
         candidate.overlayState_.clear();
     }

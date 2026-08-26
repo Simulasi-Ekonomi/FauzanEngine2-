@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -114,6 +115,7 @@ struct CharacterTransitionBinding {
 class CharacterPawn final : public IActorComponent {
 public:
     static constexpr uint16_t kTypeId = 100U;
+    static constexpr uint16_t kComponentSnapshotBytes = 512U;
     static constexpr uint8_t kMaxTransitionBindings = 16U;
 
     explicit CharacterPawn(CharacterPawnConfig config = {});
@@ -122,6 +124,10 @@ public:
     [[nodiscard]] bool OnAttach(SceneWorld& world, SceneEntity actor) override;
     [[nodiscard]] bool OnDetach(SceneWorld& world, SceneEntity actor) override;
     [[nodiscard]] bool OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) override;
+    [[nodiscard]] uint16_t SnapshotSizeBytes() const override { return kComponentSnapshotBytes; }
+    [[nodiscard]] bool CaptureSnapshot(std::span<uint8_t> bytes) const override;
+    [[nodiscard]] bool ValidateSnapshot(std::span<const uint8_t> bytes) const override;
+    [[nodiscard]] bool RestoreSnapshot(std::span<const uint8_t> bytes) override;
 
     [[nodiscard]] bool BindMovementAuthorityGate(MovementAuthorityGate* gate);
     [[nodiscard]] bool BindAnimationResource(AssetResourceManager* resources, AssetResourceHandle handle);

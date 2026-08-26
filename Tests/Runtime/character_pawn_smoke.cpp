@@ -47,6 +47,12 @@ int main() {
     invalidSnapshot.velocity.y = 1.0F;
     if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.velocity.y != savedSnapshot.velocity.y) return 13;
     if (!characterView->Restore(savedSnapshot) || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != "aim" || snapshot.animation.overlayWeightPermille != 500U) return 14;
+    ActorComponentWorldSnapshot worldSnapshot{};
+    if (!actors.CaptureSnapshot(worldSnapshot) || worldSnapshot.actors.size() != 1U || worldSnapshot.actors[0].componentTypeNames[0] != "CharacterPawn" || worldSnapshot.componentBytes.size() != CharacterPawn::kComponentSnapshotBytes) return 14;
+    ActorComponentWorldSnapshot invalidWorldSnapshot = worldSnapshot;
+    invalidWorldSnapshot.componentBytes[0] = 0xFFU;
+    if (actors.RestoreSnapshot(invalidWorldSnapshot) || actors.LastError() != ActorComponentError::RestoreRejected || !characterView->Snapshot(snapshot) || snapshot.velocity.x != savedSnapshot.velocity.x || snapshot.animation.overlay.activeStateId != "aim") return 14;
+    if (!characterView->SubmitInput({1.0F, 0.0F, false, false}) || !actors.TickFixed(1U, receipt) || !actors.RestoreSnapshot(worldSnapshot) || !characterView->Snapshot(snapshot) || std::abs(snapshot.velocity.x - savedSnapshot.velocity.x) > 0.0001F || snapshot.animation.overlay.activeStateId != "aim" || snapshot.animation.overlayWeightPermille != 500U) return 14;
     if (!characterView->SubmitInput({0.0F, 0.0F, false, true}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.grounded || snapshot.velocity.y <= 0.0F) return 15;
     if (!actors.TickFixed(60U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.grounded || std::abs(snapshot.velocity.y) > 0.0001F) return 16;
 
