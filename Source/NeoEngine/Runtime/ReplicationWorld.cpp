@@ -5,6 +5,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <new>
 
 namespace NeoEngine {
 namespace {
@@ -73,10 +74,14 @@ void AppendSnapshotContent(std::vector<uint8_t>& bytes, const ReplicationSnapsho
     }
 }
 uint64_t SnapshotChecksum(const ReplicationSnapshot& snapshot) {
-    std::vector<uint8_t> content;
-    content.reserve(32U + static_cast<size_t>(snapshot.count) * 56U);
-    AppendSnapshotContent(content, snapshot);
-    return Hash(content);
+    try {
+        std::vector<uint8_t> content;
+        content.reserve(32U + static_cast<size_t>(snapshot.count) * 56U);
+        AppendSnapshotContent(content, snapshot);
+        return Hash(content);
+    } catch (const std::bad_alloc&) {
+        return 0U;
+    }
 }
 bool ValidTransform(const Transform3& transform) {
     return std::isfinite(transform.x) && std::isfinite(transform.y) && std::isfinite(transform.z) && std::isfinite(transform.rx) && std::isfinite(transform.ry) && std::isfinite(transform.rz) && std::isfinite(transform.sx) && std::isfinite(transform.sy) && std::isfinite(transform.sz) && transform.sx > 0.0F && transform.sy > 0.0F && transform.sz > 0.0F;
@@ -97,14 +102,19 @@ bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, st
         const ReplicatedEntityState& state = snapshot.states[index];
         if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
     }
-    std::vector<uint8_t> content;
-    AppendSnapshotContent(content, snapshot);
-    if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
-    const uint64_t checksum = Hash(content);
-    AppendU64(content, checksum);
-    bytes = std::move(content);
-    error = ReplicationError::None;
-    return true;
+    try {
+        std::vector<uint8_t> content;
+        AppendSnapshotContent(content, snapshot);
+        if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
+        const uint64_t checksum = Hash(content);
+        AppendU64(content, checksum);
+        bytes = std::move(content);
+        error = ReplicationError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        error = ReplicationError::Capacity;
+        return false;
+    }
 }
 
 bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, ReplicationSnapshot& snapshot, ReplicationError& error) {
@@ -129,14 +139,19 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
 
 bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement& acknowledgement, std::vector<uint8_t>& bytes, ReplicationError& error) {
     if (acknowledgement.sequence == 0U || acknowledgement.checksum == 0U) { error = ReplicationError::InvalidAcknowledgement; return false; }
-    std::vector<uint8_t> content;
-    content.reserve(30U);
-    AppendU32(content, kAcknowledgementMagic); AppendU16(content, kVersion); AppendU64(content, acknowledgement.sequence); AppendU64(content, acknowledgement.serverTick); AppendU64(content, acknowledgement.checksum);
-    if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
-    AppendU64(content, Hash(content));
-    bytes = std::move(content);
-    error = ReplicationError::None;
-    return true;
+    try {
+        std::vector<uint8_t> content;
+        content.reserve(30U);
+        AppendU32(content, kAcknowledgementMagic); AppendU16(content, kVersion); AppendU64(content, acknowledgement.sequence); AppendU64(content, acknowledgement.serverTick); AppendU64(content, acknowledgement.checksum);
+        if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
+        AppendU64(content, Hash(content));
+        bytes = std::move(content);
+        error = ReplicationError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        error = ReplicationError::Capacity;
+        return false;
+    }
 }
 
 bool ReplicationAcknowledgementCodec::Deserialize(std::span<const uint8_t> bytes, ReplicationAcknowledgement& acknowledgement, ReplicationError& error) {
@@ -212,6 +227,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     snapshotCandidate.count = count;
     for (uint16_t index = 0U; index < count; ++index) snapshotCandidate.states[index] = candidates[index].state;
     snapshotCandidate.checksum = SnapshotChecksum(snapshotCandidate);
+    if (snapshotCandidate.checksum == 0U) return Fail(ReplicationError::Capacity);
     for (uint16_t index = 0U; index < count; ++index) {
         Slot& slot = slots_[candidates[index].slotIndex];
         slot.previousAuthoritative = candidates[index].previous;
@@ -229,7 +245,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
 }
 
 bool ReplicationWorld::ValidateSnapshot(const ReplicationSnapshot& snapshot) const {
-    if (snapshot.sequence == 0U || snapshot.count > kMaxEntities || snapshot.checksum != SnapshotChecksum(snapshot)) return false;
+    if (snapshot.sequence == 0U || snapshot.count > kMaxEntities || snapshot.checksum == 0U || snapshot.checksum != SnapshotChecksum(snapshot)) return false;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) return false;
