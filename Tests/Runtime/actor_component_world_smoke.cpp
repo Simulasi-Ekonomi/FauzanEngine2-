@@ -107,6 +107,13 @@ public:
     bool rejectNext = true;
 };
 
+class RejectBeginPlayOnceComponent final : public ProbeComponent {
+public:
+    RejectBeginPlayOnceComponent() : ProbeComponent(43U) {}
+    bool OnBeginPlay(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { if (rejectNext) { rejectNext = false; return false; } return true; }
+    bool rejectNext = true;
+};
+
 class ReentrantMutationComponent final : public ProbeComponent {
 public:
     ReentrantMutationComponent(NeoEngine::ActorComponentWorld& world, NeoEngine::SceneEntity actor, ProbeComponent& dependency) : ProbeComponent(30U), world_(world), actor_(actor), dependency_(dependency) {}
@@ -123,6 +130,16 @@ public:
     ProbeComponent& dependency_;
     bool mutationRejected = false;
 };
+
+bool RunBeginPlayRollbackRetryRegression() {
+    using namespace NeoEngine;
+    auto scene = std::make_unique<SceneWorld>();
+    auto world = std::make_unique<ActorComponentWorld>(*scene);
+    SceneEntity actor{};
+    if (!world->CreateActor(actor, "RollbackActor") || !scene->SetTransform(actor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !world->AttachComponent(actor, std::make_unique<RejectEndPlayOnceComponent>()) || !world->AttachComponent(actor, std::make_unique<RejectBeginPlayOnceComponent>())) return false;
+    if (world->BeginPlay() || world->LastError() != ActorComponentError::RollbackRejected) return false;
+    return world->BeginPlay() && world->LastError() == ActorComponentError::None && world->EndPlay();
+}
 
 bool RunBeginPlayExceptionRegression() {
     using namespace NeoEngine;
@@ -253,6 +270,6 @@ int main() {
     if (retryWorld.EndPlay() || retryWorld.LastError() != ActorComponentError::EndPlayRejected) return 33;
     ActorComponentWorldSnapshot endedSnapshot{};
     if (!retryWorld.EndPlay() || !retryWorld.CaptureSnapshot(endedSnapshot) || endedSnapshot.begunPlay || endedSnapshot.actors.size() != 1U || endedSnapshot.actors[0].begunPlay) return 33;
-    if (!RunBeginPlayExceptionRegression()) return 34;
+    if (!RunBeginPlayRollbackRetryRegression() || !RunBeginPlayExceptionRegression()) return 34;
     return 0;
 }

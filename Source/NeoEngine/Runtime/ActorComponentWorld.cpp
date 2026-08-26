@@ -27,12 +27,13 @@ bool ActorComponentWorld::BeginActorPlay(ActorSlot& actor) {
         if (slot.component == nullptr || slot.begunPlay) continue;
         const bool began = InvokeDispatch(dispatching_, [&] { return slot.component->OnBeginPlay(sceneWorld_, actor.scene); });
         if (!began) {
+            bool rollbackRejected = false;
             for (ComponentSlot& rollback : actor.components) if (rollback.component != nullptr && rollback.begunPlay) {
-                (void)InvokeDispatch(dispatching_, [&] { return rollback.component->OnEndPlay(sceneWorld_, actor.scene); });
-                rollback.begunPlay = false;
+                const bool ended = InvokeDispatch(dispatching_, [&] { return rollback.component->OnEndPlay(sceneWorld_, actor.scene); });
+                if (ended) rollback.begunPlay = false; else rollbackRejected = true;
             }
             actor.begunPlay = false;
-            return Fail(ActorComponentError::BeginPlayRejected);
+            return Fail(rollbackRejected ? ActorComponentError::RollbackRejected : ActorComponentError::BeginPlayRejected);
         }
         slot.begunPlay = true;
     }
@@ -49,19 +50,22 @@ bool ActorComponentWorld::BeginActorPlay(ActorSlot& actor) {
                 (void)InvokeDispatch(dispatching_, [&] { return rollback.component->OnDeactivate(sceneWorld_, actor.scene); });
                 --activatedCount;
             }
+            bool rollbackRejected = false;
             for (ComponentSlot& rollback : actor.components) if (rollback.component != nullptr && rollback.begunPlay) {
-                (void)InvokeDispatch(dispatching_, [&] { return rollback.component->OnEndPlay(sceneWorld_, actor.scene); });
-                rollback.begunPlay = false;
+                const bool ended = InvokeDispatch(dispatching_, [&] { return rollback.component->OnEndPlay(sceneWorld_, actor.scene); });
+                if (ended) rollback.begunPlay = false; else rollbackRejected = true;
             }
             actor.begunPlay = false;
-            return Fail(ActorComponentError::ActivationRejected);
+            return Fail(rollbackRejected ? ActorComponentError::RollbackRejected : ActorComponentError::ActivationRejected);
         }
         ++activatedCount;
     }
     return true;
 }
 bool ActorComponentWorld::EndActorPlay(ActorSlot& actor) {
-    if (!actor.begunPlay) return true;
+    bool hasBegunComponent = false;
+    for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.begunPlay) { hasBegunComponent = true; break; }
+    if (!hasBegunComponent) { actor.begunPlay = false; return true; }
     for (ComponentSlot& slot : actor.components) {
         if (slot.component == nullptr || !slot.begunPlay) continue;
         const bool ended = InvokeDispatch(dispatching_, [&] { return slot.component->OnEndPlay(sceneWorld_, actor.scene); });
@@ -239,9 +243,15 @@ bool ActorComponentWorld::BeginPlay() {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (begunPlay_) { lastError_ = ActorComponentError::None; return true; }
     for (ActorSlot& actor : actors_) if (actor.registered && !BeginActorPlay(actor)) {
-        for (ActorSlot& rollback : actors_) if (rollback.registered && rollback.begunPlay) EndActorPlay(rollback);
+        const ActorComponentError failureError = lastError_;
+        bool rollbackRejected = false;
+        for (ActorSlot& rollback : actors_) {
+            bool hasBegunComponent = false;
+            for (const ComponentSlot& slot : rollback.components) if (slot.component != nullptr && slot.begunPlay) { hasBegunComponent = true; break; }
+            if (rollback.registered && (rollback.begunPlay || hasBegunComponent) && !EndActorPlay(rollback)) rollbackRejected = true;
+        }
         begunPlay_ = false;
-        return false;
+        return Fail(rollbackRejected ? ActorComponentError::RollbackRejected : failureError);
     }
     begunPlay_ = true;
     lastError_ = ActorComponentError::None;
