@@ -4,6 +4,9 @@
 namespace NeoEngine {
 namespace {
 template <typename Callback> bool InvokeDispatch(bool& dispatching, Callback callback) { dispatching = true; try { const bool result = callback(); dispatching = false; return result; } catch (...) { dispatching = false; return false; } }
+struct TickMetadata { uint8_t group = 0U; uint8_t order = 0U; uint8_t dependencyCount = 0U; uint16_t typeId = 0U; };
+bool ReadTickMetadata(bool& dispatching, IActorComponent& component, TickMetadata& metadata) { return InvokeDispatch(dispatching, [&] { metadata = {component.TickGroup(), component.TickOrder(), component.TickDependencyCount(), component.TypeId()}; return true; }); }
+bool ReadDependencyType(bool& dispatching, IActorComponent& component, uint8_t index, uint16_t& typeId) { return InvokeDispatch(dispatching, [&] { typeId = component.TickDependencyTypeId(index); return true; }); }
 }
 ActorComponentWorld::ActorComponentWorld(SceneWorld& sceneWorld) : sceneWorld_(sceneWorld) {}
 ActorComponentWorld::~ActorComponentWorld() {
@@ -271,15 +274,17 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
     if (fixedTicks == 0U || fixedTicks > kMaxFixedTicks) return Fail(ActorComponentError::TickRejected);
     if (!begunPlay_ && !BeginPlay()) return false;
     for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled && slot.active) {
-        const uint8_t group = slot.component->TickGroup();
-        const uint8_t order = slot.component->TickOrder();
-        const uint8_t dependencyCount = slot.component->TickDependencyCount();
-        if (group >= kMaxTickGroups || order >= kMaxTickOrders || dependencyCount > kMaxComponentsPerActor) return Fail(ActorComponentError::TickRejected);
-        for (uint8_t dependencyIndex = 0U; dependencyIndex < dependencyCount; ++dependencyIndex) {
-            const uint16_t dependencyType = slot.component->TickDependencyTypeId(dependencyIndex);
+        TickMetadata metadata{};
+        if (!ReadTickMetadata(dispatching_, *slot.component, metadata) || metadata.group >= kMaxTickGroups || metadata.order >= kMaxTickOrders || metadata.dependencyCount > kMaxComponentsPerActor) return Fail(ActorComponentError::TickRejected);
+        for (uint8_t dependencyIndex = 0U; dependencyIndex < metadata.dependencyCount; ++dependencyIndex) {
+            uint16_t dependencyType = 0U;
+            if (!ReadDependencyType(dispatching_, *slot.component, dependencyIndex, dependencyType)) return Fail(ActorComponentError::TickRejected);
             const ComponentSlot* dependency = FindSlot(actor.scene, dependencyType);
-            if (dependencyType == 0U || dependencyType == slot.component->TypeId() || dependency == nullptr || dependency->component == nullptr || !dependency->enabled || dependency->component->TickGroup() > group || (dependency->component->TickGroup() == group && dependency->component->TickOrder() >= order)) return Fail(ActorComponentError::DependencyRejected);
-            for (uint8_t priorIndex = 0U; priorIndex < dependencyIndex; ++priorIndex) if (slot.component->TickDependencyTypeId(priorIndex) == dependencyType) return Fail(ActorComponentError::DependencyRejected);
+            if (dependencyType == 0U || dependencyType == metadata.typeId || dependency == nullptr || dependency->component == nullptr || !dependency->enabled) return Fail(ActorComponentError::DependencyRejected);
+            TickMetadata dependencyMetadata{};
+            if (!ReadTickMetadata(dispatching_, *dependency->component, dependencyMetadata)) return Fail(ActorComponentError::TickRejected);
+            if (dependencyMetadata.group > metadata.group || (dependencyMetadata.group == metadata.group && dependencyMetadata.order >= metadata.order)) return Fail(ActorComponentError::DependencyRejected);
+            for (uint8_t priorIndex = 0U; priorIndex < dependencyIndex; ++priorIndex) { uint16_t priorType = 0U; if (!ReadDependencyType(dispatching_, *slot.component, priorIndex, priorType)) return Fail(ActorComponentError::TickRejected); if (priorType == dependencyType) return Fail(ActorComponentError::DependencyRejected); }
         }
     }
     uint32_t ticked = 0U;
@@ -287,7 +292,10 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
         ActorSlot& actor = actors_[actorIndex];
         if (!actor.registered) continue;
         for (ComponentSlot& slot : actor.components) {
-            if (slot.component == nullptr || !slot.enabled || slot.component->TickGroup() != group || slot.component->TickOrder() != order) continue;
+            if (slot.component == nullptr || !slot.enabled) continue;
+            TickMetadata metadata{};
+            if (!ReadTickMetadata(dispatching_, *slot.component, metadata)) { lastReceipt_ = {actorCount_, componentCount_, ticked, registrationRevision_}; return Fail(ActorComponentError::TickRejected); }
+            if (metadata.group != group || metadata.order != order) continue;
             const bool tickedSuccessfully = InvokeDispatch(dispatching_, [&] { return slot.component->OnFixedTick(sceneWorld_, actor.scene, fixedTicks); });
             if (!tickedSuccessfully) {
                 lastReceipt_ = {actorCount_, componentCount_, ticked, registrationRevision_};
