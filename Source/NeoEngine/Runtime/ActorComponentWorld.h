@@ -94,6 +94,7 @@ public:
     static constexpr uint8_t kMaxComponentTypeNameBytes = 64U;
     static constexpr uint8_t kMaxTickGroups = 8U;
     static constexpr uint8_t kMaxTickOrders = 8U;
+    static constexpr uint32_t kMaxFixedTicks = 240U;
 
     explicit ActorComponentWorld(SceneWorld& sceneWorld);
     ActorComponentWorld(const ActorComponentWorld&) = delete;

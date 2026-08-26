@@ -235,7 +235,9 @@ int main() {
     ActorComponentWorldReceipt receipt{};
     if (!actors.TickFixed(3U, receipt) || receipt.tickedComponents != 1U || renderView->tickedFixedTicks != 3U || movementView->tickedFixedTicks != 0U) return 12;
     if (!actors.SetComponentEnabled(hero, 10U, true) || !actors.TickFixed(2U, receipt) || receipt.tickedComponents != 2U || movementView->tickedFixedTicks != 2U || renderView->tickedFixedTicks != 5U) return 13;
-    if (actors.TickFixed(0U, receipt) || actors.LastError() != ActorComponentError::TickRejected) return 14;
+    const ActorComponentWorldReceipt preservedTickReceipt = receipt;
+    if (actors.TickFixed(0U, receipt) || actors.LastError() != ActorComponentError::TickRejected || receipt.tickedComponents != preservedTickReceipt.tickedComponents) return 14;
+    if (actors.TickFixed(ActorComponentWorld::kMaxFixedTicks + 1U, receipt) || actors.LastError() != ActorComponentError::TickRejected || receipt.tickedComponents != preservedTickReceipt.tickedComponents) return 14;
     if (!actors.DetachComponent(hero, 10U) || movementDetachCount != 1U || movementEndPlayCount != 1U || actors.ComponentCount(hero) != 1U) return 14;
     if (actors.DetachComponent(hero, 10U) || actors.LastError() != ActorComponentError::InvalidComponent) return 15;
 

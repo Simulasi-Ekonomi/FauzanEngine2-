@@ -268,7 +268,7 @@ bool ActorComponentWorld::EndPlay() {
 }
 bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldReceipt& receipt) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
-    if (fixedTicks == 0U) return Fail(ActorComponentError::TickRejected);
+    if (fixedTicks == 0U || fixedTicks > kMaxFixedTicks) return Fail(ActorComponentError::TickRejected);
     if (!begunPlay_ && !BeginPlay()) return false;
     for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled && slot.active) {
         const uint8_t group = slot.component->TickGroup();
