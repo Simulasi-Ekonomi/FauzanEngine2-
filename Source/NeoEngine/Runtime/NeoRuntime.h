@@ -24,6 +24,7 @@
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
 enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, PresentationFailed };
+struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
 struct RuntimeConfig { uint16_t farmWidth = 8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableFarmRuntimeHud=false; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide; std::vector<GridCell> routeMotionRoute{}; };
 class NeoRuntime {
@@ -54,6 +55,7 @@ public:
     const SceneWorld* Scene() const { return m_Scene.get(); }
     SoftwareRenderer* Renderer() { return m_Renderer.get(); }
     const SoftwareRenderer* Renderer() const { return m_Renderer.get(); }
+    const RuntimeFarmRenderReceipt* LastFarmRenderReceipt() const { return m_HasFarmRenderReceipt ? &m_LastFarmRenderReceipt : nullptr; }
     const SoftwareSurfacePresenter* SurfacePresenter() const { return m_SurfacePresenter.get(); }
     RuntimeClock* Clock() { return m_Clock.get(); }
     const RuntimeClock* Clock() const { return m_Clock.get(); }
@@ -101,6 +103,8 @@ private:
     std::unique_ptr<SoftwareRenderer> m_Renderer;
     std::unique_ptr<FarmRuntimeHud> m_FarmRuntimeHud;
     uint64_t m_RenderedFarmFrames = 0U;
+    RuntimeFarmRenderReceipt m_LastFarmRenderReceipt{};
+    bool m_HasFarmRenderReceipt = false;
     std::unique_ptr<SoftwareSurfacePresenter> m_SurfacePresenter;
 };
 } // namespace NeoEngine

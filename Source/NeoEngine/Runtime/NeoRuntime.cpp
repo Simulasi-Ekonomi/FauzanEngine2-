@@ -115,6 +115,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Renderer = std::move(renderer);
     m_FarmRuntimeHud = config.enableFarmRuntimeHud ? std::make_unique<FarmRuntimeHud>() : nullptr;
     m_RenderedFarmFrames = 0U;
+    m_LastFarmRenderReceipt = {};
+    m_HasFarmRenderReceipt = false;
     m_SurfacePresenter = std::move(surfacePresenter);
     m_LastError = RuntimeError::None;
     m_State = RuntimeState::Initialized;
@@ -152,8 +154,9 @@ bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
     SoftwareRenderer candidate = *m_Renderer;
     if (!FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate)) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_FarmRuntimeHud != nullptr) { const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, candidate.FrameHash(), m_Farm->Snapshot()}; if (!m_FarmRuntimeHud->Draw(receipt, candidate)) { m_LastError = RuntimeError::HudFailed; return false; } }
-    *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames;
+    const uint64_t worldHash = candidate.FrameHash(); const FarmTelemetrySnapshot telemetry = m_Farm->Snapshot(); uint64_t hudHash = 0U;
+    if (m_FarmRuntimeHud != nullptr) { const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry}; if (!m_FarmRuntimeHud->Draw(receipt, candidate)) { m_LastError = RuntimeError::HudFailed; return false; } hudHash = candidate.FrameHash(); }
+    const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; m_LastError = RuntimeError::None;
     if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(*m_Renderer))) { m_LastError = RuntimeError::PresentationFailed; return false; }
     return true;
 }
@@ -168,6 +171,8 @@ bool NeoRuntime::Shutdown() {
     m_SurfacePresenter.reset();
     m_FarmRuntimeHud.reset();
     m_RenderedFarmFrames = 0U;
+    m_LastFarmRenderReceipt = {};
+    m_HasFarmRenderReceipt = false;
     m_Renderer.reset();
     m_Clock.reset();
     m_Timers.reset();
