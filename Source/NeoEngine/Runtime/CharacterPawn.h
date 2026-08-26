@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace NeoEngine {
 
@@ -68,6 +69,7 @@ struct CharacterPawnSnapshot {
 class CharacterAnimationGraph {
 public:
     static constexpr uint8_t kMaxLayers = 2U;
+    static constexpr uint16_t kMaxEventsPerCollection = 256U;
 
     bool AddBaseState(AnimationStateSpec state);
     bool AddBaseTransition(AnimationTransitionSpec transition);
@@ -80,6 +82,7 @@ public:
     bool Tick(float deltaSeconds);
     bool SetOverlayWeightPermille(uint16_t weightPermille);
     bool Sample(const AnimationTimeline& timeline, float& value) const;
+    bool CollectAnimationEvents(const AnimationTimeline& timeline, float fromTime, float toTime, std::vector<std::string>& output) const;
     bool Snapshot(CharacterAnimationGraphSnapshot& snapshot) const;
     bool Restore(const CharacterAnimationGraphSnapshot& snapshot);
     [[nodiscard]] bool HasBase() const { return hasBase_; }

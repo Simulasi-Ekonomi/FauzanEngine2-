@@ -3,6 +3,8 @@
 
 #include <cmath>
 #include <memory>
+#include <string>
+#include <vector>
 
 int main() {
     using namespace NeoEngine;
@@ -17,19 +19,25 @@ int main() {
     if (!graph.AddBaseState({"idle", "idle", AnimationPlayback::Loop}) || !graph.AddBaseState({"walk", "walk", AnimationPlayback::Loop}) || !graph.AddBaseState({"run", "run", AnimationPlayback::Loop}) || !graph.AddBaseTransition({"idle_walk", "idle", "walk", 0.10F}) || !graph.AddBaseTransition({"walk_idle", "walk", "idle", 0.10F}) || !graph.AddBaseTransition({"walk_run", "walk", "run", 0.10F}) || !graph.AddBaseTransition({"run_idle", "run", "idle", 0.10F}) || !graph.StartBase("idle")) return 2;
     if (!graph.AddOverlayState({"none", "none", AnimationPlayback::Loop}) || !graph.AddOverlayState({"aim", "aim", AnimationPlayback::Loop}) || !graph.AddOverlayTransition({"none_aim", "none", "aim", 0.20F}) || !graph.AddOverlayTransition({"aim_none", "aim", "none", 0.20F}) || !graph.StartOverlay("none") || !graph.SetOverlayWeightPermille(500U)) return 3;
     AnimationTimeline timeline;
-    if (!timeline.AddTrack("idle", {{0.0F, 1.0F}, {1.0F, 1.0F}}) || !timeline.AddTrack("walk", {{0.0F, 2.0F}, {1.0F, 2.0F}}) || !timeline.AddTrack("run", {{0.0F, 3.0F}, {1.0F, 3.0F}}) || !timeline.AddTrack("none", {{0.0F, 0.0F}, {1.0F, 0.0F}}) || !timeline.AddTrack("aim", {{0.0F, 10.0F}, {1.0F, 10.0F}})) return 4;
+    if (!timeline.AddTrack("idle", {{0.0F, 1.0F}, {1.0F, 1.0F}}) || !timeline.AddTrack("walk", {{0.0F, 2.0F}, {1.0F, 2.0F}}) || !timeline.AddTrack("run", {{0.0F, 3.0F}, {1.0F, 3.0F}}) || !timeline.AddTrack("none", {{0.0F, 0.0F}, {1.0F, 0.0F}}) || !timeline.AddTrack("aim", {{0.0F, 10.0F}, {1.0F, 10.0F}}) || !timeline.AddEventMarker("idle", {"idle_notify", 0.01F}) || !timeline.AddEventMarker("walk", {"walk_notify", 0.20F}) || !timeline.AddEventMarker("aim", {"aim_notify", 0.20F})) return 4;
     if (!actors.AttachComponent(player, std::move(character)) || !characterView->IsAttached()) return 5;
     if (!characterView->SetTransitionBinding({"idle", "walk", "idle_walk"}) || !characterView->SetTransitionBinding({"walk", "idle", "walk_idle"}) || !characterView->SetTransitionBinding({"walk", "run", "walk_run"}) || !characterView->SetTransitionBinding({"run", "idle", "run_idle"})) return 6;
 
     ActorComponentWorldReceipt receipt{};
     if (!characterView->SubmitInput({}) || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 1U) return 6;
+    std::vector<std::string> animationEvents{"sentinel"};
+    if (!graph.CollectAnimationEvents(timeline, 0.0F, 0.02F, animationEvents) || animationEvents.size() != 1U || animationEvents[0] != "idle_notify") return 7;
+    animationEvents = {"preserved"};
+    if (graph.CollectAnimationEvents(timeline, 1.0F, 0.0F, animationEvents) || animationEvents.size() != 1U || animationEvents[0] != "preserved") return 7;
     CharacterPawnSnapshot snapshot{};
     if (!characterView->Snapshot(snapshot) || snapshot.actor != player || snapshot.authority != CharacterMovementAuthority::KinematicRoute || !snapshot.grounded || snapshot.animation.base.activeStateId != "idle" || snapshot.animation.overlayWeightPermille != 500U) return 8;
 
     if (!characterView->SubmitInput({1.0F, 0.0F, false, false}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.animation.base.blending || snapshot.velocity.x <= 0.0F) return 8;
+    if (!graph.CollectAnimationEvents(timeline, 0.0F, 0.21F, animationEvents) || animationEvents.size() != 2U || animationEvents[0] != "idle_notify" || animationEvents[1] != "walk_notify") return 9;
     if (!characterView->TriggerOverlay("none_aim") || !actors.TickFixed(15U, receipt) || !characterView->Snapshot(snapshot) || snapshot.animation.hasOverlay == false || snapshot.animation.overlay.activeStateId != "aim") return 10;
     float compositeSample = 0.0F;
     if (!graph.Sample(timeline, compositeSample) || std::abs(compositeSample - 6.0F) > 0.0001F) return 11;
+    if (!graph.CollectAnimationEvents(timeline, 0.0F, 0.30F, animationEvents) || animationEvents.size() != 2U || animationEvents[0] != "walk_notify" || animationEvents[1] != "aim_notify") return 11;
     const CharacterPawnSnapshot savedSnapshot = snapshot;
     CharacterPawnSnapshot invalidSnapshot = savedSnapshot;
     invalidSnapshot.actor.generation += 1U;

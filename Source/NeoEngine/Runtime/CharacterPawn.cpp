@@ -104,6 +104,19 @@ bool CharacterAnimationGraph::Sample(const AnimationTimeline& timeline, float& v
     lastError_ = std::isfinite(value) ? AnimationStateMachineError::None : AnimationStateMachineError::SampleFailed;
     return lastError_ == AnimationStateMachineError::None;
 }
+bool CharacterAnimationGraph::CollectAnimationEvents(const AnimationTimeline& timeline, float fromTime, float toTime, std::vector<std::string>& output) const {
+    if (!baseStarted_) { lastError_ = AnimationStateMachineError::NotStarted; return false; }
+    std::vector<std::string> candidate;
+    if (!base_.CollectEvents(timeline, fromTime, toTime, candidate)) { lastError_ = base_.LastError(); return false; }
+    if (overlayStarted_ && overlayWeightPermille_ != 0U) {
+        std::vector<std::string> overlayEvents;
+        if (!overlay_.CollectEvents(timeline, fromTime, toTime, overlayEvents) || candidate.size() > 256U || overlayEvents.size() > 256U - candidate.size()) { lastError_ = AnimationStateMachineError::EventCollectionFailed; return false; }
+        candidate.insert(candidate.end(), overlayEvents.begin(), overlayEvents.end());
+    }
+    output = std::move(candidate);
+    lastError_ = AnimationStateMachineError::None;
+    return true;
+}
 
 bool CharacterAnimationGraph::Snapshot(CharacterAnimationGraphSnapshot& snapshot) const {
     CharacterAnimationGraphSnapshot candidate{};
