@@ -86,6 +86,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Asset import surface demo | [`ASSET_IMPORT_SURFACE_DEMO_V1.md`](ASSET_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ import-to-staged-resource-to-software-surface proof with PPM artifact. |
 | Motion animation surface demo | [`MOTION_ANIMATION_SURFACE_DEMO_V1.md`](MOTION_ANIMATION_SURFACE_DEMO_V1.md) | Finite single-writer kinematic movement, read-only locomotion animation, and sprite render proof. |
 | Physics animation surface demo | [`PHYSICS_ANIMATION_SURFACE_DEMO_V1.md`](PHYSICS_ANIMATION_SURFACE_DEMO_V1.md) | Finite ECS velocity-to-animation tint proof with kinematic sole transform writer. |
+| NPC route animation surface demo | [`NPC_ROUTE_ANIMATION_SURFACE_DEMO_V1.md`](NPC_ROUTE_ANIMATION_SURFACE_DEMO_V1.md) | Finite route intent, kinematic movement, ECS velocity, and locomotion tint proof. |
 | Kinematic collision preflight | [`KINEMATIC_COLLISION_PREFLIGHT_V1.md`](KINEMATIC_COLLISION_PREFLIGHT_V1.md) | Read-only XPBD raycast gate that blocks or delegates one kinematic transform write. |
 | Kinematic preflight surface demo | [`KINEMATIC_PREFLIGHT_SURFACE_DEMO_V1.md`](KINEMATIC_PREFLIGHT_SURFACE_DEMO_V1.md) | Finite single-writer kinematic preflight block/delegate proof with software surface artifact. |
 | Gameplay trigger tracker | [`GAMEPLAY_TRIGGER_TRACKER_V1.md`](GAMEPLAY_TRIGGER_TRACKER_V1.md) | Read-only XPBD circle-overlap enter/exit deltas with candidate-commit state. |
