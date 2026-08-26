@@ -185,14 +185,19 @@ bool CharacterAnimationGraph::CollectAnimationEvents(const AnimationTimeline& ti
 }
 
 bool CharacterAnimationGraph::Snapshot(CharacterAnimationGraphSnapshot& snapshot) const {
-    CharacterAnimationGraphSnapshot candidate{};
-    if (baseStarted_ && !base_.Snapshot(candidate.base)) { lastError_ = base_.LastError(); return false; }
-    candidate.hasOverlay = hasOverlay_ && overlayStarted_;
-    candidate.overlayWeightPermille = overlayWeightPermille_;
-    if (candidate.hasOverlay && !overlay_.Snapshot(candidate.overlay)) { lastError_ = overlay_.LastError(); return false; }
-    snapshot = std::move(candidate);
-    lastError_ = AnimationStateMachineError::None;
-    return true;
+    try {
+        CharacterAnimationGraphSnapshot candidate{};
+        if (baseStarted_ && !base_.Snapshot(candidate.base)) { lastError_ = base_.LastError(); return false; }
+        candidate.hasOverlay = hasOverlay_ && overlayStarted_;
+        candidate.overlayWeightPermille = overlayWeightPermille_;
+        if (candidate.hasOverlay && !overlay_.Snapshot(candidate.overlay)) { lastError_ = overlay_.LastError(); return false; }
+        snapshot = std::move(candidate);
+        lastError_ = AnimationStateMachineError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
+    }
 }
 
 CharacterPawn::CharacterPawn(CharacterPawnConfig config) : config_(config) {}
@@ -429,32 +434,40 @@ bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& sna
 
 bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
     if (!attached_) return false;
-    CharacterPawnSnapshot candidate{};
-    candidate.actor = actor_;
-    candidate.authority = lastAuthority_;
-    candidate.rootMotionMode = rootMotionMode_;
-    candidate.velocity = velocity_;
-    candidate.grounded = grounded_;
-    candidate.pendingInput = pendingInput_;
-    candidate.pendingRootMotion = pendingRootMotion_;
-    if (!animation_.Snapshot(candidate.animation)) return false;
-    snapshot = std::move(candidate);
-    return true;
+    try {
+        CharacterPawnSnapshot candidate{};
+        candidate.actor = actor_;
+        candidate.authority = lastAuthority_;
+        candidate.rootMotionMode = rootMotionMode_;
+        candidate.velocity = velocity_;
+        candidate.grounded = grounded_;
+        candidate.pendingInput = pendingInput_;
+        candidate.pendingRootMotion = pendingRootMotion_;
+        if (!animation_.Snapshot(candidate.animation)) return false;
+        snapshot = std::move(candidate);
+        return true;
+    } catch (const std::bad_alloc&) {
+        return false;
+    }
 }
 
 bool CharacterPawn::Restore(const CharacterPawnSnapshot& snapshot) {
     if (!attached_ || snapshot.actor != actor_ || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || !ValidateInput(snapshot.pendingInput) || !ValidRootMotion(snapshot.pendingRootMotion) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AnimationRejected);
-    CharacterAnimationGraph candidateAnimation = animation_;
-    if (!candidateAnimation.Restore(snapshot.animation)) return Fail(CharacterPawnError::AnimationRejected);
-    animation_ = std::move(candidateAnimation);
-    rootMotionMode_ = snapshot.rootMotionMode;
-    lastAuthority_ = snapshot.authority;
-    velocity_ = snapshot.velocity;
-    grounded_ = snapshot.grounded;
-    pendingInput_ = snapshot.pendingInput;
-    pendingRootMotion_ = snapshot.pendingRootMotion;
-    lastError_ = CharacterPawnError::None;
-    return true;
+    try {
+        CharacterAnimationGraph candidateAnimation = animation_;
+        if (!candidateAnimation.Restore(snapshot.animation)) return Fail(CharacterPawnError::AnimationRejected);
+        animation_ = std::move(candidateAnimation);
+        rootMotionMode_ = snapshot.rootMotionMode;
+        lastAuthority_ = snapshot.authority;
+        velocity_ = snapshot.velocity;
+        grounded_ = snapshot.grounded;
+        pendingInput_ = snapshot.pendingInput;
+        pendingRootMotion_ = snapshot.pendingRootMotion;
+        lastError_ = CharacterPawnError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        return Fail(CharacterPawnError::AnimationRejected);
+    }
 }
 
 } // namespace NeoEngine
