@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <new>
 
 namespace NeoEngine {
 
@@ -32,10 +33,15 @@ bool AssetResourceManager::BuildDependencyClosure(std::string_view assetId, std:
     if (definition->state != AssetState::Ready) { error = AssetResourceError::NotReady; return false; }
     for (uint16_t index = 0U; index < count; ++index) if (ids[index] == assetId) return true;
     if (count >= kMaxDependencyClosure) { error = AssetResourceError::Capacity; return false; }
-    ids[count++] = std::string(assetId);
-    path[depth] = assetId;
-    for (const std::string& dependency : definition->dependencies) if (!BuildDependencyClosure(dependency, ids, count, path, static_cast<uint8_t>(depth + 1U), error)) return false;
-    return true;
+    try {
+        ids[count++] = std::string(assetId);
+        path[depth] = assetId;
+        for (const std::string& dependency : definition->dependencies) if (!BuildDependencyClosure(dependency, ids, count, path, static_cast<uint8_t>(depth + 1U), error)) return false;
+        return true;
+    } catch (const std::bad_alloc&) {
+        error = AssetResourceError::Capacity;
+        return false;
+    }
 }
 
 bool AssetResourceManager::RefreshUnleasedSlot(Slot& slot, const AssetDefinition& definition) {
