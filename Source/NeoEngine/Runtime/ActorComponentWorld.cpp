@@ -163,14 +163,14 @@ bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IAc
     if (slot->begunPlay) {
         const bool began = InvokeDispatch(dispatching_, [&] { return component->OnBeginPlay(sceneWorld_, actor); });
         if (!began) {
-            (void)InvokeDispatch(dispatching_, [&] { return component->OnDetach(sceneWorld_, actor); });
-            return Fail(ActorComponentError::BeginPlayRejected);
+            const bool detached = InvokeDispatch(dispatching_, [&] { return component->OnDetach(sceneWorld_, actor); });
+            return Fail(detached ? ActorComponentError::BeginPlayRejected : ActorComponentError::RollbackRejected);
         }
         const bool activated = InvokeDispatch(dispatching_, [&] { return component->OnActivate(sceneWorld_, actor); });
         if (!activated) {
-            (void)InvokeDispatch(dispatching_, [&] { return component->OnEndPlay(sceneWorld_, actor); });
-            (void)InvokeDispatch(dispatching_, [&] { return component->OnDetach(sceneWorld_, actor); });
-            return Fail(ActorComponentError::ActivationRejected);
+            const bool ended = InvokeDispatch(dispatching_, [&] { return component->OnEndPlay(sceneWorld_, actor); });
+            const bool detached = InvokeDispatch(dispatching_, [&] { return component->OnDetach(sceneWorld_, actor); });
+            return Fail(ended && detached ? ActorComponentError::ActivationRejected : ActorComponentError::RollbackRejected);
         }
     }
     target->component = std::move(component);
