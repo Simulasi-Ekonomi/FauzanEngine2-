@@ -163,7 +163,7 @@ bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
     for (uint16_t index = 0U; index < closureCount; ++index) {
         targetSlots[index] = FindSlot(closureIds[index]);
         if (targetSlots[index] == 0xFFFFU || slots_[targetSlots[index]].refCount != 0U) return Fail(AssetResourceError::StaleInUse);
-        if (slots_[targetSlots[index]].generation == std::numeric_limits<uint32_t>::max() || slots_[targetSlots[index]].hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+        if (slots_[targetSlots[index]].generation >= std::numeric_limits<uint32_t>::max() - 1U || slots_[targetSlots[index]].hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     }
     for (uint16_t index = 0U; index < closureCount; ++index) {
         const AssetDefinition* definition = registry_.Find(closureIds[index]);
@@ -195,7 +195,7 @@ bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
     }
     for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) {
         if (slots_[index].refCount != 0U) return Fail(AssetResourceError::StaleInUse);
-        if (slots_[index].generation == std::numeric_limits<uint32_t>::max() || slots_[index].hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+        if (slots_[index].generation >= std::numeric_limits<uint32_t>::max() - 1U || slots_[index].hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
         const AssetDefinition* current = registry_.Find(slots_[index].assetId);
         if (current == nullptr || current->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
     }
