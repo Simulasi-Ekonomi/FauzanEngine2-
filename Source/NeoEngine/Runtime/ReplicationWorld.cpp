@@ -173,6 +173,7 @@ const ReplicationWorld::Slot* ReplicationWorld::FindSlot(uint32_t networkId) con
 ReplicationWorld::Slot* ReplicationWorld::FindSlot(SceneEntity entity) { for (Slot& slot : slots_) if (slot.registered && slot.entity == entity) return &slot; return nullptr; }
 
 bool ReplicationWorld::RegisterEntity(SceneEntity entity, uint32_t networkId, uint32_t ownerId) {
+    if (role_ != ReplicationRole::Server && role_ != ReplicationRole::Client) return Fail(ReplicationError::InvalidInput);
     if (entity.index >= SceneWorld::kCapacity || sceneWorld_.GetTransform(entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
     if (networkId == 0U) return Fail(ReplicationError::InvalidNetworkId);
     if (FindSlot(networkId) != nullptr) return Fail(ReplicationError::DuplicateNetworkId);
@@ -191,6 +192,7 @@ bool ReplicationWorld::RegisterEntity(SceneEntity entity, uint32_t networkId, ui
 }
 
 bool ReplicationWorld::UnregisterEntity(uint32_t networkId) {
+    if (role_ != ReplicationRole::Server && role_ != ReplicationRole::Client) return Fail(ReplicationError::InvalidInput);
     Slot* slot = FindSlot(networkId);
     if (slot == nullptr) return Fail(ReplicationError::UnknownEntity);
     *slot = {};
