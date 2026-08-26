@@ -13,7 +13,7 @@
 namespace NeoEngine {
 
 enum class AssetRefreshDiagnosticsError : uint8_t { None, MissingAsset, DependencyPlanFailed, Capacity };
-enum class AssetRefreshAction : uint8_t { RefreshTexture, RefreshMesh, RefreshMaterial, RebindSceneInstance };
+enum class AssetRefreshAction : uint8_t { RefreshTexture, RefreshMesh, RefreshMaterial, RebindSceneInstance, RefreshSpriteInstance };
 
 struct AssetRefreshPlanEntry {
     AssetRefreshAction action = AssetRefreshAction::RefreshTexture;

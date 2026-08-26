@@ -130,4 +130,20 @@ bool AssetRefreshExecutor::ExecuteAtomic(const std::vector<AssetRefreshPlanEntry
     return true;
 }
 
+bool AssetRefreshExecutor::ExecuteSpritesAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, SceneSpriteAdapter& sprites) {
+    if (plan.size() > kMaxReceipts || HasDuplicateAction(plan)) { lastError_ = plan.size() > kMaxReceipts ? AssetRefreshExecutorError::Capacity : AssetRefreshExecutorError::PlanInvalid; return false; }
+    AssetRefreshExecutor candidate = *this; TextureStagingStore candidateTextures = textures; SceneSpriteAdapter candidateSprites = sprites; std::vector<AssetRefreshReceipt> results; results.reserve(plan.size());
+    for (const AssetRefreshPlanEntry& entry : plan) {
+        AssetRefreshReceipt receipt{entry.action, entry.assetId, entry.materialName, entry.entity, false};
+        if (!MatchesExpectedHash(registry, entry)) { candidate.lastError_ = AssetRefreshExecutorError::PlanStale; return false; }
+        bool ok = false;
+        if (entry.action == AssetRefreshAction::RefreshTexture) ok = candidateTextures.Find(entry.assetId) != nullptr && !candidateTextures.IsCurrent(registry, entry.assetId) && candidateTextures.Refresh(registry, entry.assetId);
+        else if (entry.action == AssetRefreshAction::RefreshSpriteInstance) { std::string sourceId; uint64_t sourceHash = 0U; const CpuTextureResource* texture = candidateTextures.Find(entry.assetId); ok = candidateSprites.InspectStagedTexture(entry.entity, sourceId, sourceHash) && sourceId == entry.assetId && texture != nullptr && candidateTextures.IsCurrent(registry, entry.assetId) && candidateSprites.RefreshStaged(entry.entity, *texture); }
+        else { candidate.lastError_ = AssetRefreshExecutorError::PlanInvalid; return false; }
+        receipt.succeeded = ok; results.push_back(std::move(receipt));
+        if (!ok) { candidate.lastError_ = AssetRefreshExecutorError::ActionFailed; return false; }
+    }
+    textures = std::move(candidateTextures); sprites = std::move(candidateSprites); receipts_ = std::move(results); lastError_ = AssetRefreshExecutorError::None; return true;
+}
+
 } // namespace NeoEngine

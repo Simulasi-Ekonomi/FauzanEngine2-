@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <string>
 
 namespace NeoEngine {
 
@@ -19,6 +20,7 @@ public:
     static constexpr size_t kMaxInstances = 512;
     bool AddStaged(SceneEntity entity, const CpuTextureResource& texture, float width, float height, int16_t layer, int16_t order, uint32_t rgba, float rotationRadians = 0.0F, bool faceCamera = false, bool depthWrite = true, uint16_t sourceX = 0U, uint16_t sourceY = 0U, uint16_t sourceWidth = 0U, uint16_t sourceHeight = 0U);
     bool RefreshStaged(SceneEntity entity, const CpuTextureResource& texture);
+    [[nodiscard]] bool InspectStagedTexture(SceneEntity entity, std::string& assetId, uint64_t& sourceHash) const;
     bool Queue(const SceneWorld& world, SpriteBatch& batch) const;
     bool QueueTinted(const SceneWorld& world, SpriteBatch& batch, uint32_t frameRgba) const;
     bool QueueFrame(const SceneWorld& world, SpriteBatch& batch, SpriteSourceRect sourceRect, uint32_t frameRgba = 0xFFFFFFFFU) const;
