@@ -387,39 +387,44 @@ bool CharacterPawn::TriggerOverlay(std::string_view transitionId) {
 
 bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& snapshot) {
     if (snapshot.overlayWeightPermille > 1000U) { lastError_ = AnimationStateMachineError::InvalidSnapshot; return false; }
-    CharacterAnimationGraph candidate = *this;
-    candidate.overlayWeightPermille_ = snapshot.overlayWeightPermille;
-    if (snapshot.base.activeStateId.empty()) {
-        if (!candidate.base_.Reset()) return false;
-        candidate.baseStarted_ = false;
-        candidate.baseState_.clear();
-    } else {
-        if (!candidate.base_.Restore(snapshot.base)) { lastError_ = candidate.base_.LastError(); return false; }
-        candidate.baseStarted_ = true;
-        candidate.baseState_ = candidate.base_.ActiveStateId();
+    try {
+        CharacterAnimationGraph candidate = *this;
+        candidate.overlayWeightPermille_ = snapshot.overlayWeightPermille;
+        if (snapshot.base.activeStateId.empty()) {
+            if (!candidate.base_.Reset()) return false;
+            candidate.baseStarted_ = false;
+            candidate.baseState_.clear();
+        } else {
+            if (!candidate.base_.Restore(snapshot.base)) { lastError_ = candidate.base_.LastError(); return false; }
+            candidate.baseStarted_ = true;
+            candidate.baseState_ = candidate.base_.ActiveStateId();
+        }
+        if (snapshot.hasOverlay) {
+            if (!candidate.overlay_.Restore(snapshot.overlay)) { lastError_ = candidate.overlay_.LastError(); return false; }
+            candidate.hasOverlay_ = true;
+            candidate.overlayStarted_ = true;
+            candidate.overlayState_ = candidate.overlay_.ActiveStateId();
+        } else {
+            if (!candidate.overlay_.Reset()) return false;
+            candidate.hasOverlay_ = false;
+            candidate.overlayStarted_ = false;
+            candidate.overlayState_.clear();
+        }
+        base_ = std::move(candidate.base_);
+        overlay_ = std::move(candidate.overlay_);
+        baseState_ = std::move(candidate.baseState_);
+        overlayState_ = std::move(candidate.overlayState_);
+        overlayWeightPermille_ = candidate.overlayWeightPermille_;
+        hasBase_ = candidate.hasBase_;
+        hasOverlay_ = candidate.hasOverlay_;
+        baseStarted_ = candidate.baseStarted_;
+        overlayStarted_ = candidate.overlayStarted_;
+        lastError_ = AnimationStateMachineError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        lastError_ = AnimationStateMachineError::Capacity;
+        return false;
     }
-    if (snapshot.hasOverlay) {
-        if (!candidate.overlay_.Restore(snapshot.overlay)) { lastError_ = candidate.overlay_.LastError(); return false; }
-        candidate.hasOverlay_ = true;
-        candidate.overlayStarted_ = true;
-        candidate.overlayState_ = candidate.overlay_.ActiveStateId();
-    } else {
-        if (!candidate.overlay_.Reset()) return false;
-        candidate.hasOverlay_ = false;
-        candidate.overlayStarted_ = false;
-        candidate.overlayState_.clear();
-    }
-    base_ = std::move(candidate.base_);
-    overlay_ = std::move(candidate.overlay_);
-    baseState_ = std::move(candidate.baseState_);
-    overlayState_ = std::move(candidate.overlayState_);
-    overlayWeightPermille_ = candidate.overlayWeightPermille_;
-    hasBase_ = candidate.hasBase_;
-    hasOverlay_ = candidate.hasOverlay_;
-    baseStarted_ = candidate.baseStarted_;
-    overlayStarted_ = candidate.overlayStarted_;
-    lastError_ = AnimationStateMachineError::None;
-    return true;
 }
 
 bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {

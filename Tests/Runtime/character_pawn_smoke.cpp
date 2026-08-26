@@ -39,6 +39,9 @@ int main() {
     if (!graph.Sample(timeline, compositeSample) || std::abs(compositeSample - 6.0F) > 0.0001F) return 11;
     if (!graph.CollectAnimationEvents(timeline, 0.0F, 0.30F, animationEvents) || animationEvents.size() != 2U || animationEvents[0] != "walk_notify" || animationEvents[1] != "aim_notify") return 11;
     const CharacterPawnSnapshot savedSnapshot = snapshot;
+    CharacterAnimationGraphSnapshot invalidGraph = savedSnapshot.animation;
+    invalidGraph.overlay.activeStateId = "missing";
+    if (graph.Restore(invalidGraph) || graph.LastError() != AnimationStateMachineError::InvalidSnapshot || graph.ActiveBaseState() != savedSnapshot.animation.base.activeStateId || graph.ActiveOverlayState() != savedSnapshot.animation.overlay.activeStateId) return 12;
     CharacterPawnSnapshot invalidSnapshot = savedSnapshot;
     invalidSnapshot.actor.generation += 1U;
     if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != savedSnapshot.animation.overlay.activeStateId) return 12;
