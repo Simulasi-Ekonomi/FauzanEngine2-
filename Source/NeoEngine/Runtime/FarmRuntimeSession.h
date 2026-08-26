@@ -14,6 +14,7 @@ class SoftwareRenderer;
 class TextureStagingStore;
 
 enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected };
+struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; };
 
 // Explicit host-side lifecycle only. It owns neither simulation authority nor
 // asset registry; it orchestrates existing bounded components for one frame.
@@ -23,6 +24,7 @@ public:
     bool Frame(InputState& input, uint32_t simulationTicks = 1);
     FarmPlayerInputBridge& InputBridge() { return inputBridge_; }
     [[nodiscard]] uint64_t FrameCount() const { return frameCount_; }
+    [[nodiscard]] FarmRuntimeFrameReceipt LastFrameReceipt() const { return lastReceipt_; }
     [[nodiscard]] FarmRuntimeSessionError LastError() const { return lastError_; }
     [[nodiscard]] bool IsReady() const { return initialized_; }
 private:
@@ -36,6 +38,7 @@ private:
     FarmPlayerInputBridge inputBridge_{};
     FarmSpriteRenderAdapter rendererBridge_{};
     uint64_t frameCount_ = 0;
+    FarmRuntimeFrameReceipt lastReceipt_{};
     FarmRuntimeSessionError lastError_ = FarmRuntimeSessionError::NotInitialized;
     bool initialized_ = false;
 };

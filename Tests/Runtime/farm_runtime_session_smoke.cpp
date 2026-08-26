@@ -33,16 +33,17 @@ int main() {
     SoftwareRenderer renderer;
     InputState input;
     FarmRuntimeSession session;
-    if (!renderer.Initialize(96, 96) || !BindInput(input) || !session.Initialize(farm, world, set, assets, textures, renderer) || !input.Push(kRight, true) || !session.Frame(input) || session.FrameCount() != 1U || world.Character().x != 2U || world.Character().z != 1U) return 1;
+    if (!renderer.Initialize(96, 96) || !BindInput(input) || !session.Initialize(farm, world, set, assets, textures, renderer) || session.LastFrameReceipt().frame!=0U || !input.Push(kRight, true) || !session.Frame(input) || session.FrameCount() != 1U || session.LastFrameReceipt().frame!=1U || session.LastFrameReceipt().framebufferHash!=renderer.FrameHash() || world.Character().x != 2U || world.Character().z != 1U) return 1;
     const uint64_t afterMove = renderer.FrameHash();
     if (!input.Push(kRight, false) || !session.Frame(input) || !input.Push(kInteract, true) || !session.Frame(input) || farm.TileStateAt(2, 1) != FarmTileState::Tilled || session.FrameCount() != 3U) return 1;
     const uint64_t afterTill = renderer.FrameHash();
     if (afterMove == 0U || afterTill == 0U || afterMove == afterTill) return 1;
     const uint64_t preservedHash = renderer.FrameHash();
     const uint64_t preservedFrames = session.FrameCount();
-    if (session.Frame(input, 0) || session.LastError() != FarmRuntimeSessionError::InvalidFrameTicks || renderer.FrameHash() != preservedHash || session.FrameCount() != preservedFrames) return 1;
+    const FarmRuntimeFrameReceipt preservedReceipt=session.LastFrameReceipt();
+    if (session.Frame(input, 0) || session.LastError() != FarmRuntimeSessionError::InvalidFrameTicks || renderer.FrameHash() != preservedHash || session.FrameCount() != preservedFrames || session.LastFrameReceipt().frame!=preservedReceipt.frame || session.LastFrameReceipt().framebufferHash!=preservedReceipt.framebufferHash) return 1;
     InputState incomplete;
-    if (session.Frame(incomplete) || session.LastError() != FarmRuntimeSessionError::InputRejected || renderer.FrameHash() != preservedHash || session.FrameCount() != preservedFrames) return 1;
-    std::printf("FARM_RUNTIME_SESSION_SMOKE_OK frames=%llu inputWorldRender=1 framePreservation=1 hash=%llu\n", static_cast<unsigned long long>(session.FrameCount()), static_cast<unsigned long long>(preservedHash));
+    if (session.Frame(incomplete) || session.LastError() != FarmRuntimeSessionError::InputRejected || renderer.FrameHash() != preservedHash || session.FrameCount() != preservedFrames || session.LastFrameReceipt().frame!=preservedReceipt.frame || session.LastFrameReceipt().framebufferHash!=preservedReceipt.framebufferHash) return 1;
+    std::printf("FARM_RUNTIME_SESSION_SMOKE_OK frames=%llu receipt=1 inputWorldRender=1 framePreservation=1 hash=%llu\n", static_cast<unsigned long long>(session.FrameCount()), static_cast<unsigned long long>(preservedHash));
     return 0;
 }

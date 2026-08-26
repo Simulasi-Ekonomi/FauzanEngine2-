@@ -62,6 +62,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Kinematic collision preflight probe | [`KINEMATIC_COLLISION_PREFLIGHT_PROBE_V1.md`](KINEMATIC_COLLISION_PREFLIGHT_PROBE_V1.md) | Read-only blocker receipt for proposed planar motion with atomic caller output. |
 | Editor selection | [`EDITOR_SELECTION_V1.md`](EDITOR_SELECTION_V1.md) | Bounded transient actor selection that remains outside document, transform, and history ownership. |
 | Material import batch | [`MATERIAL_IMPORT_BATCH_V1.md`](MATERIAL_IMPORT_BATCH_V1.md) | Candidate/commit staging of an explicit ordered multi-material MTL set. |
+| Farm runtime frame receipt | [`FARM_RUNTIME_FRAME_RECEIPT_V1.md`](FARM_RUNTIME_FRAME_RECEIPT_V1.md) | Committed software-frame number/hash receipt with failure preservation. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
 | Gameplay physics query ordering | [`GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md`](GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md) | Canonical ascending EntityID overlap output after atomic XPBD collider mapping. |
 | Gameplay physics body | [`GAMEPLAY_PHYSICS_BODY_V1.md`](GAMEPLAY_PHYSICS_BODY_V1.md) | Validated static/dynamic circle-body creation through canonical ECS components. |
