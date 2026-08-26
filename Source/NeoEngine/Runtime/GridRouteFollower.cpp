@@ -59,11 +59,11 @@ bool GridRouteFollower::StepInPlace(SceneWorld& world,SceneEntity entity,Kinemat
         const Transform3* current=world.GetLocalTransform(entity);if(current==nullptr){lastError_=GridRouteFollowerError::MissingEntity;return false;}
         const float targetX=static_cast<float>(route_[routeIndex_].x),targetZ=static_cast<float>(route_[routeIndex_].z),dx=targetX-current->x,dz=targetZ-current->z,distance=std::sqrt(dx*dx+dz*dz);
         if(!std::isfinite(distance)){lastError_=GridRouteFollowerError::TransformFailed;return false;}
-        if(distance<=epsilon){Transform3 exact=*current;exact.x=targetX;exact.z=targetZ;if(!world.SetTransform(entity,exact)){lastError_=GridRouteFollowerError::TransformFailed;return false;}++routeIndex_;continue;}
+        if(distance<=epsilon){++routeIndex_;continue;}
         const float arrivalSeconds=distance/controller.UnitsPerSecond(),stepSeconds=std::min({remaining,arrivalSeconds,controller.MaxStepSeconds()});
         if(!controller.Step(world,entity,{dx,dz},stepSeconds)){lastError_=GridRouteFollowerError::ControllerFailed;return false;}
         remaining-=stepSeconds;
-        if(stepSeconds+epsilon>=arrivalSeconds){const Transform3* moved=world.GetLocalTransform(entity);if(moved==nullptr){lastError_=GridRouteFollowerError::MissingEntity;return false;}Transform3 exact=*moved;exact.x=targetX;exact.z=targetZ;if(!world.SetTransform(entity,exact)){lastError_=GridRouteFollowerError::TransformFailed;return false;}++routeIndex_;}
+        if(stepSeconds+epsilon>=arrivalSeconds){const Transform3* moved=world.GetLocalTransform(entity);if(moved==nullptr){lastError_=GridRouteFollowerError::MissingEntity;return false;}const float remainingX=targetX-moved->x,remainingZ=targetZ-moved->z;if(!std::isfinite(remainingX)||!std::isfinite(remainingZ)){lastError_=GridRouteFollowerError::TransformFailed;return false;}if(std::sqrt(remainingX*remainingX+remainingZ*remainingZ)<=epsilon)++routeIndex_;}
     }
     lastError_=GridRouteFollowerError::None;return true;
 }
