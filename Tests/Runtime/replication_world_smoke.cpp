@@ -79,7 +79,9 @@ int main() {
     if (!ReplicationSnapshotCodec::Serialize(ownershipTransfer, ownershipTransferBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(ownershipTransferBytes, decoded, codecError) || !client.ApplyServerSnapshot(decoded, apply) || apply.reconciledPredictions != 0U || !client.PredictLocalInput(100U, 0.25F, 0.0F, prediction)) return 23;
     if (client.SetInterpolationAlphaPermille(1001U) || client.LastError() != ReplicationError::InvalidInput) return 26;
     if (server.ApplyServerSnapshot(snapshot, apply) || server.LastError() != ReplicationError::NotClient || server.BuildServerSnapshot(2U, snapshot) == false) return 27;
-    if (!client.UnregisterEntity(200U) || client.IsRegistered(200U) || client.RegisteredCount() != 1U) return 28;
+    ReplicationAcknowledgement acknowledgement2{snapshot.sequence, snapshot.serverTick, snapshot.checksum};
+    if (!server.ApplyClientAcknowledgement(acknowledgement2) || server.AcknowledgedSequence() != 2U || server.ApplyClientAcknowledgement(acknowledgement) || server.LastError() != ReplicationError::StaleAcknowledgement || server.AcknowledgedSequence() != 2U) return 28;
+    if (!client.UnregisterEntity(200U) || client.IsRegistered(200U) || client.RegisteredCount() != 1U) return 29;
 
     SceneWorld dynamicScene;
     ReplicationWorld dynamicClient(dynamicScene, ReplicationRole::Client, 7U, true);

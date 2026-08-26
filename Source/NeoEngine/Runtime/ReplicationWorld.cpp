@@ -217,6 +217,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     snapshotSequence_ = snapshot.sequence;
     lastServerTick_ = serverTick;
     lastSnapshotChecksum_ = snapshot.checksum;
+    acknowledgementHistory_[snapshotSequence_ % kMaxAcknowledgementHistory] = {snapshotSequence_, lastServerTick_, lastSnapshotChecksum_};
     lastError_ = ReplicationError::None;
     return true;
 }
@@ -250,7 +251,10 @@ bool ReplicationWorld::BuildClientAcknowledgement(ReplicationAcknowledgement& ac
 
 bool ReplicationWorld::ApplyClientAcknowledgement(const ReplicationAcknowledgement& acknowledgement) {
     if (role_ != ReplicationRole::Server) return Fail(ReplicationError::NotServer);
-    if (acknowledgement.sequence == 0U || acknowledgement.sequence > snapshotSequence_ || acknowledgement.serverTick > lastServerTick_ || acknowledgement.checksum == 0U || acknowledgement.checksum != lastSnapshotChecksum_) return Fail(ReplicationError::InvalidAcknowledgement);
+    if (acknowledgement.sequence == 0U || acknowledgement.sequence > snapshotSequence_ || acknowledgement.checksum == 0U) return Fail(ReplicationError::InvalidAcknowledgement);
+    const AcknowledgementRecord& record = acknowledgementHistory_[acknowledgement.sequence % kMaxAcknowledgementHistory];
+    if (record.sequence != acknowledgement.sequence) return Fail(ReplicationError::StaleAcknowledgement);
+    if (acknowledgement.serverTick != record.serverTick || acknowledgement.checksum != record.checksum) return Fail(ReplicationError::InvalidAcknowledgement);
     if (acknowledgement.sequence < acknowledgedSequence_) return Fail(ReplicationError::StaleAcknowledgement);
     acknowledgedSequence_ = acknowledgement.sequence;
     acknowledgedServerTick_ = acknowledgement.serverTick;

@@ -90,6 +90,7 @@ public:
     static constexpr uint16_t kMaxEntities = ReplicationSnapshot::kMaxEntities;
     static constexpr uint16_t kMaxInterpolationPermille = 1000U;
     static constexpr float kMaxPredictionDelta = 10.0F;
+    static constexpr uint8_t kMaxAcknowledgementHistory = 64U;
 
     ReplicationWorld(SceneWorld& sceneWorld, ReplicationRole role, uint32_t localClientId = 0U, bool allowDynamicLifecycle = false);
     ReplicationWorld(const ReplicationWorld&) = delete;
@@ -116,6 +117,11 @@ public:
     [[nodiscard]] ReplicationError LastError() const { return lastError_; }
 
 private:
+    struct AcknowledgementRecord {
+        uint64_t sequence = 0U;
+        uint64_t serverTick = 0U;
+        uint64_t checksum = 0U;
+    };
     struct Slot {
         bool registered = false;
         SceneEntity entity{};
@@ -142,6 +148,7 @@ private:
     uint32_t localClientId_ = 0U;
     bool allowDynamicLifecycle_ = false;
     std::array<Slot, kMaxEntities> slots_{};
+    std::array<AcknowledgementRecord, kMaxAcknowledgementHistory> acknowledgementHistory_{};
     uint16_t registeredCount_ = 0U;
     uint64_t snapshotSequence_ = 0U;
     uint64_t lastServerTick_ = 0U;
