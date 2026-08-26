@@ -46,6 +46,12 @@ int main() {
     invalidSnapshot.grounded = true;
     invalidSnapshot.velocity.y = 1.0F;
     if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.velocity.y != savedSnapshot.velocity.y) return 13;
+    invalidSnapshot = savedSnapshot;
+    invalidSnapshot.pendingInput.moveX = 2.0F;
+    if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.pendingInput.moveX != savedSnapshot.pendingInput.moveX) return 13;
+    invalidSnapshot = savedSnapshot;
+    invalidSnapshot.pendingRootMotion.x = 101.0F;
+    if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.pendingRootMotion.x != savedSnapshot.pendingRootMotion.x) return 13;
     if (!characterView->Restore(savedSnapshot) || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != "aim" || snapshot.animation.overlayWeightPermille != 500U) return 14;
     if (!characterView->SubmitInput({0.25F, 0.0F, false, true}) || !characterView->SubmitRootMotion({})) return 14;
     ActorComponentWorldSnapshot worldSnapshot{};
