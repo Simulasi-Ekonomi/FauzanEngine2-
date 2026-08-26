@@ -295,15 +295,16 @@ bool CharacterPawn::SetTransitionBinding(CharacterTransitionBinding binding) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (binding.from.empty() || binding.to.empty() || binding.transitionId.empty() || binding.from.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.to.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.transitionId.size() > AnimationStateMachine::kMaxIdentifierBytes) return Fail(CharacterPawnError::AnimationRejected);
     try {
+        CharacterTransitionBinding candidate(binding);
         for (uint8_t index = 0U; index < transitionBindingCount_; ++index) {
             if (transitionBindings_[index].from == binding.from && transitionBindings_[index].to == binding.to) {
-                transitionBindings_[index] = std::move(binding);
+                std::swap(transitionBindings_[index], candidate);
                 lastError_ = CharacterPawnError::None;
                 return true;
             }
         }
         if (transitionBindingCount_ >= kMaxTransitionBindings) return Fail(CharacterPawnError::AnimationRejected);
-        transitionBindings_[transitionBindingCount_] = std::move(binding);
+        std::swap(transitionBindings_[transitionBindingCount_], candidate);
         ++transitionBindingCount_;
         lastError_ = CharacterPawnError::None;
         return true;
