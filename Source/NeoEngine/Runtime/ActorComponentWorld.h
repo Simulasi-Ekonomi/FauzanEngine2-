@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <span>
 #include <vector>
 
 namespace NeoEngine {
@@ -28,6 +29,9 @@ enum class ActorComponentError : uint8_t {
     MutationDuringDispatch,
 };
 
+inline constexpr uint16_t kMaxActorComponentSnapshotBytes = 512U;
+inline constexpr uint32_t kMaxActorComponentWorldSnapshotBytes = 4U * 1024U * 1024U;
+
 class IActorComponent {
 public:
     virtual ~IActorComponent() = default;
@@ -38,6 +42,9 @@ public:
     [[nodiscard]] virtual bool OnEndPlay(SceneWorld&, SceneEntity) { return true; }
     [[nodiscard]] virtual uint8_t TickGroup() const { return 0U; }
     [[nodiscard]] virtual uint8_t TickOrder() const { return 0U; }
+    [[nodiscard]] virtual uint16_t SnapshotSizeBytes() const { return 0U; }
+    [[nodiscard]] virtual bool CaptureSnapshot(std::span<uint8_t> bytes) const { return bytes.empty(); }
+    [[nodiscard]] virtual bool RestoreSnapshot(std::span<const uint8_t> bytes) { return bytes.empty(); }
     [[nodiscard]] virtual bool OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) = 0;
 };
 
@@ -47,6 +54,8 @@ struct ActorComponentSnapshot {
     uint8_t componentCount = 0U;
     std::array<uint16_t, 16U> componentTypeIds{};
     std::array<bool, 16U> componentEnabled{};
+    std::array<uint32_t, 16U> snapshotOffsets{};
+    std::array<uint16_t, 16U> snapshotSizes{};
     bool begunPlay = false;
 };
 
@@ -54,6 +63,7 @@ struct ActorComponentWorldSnapshot {
     bool begunPlay = false;
     uint64_t registrationRevision = 0U;
     std::vector<ActorComponentSnapshot> actors{};
+    std::vector<uint8_t> componentBytes{};
 };
 
 struct ActorComponentWorldReceipt {

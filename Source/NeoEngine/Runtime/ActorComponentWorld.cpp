@@ -274,6 +274,7 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
     candidate.registrationRevision = registrationRevision_;
     try {
         candidate.actors.reserve(actorCount_);
+        candidate.componentBytes.reserve(kMaxActorComponentWorldSnapshotBytes < actorCount_ * kMaxComponentsPerActor ? kMaxActorComponentWorldSnapshotBytes : 0U);
         for (const ActorSlot& actor : actors_) {
             if (!actor.registered) continue;
             ActorComponentSnapshot record{};
@@ -282,8 +283,18 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
             record.begunPlay = actor.begunPlay;
             for (const ComponentSlot& component : actor.components) if (component.component != nullptr) {
                 if (record.componentCount >= kMaxComponentsPerActor) return Fail(ActorComponentError::SnapshotRejected);
+                const uint16_t snapshotSize = component.component->SnapshotSizeBytes();
+                if (snapshotSize > kMaxActorComponentSnapshotBytes || candidate.componentBytes.size() > kMaxActorComponentWorldSnapshotBytes - snapshotSize) return Fail(ActorComponentError::SnapshotRejected);
+                const uint32_t offset = static_cast<uint32_t>(candidate.componentBytes.size());
                 record.componentTypeIds[record.componentCount] = component.component->TypeId();
                 record.componentEnabled[record.componentCount] = component.enabled;
+                record.snapshotOffsets[record.componentCount] = offset;
+                record.snapshotSizes[record.componentCount] = snapshotSize;
+                if (snapshotSize != 0U) {
+                    const size_t oldSize = candidate.componentBytes.size();
+                    candidate.componentBytes.resize(oldSize + snapshotSize);
+                    if (!component.component->CaptureSnapshot(std::span<uint8_t>(candidate.componentBytes.data() + oldSize, snapshotSize))) return Fail(ActorComponentError::SnapshotRejected);
+                } else if (!component.component->CaptureSnapshot({})) return Fail(ActorComponentError::SnapshotRejected);
                 ++record.componentCount;
             }
             candidate.actors.push_back(std::move(record));
