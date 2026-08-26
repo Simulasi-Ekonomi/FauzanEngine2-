@@ -76,7 +76,7 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
         if (slot.refCount == std::numeric_limits<uint32_t>::max()) return Fail(AssetResourceError::RefcountOverflow);
         if ((slot.state == AssetResourceState::Stale || slot.contentHash != definition->contentHash) && slot.generation == std::numeric_limits<uint32_t>::max()) return Fail(AssetResourceError::Capacity);
     }
-    if (totalLeaseCount_ > std::numeric_limits<uint32_t>::max() - closureCount) return Fail(AssetResourceError::RefcountOverflow);
+    if (totalLeaseCount_ > std::numeric_limits<uint32_t>::max() - closureCount || activeLeaseCount_ == std::numeric_limits<uint32_t>::max()) return Fail(AssetResourceError::RefcountOverflow);
 
     std::array<bool, kMaxResources> reserved{};
     for (uint16_t index = 0U; index < closureCount; ++index) if (targetSlots[index] == 0xFFFFU) {
@@ -119,6 +119,7 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
     lease.dependencySlots.fill(0xFFFFU);
     for (uint16_t dependency = 1U; dependency < closureCount; ++dependency) lease.dependencySlots[dependency - 1U] = targetSlots[dependency];
     totalLeaseCount_ += closureCount;
+    ++activeLeaseCount_;
     handle = {leaseIndex, lease.generation};
     lastError_ = AssetResourceError::None;
     return true;
@@ -129,13 +130,14 @@ bool AssetResourceManager::Release(AssetResourceHandle handle) {
     LeaseSlot& lease = leases_[handle.slot];
     if (lease.generation == std::numeric_limits<uint32_t>::max()) return Fail(AssetResourceError::Capacity);
     const uint16_t targetCount = static_cast<uint16_t>(lease.dependencyCount + 1U);
-    if (totalLeaseCount_ < targetCount) return Fail(AssetResourceError::RefcountUnderflow);
+    if (totalLeaseCount_ < targetCount || activeLeaseCount_ == 0U) return Fail(AssetResourceError::RefcountUnderflow);
     std::array<uint16_t, kMaxDependencyClosure> targets{};
     targets[0] = lease.rootResourceSlot;
     for (uint16_t index = 1U; index < targetCount; ++index) targets[index] = lease.dependencySlots[index - 1U];
     for (uint16_t index = 0U; index < targetCount; ++index) if (targets[index] >= kMaxResources || !slots_[targets[index]].occupied || slots_[targets[index]].refCount == 0U) return Fail(AssetResourceError::RefcountUnderflow);
     for (uint16_t index = 0U; index < targetCount; ++index) --slots_[targets[index]].refCount;
     totalLeaseCount_ -= targetCount;
+    --activeLeaseCount_;
     lease.occupied = false;
     lease.rootResourceSlot = 0xFFFFU;
     lease.dependencyCount = 0U;
@@ -170,12 +172,36 @@ bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
 bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
     const AssetDefinition* definition = registry_.Find(assetId);
     if (definition == nullptr || definition->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
-    const uint16_t slotIndex = FindSlot(assetId);
-    if (slotIndex == 0xFFFFU) { lastError_ = AssetResourceError::None; return true; }
-    if (slots_[slotIndex].refCount != 0U) { slots_[slotIndex].state = AssetResourceState::Stale; return Fail(AssetResourceError::StaleInUse); }
-    slots_[slotIndex].state = AssetResourceState::Stale;
-    for (Slot& dependent : slots_) if (dependent.occupied && dependent.refCount == 0U) for (uint16_t index = 0U; index < dependent.dependencyCount; ++index) if (dependent.dependencySlots[index] == slotIndex) dependent.state = AssetResourceState::Stale;
-    return ReloadIfSafe(assetId);
+    const uint16_t rootSlot = FindSlot(assetId);
+    if (rootSlot == 0xFFFFU) { lastError_ = AssetResourceError::None; return true; }
+    std::array<bool, kMaxResources> affected{};
+    affected[rootSlot] = true;
+    for (uint16_t pass = 0U; pass < kMaxResources; ++pass) {
+        bool changed = false;
+        for (uint16_t candidate = 0U; candidate < kMaxResources; ++candidate) {
+            const Slot& dependent = slots_[candidate];
+            if (!dependent.occupied || affected[candidate]) continue;
+            for (uint16_t dependency = 0U; dependency < dependent.dependencyCount; ++dependency) if (dependent.dependencySlots[dependency] < kMaxResources && affected[dependent.dependencySlots[dependency]]) {
+                affected[candidate] = true;
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) break;
+    }
+    for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) {
+        if (slots_[index].refCount != 0U) return Fail(AssetResourceError::StaleInUse);
+        if (slots_[index].generation == std::numeric_limits<uint32_t>::max()) return Fail(AssetResourceError::Capacity);
+        const AssetDefinition* current = registry_.Find(slots_[index].assetId);
+        if (current == nullptr || current->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
+    }
+    for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) slots_[index].state = AssetResourceState::Stale;
+    for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) {
+        const AssetDefinition* current = registry_.Find(slots_[index].assetId);
+        if (!RefreshUnleasedSlot(slots_[index], *current)) return Fail(AssetResourceError::HotReloadRejected);
+    }
+    lastError_ = AssetResourceError::None;
+    return true;
 }
 
 bool AssetResourceManager::Query(AssetResourceHandle handle, AssetResourceReceipt& receipt) const {

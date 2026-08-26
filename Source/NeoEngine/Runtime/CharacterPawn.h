@@ -2,6 +2,7 @@
 
 #include "ActorComponentWorld.h"
 #include "AnimationStateMachine.h"
+#include "AssetResourceManager.h"
 #include "MovementAuthority.h"
 
 #include <array>
@@ -77,6 +78,7 @@ public:
     bool TriggerOverlay(std::string_view transitionId);
     bool Tick(float deltaSeconds);
     bool Snapshot(CharacterAnimationGraphSnapshot& snapshot) const;
+    bool Restore(const CharacterAnimationGraphSnapshot& snapshot);
     [[nodiscard]] bool HasBase() const { return hasBase_; }
     [[nodiscard]] bool IsBaseBlending() const { return base_.IsBlending(); }
     [[nodiscard]] bool HasOverlay() const { return hasOverlay_; }
@@ -114,12 +116,14 @@ public:
     [[nodiscard]] bool OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) override;
 
     [[nodiscard]] bool BindMovementAuthorityGate(MovementAuthorityGate* gate);
+    [[nodiscard]] bool BindAnimationResource(AssetResourceManager* resources, AssetResourceHandle handle);
     [[nodiscard]] bool SubmitInput(const CharacterPawnInput& input);
     [[nodiscard]] bool SubmitRootMotion(const CharacterRootMotionDelta& delta);
     [[nodiscard]] bool SetRootMotionMode(CharacterRootMotionMode mode);
     [[nodiscard]] bool SetTransitionBinding(CharacterTransitionBinding binding);
     [[nodiscard]] bool TriggerOverlay(std::string_view transitionId);
     [[nodiscard]] bool Snapshot(CharacterPawnSnapshot& snapshot) const;
+    [[nodiscard]] bool Restore(const CharacterPawnSnapshot& snapshot);
     [[nodiscard]] CharacterAnimationGraph& AnimationGraph() { return animation_; }
     [[nodiscard]] const CharacterAnimationGraph& AnimationGraph() const { return animation_; }
     [[nodiscard]] bool IsAttached() const { return attached_; }
@@ -144,6 +148,8 @@ private:
     CharacterRootMotionDelta velocity_{};
     MovementAuthorityGate ownedAuthorityGate_{};
     MovementAuthorityGate* authorityGate_ = &ownedAuthorityGate_;
+    AssetResourceManager* animationResources_ = nullptr;
+    AssetResourceHandle animationResource_{};
     bool grounded_ = true;
     bool attached_ = false;
     CharacterPawnError lastError_ = CharacterPawnError::NotInitialized;

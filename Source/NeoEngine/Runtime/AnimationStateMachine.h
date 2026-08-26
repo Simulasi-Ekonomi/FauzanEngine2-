@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class AnimationStateMachineError : uint8_t { None, InvalidState, DuplicateState, Capacity, MissingState, InvalidTransition, DuplicateTransition, NotStarted, TransitionInProgress, InvalidDelta, SampleFailed };
+enum class AnimationStateMachineError : uint8_t { None, InvalidState, DuplicateState, Capacity, MissingState, InvalidTransition, DuplicateTransition, NotStarted, TransitionInProgress, InvalidDelta, SampleFailed, InvalidSnapshot };
 struct AnimationStateSpec { std::string id; std::string trackId; AnimationPlayback playback = AnimationPlayback::Clamp; };
 struct AnimationTransitionSpec { std::string id; std::string fromStateId; std::string toStateId; float durationSeconds = 0.0F; };
 struct AnimationStateMachineSnapshot { std::string activeStateId; std::string targetStateId; bool blending = false; float blendFraction = 0.0F; float activeTimeSeconds = 0.0F; float targetTimeSeconds = 0.0F; };
@@ -21,10 +21,12 @@ public:
     bool AddState(AnimationStateSpec state);
     bool AddTransition(AnimationTransitionSpec transition);
     bool Start(const std::string& stateId);
+    bool Reset();
     bool Trigger(const std::string& transitionId);
     bool Update(float deltaSeconds);
     bool Sample(const AnimationTimeline& timeline, float& value) const;
     bool Snapshot(AnimationStateMachineSnapshot& snapshot) const;
+    bool Restore(const AnimationStateMachineSnapshot& snapshot);
     [[nodiscard]] std::string ActiveStateId() const;
     [[nodiscard]] bool IsBlending() const { return transitionIndex_ >= 0; }
     [[nodiscard]] AnimationStateMachineError LastError() const { return lastError_; }

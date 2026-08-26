@@ -120,6 +120,8 @@ bool CharacterPawn::OnDetach(SceneWorld&, SceneEntity actor) {
     lastAuthority_ = CharacterMovementAuthority::None;
     pendingInput_ = {};
     pendingRootMotion_ = {};
+    animationResources_ = nullptr;
+    animationResource_ = {};
     lastError_ = CharacterPawnError::None;
     return true;
 }
@@ -127,6 +129,14 @@ bool CharacterPawn::OnDetach(SceneWorld&, SceneEntity actor) {
 bool CharacterPawn::BindMovementAuthorityGate(MovementAuthorityGate* gate) {
     if (attached_ || gate == nullptr) return Fail(CharacterPawnError::AuthorityRejected);
     authorityGate_ = gate;
+    lastError_ = CharacterPawnError::None;
+    return true;
+}
+
+bool CharacterPawn::BindAnimationResource(AssetResourceManager* resources, AssetResourceHandle handle) {
+    if (attached_ || resources == nullptr || resources->Data(handle) == nullptr) return Fail(CharacterPawnError::AnimationRejected);
+    animationResources_ = resources;
+    animationResource_ = handle;
     lastError_ = CharacterPawnError::None;
     return true;
 }
@@ -191,45 +201,49 @@ bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInpu
     const Transform3* local = world.GetLocalTransform(actor_);
     if (local == nullptr) return Fail(CharacterPawnError::SceneApplyRejected);
     Transform3 candidate = *local;
+    CharacterRootMotionDelta nextVelocity = velocity_;
+    bool nextGrounded = grounded_;
+    CharacterMovementAuthority nextAuthority = lastAuthority_;
+    MovementAuthority requestedAuthority = MovementAuthority::KinematicRoute;
     if (rootMotionMode_ == CharacterRootMotionMode::Kinematic) {
-        if (std::abs(rootMotion.x) > 0.0001F || std::abs(rootMotion.y) > 0.0001F || std::abs(rootMotion.z) > 0.0001F) return Fail(CharacterPawnError::InvalidRootMotion);
-        if (authorityGate_ == nullptr || !authorityGate_->Acquire(actor_, MovementAuthority::KinematicRoute)) return Fail(CharacterPawnError::AuthorityRejected);
+        if (!ValidRootMotion(rootMotion) || std::abs(rootMotion.x) > 0.0001F || std::abs(rootMotion.y) > 0.0001F || std::abs(rootMotion.z) > 0.0001F) return Fail(CharacterPawnError::InvalidRootMotion);
         const float speed = input.sprint ? config_.runSpeed : config_.walkSpeed;
-        const CharacterRootMotionDelta candidateVelocity{input.moveX * speed, velocity_.y, input.moveZ * speed};
-        if (grounded_ && input.jump) {
-            velocity_.y = config_.jumpVelocity;
-            grounded_ = false;
-        } else {
-            velocity_.y = candidateVelocity.y;
+        nextVelocity = {input.moveX * speed, velocity_.y, input.moveZ * speed};
+        if (nextGrounded && input.jump) {
+            nextVelocity.y = config_.jumpVelocity;
+            nextGrounded = false;
         }
-        if (!grounded_) velocity_.y -= config_.gravity * config_.fixedSeconds;
-        candidate.x += candidateVelocity.x * config_.fixedSeconds;
-        candidate.y += velocity_.y * config_.fixedSeconds;
-        candidate.z += candidateVelocity.z * config_.fixedSeconds;
-        velocity_.x = candidateVelocity.x;
-        velocity_.z = candidateVelocity.z;
-        if (candidate.y <= 0.0F) { candidate.y = 0.0F; velocity_.y = 0.0F; grounded_ = true; }
-        lastAuthority_ = CharacterMovementAuthority::KinematicRoute;
+        if (!nextGrounded) nextVelocity.y -= config_.gravity * config_.fixedSeconds;
+        candidate.x += nextVelocity.x * config_.fixedSeconds;
+        candidate.y += nextVelocity.y * config_.fixedSeconds;
+        candidate.z += nextVelocity.z * config_.fixedSeconds;
+        if (candidate.y <= 0.0F) { candidate.y = 0.0F; nextVelocity.y = 0.0F; nextGrounded = true; }
+        nextAuthority = CharacterMovementAuthority::KinematicRoute;
     } else if (rootMotionMode_ == CharacterRootMotionMode::SkeletalRoot) {
         if (!ValidRootMotion(rootMotion)) return Fail(CharacterPawnError::InvalidRootMotion);
-        if (authorityGate_ == nullptr || !authorityGate_->Acquire(actor_, MovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AuthorityRejected);
+        requestedAuthority = MovementAuthority::SkeletalRoot;
         candidate.x += rootMotion.x;
         candidate.y += rootMotion.y;
         candidate.z += rootMotion.z;
         if (candidate.y < 0.0F) candidate.y = 0.0F;
-        velocity_ = rootMotion;
-        grounded_ = candidate.y == 0.0F;
-        lastAuthority_ = CharacterMovementAuthority::SkeletalRoot;
+        nextVelocity = rootMotion;
+        nextGrounded = candidate.y == 0.0F;
+        nextAuthority = CharacterMovementAuthority::SkeletalRoot;
     } else {
         return Fail(CharacterPawnError::InvalidRootMotion);
     }
-    if (!Finite(candidate.x) || !Finite(candidate.y) || !Finite(candidate.z)) return Fail(CharacterPawnError::SceneApplyRejected);
+    if (!Finite(candidate.x) || !Finite(candidate.y) || !Finite(candidate.z) || !Finite(nextVelocity.x) || !Finite(nextVelocity.y) || !Finite(nextVelocity.z)) return Fail(CharacterPawnError::SceneApplyRejected);
+    if (authorityGate_ == nullptr || !authorityGate_->Acquire(actor_, requestedAuthority)) return Fail(CharacterPawnError::AuthorityRejected);
     if (!world.SetTransform(actor_, candidate)) return Fail(CharacterPawnError::SceneApplyRejected);
+    velocity_ = nextVelocity;
+    grounded_ = nextGrounded;
+    lastAuthority_ = nextAuthority;
     return true;
 }
 
 bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) {
     if (!attached_ || actor_ != actor || fixedTicks == 0U) return Fail(CharacterPawnError::NotInitialized);
+    if (animationResources_ != nullptr && animationResources_->Data(animationResource_) == nullptr) return Fail(CharacterPawnError::AnimationRejected);
     if (authorityGate_ == &ownedAuthorityGate_) authorityGate_->BeginFrame();
     for (uint32_t tick = 0U; tick < fixedTicks; ++tick) {
         if (!SelectLocomotionState(pendingInput_) || !animation_.Tick(config_.fixedSeconds) || !ApplyOneFixedStep(world, pendingInput_, pendingRootMotion_)) return lastError_ == CharacterPawnError::None ? Fail(CharacterPawnError::AnimationRejected) : false;
@@ -247,6 +261,39 @@ bool CharacterPawn::TriggerOverlay(std::string_view transitionId) {
     return true;
 }
 
+bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& snapshot) {
+    CharacterAnimationGraph candidate = *this;
+    if (snapshot.base.activeStateId.empty()) {
+        if (!candidate.base_.Reset()) return false;
+        candidate.baseStarted_ = false;
+        candidate.baseState_.clear();
+    } else {
+        if (!candidate.base_.Restore(snapshot.base)) { lastError_ = candidate.base_.LastError(); return false; }
+        candidate.baseStarted_ = true;
+        candidate.baseState_ = candidate.base_.ActiveStateId();
+    }
+    if (snapshot.hasOverlay) {
+        if (!candidate.overlay_.Restore(snapshot.overlay)) { lastError_ = candidate.overlay_.LastError(); return false; }
+        candidate.hasOverlay_ = true;
+        candidate.overlayStarted_ = true;
+        candidate.overlayState_ = candidate.overlay_.ActiveStateId();
+    } else {
+        if (!candidate.overlay_.Reset()) return false;
+        candidate.overlayStarted_ = false;
+        candidate.overlayState_.clear();
+    }
+    base_ = std::move(candidate.base_);
+    overlay_ = std::move(candidate.overlay_);
+    baseState_ = std::move(candidate.baseState_);
+    overlayState_ = std::move(candidate.overlayState_);
+    hasBase_ = candidate.hasBase_;
+    hasOverlay_ = candidate.hasOverlay_;
+    baseStarted_ = candidate.baseStarted_;
+    overlayStarted_ = candidate.overlayStarted_;
+    lastError_ = AnimationStateMachineError::None;
+    return true;
+}
+
 bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
     if (!attached_) return false;
     CharacterPawnSnapshot candidate{};
@@ -257,6 +304,19 @@ bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
     candidate.grounded = grounded_;
     if (!animation_.Snapshot(candidate.animation)) return false;
     snapshot = std::move(candidate);
+    return true;
+}
+
+bool CharacterPawn::Restore(const CharacterPawnSnapshot& snapshot) {
+    if (!attached_ || snapshot.actor != actor_ || !Finite(snapshot.velocity.x) || !Finite(snapshot.velocity.y) || !Finite(snapshot.velocity.z) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AnimationRejected);
+    CharacterAnimationGraph candidateAnimation = animation_;
+    if (!candidateAnimation.Restore(snapshot.animation)) return Fail(CharacterPawnError::AnimationRejected);
+    animation_ = std::move(candidateAnimation);
+    rootMotionMode_ = snapshot.rootMotionMode;
+    lastAuthority_ = snapshot.authority;
+    velocity_ = snapshot.velocity;
+    grounded_ = snapshot.grounded;
+    lastError_ = CharacterPawnError::None;
     return true;
 }
 

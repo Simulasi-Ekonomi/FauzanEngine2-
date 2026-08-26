@@ -122,7 +122,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     return true;
 }
 
-ReplicationWorld::ReplicationWorld(SceneWorld& sceneWorld, ReplicationRole role, uint32_t localClientId) : sceneWorld_(sceneWorld), role_(role), localClientId_(localClientId) {}
+ReplicationWorld::ReplicationWorld(SceneWorld& sceneWorld, ReplicationRole role, uint32_t localClientId, bool allowDynamicLifecycle) : sceneWorld_(sceneWorld), role_(role), localClientId_(localClientId), allowDynamicLifecycle_(allowDynamicLifecycle && role == ReplicationRole::Client) {}
 
 bool ReplicationWorld::Fail(ReplicationError error) { lastError_ = error; return false; }
 bool ReplicationWorld::ValidTransform(const Transform3& transform) const { return std::isfinite(transform.x) && std::isfinite(transform.y) && std::isfinite(transform.z) && std::isfinite(transform.rx) && std::isfinite(transform.ry) && std::isfinite(transform.rz) && std::isfinite(transform.sx) && std::isfinite(transform.sy) && std::isfinite(transform.sz) && transform.sx > 0.0F && transform.sy > 0.0F && transform.sz > 0.0F; }
@@ -208,40 +208,99 @@ bool ReplicationWorld::ApplyTransform(const Slot& slot, const Transform3& transf
     return sceneWorld_.SetTransform(slot.entity, transform);
 }
 
+bool ReplicationWorld::SetDynamicLifecycleEnabled(bool enabled) {
+    if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
+    allowDynamicLifecycle_ = enabled;
+    lastError_ = ReplicationError::None;
+    return true;
+}
+
 bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
     if (!ValidateSnapshot(snapshot)) return Fail(ReplicationError::InvalidSnapshot);
     if (snapshot.sequence <= snapshotSequence_) return Fail(ReplicationError::StaleSnapshot);
+    std::array<uint16_t, kMaxEntities> resolvedSlots{};
+    std::array<SceneEntity, kMaxEntities> spawnedEntities{};
+    std::array<bool, kMaxEntities> usedSlots{};
+    std::array<bool, kMaxEntities> presentSlots{};
+    resolvedSlots.fill(0xFFFFU);
+    for (uint16_t index = 0U; index < kMaxEntities; ++index) usedSlots[index] = slots_[index].registered;
+    uint16_t spawnCount = 0U;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         const Slot* slot = FindSlot(state.networkId);
-        if (slot == nullptr) return Fail(ReplicationError::UnknownEntity);
-        if (state.stateRevision < slot->stateRevision) return Fail(ReplicationError::StaleSnapshot);
-        if (state.ownerId == localClientId_ && sceneWorld_.GetTransform(slot->entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
+        if (slot == nullptr) {
+            if (!allowDynamicLifecycle_) return Fail(ReplicationError::UnknownEntity);
+            if (registeredCount_ + spawnCount >= kMaxEntities) return Fail(ReplicationError::Capacity);
+            uint16_t freeSlot = 0xFFFFU;
+            for (uint16_t candidate = 0U; candidate < kMaxEntities; ++candidate) if (!usedSlots[candidate]) { freeSlot = candidate; break; }
+            if (freeSlot == 0xFFFFU) return Fail(ReplicationError::SpawnRejected);
+            usedSlots[freeSlot] = true;
+            resolvedSlots[index] = freeSlot;
+            ++spawnCount;
+        } else {
+            const uint16_t slotIndex = static_cast<uint16_t>(slot - slots_.data());
+            resolvedSlots[index] = slotIndex;
+            presentSlots[slotIndex] = true;
+            if (state.stateRevision < slot->stateRevision) return Fail(ReplicationError::StaleSnapshot);
+            if (state.ownerId == localClientId_ && sceneWorld_.GetTransform(slot->entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
+        }
     }
     auto candidateScene = std::make_unique<SceneWorld>(sceneWorld_);
     ReplicationApplyReceipt candidateReceipt{};
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
+    uint16_t spawnedIndex = 0U;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
+        const uint16_t slotIndex = resolvedSlots[index];
         Slot* slot = FindSlot(state.networkId);
-        if (slot == nullptr) return Fail(ReplicationError::UnknownEntity);
-        if (state.ownerId == localClientId_) {
+        if (slot == nullptr) {
+            SceneEntity entity{};
+            if (!candidateScene->Create(entity) || !candidateScene->SetTransform(entity, state.transform)) return Fail(ReplicationError::SpawnRejected);
+            spawnedEntities[spawnedIndex++] = entity;
+            if (slotIndex >= kMaxEntities) return Fail(ReplicationError::SpawnRejected);
+            presentSlots[slotIndex] = true;
+            ++candidateReceipt.spawnedEntities;
+        } else if (state.ownerId == localClientId_) {
             if (slot->hasPrediction && !SameTransform(slot->predictedTransform, state.transform)) ++candidateReceipt.reconciledPredictions;
             if (!candidateScene->SetTransform(slot->entity, state.transform)) return Fail(ReplicationError::SceneApplyRejected);
         }
         ++candidateReceipt.appliedEntities;
     }
+    if (allowDynamicLifecycle_) for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) if (slots_[slotIndex].registered && !presentSlots[slotIndex]) {
+        if (!candidateScene->Destroy(slots_[slotIndex].entity)) return Fail(ReplicationError::DespawnRejected);
+        ++candidateReceipt.despawnedEntities;
+    }
     sceneWorld_ = *candidateScene;
+    uint16_t spawnedCommitIndex = 0U;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
-        Slot* slot = FindSlot(state.networkId);
-        if (slot == nullptr) return Fail(ReplicationError::UnknownEntity);
-        if (state.ownerId == localClientId_) {
-            slot->hasPrediction = false;
+        const uint16_t slotIndex = resolvedSlots[index];
+        Slot& slot = slots_[slotIndex];
+        if (!slot.registered) {
+            slot = {};
+            slot.registered = true;
+            slot.entity = spawnedEntities[spawnedCommitIndex++];
+            slot.networkId = state.networkId;
+            slot.ownerId = state.ownerId;
+            slot.authoritative = state.transform;
+            slot.previousAuthoritative = state.transform;
+            slot.stateRevision = state.stateRevision;
+            slot.hasAuthoritative = true;
+            ++registeredCount_;
+            continue;
         }
-        slot->previousAuthoritative = slot->authoritative; slot->authoritative = state.transform; slot->ownerId = state.ownerId; slot->stateRevision = state.stateRevision; slot->hasAuthoritative = true;
+        if (state.ownerId == localClientId_) slot.hasPrediction = false;
+        slot.previousAuthoritative = slot.authoritative;
+        slot.authoritative = state.transform;
+        slot.ownerId = state.ownerId;
+        slot.stateRevision = state.stateRevision;
+        slot.hasAuthoritative = true;
+    }
+    if (allowDynamicLifecycle_) for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) if (slots_[slotIndex].registered && !presentSlots[slotIndex]) {
+        slots_[slotIndex] = {};
+        --registeredCount_;
     }
     snapshotSequence_ = snapshot.sequence;
     candidateReceipt.accepted = true;

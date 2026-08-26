@@ -26,18 +26,23 @@ int main() {
 
     if (!characterView->SubmitInput({1.0F, 0.0F, false, false}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.animation.base.blending || snapshot.velocity.x <= 0.0F) return 8;
     if (!characterView->TriggerOverlay("none_aim") || !actors.TickFixed(15U, receipt) || !characterView->Snapshot(snapshot) || snapshot.animation.hasOverlay == false || snapshot.animation.overlay.activeStateId != "aim") return 9;
-    if (!characterView->SubmitInput({0.0F, 0.0F, false, true}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.grounded || snapshot.velocity.y <= 0.0F) return 10;
-    if (!actors.TickFixed(60U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.grounded || std::abs(snapshot.velocity.y) > 0.0001F) return 11;
+    const CharacterPawnSnapshot savedSnapshot = snapshot;
+    CharacterPawnSnapshot invalidSnapshot = savedSnapshot;
+    invalidSnapshot.actor.generation += 1U;
+    if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != savedSnapshot.animation.overlay.activeStateId) return 10;
+    if (!characterView->Restore(savedSnapshot) || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != "aim") return 11;
+    if (!characterView->SubmitInput({0.0F, 0.0F, false, true}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.grounded || snapshot.velocity.y <= 0.0F) return 12;
+    if (!actors.TickFixed(60U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.grounded || std::abs(snapshot.velocity.y) > 0.0001F) return 13;
 
     const Transform3* beforeRoot = scene.GetTransform(player);
-    if (beforeRoot == nullptr) return 12;
+    if (beforeRoot == nullptr) return 14;
     const float beforeRootX = beforeRoot->x;
-    if (!characterView->SetRootMotionMode(CharacterRootMotionMode::SkeletalRoot) || !characterView->SubmitRootMotion({0.25F, 0.0F, 0.0F}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.authority != CharacterMovementAuthority::SkeletalRoot) return 13;
+    if (!characterView->SetRootMotionMode(CharacterRootMotionMode::SkeletalRoot) || !characterView->SubmitRootMotion({0.25F, 0.0F, 0.0F}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.authority != CharacterMovementAuthority::SkeletalRoot) return 15;
     const Transform3* afterRoot = scene.GetTransform(player);
-    if (afterRoot == nullptr || std::abs(afterRoot->x - beforeRootX - 0.25F) > 0.0001F) return 14;
-    if (!characterView->SubmitInput({1.0F, 0.0F, false, false}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.authority != CharacterMovementAuthority::SkeletalRoot) return 15;
-    if (!characterView->SetRootMotionMode(CharacterRootMotionMode::Kinematic) || !characterView->SubmitRootMotion({1.0F, 0.0F, 0.0F}) || actors.TickFixed(1U, receipt) || characterView->LastError() != CharacterPawnError::InvalidRootMotion) return 16;
-    if (characterView->SubmitInput({2.0F, 0.0F, false, false}) || characterView->LastError() != CharacterPawnError::InvalidInput || !characterView->SubmitRootMotion({})) return 17;
+    if (afterRoot == nullptr || std::abs(afterRoot->x - beforeRootX - 0.25F) > 0.0001F) return 16;
+    if (!characterView->SubmitInput({1.0F, 0.0F, false, false}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.authority != CharacterMovementAuthority::SkeletalRoot) return 17;
+    if (!characterView->SetRootMotionMode(CharacterRootMotionMode::Kinematic) || !characterView->SubmitRootMotion({1.0F, 0.0F, 0.0F}) || actors.TickFixed(1U, receipt) || characterView->LastError() != CharacterPawnError::InvalidRootMotion) return 18;
+    if (characterView->SubmitInput({2.0F, 0.0F, false, false}) || characterView->LastError() != CharacterPawnError::InvalidInput || !characterView->SubmitRootMotion({})) return 19;
 
     SceneEntity sharedPlayer{};
     MovementAuthorityGate sharedGate;

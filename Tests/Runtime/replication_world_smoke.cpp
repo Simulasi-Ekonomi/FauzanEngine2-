@@ -53,5 +53,20 @@ int main() {
     if (client.SetInterpolationAlphaPermille(1001U) || client.LastError() != ReplicationError::InvalidInput) return 18;
     if (server.ApplyServerSnapshot(snapshot, apply) || server.LastError() != ReplicationError::NotClient || server.BuildServerSnapshot(2U, snapshot) == false) return 19;
     if (!client.UnregisterEntity(200U) || client.IsRegistered(200U) || client.RegisteredCount() != 1U) return 20;
+
+    SceneWorld dynamicScene;
+    ReplicationWorld dynamicClient(dynamicScene, ReplicationRole::Client, 7U, true);
+    ReplicationSnapshot spawnSnapshot{};
+    spawnSnapshot.sequence = 1U;
+    spawnSnapshot.serverTick = 10U;
+    spawnSnapshot.count = 1U;
+    spawnSnapshot.states[0] = {300U, 8U, 1U, {30.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
+    std::vector<uint8_t> spawnBytes;
+    if (!ReplicationSnapshotCodec::Serialize(spawnSnapshot, spawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(spawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.spawnedEntities != 1U || apply.appliedEntities != 1U || dynamicClient.RegisteredCount() != 1U || !dynamicClient.IsRegistered(300U)) return 21;
+    ReplicationSnapshot despawnSnapshot{};
+    despawnSnapshot.sequence = 2U;
+    despawnSnapshot.serverTick = 11U;
+    std::vector<uint8_t> despawnBytes;
+    if (!ReplicationSnapshotCodec::Serialize(despawnSnapshot, despawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(despawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.despawnedEntities != 1U || dynamicClient.RegisteredCount() != 0U || dynamicClient.IsRegistered(300U)) return 22;
     return 0;
 }

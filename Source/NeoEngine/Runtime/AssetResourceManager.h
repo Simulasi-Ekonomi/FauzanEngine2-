@@ -62,6 +62,7 @@ public:
 
     [[nodiscard]] uint16_t ActiveResourceCount() const { return activeResourceCount_; }
     [[nodiscard]] uint32_t TotalLeaseCount() const { return totalLeaseCount_; }
+    [[nodiscard]] uint32_t ActiveLeaseCount() const { return activeLeaseCount_; }
     [[nodiscard]] AssetResourceError LastError() const { return lastError_; }
 
 private:
@@ -97,6 +98,7 @@ private:
     std::array<LeaseSlot, kMaxLeases> leases_{};
     uint16_t activeResourceCount_ = 0U;
     uint32_t totalLeaseCount_ = 0U;
+    uint32_t activeLeaseCount_ = 0U;
     mutable AssetResourceError lastError_ = AssetResourceError::None;
 };
 

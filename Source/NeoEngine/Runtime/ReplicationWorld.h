@@ -26,6 +26,8 @@ enum class ReplicationError : uint8_t {
     InvalidInput,
     SceneApplyRejected,
     CorruptSnapshot,
+    SpawnRejected,
+    DespawnRejected,
 };
 
 struct ReplicatedEntityState {
@@ -48,6 +50,8 @@ struct ReplicationApplyReceipt {
     uint64_t sequence = 0U;
     uint64_t serverTick = 0U;
     uint16_t appliedEntities = 0U;
+    uint16_t spawnedEntities = 0U;
+    uint16_t despawnedEntities = 0U;
     uint16_t interpolatedEntities = 0U;
     uint32_t reconciledPredictions = 0U;
     bool accepted = false;
@@ -72,7 +76,7 @@ public:
     static constexpr uint16_t kMaxInterpolationPermille = 1000U;
     static constexpr float kMaxPredictionDelta = 10.0F;
 
-    ReplicationWorld(SceneWorld& sceneWorld, ReplicationRole role, uint32_t localClientId = 0U);
+    ReplicationWorld(SceneWorld& sceneWorld, ReplicationRole role, uint32_t localClientId = 0U, bool allowDynamicLifecycle = false);
     ReplicationWorld(const ReplicationWorld&) = delete;
     ReplicationWorld& operator=(const ReplicationWorld&) = delete;
 
@@ -83,6 +87,7 @@ public:
     bool SetInterpolationAlphaPermille(uint16_t alphaPermille);
     bool ApplyInterpolation(ReplicationApplyReceipt& receipt);
     bool PredictLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
+    bool SetDynamicLifecycleEnabled(bool enabled);
 
     [[nodiscard]] bool IsRegistered(uint32_t networkId) const;
     [[nodiscard]] bool AuthoritativeState(uint32_t networkId, ReplicatedEntityState& state) const;
@@ -117,6 +122,7 @@ private:
     SceneWorld& sceneWorld_;
     ReplicationRole role_ = ReplicationRole::Server;
     uint32_t localClientId_ = 0U;
+    bool allowDynamicLifecycle_ = false;
     std::array<Slot, kMaxEntities> slots_{};
     uint16_t registeredCount_ = 0U;
     uint64_t snapshotSequence_ = 0U;
