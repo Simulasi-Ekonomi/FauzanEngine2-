@@ -16,6 +16,7 @@ public:
     static constexpr uint8_t kMaxEventsPerTrack = 64;
     static constexpr uint8_t kMaxIdentifierBytes = 64;
     static constexpr float kMaxEventWindowSeconds = 10.0F;
+    static constexpr float kMaxDurationSeconds = 10.0F;
     bool AddTrack(std::string id, std::vector<AnimationKeyframe> keys);
     bool AddEventMarker(std::string trackId, AnimationEventMarker marker);
     bool CollectEvents(const std::string& trackId, float fromTime, float toTime, AnimationPlayback playback, std::vector<std::string>& output) const;
