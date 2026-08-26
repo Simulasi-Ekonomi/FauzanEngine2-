@@ -1,5 +1,7 @@
 #include "Runtime/SoftwareRenderer.h"
 #include "Runtime/UiCanvasRenderer.h"
+#include "Runtime/AssetRegistry.h"
+#include "Runtime/TextureStaging.h"
 
 #include <cstdio>
 
@@ -22,5 +24,13 @@ int main() {
     UiInputRouter outside;
     UiCanvasRenderer outsideCanvas;
     if (!outside.AddWidget({3,0,{40,0,32,32},0,false,true}) || !outsideCanvas.SetStyle({3,0xFFFFFFFFU}) || outsideCanvas.Draw(outside,renderer) || outsideCanvas.LastError()!=UiCanvasError::OutsideSurface) { std::fprintf(stderr,"surface=%u\n",static_cast<unsigned>(outsideCanvas.LastError())); return 1; }
-    std::printf("UI_CANVAS_RENDERER_SMOKE_OK widgets=2 routing=1 layered=1 labels=2 bounds=1 hash=%llu\n", static_cast<unsigned long long>(labelHash)); return 0;
+    AssetRegistry assets; const std::vector<uint8_t> iconPpm{'P','6','\n','2',' ','1','\n','2','5','5','\n',255U,0U,0U,0U,0U,255U};
+    if (!assets.ImportBytes("ui.icon",AssetKind::Texture,{},iconPpm) || !assets.MarkReady("ui.icon")) return 1;
+    TextureStagingStore textures; if (!textures.StagePpm(assets,"ui.icon")) return 1;
+    UiInputRouter imageRouter; UiCanvasRenderer imageCanvas; SoftwareRenderer imageRenderer;
+    if (!imageRouter.AddWidget({9,0,{8,8,32,16},0,false,true}) || !imageCanvas.SetStyle({9,0xFF202020U}) || !imageCanvas.SetImage(assets,{9,nullptr,textures.Find("ui.icon")}) || imageCanvas.SetImage(assets,{9,nullptr,textures.Find("ui.icon")}) || imageCanvas.LastError()!=UiCanvasError::DuplicateImage || !imageRenderer.Initialize(64,32) || !imageRenderer.Clear(0xFF000000U) || !imageCanvas.Draw(imageRouter,imageRenderer) || imageRenderer.PixelAt(12,16)!=0xFFFF0000U || imageRenderer.PixelAt(36,16)!=0xFF0000FFU) return 1;
+    const uint64_t imageHash=imageRenderer.FrameHash(); const std::vector<uint8_t> greenPpm{'P','6','\n','2',' ','1','\n','2','5','5','\n',0U,255U,0U,0U,255U,0U};
+    if (!assets.ReplaceBytes("ui.icon",greenPpm) || imageCanvas.Draw(imageRouter,imageRenderer) || imageCanvas.LastError()!=UiCanvasError::InvalidImage || imageRenderer.FrameHash()!=imageHash) return 1;
+    UiCanvasRenderer invalidImage; if (invalidImage.SetImage(assets,{9,nullptr,textures.Find("ui.icon"),0U,2U,0U,1U,1U}) || invalidImage.LastError()!=UiCanvasError::InvalidImage) return 1;
+    std::printf("UI_CANVAS_RENDERER_SMOKE_OK widgets=2 routing=1 layered=1 labels=2 image=1 atomic=1 bounds=1 hash=%llu\n", static_cast<unsigned long long>(labelHash)); return 0;
 }
