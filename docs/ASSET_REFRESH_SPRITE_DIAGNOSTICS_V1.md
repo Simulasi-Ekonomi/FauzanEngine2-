@@ -6,5 +6,6 @@ E.7c adds a bounded CPU-side diagnostic extension for `SceneSpriteAdapter`. `Bin
 
 `AssetRefreshExecutor::ExecuteSpritesAtomic` accepts the bounded texture-plus-multiple-sprite subset. Duplicate sprite actions are identified by entity, so distinct sprites sharing one texture remain valid. The executor validates and runs against candidate copies, then commits texture staging, sprite bindings, preflight receipts, and execution receipts only after every action succeeds. A later source-rectangle rejection leaves caller-owned stores and prior receipts unchanged.
 
-This scope is diagnostics and manual executor invocation only. It does not add a filesystem watcher, automatic registry reload, GPU texture upload, editor UI, project hot reload, or production asset-streaming claim.
+When the diagnostics overload also emits existing scene-mesh actions, use `AssetRefreshExecutor::ExecuteCombinedAtomic` rather than either subset executor. The combined contract is documented in `ASSET_REFRESH_COMBINED_ATOMIC_V1.md`.
 
+This scope is diagnostics and manual executor invocation only. It does not add a filesystem watcher, automatic registry reload, GPU texture upload, editor UI, project hot reload, or production asset-streaming claim.

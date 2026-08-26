@@ -39,6 +39,10 @@ public:
     // Bounded texture-plus-sprite plan. Diagnostics may supply multiple distinct
     // sprite-instance actions; both stores and receipts commit only on success.
     bool ExecuteSpritesAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, SceneSpriteAdapter& sprites);
+    // Executes the diagnostics plan subset supported by ExecuteAtomic and
+    // ExecuteSpritesAtomic against one shared candidate set. Existing APIs stay
+    // unchanged; all supplied stores and receipts commit only on full success.
+    bool ExecuteCombinedAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene, SceneSpriteAdapter& sprites);
     [[nodiscard]] const std::vector<AssetRefreshPreflightReceipt>& PreflightReceipts() const { return preflightReceipts_; }
     [[nodiscard]] const std::vector<AssetRefreshReceipt>& Receipts() const { return receipts_; }
     [[nodiscard]] AssetRefreshExecutorError LastError() const { return lastError_; }
