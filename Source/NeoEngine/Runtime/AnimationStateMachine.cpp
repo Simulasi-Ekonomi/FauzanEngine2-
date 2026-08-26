@@ -7,7 +7,7 @@
 namespace NeoEngine {
 int AnimationStateMachine::FindState(const std::string& stateId) const { const auto found = std::find_if(states_.begin(), states_.end(), [&stateId](const State& state) { return state.spec.id == stateId; }); return found == states_.end() ? -1 : static_cast<int>(found - states_.begin()); }
 bool AnimationStateMachine::AddState(AnimationStateSpec state) {
-    if (state.id.empty() || state.trackId.empty() || state.id.size() > kMaxIdentifierBytes || state.trackId.size() > kMaxIdentifierBytes || (state.playback != AnimationPlayback::Clamp && state.playback != AnimationPlayback::Loop)) { lastError_ = AnimationStateMachineError::InvalidState; return false; }
+    if (state.id.empty() || state.trackId.empty() || state.id.find('\0') != std::string::npos || state.trackId.find('\0') != std::string::npos || state.id.size() > kMaxIdentifierBytes || state.trackId.size() > kMaxIdentifierBytes || (state.playback != AnimationPlayback::Clamp && state.playback != AnimationPlayback::Loop)) { lastError_ = AnimationStateMachineError::InvalidState; return false; }
     if (FindState(state.id) >= 0) { lastError_ = AnimationStateMachineError::DuplicateState; return false; }
     if (states_.size() >= kMaxStates) { lastError_ = AnimationStateMachineError::Capacity; return false; }
     try { states_.push_back({std::move(state)}); }
@@ -15,7 +15,7 @@ bool AnimationStateMachine::AddState(AnimationStateSpec state) {
     lastError_ = AnimationStateMachineError::None; return true;
 }
 bool AnimationStateMachine::AddTransition(AnimationTransitionSpec transition) {
-    if (transition.id.empty() || transition.fromStateId.empty() || transition.toStateId.empty() || transition.id.size() > kMaxIdentifierBytes || transition.fromStateId.size() > kMaxIdentifierBytes || transition.toStateId.size() > kMaxIdentifierBytes || !std::isfinite(transition.durationSeconds) || transition.durationSeconds < 0.0F) { lastError_ = AnimationStateMachineError::InvalidTransition; return false; }
+    if (transition.id.empty() || transition.fromStateId.empty() || transition.toStateId.empty() || transition.id.find('\0') != std::string::npos || transition.fromStateId.find('\0') != std::string::npos || transition.toStateId.find('\0') != std::string::npos || transition.id.size() > kMaxIdentifierBytes || transition.fromStateId.size() > kMaxIdentifierBytes || transition.toStateId.size() > kMaxIdentifierBytes || !std::isfinite(transition.durationSeconds) || transition.durationSeconds < 0.0F) { lastError_ = AnimationStateMachineError::InvalidTransition; return false; }
     if (std::any_of(transitions_.begin(), transitions_.end(), [&transition](const Transition& candidate) { return candidate.spec.id == transition.id; })) { lastError_ = AnimationStateMachineError::DuplicateTransition; return false; }
     const int from = FindState(transition.fromStateId); const int to = FindState(transition.toStateId);
     if (from < 0 || to < 0 || from == to) { lastError_ = AnimationStateMachineError::InvalidTransition; return false; }

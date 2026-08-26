@@ -5,13 +5,13 @@
 #include <new>
 
 namespace NeoEngine {
-bool AnimationTimeline::AddTrack(std::string id, std::vector<AnimationKeyframe> keys) { if(id.empty()||id.size()>64U){lastError_=AnimationError::InvalidTrack;return false;} if(std::any_of(tracks_.begin(),tracks_.end(),[&id](const Track& track){return track.id==id;})){lastError_=AnimationError::DuplicateTrack;return false;} if(tracks_.size()>=kMaxTracks||keys.size()>kMaxKeysPerTrack){lastError_=AnimationError::Capacity;return false;} if(keys.size()<2U||!std::isfinite(keys.front().time)||keys.front().time!=0.0F){lastError_=AnimationError::InvalidKeys;return false;} for(size_t index=0;index<keys.size();++index){if(!std::isfinite(keys[index].time)||!std::isfinite(keys[index].value)||(index>0U&&keys[index].time<=keys[index-1U].time)){lastError_=AnimationError::InvalidKeys;return false;}}     try { tracks_.push_back({std::move(id),std::move(keys)}); }
+bool AnimationTimeline::AddTrack(std::string id, std::vector<AnimationKeyframe> keys) { if(id.empty()||id.size()>64U||id.find('\0')!=std::string::npos){lastError_=AnimationError::InvalidTrack;return false;} if(std::any_of(tracks_.begin(),tracks_.end(),[&id](const Track& track){return track.id==id;})){lastError_=AnimationError::DuplicateTrack;return false;} if(tracks_.size()>=kMaxTracks||keys.size()>kMaxKeysPerTrack){lastError_=AnimationError::Capacity;return false;} if(keys.size()<2U||!std::isfinite(keys.front().time)||keys.front().time!=0.0F){lastError_=AnimationError::InvalidKeys;return false;} for(size_t index=0;index<keys.size();++index){if(!std::isfinite(keys[index].time)||!std::isfinite(keys[index].value)||(index>0U&&keys[index].time<=keys[index-1U].time)){lastError_=AnimationError::InvalidKeys;return false;}}     try { tracks_.push_back({std::move(id),std::move(keys)}); }
     catch (const std::bad_alloc&) { lastError_ = AnimationError::Capacity; return false; }
     lastError_=AnimationError::None;return true; }
 bool AnimationTimeline::AddEventMarker(std::string trackId, AnimationEventMarker marker) {
     const auto found = std::find_if(tracks_.begin(), tracks_.end(), [&trackId](const Track& track) { return track.id == trackId; });
     if (found == tracks_.end()) { lastError_ = AnimationError::MissingTrack; return false; }
-    if (marker.id.empty() || marker.id.size() > kMaxIdentifierBytes || !std::isfinite(marker.time) || marker.time < 0.0F || marker.time > found->keys.back().time) { lastError_ = AnimationError::InvalidEvent; return false; }
+    if (marker.id.empty() || marker.id.size() > kMaxIdentifierBytes || marker.id.find('\0') != std::string::npos || !std::isfinite(marker.time) || marker.time < 0.0F || marker.time > found->keys.back().time) { lastError_ = AnimationError::InvalidEvent; return false; }
     if (std::any_of(found->events.begin(), found->events.end(), [&marker](const AnimationEventMarker& event) { return event.id == marker.id; })) { lastError_ = AnimationError::DuplicateEvent; return false; }
     if (found->events.size() >= kMaxEventsPerTrack) { lastError_ = AnimationError::Capacity; return false; }
     try { found->events.push_back(std::move(marker)); }
