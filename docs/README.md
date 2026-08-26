@@ -80,6 +80,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Gameplay physics body snapshot | [`GAMEPLAY_PHYSICS_BODY_SNAPSHOT_V1.md`](GAMEPLAY_PHYSICS_BODY_SNAPSHOT_V1.md) | Read-only validated snapshot of a canonical ECS circle body. |
 | Gameplay physics body velocity | [`GAMEPLAY_PHYSICS_BODY_VELOCITY_V1.md`](GAMEPLAY_PHYSICS_BODY_VELOCITY_V1.md) | Validated dynamic planar-velocity command with a single physics-revision commit. |
 | Texture import pipeline | [`TEXTURE_IMPORT_PIPELINE_V1.md`](TEXTURE_IMPORT_PIPELINE_V1.md) | Atomic in-memory PPM/BMP import through registry-ready-to-CPU-staging. |
+| Texture import set | [`TEXTURE_IMPORT_SET_V1.md`](TEXTURE_IMPORT_SET_V1.md) | Bounded candidate-commit multi-texture import into registry and CPU staging. |
 | Mesh import pipeline | [`MESH_IMPORT_PIPELINE_V1.md`](MESH_IMPORT_PIPELINE_V1.md) | Atomic in-memory OBJ import through registry-ready-to-CPU-mesh staging. |
 | Material import pipeline | [`MATERIAL_IMPORT_PIPELINE_V1.md`](MATERIAL_IMPORT_PIPELINE_V1.md) | Atomic in-memory named MTL material import through registry-ready-to-CPU-material staging. |
 | Material import pipeline refresh | [`MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md`](MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md) | Explicit candidate/commit in-memory MTL replacement into an existing staged named material. |

@@ -12,4 +12,11 @@ bool TextureImportPipeline::Import(AssetRegistry& registry, TextureStagingStore&
     if (definition == nullptr || resource == nullptr) { lastError_ = TextureImportPipelineError::StageFailed; return false; }
     TextureImportReceipt candidateReceipt{assetId, definition->contentHash, resource->width, resource->height, format}; registry = std::move(candidateRegistry); textures = std::move(candidateTextures); receipt = std::move(candidateReceipt); lastError_ = TextureImportPipelineError::None; return true;
 }
+bool TextureImportPipeline::ImportSet(AssetRegistry& registry, TextureStagingStore& textures, const std::vector<TextureImportRequest>& requests, std::vector<TextureImportReceipt>& receipts) {
+    if (requests.empty()) { lastError_ = TextureImportPipelineError::InvalidRequest; return false; }
+    if (requests.size() > kMaxImportSetEntries) { lastError_ = TextureImportPipelineError::BatchCapacity; return false; }
+    AssetRegistry candidateRegistry = registry; TextureStagingStore candidateTextures = textures; std::vector<TextureImportReceipt> candidateReceipts; candidateReceipts.reserve(requests.size());
+    for (const TextureImportRequest& request : requests) { TextureImportReceipt receipt{}; if (!Import(candidateRegistry, candidateTextures, request.assetId, request.dependencies, request.bytes, request.format, receipt)) return false; candidateReceipts.push_back(std::move(receipt)); }
+    registry = std::move(candidateRegistry); textures = std::move(candidateTextures); receipts = std::move(candidateReceipts); lastError_ = TextureImportPipelineError::None; return true;
+}
 } // namespace NeoEngine
