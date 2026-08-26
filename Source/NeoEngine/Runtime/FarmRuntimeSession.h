@@ -3,18 +3,18 @@
 #include "FarmPlayerInputBridge.h"
 #include "FarmSpriteRenderAdapter.h"
 #include "InputState.h"
+#include "Systems/FarmSystem.h"
 
 #include <cstdint>
 
 namespace NeoEngine {
 class AssetRegistry;
-class FarmSystem;
 class FarmWorldTool;
 class SoftwareRenderer;
 class TextureStagingStore;
 
 enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected };
-struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; };
+struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; };
 
 // Explicit host-side lifecycle only. It owns neither simulation authority nor
 // asset registry; it orchestrates existing bounded components for one frame.

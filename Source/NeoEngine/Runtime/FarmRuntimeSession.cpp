@@ -20,7 +20,7 @@ bool FarmRuntimeSession::Frame(InputState& input, uint32_t simulationTicks) {
     if (!inputBridge_.Step(input, *world_)) return Fail(FarmRuntimeSessionError::InputRejected);
     if (!world_->Tick(simulationTicks)) return Fail(FarmRuntimeSessionError::WorldTickRejected);
     if (!rendererBridge_.RenderWorld(*farm_, *world_, *assets_, *registry_, *textures_, *renderer_)) return Fail(FarmRuntimeSessionError::RenderRejected);
-    const uint64_t candidateFrame = frameCount_ + 1U; const FarmRuntimeFrameReceipt candidateReceipt{candidateFrame, renderer_->FrameHash()};
+    const uint64_t candidateFrame = frameCount_ + 1U; const FarmRuntimeFrameReceipt candidateReceipt{candidateFrame, renderer_->FrameHash(), farm_->Snapshot()};
     ++frameCount_; lastReceipt_ = candidateReceipt; lastError_ = FarmRuntimeSessionError::None; return true;
 }
 } // namespace NeoEngine
