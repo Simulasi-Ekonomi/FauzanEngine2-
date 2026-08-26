@@ -13,7 +13,8 @@ bool EditorSceneSession::OpenCandidate(const EditorSceneDocument& document, cons
     const auto hasKind = [&document](EditorSceneActorKind kind) { return std::any_of(document.actors.begin(), document.actors.end(), [kind](const EditorSceneActor& actor) { return actor.kind == kind; }); };
     if (hasKind(EditorSceneActorKind::Mesh)) { EditorSceneMeshBinder binder; if (!binder.BindDocumentAssets(document, documentAdapter, assets, meshStaging, materialStaging, textureStaging, meshes)) { lastError_ = EditorSceneSessionError::MeshBindFailed; return false; } }
     if (hasKind(EditorSceneActorKind::Sprite)) { EditorSceneSpriteBinder binder; if (!binder.BindDocumentAssets(document, documentAdapter, assets, textureStaging, sprites)) { lastError_ = EditorSceneSessionError::SpriteBindFailed; return false; } }
-    document_ = document; world_ = std::move(world); documentAdapter_ = std::move(documentAdapter); meshes_ = std::move(meshes); sprites_ = std::move(sprites); renderer_ = {};
+    const bool keepsSelection = selectedActorId_ != 0U && std::any_of(document.actors.begin(), document.actors.end(), [this](const EditorSceneActor& actor) { return actor.id == selectedActorId_; });
+    document_ = document; world_ = std::move(world); documentAdapter_ = std::move(documentAdapter); meshes_ = std::move(meshes); sprites_ = std::move(sprites); renderer_ = {}; if (!keepsSelection) selectedActorId_ = 0U;
     if (markSaved) { savedDocument_ = document_; savedRevision_ = document_.revision; }
     lastError_ = EditorSceneSessionError::None; return true;
 }
@@ -45,6 +46,11 @@ bool EditorSceneSession::DeleteActor(uint32_t actorId, const AssetRegistry& asse
     if (found == candidate.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
     if (std::any_of(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.parentId == actorId; })) { lastError_ = EditorSceneSessionError::ActorHasChildren; return false; }
     candidate.actors.erase(found); ++candidate.revision; return CommitMutation(candidate, assets);
+}
+bool EditorSceneSession::SelectActor(uint32_t actorId) {
+    const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
+    if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
+    selectedActorId_ = actorId; lastError_ = EditorSceneSessionError::None; return true;
 }
 bool EditorSceneSession::Save(EditorSceneDocument& document) const { if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } document = document_; savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true; }
 bool EditorSceneSession::SaveBytes(std::vector<uint8_t>& bytes) const { if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } EditorSceneDocumentCodec codec; if (!codec.Encode(document_, bytes)) { lastError_ = EditorSceneSessionError::CodecEncodeFailed; return false; } savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true; }

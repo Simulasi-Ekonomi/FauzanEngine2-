@@ -1,0 +1,5 @@
+# Editor Selection V1
+
+`EditorSceneSession` now has a bounded transient actor selection. `SelectActor` accepts only an actor present in the loaded document; unknown actors leave the current selection unchanged. Selection is deliberately separate from `EditorSceneDocument`, scene transforms, save state, and undo/redo history.
+
+After a successful document candidate commit, selection is retained only if that actor exists in the new document. Therefore deleting a selected actor, or successfully opening a document that lacks it, clears selection. Failed candidate opens preserve it. The editor-session smoke proves valid selection, invalid-selection atomicity, selected deletion clear, failed-open preservation, successful-open clear, and unchanged viewport hash. It passes in Release and AddressSanitizer with `detect_leaks=1`; the current non-Vulkan broad suites pass 128/128 in both configurations. This is not a desktop editor UI, collaboration feature, filesystem project, or gameplay authority.

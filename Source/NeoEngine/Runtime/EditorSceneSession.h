@@ -22,6 +22,8 @@ public:
     bool ReparentActor(uint32_t actorId, uint32_t parentId, const AssetRegistry& assets);
     bool AddActor(const EditorSceneActor& actor, const AssetRegistry& assets);
     bool DeleteActor(uint32_t actorId, const AssetRegistry& assets);
+    bool SelectActor(uint32_t actorId);
+    void ClearSelection() { selectedActorId_ = 0U; }
     bool Save(EditorSceneDocument& document) const;
     bool SaveBytes(std::vector<uint8_t>& bytes) const;
     bool RevertToSaved(const AssetRegistry& assets);
@@ -30,6 +32,8 @@ public:
     [[nodiscard]] bool HasUnsavedChanges() const { return document_.revision != 0U && document_.revision != savedRevision_; }
     [[nodiscard]] bool CanUndo() const { return !undoHistory_.empty(); }
     [[nodiscard]] bool CanRedo() const { return !redoHistory_.empty(); }
+    [[nodiscard]] bool HasSelection() const { return selectedActorId_ != 0U; }
+    [[nodiscard]] uint32_t SelectedActorId() const { return selectedActorId_; }
     [[nodiscard]] std::vector<EditorSceneActor> HierarchySnapshot() const;
     bool InspectActor(uint32_t actorId, EditorSceneActor& actor) const;
     bool RenderViewport(RenderCamera& camera, SoftwareRenderer& renderer, const DirectionalLight& light);
@@ -50,6 +54,7 @@ private:
     SceneMeshAdapter meshes_{};
     SceneSpriteAdapter sprites_{};
     SceneRenderAdapter renderer_{};
+    uint32_t selectedActorId_ = 0U;
     mutable EditorSceneSessionError lastError_ = EditorSceneSessionError::InvalidDocument;
 };
 } // namespace NeoEngine
