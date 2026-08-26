@@ -5,7 +5,7 @@
 namespace NeoEngine {
 
 bool NeoRuntime::Initialize(const RuntimeConfig& config) {
-    if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs) {
+    if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
         m_LastError = RuntimeError::InvalidConfiguration;
         m_State = RuntimeState::Failed;
         return false;
@@ -113,6 +113,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
     m_Renderer = std::move(renderer);
+    m_FarmRuntimeHud = config.enableFarmRuntimeHud ? std::make_unique<FarmRuntimeHud>() : nullptr;
+    m_RenderedFarmFrames = 0U;
     m_SurfacePresenter = std::move(surfacePresenter);
     m_LastError = RuntimeError::None;
     m_State = RuntimeState::Initialized;
@@ -148,7 +150,10 @@ bool NeoRuntime::ReplanRouteMotion() {
 
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, *m_Renderer)) { m_LastError = RuntimeError::RenderFailed; return false; }
+    SoftwareRenderer candidate = *m_Renderer;
+    if (!FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate)) { m_LastError = RuntimeError::RenderFailed; return false; }
+    if (m_FarmRuntimeHud != nullptr) { const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, candidate.FrameHash(), m_Farm->Snapshot()}; if (!m_FarmRuntimeHud->Draw(receipt, candidate)) { m_LastError = RuntimeError::HudFailed; return false; } }
+    *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames;
     if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(*m_Renderer))) { m_LastError = RuntimeError::PresentationFailed; return false; }
     return true;
 }
@@ -161,6 +166,8 @@ bool NeoRuntime::SetPaused(bool paused) {
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
+    m_FarmRuntimeHud.reset();
+    m_RenderedFarmFrames = 0U;
     m_Renderer.reset();
     m_Clock.reset();
     m_Timers.reset();

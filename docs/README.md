@@ -67,6 +67,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Material import batch | [`MATERIAL_IMPORT_BATCH_V1.md`](MATERIAL_IMPORT_BATCH_V1.md) | Candidate/commit staging of an explicit ordered multi-material MTL set. |
 | Farm runtime frame receipt | [`FARM_RUNTIME_FRAME_RECEIPT_V1.md`](FARM_RUNTIME_FRAME_RECEIPT_V1.md) | Committed software-frame number/hash receipt with failure preservation. |
 | Farm runtime HUD | [`FARM_RUNTIME_HUD_V1.md`](FARM_RUNTIME_HUD_V1.md) | Finite candidate-rendered read-only receipt telemetry panel. |
+| Neo runtime Farm HUD | [`NEO_RUNTIME_FARM_HUD_V1.md`](NEO_RUNTIME_FARM_HUD_V1.md) | Optional candidate-commit Farm HUD composited inside canonical NeoRuntime rendering. |
 | Farm runtime save codec | [`FARM_RUNTIME_SAVE_CODEC_V1.md`](FARM_RUNTIME_SAVE_CODEC_V1.md) | Candidate/commit in-memory Farm envelope with revision and kind validation. |
 | Farm runtime session checkpoint | [`FARM_RUNTIME_SESSION_CHECKPOINT_V1.md`](FARM_RUNTIME_SESSION_CHECKPOINT_V1.md) | Caller-driven in-memory checkpoint/restore handoff that preserves committed session receipts on failure. |
 | Farm runtime session world checkpoint | [`FARM_RUNTIME_SESSION_WORLD_CHECKPOINT_V1.md`](FARM_RUNTIME_SESSION_WORLD_CHECKPOINT_V1.md) | Caller-driven Farm-plus-world in-memory checkpoint handoff with bounded decode preservation. |
