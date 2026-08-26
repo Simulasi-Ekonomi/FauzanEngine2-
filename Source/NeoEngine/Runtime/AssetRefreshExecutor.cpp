@@ -121,4 +121,13 @@ bool AssetRefreshExecutor::Execute(const std::vector<AssetRefreshPlanEntry>& pla
     return true;
 }
 
+bool AssetRefreshExecutor::ExecuteAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene) {
+    AssetRefreshExecutor candidateExecutor = *this;
+    TextureStagingStore candidateTextures = textures; MeshStagingStore candidateMeshes = meshes; MaterialStagingStore candidateMaterials = materials; SceneMeshAdapter candidateScene = scene;
+    if (!candidateExecutor.Execute(plan, registry, candidateTextures, candidateMeshes, candidateMaterials, candidateScene)) { lastError_ = candidateExecutor.LastError(); return false; }
+    textures = std::move(candidateTextures); meshes = std::move(candidateMeshes); materials = std::move(candidateMaterials); scene = std::move(candidateScene);
+    preflightReceipts_ = std::move(candidateExecutor.preflightReceipts_); receipts_ = std::move(candidateExecutor.receipts_); lastError_ = AssetRefreshExecutorError::None;
+    return true;
+}
+
 } // namespace NeoEngine

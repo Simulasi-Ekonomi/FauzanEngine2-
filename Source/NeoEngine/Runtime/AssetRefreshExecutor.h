@@ -33,6 +33,8 @@ public:
     // Structural validation only; it does not decode/import candidate bytes or mutate any resource.
     bool Preflight(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene);
     bool Execute(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene);
+    // Runs the same bounded plan against candidate staging/scene copies and commits all only after success.
+    bool ExecuteAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene);
     [[nodiscard]] const std::vector<AssetRefreshPreflightReceipt>& PreflightReceipts() const { return preflightReceipts_; }
     [[nodiscard]] const std::vector<AssetRefreshReceipt>& Receipts() const { return receipts_; }
     [[nodiscard]] AssetRefreshExecutorError LastError() const { return lastError_; }

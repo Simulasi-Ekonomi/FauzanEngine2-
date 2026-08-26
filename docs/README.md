@@ -86,6 +86,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Mesh import set | [`MESH_IMPORT_SET_V1.md`](MESH_IMPORT_SET_V1.md) | Bounded candidate-commit multi-OBJ import into registry and CPU mesh staging. |
 | Material import pipeline | [`MATERIAL_IMPORT_PIPELINE_V1.md`](MATERIAL_IMPORT_PIPELINE_V1.md) | Atomic in-memory MTL import plus bounded multi-material refresh through registry-ready-to-CPU-material staging. |
 | Material import pipeline refresh | [`MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md`](MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md) | Explicit candidate/commit in-memory MTL replacement into an existing staged named material. |
+| Asset refresh executor atomic | [`ASSET_REFRESH_EXECUTOR_ATOMIC_V1.md`](ASSET_REFRESH_EXECUTOR_ATOMIC_V1.md) | Candidate-commit refresh/rebind execution across CPU staging and scene adapter copies. |
 | Material refresh surface demo | [`MATERIAL_REFRESH_SURFACE_DEMO_V1.md`](MATERIAL_REFRESH_SURFACE_DEMO_V1.md) | Caller-invoked MTL replacement plus explicit staged SceneMeshAdapter refresh to a finite software surface. |
 | Material import surface demo | [`MATERIAL_IMPORT_SURFACE_DEMO_V1.md`](MATERIAL_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ/MTL import through staged mesh-plus-material scene binding to a software surface. |
 | Asset import surface demo | [`ASSET_IMPORT_SURFACE_DEMO_V1.md`](ASSET_IMPORT_SURFACE_DEMO_V1.md) | Finite PPM/OBJ import-to-staged-resource-to-software-surface proof with PPM artifact. |
