@@ -36,10 +36,13 @@ int main() {
 
     AssetResourceHandle invalid{0U, 999999U};
     if (resources.Release(invalid) || resources.LastError() != AssetResourceError::InvalidHandle || resources.Data(invalid) != nullptr) return 15;
-    if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency) return 16;
+    const AssetResourceHandle preservedAcquireHandle{123U, 456U};
+    materialHandle = preservedAcquireHandle;
+    if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency || materialHandle != preservedAcquireHandle) return 16;
     if (!registry.Declare("declared.asset", AssetKind::Audio, {})) return 16;
     const uint16_t resourcesBeforeNotReady = resources.ActiveResourceCount();
-    if (resources.Acquire("declared.asset", materialHandle) || resources.LastError() != AssetResourceError::NotReady || resources.ActiveResourceCount() != resourcesBeforeNotReady || resources.ActiveLeaseCount() != 0U) return 16;
+    materialHandle = preservedAcquireHandle;
+    if (resources.Acquire("declared.asset", materialHandle) || resources.LastError() != AssetResourceError::NotReady || resources.ActiveResourceCount() != resourcesBeforeNotReady || resources.ActiveLeaseCount() != 0U || materialHandle != preservedAcquireHandle) return 16;
     AssetRegistry depthRegistry;
     if (!depthRegistry.ImportBytes("depth0", AssetKind::Prefab, {}, {1U}) || !depthRegistry.MarkReady("depth0")) return 16;
     for (uint8_t depth = 1U; depth <= 16U; ++depth) {

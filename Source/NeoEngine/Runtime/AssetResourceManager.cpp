@@ -61,7 +61,6 @@ bool AssetResourceManager::FillReceipt(const Slot& slot, AssetResourceHandle han
 }
 
 bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle& handle) {
-    handle = {};
     if (assetId.empty()) return Fail(AssetResourceError::InvalidIdentifier);
     std::array<std::string, kMaxDependencyClosure> closureIds{};
     std::array<std::string_view, kMaxDependencyDepth> path{};
