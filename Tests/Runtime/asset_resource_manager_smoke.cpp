@@ -33,6 +33,8 @@ int main() {
     if (!registry.ReplaceBytes("texture.wheat", {10U, 11U}) || resources.SyncHotReload("texture.wheat") || resources.LastError() != AssetResourceError::StaleInUse) return 12;
     if (!resources.Query(meshHandle, materialReceipt) || materialReceipt.state != AssetResourceState::Ready) return 13;
     if (!resources.Release(meshHandle) || resources.TotalLeaseCount() != 0U || resources.ActiveLeaseCount() != 0U || !resources.SyncHotReload("texture.wheat") || !resources.Query("texture.wheat", textureReceipt) || textureReceipt.state != AssetResourceState::Ready) return 14;
+    const uint64_t textureHashBeforeInvalidReplace = textureReceipt.contentHash;
+    if (registry.ReplaceBytes("bad id", {12U}) || registry.LastError() != AssetRegistryError::InvalidIdentifier || !resources.Query("texture.wheat", textureReceipt) || textureReceipt.contentHash != textureHashBeforeInvalidReplace) return 14;
 
     AssetResourceHandle invalid{0U, 999999U};
     materialReceipt.assetId = "query-preserve";
