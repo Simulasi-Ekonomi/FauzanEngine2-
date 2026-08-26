@@ -15,6 +15,9 @@ int main() {
     transitionEvents={"preserved"};
     if(machine.CollectEvents(timeline,0.5F,0.25F,transitionEvents)||machine.LastError()!=AnimationStateMachineError::EventCollectionFailed||transitionEvents.size()!=1U||transitionEvents[0]!="preserved")return 1;
     if(!machine.Update(0.25F)||machine.IsBlending()||machine.ActiveStateId()!="walk"||!machine.Snapshot(snapshot)||snapshot.blending||!snapshot.targetStateId.empty()||std::fabs(snapshot.activeTimeSeconds-0.5F)>0.0001F||!machine.Sample(timeline,value)||std::fabs(value-15.0F)>0.0001F||machine.Update(-0.1F)||machine.LastError()!=AnimationStateMachineError::InvalidDelta||!machine.Sample(timeline,value)||std::fabs(value-15.0F)>0.0001F||machine.Update(1.1F)||machine.LastError()!=AnimationStateMachineError::InvalidDelta||!machine.Sample(timeline,value)||std::fabs(value-15.0F)>0.0001F)return 1;
+    AnimationStateMachineSnapshot residualTargetTime = snapshot;
+    residualTargetTime.targetTimeSeconds = 1.0F;
+    if(machine.Restore(residualTargetTime)||machine.LastError()!=AnimationStateMachineError::InvalidSnapshot||machine.ActiveStateId()!="walk"||machine.IsBlending())return 1;
     if(!machine.Trigger("walk_to_idle")||machine.ActiveStateId()!="idle"||machine.IsBlending()||!machine.Sample(timeline,value)||std::fabs(value)>0.0001F)return 1;
     AnimationStateMachine missing; if(!missing.AddState({"missing","not-present"})||missing.Snapshot(snapshot)||missing.LastError()!=AnimationStateMachineError::NotStarted||!missing.Start("missing")||missing.Sample(timeline,value)||missing.LastError()!=AnimationStateMachineError::SampleFailed)return 1;
     std::printf("ANIMATION_STATE_MACHINE_SMOKE_OK states=2 blend=1 snapshot=1 immediate=1 invalid=1 value=%.2f\n",value); return 0;

@@ -72,8 +72,8 @@ bool AnimationStateMachine::Snapshot(AnimationStateMachineSnapshot& snapshot) co
         AnimationStateMachineSnapshot candidate{};
         candidate.activeStateId = states_[static_cast<size_t>(activeStateIndex_)].spec.id;
         candidate.activeTimeSeconds = activeTime_;
-        candidate.targetTimeSeconds = targetTime_;
         candidate.blending = transitionIndex_ >= 0;
+        candidate.targetTimeSeconds = candidate.blending ? targetTime_ : 0.0F;
         if (candidate.blending) {
             const Transition& transition = transitions_[static_cast<size_t>(transitionIndex_)];
             candidate.targetStateId = states_[blendTargetIndex_].spec.id;
@@ -98,7 +98,7 @@ bool AnimationStateMachine::Restore(const AnimationStateMachineSnapshot& snapsho
         if (targetIndex < 0 || targetIndex == active) { lastError_ = AnimationStateMachineError::InvalidSnapshot; return false; }
         for (size_t index = 0U; index < transitions_.size(); ++index) if (transitions_[index].spec.id == snapshot.transitionId && transitions_[index].fromIndex == static_cast<size_t>(active) && transitions_[index].toIndex == static_cast<size_t>(targetIndex) && transitions_[index].spec.durationSeconds > 0.0F) { transition = static_cast<int>(index); target = static_cast<size_t>(targetIndex); break; }
         if (transition < 0) { lastError_ = AnimationStateMachineError::InvalidSnapshot; return false; }
-    } else if (!snapshot.targetStateId.empty() || !snapshot.transitionId.empty() || snapshot.blendFraction != 0.0F) {
+    } else if (!snapshot.targetStateId.empty() || !snapshot.transitionId.empty() || snapshot.blendFraction != 0.0F || snapshot.targetTimeSeconds != 0.0F) {
         lastError_ = AnimationStateMachineError::InvalidSnapshot;
         return false;
     }
