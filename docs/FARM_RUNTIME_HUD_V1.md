@@ -1,0 +1,5 @@
+# Farm Runtime HUD V1
+
+`FarmRuntimeHud` is a finite software-rendered, read-only display seam for a committed `FarmRuntimeFrameReceipt`. It formats only `FRAME`, `COINS`, and `TICK` labels from the prior runtime receipt, constructs non-interactive canvas widgets, and draws them into a candidate `SoftwareRenderer` before committing the framebuffer.
+
+Zero frame/hash receipts and undersized surfaces are rejected before any draw. Canvas setup or draw failure likewise retains the original framebuffer. The HUD does not own input routing, Farm simulation, telemetry production, asset lifetime, persistence, networking, host lifecycle, or gameplay authority. The smoke proves a visible HUD render and framebuffer preservation on invalid receipts. It passes in Release and AddressSanitizer with `detect_leaks=1`; current non-Vulkan broad suites pass 129/129 in both configurations. This is a finite CPU/software HUD proof, not a desktop/mobile application, APK UI, persistent host, or production readiness.
