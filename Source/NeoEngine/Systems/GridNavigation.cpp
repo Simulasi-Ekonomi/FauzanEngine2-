@@ -18,7 +18,6 @@ bool GridNavigation::SetBlocked(GridCell cell, bool blocked) {
 }
 bool GridNavigation::IsBlocked(GridCell cell) const { return !Valid(cell) || blocked_[Index(cell)] != 0; }
 bool GridNavigation::FindPath(GridCell start, GridCell goal, std::vector<GridCell>& route) const {
-    route.clear();
     if (side_ == 0) return Fail(GridNavigationError::NotInitialized);
     if (!Valid(start) || !Valid(goal)) return Fail(GridNavigationError::OutOfBounds);
     if (IsBlocked(start) || IsBlocked(goal)) return Fail(GridNavigationError::BlockedEndpoint);
@@ -44,6 +43,6 @@ bool GridNavigation::FindPath(GridCell start, GridCell goal, std::vector<GridCel
         if (current == begin) break;
         if (reversed.size() > kMaxRouteCells) return Fail(GridNavigationError::RouteCapacity);
     }
-    route.assign(reversed.rbegin(), reversed.rend()); lastError_ = GridNavigationError::None; return true;
+    std::vector<GridCell> candidate(reversed.rbegin(), reversed.rend()); route = std::move(candidate); lastError_ = GridNavigationError::None; return true;
 }
 } // namespace NeoEngine

@@ -94,6 +94,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Trigger animation surface demo | [`TRIGGER_ANIMATION_SURFACE_DEMO_V1.md`](TRIGGER_ANIMATION_SURFACE_DEMO_V1.md) | Finite single-writer motion to trigger-selected animation tint and sprite surface integration proof. |
 | Gameplay authoring visual binding | [`AUTHORING_CATALOG_VISUAL_BINDING_V1.md`](AUTHORING_CATALOG_VISUAL_BINDING_V1.md) | Building and actor placement binding to canonical staged mesh/material/texture runtime entities. |
 | World authoring navigation rebuild | [`WORLD_AUTHORING_NAVIGATION_REBUILD_V1.md`](WORLD_AUTHORING_NAVIGATION_REBUILD_V1.md) | Candidate navigation reconstructed from decoded biome, tree, and building state. |
+| Grid navigation atomic output | [`GRID_NAVIGATION_ATOMIC_OUTPUT_V1.md`](GRID_NAVIGATION_ATOMIC_OUTPUT_V1.md) | Candidate-commit route output preservation on path-query failure. |
 | Engine audit | [`../engine_capability_audit_2026-08-23.md`](../engine_capability_audit_2026-08-23.md) | Capability audit and known gaps. |
 | CPU skinning | [`../skinning_cpu_evaluation.md`](../skinning_cpu_evaluation.md) | Limited CPU skeleton, palette, clip, and skinning evidence. |
 | Route ownership | [`../route_intent_single_writer_contract.md`](../route_intent_single_writer_contract.md) | Intent/receipt and one-transform-writer contract. |
