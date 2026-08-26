@@ -1,0 +1,5 @@
+# Kinematic Collision Preflight Probe V1
+
+`KinematicCollisionPreflight::Probe` reads a validated SceneWorld local transform and an XPBD collider snapshot, then reports a clear path or the nearest `GameplayRayHit2` blocker for a proposed planar kinematic move. It does not call `KinematicMotionController::Step`, `XPBDPhysicsSystem::Step`, or any SceneWorld writer.
+
+The output is candidate-based: invalid input, missing transform, or query failure preserves the caller’s previous probe result. `Step` now consumes the same probe and delegates a clear move exclusively to `KinematicMotionController`, retaining its single transform writer contract. The smoke proves blocker receipt, no transform change during probe, atomic invalid-input preservation, blocked Step behavior, and a later delegated clear move. It passes in Release and AddressSanitizer with `detect_leaks=1`; current non-Vulkan broad suites pass 128/128 in both configurations. This is not collision response, a Rigidbody API, navigation, 3D physics, or production readiness.
