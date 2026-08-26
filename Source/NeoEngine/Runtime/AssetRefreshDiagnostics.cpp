@@ -27,6 +27,10 @@ bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::stri
     return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, nullptr, &prefabs);
 }
 
+bool AssetRefreshDiagnostics::BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter& sprites, const PrefabStagingStore& prefabs) {
+    return BuildPlanImpl(registry, changedId, textures, meshes, materials, scene, &sprites, &prefabs);
+}
+
 bool AssetRefreshDiagnostics::BuildPlanImpl(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter* sprites, const PrefabStagingStore* prefabs) {
     AssetReloadDiagnostics dependencyPlan;
     if (!dependencyPlan.BuildPlan(registry, changedId)) {

@@ -46,6 +46,10 @@ public:
     // Executes a bounded staged-prefab subset on a candidate store. It refreshes
     // data only and never instantiates or mutates an EditorSceneSession.
     bool ExecutePrefabsAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, PrefabStagingStore& prefabs);
+    // Executes the full bounded diagnostics subset against one candidate set.
+    // It commits no store or receipt until resource, sprite, and prefab groups
+    // all succeed; sessions are deliberately outside this API.
+    bool ExecuteAllAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene, SceneSpriteAdapter& sprites, PrefabStagingStore& prefabs);
     [[nodiscard]] const std::vector<AssetRefreshPreflightReceipt>& PreflightReceipts() const { return preflightReceipts_; }
     [[nodiscard]] const std::vector<AssetRefreshReceipt>& Receipts() const { return receipts_; }
     [[nodiscard]] AssetRefreshExecutorError LastError() const { return lastError_; }

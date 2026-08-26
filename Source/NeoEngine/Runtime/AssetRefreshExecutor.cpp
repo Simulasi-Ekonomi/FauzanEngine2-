@@ -175,6 +175,28 @@ bool AssetRefreshExecutor::ExecutePrefabsAtomic(const std::vector<AssetRefreshPl
     return true;
 }
 
+bool AssetRefreshExecutor::ExecuteAllAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, MeshStagingStore& meshes, MaterialStagingStore& materials, SceneMeshAdapter& scene, SceneSpriteAdapter& sprites, PrefabStagingStore& prefabs) {
+    if (plan.size() > kMaxReceipts || HasDuplicateAction(plan)) { lastError_ = plan.size() > kMaxReceipts ? AssetRefreshExecutorError::Capacity : AssetRefreshExecutorError::PlanInvalid; return false; }
+    AssetRefreshExecutor candidate = *this;
+    TextureStagingStore candidateTextures = textures; MeshStagingStore candidateMeshes = meshes; MaterialStagingStore candidateMaterials = materials; SceneMeshAdapter candidateScene = scene; SceneSpriteAdapter candidateSprites = sprites; PrefabStagingStore candidatePrefabs = prefabs;
+    std::vector<AssetRefreshPlanEntry> resourceEntries; std::vector<AssetRefreshPlanEntry> spriteEntries; std::vector<AssetRefreshPlanEntry> prefabEntries;
+    resourceEntries.reserve(plan.size()); spriteEntries.reserve(plan.size()); prefabEntries.reserve(plan.size());
+    for (const AssetRefreshPlanEntry& entry : plan) {
+        if (entry.action == AssetRefreshAction::RefreshSpriteInstance) spriteEntries.push_back(entry);
+        else if (entry.action == AssetRefreshAction::RefreshPrefab) prefabEntries.push_back(entry);
+        else if (entry.action == AssetRefreshAction::RefreshTexture || entry.action == AssetRefreshAction::RefreshMesh || entry.action == AssetRefreshAction::RefreshMaterial || entry.action == AssetRefreshAction::RebindSceneInstance) resourceEntries.push_back(entry);
+        else { lastError_ = AssetRefreshExecutorError::PlanInvalid; return false; }
+    }
+    if (!resourceEntries.empty() && !candidate.Execute(resourceEntries, registry, candidateTextures, candidateMeshes, candidateMaterials, candidateScene)) { lastError_ = candidate.LastError(); return false; }
+    if (!spriteEntries.empty() && !candidate.ExecuteSpritesAtomic(spriteEntries, registry, candidateTextures, candidateSprites)) { lastError_ = candidate.LastError(); return false; }
+    if (!prefabEntries.empty() && !candidate.ExecutePrefabsAtomic(prefabEntries, registry, candidatePrefabs)) { lastError_ = candidate.LastError(); return false; }
+    std::vector<AssetRefreshPreflightReceipt> combinedPreflight; std::vector<AssetRefreshReceipt> combinedReceipts; combinedPreflight.reserve(plan.size()); combinedReceipts.reserve(plan.size());
+    for (const AssetRefreshPlanEntry& entry : plan) { combinedPreflight.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true}); combinedReceipts.push_back({entry.action, entry.assetId, entry.materialName, entry.entity, true}); }
+    textures = std::move(candidateTextures); meshes = std::move(candidateMeshes); materials = std::move(candidateMaterials); scene = std::move(candidateScene); sprites = std::move(candidateSprites); prefabs = std::move(candidatePrefabs);
+    preflightReceipts_ = std::move(combinedPreflight); receipts_ = std::move(combinedReceipts); lastError_ = AssetRefreshExecutorError::None;
+    return true;
+}
+
 bool AssetRefreshExecutor::ExecuteSpritesAtomic(const std::vector<AssetRefreshPlanEntry>& plan, const AssetRegistry& registry, TextureStagingStore& textures, SceneSpriteAdapter& sprites) {
     if (plan.size() > kMaxReceipts || HasDuplicateAction(plan)) { lastError_ = plan.size() > kMaxReceipts ? AssetRefreshExecutorError::Capacity : AssetRefreshExecutorError::PlanInvalid; return false; }
     AssetRefreshExecutor candidate = *this; TextureStagingStore candidateTextures = textures; SceneSpriteAdapter candidateSprites = sprites;

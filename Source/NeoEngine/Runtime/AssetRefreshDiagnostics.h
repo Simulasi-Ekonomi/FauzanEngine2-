@@ -36,6 +36,9 @@ public:
     // Extends the mesh-only plan with one stale staged-prefab action per
     // affected prefab resource. It never mutates an EditorSceneSession.
     bool BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const PrefabStagingStore& prefabs);
+    // Combines the read-only sprite and prefab extensions in one deterministic
+    // dependency plan without exposing mutable adapter or session state.
+    bool BuildPlan(const AssetRegistry& registry, std::string_view changedId, const TextureStagingStore& textures, const MeshStagingStore& meshes, const MaterialStagingStore& materials, const SceneMeshAdapter& scene, const SceneSpriteAdapter& sprites, const PrefabStagingStore& prefabs);
     [[nodiscard]] const std::vector<AssetRefreshPlanEntry>& Entries() const { return entries_; }
     [[nodiscard]] AssetRefreshDiagnosticsError LastError() const { return lastError_; }
 
