@@ -1,0 +1,5 @@
+# Farm HUD Surface Proof V1
+
+`RunFarmSurfaceDemo` now renders its finite canonical Farm scene for the requested frame count, captures the final world framebuffer hash, builds a read-only `FarmRuntimeFrameReceipt` from the final `FarmSystem::Snapshot`, and overlays `FarmRuntimeHud` before writing the final P6 artifact. The receipt exposes both world-only and HUD-overlaid hashes; the public frame hash is the HUD-overlaid result.
+
+The surface demo still presents only the canonical world frames through the existing hidden surface seam; the HUD is an artifact-layer proof, not an interactive application window or persistent loop. The caller receipt is committed only after runtime shutdown succeeds, so runtime, HUD, artifact, or shutdown failure preserves it. The smoke proves four presented world frames, one building, five NPCs, P6 output, and distinct world/HUD hashes. It passes in Release and AddressSanitizer with `detect_leaks=1`; current non-Vulkan broad suites pass 129/129 in both configurations. This is finite CPU/software vertical-slice evidence, not a production game host, mobile APK, or release claim.
