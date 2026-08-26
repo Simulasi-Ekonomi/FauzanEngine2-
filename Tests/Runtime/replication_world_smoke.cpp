@@ -32,7 +32,11 @@ int main() {
     ReplicationApplyReceipt apply{};
     if (!client.ApplyServerSnapshot(snapshot, apply) || !apply.accepted || apply.appliedEntities != 2U || apply.reconciledPredictions != 1U || client.SnapshotSequence() != 1U) return 11;
     ReplicationAcknowledgement acknowledgement{};
-    if (!client.BuildClientAcknowledgement(acknowledgement) || acknowledgement.sequence != 1U || acknowledgement.serverTick != 1U || acknowledgement.checksum != snapshot.checksum || !server.ApplyClientAcknowledgement(acknowledgement) || server.AcknowledgedSequence() != 1U) return 12;
+    ReplicationAcknowledgement decodedAcknowledgement{};
+    std::vector<uint8_t> acknowledgementBytes;
+    if (!client.BuildClientAcknowledgement(acknowledgement) || !ReplicationAcknowledgementCodec::Serialize(acknowledgement, acknowledgementBytes, codecError) || !ReplicationAcknowledgementCodec::Deserialize(acknowledgementBytes, decodedAcknowledgement, codecError) || decodedAcknowledgement.sequence != 1U || decodedAcknowledgement.checksum != snapshot.checksum || !server.ApplyClientAcknowledgement(decodedAcknowledgement) || server.AcknowledgedSequence() != 1U) return 12;
+    acknowledgementBytes.back() ^= 0x01U;
+    if (ReplicationAcknowledgementCodec::Deserialize(acknowledgementBytes, decodedAcknowledgement, codecError) || codecError != ReplicationError::CorruptSnapshot || server.AcknowledgedSequence() != 1U) return 13;
     ReplicationAcknowledgement invalidAcknowledgement = acknowledgement;
     invalidAcknowledgement.sequence = 2U;
     if (server.ApplyClientAcknowledgement(invalidAcknowledgement) || server.LastError() != ReplicationError::InvalidAcknowledgement || server.AcknowledgedSequence() != 1U) return 13;

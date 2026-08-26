@@ -78,6 +78,13 @@ public:
     static bool Deserialize(std::span<const uint8_t> bytes, ReplicationSnapshot& snapshot, ReplicationError& error);
 };
 
+class ReplicationAcknowledgementCodec {
+public:
+    static constexpr size_t kMaxBytes = 64U;
+    static bool Serialize(const ReplicationAcknowledgement& acknowledgement, std::vector<uint8_t>& bytes, ReplicationError& error);
+    static bool Deserialize(std::span<const uint8_t> bytes, ReplicationAcknowledgement& acknowledgement, ReplicationError& error);
+};
+
 class ReplicationWorld {
 public:
     static constexpr uint16_t kMaxEntities = ReplicationSnapshot::kMaxEntities;

@@ -9,6 +9,7 @@
 namespace NeoEngine {
 namespace {
 constexpr uint32_t kMagic = 0x31535052U; // RPS1
+constexpr uint32_t kAcknowledgementMagic = 0x314B4341U; // ACK1
 constexpr uint16_t kVersion = 1U;
 constexpr uint64_t kHashOffset = 1469598103934665603ULL;
 constexpr uint64_t kHashPrime = 1099511628211ULL;
@@ -118,6 +119,28 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     if (!ReadU64(bytes, offset, expected) || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.checksum = expected;
     snapshot = std::move(candidate);
+    error = ReplicationError::None;
+    return true;
+}
+
+bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement& acknowledgement, std::vector<uint8_t>& bytes, ReplicationError& error) {
+    if (acknowledgement.sequence == 0U || acknowledgement.checksum == 0U) { error = ReplicationError::InvalidAcknowledgement; return false; }
+    std::vector<uint8_t> content;
+    content.reserve(30U);
+    AppendU32(content, kAcknowledgementMagic); AppendU16(content, kVersion); AppendU64(content, acknowledgement.sequence); AppendU64(content, acknowledgement.serverTick); AppendU64(content, acknowledgement.checksum);
+    if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
+    AppendU64(content, Hash(content));
+    bytes = std::move(content);
+    error = ReplicationError::None;
+    return true;
+}
+
+bool ReplicationAcknowledgementCodec::Deserialize(std::span<const uint8_t> bytes, ReplicationAcknowledgement& acknowledgement, ReplicationError& error) {
+    if (bytes.size() != 38U) { error = ReplicationError::CorruptSnapshot; return false; }
+    size_t offset = 0U;
+    uint32_t magic = 0U; uint16_t version = 0U; ReplicationAcknowledgement candidate{}; uint64_t expected = 0U;
+    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, candidate.sequence) || !ReadU64(bytes, offset, candidate.serverTick) || !ReadU64(bytes, offset, candidate.checksum) || !ReadU64(bytes, offset, expected) || magic != kAcknowledgementMagic || version != kVersion || candidate.sequence == 0U || candidate.checksum == 0U || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptSnapshot; return false; }
+    acknowledgement = candidate;
     error = ReplicationError::None;
     return true;
 }
