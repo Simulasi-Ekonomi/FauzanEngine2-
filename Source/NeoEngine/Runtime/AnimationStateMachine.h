@@ -10,6 +10,7 @@ namespace NeoEngine {
 enum class AnimationStateMachineError : uint8_t { None, InvalidState, DuplicateState, Capacity, MissingState, InvalidTransition, DuplicateTransition, NotStarted, TransitionInProgress, InvalidDelta, SampleFailed };
 struct AnimationStateSpec { std::string id; std::string trackId; AnimationPlayback playback = AnimationPlayback::Clamp; };
 struct AnimationTransitionSpec { std::string id; std::string fromStateId; std::string toStateId; float durationSeconds = 0.0F; };
+struct AnimationStateMachineSnapshot { std::string activeStateId; std::string targetStateId; bool blending = false; float blendFraction = 0.0F; float activeTimeSeconds = 0.0F; float targetTimeSeconds = 0.0F; };
 
 // Bounded scalar state/blend selector. It owns neither timelines nor SceneWorld and
 // therefore cannot write transforms, movement routes, or movement authority.
@@ -23,6 +24,7 @@ public:
     bool Trigger(const std::string& transitionId);
     bool Update(float deltaSeconds);
     bool Sample(const AnimationTimeline& timeline, float& value) const;
+    bool Snapshot(AnimationStateMachineSnapshot& snapshot) const;
     [[nodiscard]] std::string ActiveStateId() const;
     [[nodiscard]] bool IsBlending() const { return transitionIndex_ >= 0; }
     [[nodiscard]] AnimationStateMachineError LastError() const { return lastError_; }

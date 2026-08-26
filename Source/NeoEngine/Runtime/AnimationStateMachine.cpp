@@ -44,5 +44,19 @@ bool AnimationStateMachine::Sample(const AnimationTimeline& timeline, float& val
     if (!timeline.Sample(target.spec.trackId, targetTime_, target.spec.playback, targetValue)) { lastError_ = AnimationStateMachineError::SampleFailed; return false; }
     value = sourceValue + ((targetValue - sourceValue) * std::clamp(blendElapsed_ / transition.spec.durationSeconds, 0.0F, 1.0F)); lastError_ = AnimationStateMachineError::None; return true;
 }
+bool AnimationStateMachine::Snapshot(AnimationStateMachineSnapshot& snapshot) const {
+    if (activeStateIndex_ < 0) { lastError_ = AnimationStateMachineError::NotStarted; return false; }
+    AnimationStateMachineSnapshot candidate{};
+    candidate.activeStateId = states_[static_cast<size_t>(activeStateIndex_)].spec.id;
+    candidate.activeTimeSeconds = activeTime_;
+    candidate.targetTimeSeconds = targetTime_;
+    candidate.blending = transitionIndex_ >= 0;
+    if (candidate.blending) {
+        const Transition& transition = transitions_[static_cast<size_t>(transitionIndex_)];
+        candidate.targetStateId = states_[blendTargetIndex_].spec.id;
+        candidate.blendFraction = std::clamp(blendElapsed_ / transition.spec.durationSeconds, 0.0F, 1.0F);
+    }
+    snapshot = std::move(candidate); lastError_ = AnimationStateMachineError::None; return true;
+}
 std::string AnimationStateMachine::ActiveStateId() const { return activeStateIndex_ < 0 ? std::string{} : states_[static_cast<size_t>(activeStateIndex_)].spec.id; }
 } // namespace NeoEngine
