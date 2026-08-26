@@ -20,6 +20,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | SceneDocument v3 sprite binding | [`SCENE_DOCUMENT_SPRITE_BINDING_V1.md`](SCENE_DOCUMENT_SPRITE_BINDING_V1.md) | Bounded sprite authoring, NAB3 compatibility, staged CPU texture, and software-rendered 2D quad contract. |
 | Farm sprite rendering | [`FARM_SPRITE_RENDERING_V1.md`](FARM_SPRITE_RENDERING_V1.md) | Read-only FarmSystem/FarmWorldTool textured presentation with candidate staging and frame replacement boundary. |
 | Farm player input | [`FARM_PLAYER_INPUT_BRIDGE_V1.md`](FARM_PLAYER_INPUT_BRIDGE_V1.md) | Bounded local input-to-move/crop bridge that routes through existing FarmWorld authority APIs. |
+| Audio mixer wide accumulator | [`AUDIO_MIXER_WIDE_ACCUMULATOR_V1.md`](AUDIO_MIXER_WIDE_ACCUMULATOR_V1.md) | Wide PCM accumulation before deterministic signed-16 saturation. |
 | Farm runtime session | [`FARM_RUNTIME_SESSION_V1.md`](FARM_RUNTIME_SESSION_V1.md) | Explicit input → FarmWorld tick → staged sprite frame lifecycle with scoped failure behavior. |
 | Software surface presenter | [`SOFTWARE_SURFACE_PRESENTER_V1.md`](SOFTWARE_SURFACE_PRESENTER_V1.md) | Optional SDL upload/present seam from canonical SoftwareRenderer and NeoRuntime Farm. |
 | Software surface lifecycle | [`SOFTWARE_SURFACE_LIFECYCLE_V1.md`](SOFTWARE_SURFACE_LIFECYCLE_V1.md) | Bounded SDL event pump, close request, and fail-closed NeoRuntime presentation behavior. |
