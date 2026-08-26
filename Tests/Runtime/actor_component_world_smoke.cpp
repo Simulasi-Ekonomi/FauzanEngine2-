@@ -54,6 +54,12 @@ public:
     bool OnActivate(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { return false; }
 };
 
+class RejectDeactivationComponent final : public ProbeComponent {
+public:
+    RejectDeactivationComponent() : ProbeComponent(22U) {}
+    bool OnDeactivate(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { return false; }
+};
+
 class MissingDependencyComponent final : public ProbeComponent {
 public:
     MissingDependencyComponent() : ProbeComponent(31U) {}
@@ -132,6 +138,7 @@ int main() {
     if (actors.RestoreSnapshot(invalidSnapshot) || actors.LastError() != ActorComponentError::RestoreRejected || movementView->snapshotValue != 99U || actors.IsComponentEnabled(hero, 10U)) return 12;
     if (!actors.RestoreSnapshot(structuralSnapshot) || movementView->snapshotValue != 42U || !actors.IsComponentEnabled(hero, 10U) || !actors.IsComponentActive(hero, 11U)) return 12;
     if (!actors.SetComponentActive(hero, 11U, false) || actors.IsComponentActive(hero, 11U) || renderView->deactivateCount != 1U || !actors.SetComponentActive(hero, 11U, true) || !actors.IsComponentActive(hero, 11U) || renderView->activateCount != 2U) return 10;
+    if (!actors.AttachComponent(hero, std::make_unique<RejectDeactivationComponent>()) || actors.SetComponentActive(hero, 22U, false) || actors.LastError() != ActorComponentError::DeactivationRejected || !actors.IsComponentActive(hero, 22U) || !actors.DetachComponent(hero, 22U)) return 10;
     if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 11;
 
     ActorComponentWorldReceipt receipt{};

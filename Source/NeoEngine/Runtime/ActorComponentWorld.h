@@ -25,6 +25,7 @@ enum class ActorComponentError : uint8_t {
     TickRejected,
     DependencyRejected,
     ActivationRejected,
+    DeactivationRejected,
     BeginPlayRejected,
     EndPlayRejected,
     SnapshotRejected,

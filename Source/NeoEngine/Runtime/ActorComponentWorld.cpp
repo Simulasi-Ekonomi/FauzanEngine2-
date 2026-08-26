@@ -252,7 +252,7 @@ bool ActorComponentWorld::SetComponentActive(SceneEntity actor, uint16_t typeId,
         dispatching_ = true;
         const bool callback = active ? slot->component->OnActivate(sceneWorld_, actor) : slot->component->OnDeactivate(sceneWorld_, actor);
         dispatching_ = false;
-        if (!callback) return Fail(ActorComponentError::ActivationRejected);
+        if (!callback) return Fail(active ? ActorComponentError::ActivationRejected : ActorComponentError::DeactivationRejected);
     }
     slot->active = active;
     ++registrationRevision_;
