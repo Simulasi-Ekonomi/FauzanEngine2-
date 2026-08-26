@@ -64,6 +64,16 @@ int main() {
     missingTexture.actors[0].textureAssetId = "missing.texture";
     if (binder.BindDocumentAssets(missingTexture, documentAdapter, assets, meshes, materials, textures, adapter) || binder.LastError() != EditorSceneMeshBinderError::TextureStageFailed || adapter.Instances().front().sourceTextureAssetId != "farm.texture") return 1;
 
+    const std::string badMtl = "newmtl bad\nKd 2 0 0\n";
+    if (!assets.ImportBytes("bad.material", AssetKind::Material, {}, bytes(badMtl)) || !assets.MarkReady("bad.material")) return 1;
+    EditorSceneDocument laterFailure = v2;
+    laterFailure.revision = 4;
+    laterFailure.actors.push_back({2, 0, EditorSceneActorKind::Mesh, {0, 0, 6, 0, 0, 0, 1, 1, 1}, "farm.mesh", "bad.material", "bad", "farm.texture"});
+    if (!documentAdapter.Load(laterFailure, assets, world)) return 1;
+    MeshStagingStore atomicMeshes; MaterialStagingStore atomicMaterials; TextureStagingStore atomicTextures; SceneMeshAdapter atomicTarget = adapter;
+    const size_t targetCount = atomicTarget.Instances().size();
+    if (binder.BindDocumentAssets(laterFailure, documentAdapter, assets, atomicMeshes, atomicMaterials, atomicTextures, atomicTarget) || binder.LastError() != EditorSceneMeshBinderError::MaterialStageFailed || atomicMeshes.ResourceCount() != 0U || atomicMaterials.ResourceCount() != 0U || atomicTextures.ResourceCount() != 0U || atomicTarget.Instances().size() != targetCount || atomicTarget.Instances().front().sourceTextureAssetId != "farm.texture") return 1;
+
     SoftwareRenderer repeated;
     if (!repeated.Initialize(64, 64) || !repeated.Clear(0xFF000000U) || !adapter.Draw(world, camera, repeated, {{0, 0, -1}}) || repeated.FrameHash() != texturedHash) return 1;
     return 0;

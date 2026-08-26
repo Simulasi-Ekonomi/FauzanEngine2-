@@ -48,6 +48,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Scene sprite render properties | [`SCENE_SPRITE_RENDER_PROPERTIES_V1.md`](SCENE_SPRITE_RENDER_PROPERTIES_V1.md) | Staged sprite rotation, camera billboard, and depth-write propagation. |
 | Editor scene session | [`EDITOR_SCENE_SESSION_V1.md`](EDITOR_SCENE_SESSION_V1.md) | Bounded hierarchy/inspector/save snapshot/viewport foundation over SceneDocument. |
 | Editor SceneDocument codec | [`EDITOR_SCENE_DOCUMENT_CODEC_V1.md`](EDITOR_SCENE_DOCUMENT_CODEC_V1.md) | Bounded deterministic in-memory SceneDocument envelope with atomic decode; not filesystem persistence or an asset importer. |
+| Editor scene mesh binder atomic | [`EDITOR_SCENE_MESH_BINDER_ATOMIC_V1.md`](EDITOR_SCENE_MESH_BINDER_ATOMIC_V1.md) | Candidate-commit mesh/material/texture staging with atomic SceneMeshAdapter replacement. |
 | Editor session codec handoff | [`EDITOR_SCENE_SESSION_CODEC_HANDOFF_V1.md`](EDITOR_SCENE_SESSION_CODEC_HANDOFF_V1.md) | Bounded byte open/save seam delegating candidate documents back to canonical session and asset validation. |
 | Editor session dirty state | [`EDITOR_SCENE_SESSION_DIRTY_STATE_V1.md`](EDITOR_SCENE_SESSION_DIRTY_STATE_V1.md) | In-memory clean/dirty tracking around transactional session mutations and snapshot save semantics. |
 | Editor session reversion | [`EDITOR_SCENE_SESSION_REVERT_V1.md`](EDITOR_SCENE_SESSION_REVERT_V1.md) | One-snapshot in-memory reversion through canonical candidate Open and asset validation. |
