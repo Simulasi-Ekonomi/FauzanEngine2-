@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <new>
 
 namespace NeoEngine {
 int AnimationStateMachine::FindState(const std::string& stateId) const { const auto found = std::find_if(states_.begin(), states_.end(), [&stateId](const State& state) { return state.spec.id == stateId; }); return found == states_.end() ? -1 : static_cast<int>(found - states_.begin()); }
@@ -9,7 +10,9 @@ bool AnimationStateMachine::AddState(AnimationStateSpec state) {
     if (state.id.empty() || state.trackId.empty() || state.id.size() > kMaxIdentifierBytes || state.trackId.size() > kMaxIdentifierBytes) { lastError_ = AnimationStateMachineError::InvalidState; return false; }
     if (FindState(state.id) >= 0) { lastError_ = AnimationStateMachineError::DuplicateState; return false; }
     if (states_.size() >= kMaxStates) { lastError_ = AnimationStateMachineError::Capacity; return false; }
-    states_.push_back({std::move(state)}); lastError_ = AnimationStateMachineError::None; return true;
+    try { states_.push_back({std::move(state)}); }
+    catch (const std::bad_alloc&) { lastError_ = AnimationStateMachineError::Capacity; return false; }
+    lastError_ = AnimationStateMachineError::None; return true;
 }
 bool AnimationStateMachine::AddTransition(AnimationTransitionSpec transition) {
     if (transition.id.empty() || transition.fromStateId.empty() || transition.toStateId.empty() || transition.id.size() > kMaxIdentifierBytes || transition.fromStateId.size() > kMaxIdentifierBytes || transition.toStateId.size() > kMaxIdentifierBytes || !std::isfinite(transition.durationSeconds) || transition.durationSeconds < 0.0F) { lastError_ = AnimationStateMachineError::InvalidTransition; return false; }
@@ -17,7 +20,9 @@ bool AnimationStateMachine::AddTransition(AnimationTransitionSpec transition) {
     const int from = FindState(transition.fromStateId); const int to = FindState(transition.toStateId);
     if (from < 0 || to < 0 || from == to) { lastError_ = AnimationStateMachineError::InvalidTransition; return false; }
     if (transitions_.size() >= kMaxTransitions) { lastError_ = AnimationStateMachineError::Capacity; return false; }
-    transitions_.push_back({std::move(transition), static_cast<size_t>(from), static_cast<size_t>(to)}); lastError_ = AnimationStateMachineError::None; return true;
+    try { transitions_.push_back({std::move(transition), static_cast<size_t>(from), static_cast<size_t>(to)}); }
+    catch (const std::bad_alloc&) { lastError_ = AnimationStateMachineError::Capacity; return false; }
+    lastError_ = AnimationStateMachineError::None; return true;
 }
 bool AnimationStateMachine::Start(const std::string& stateId) { const int index = FindState(stateId); if (index < 0) { lastError_ = AnimationStateMachineError::MissingState; return false; } activeStateIndex_ = index; transitionIndex_ = -1; activeTime_ = 0.0F; targetTime_ = 0.0F; blendElapsed_ = 0.0F; lastError_ = AnimationStateMachineError::None; return true; }
 bool AnimationStateMachine::Reset() { activeStateIndex_ = -1; transitionIndex_ = -1; blendTargetIndex_ = 0U; activeTime_ = 0.0F; targetTime_ = 0.0F; blendElapsed_ = 0.0F; lastError_ = AnimationStateMachineError::None; return true; }
@@ -54,7 +59,8 @@ bool AnimationStateMachine::CollectEvents(const AnimationTimeline& timeline, flo
         const State& target = states_[blendTargetIndex_];
         std::vector<std::string> targetEvents;
         if (!timeline.CollectEvents(target.spec.trackId, fromTime, toTime, target.spec.playback, targetEvents) || candidate.size() > kMaxEventsPerCollection || targetEvents.size() > kMaxEventsPerCollection - candidate.size()) { lastError_ = AnimationStateMachineError::EventCollectionFailed; return false; }
-        candidate.insert(candidate.end(), targetEvents.begin(), targetEvents.end());
+        try { candidate.insert(candidate.end(), targetEvents.begin(), targetEvents.end()); }
+        catch (const std::bad_alloc&) { lastError_ = AnimationStateMachineError::EventCollectionFailed; return false; }
     }
     output = std::move(candidate);
     lastError_ = AnimationStateMachineError::None;
