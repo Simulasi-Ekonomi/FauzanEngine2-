@@ -39,6 +39,7 @@ struct AssetResourceReceipt {
     uint32_t refCount = 0U;
     uint16_t dependencyCount = 0U;
     uint64_t hotReloadGeneration = 0U;
+    uint32_t resourceGeneration = 0U;
 };
 
 class AssetResourceManager {

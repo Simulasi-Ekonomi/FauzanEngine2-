@@ -157,6 +157,7 @@ bool ReplicationWorld::UnregisterEntity(uint32_t networkId) {
 
 bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot) {
     if (role_ != ReplicationRole::Server) return Fail(ReplicationError::NotServer);
+    if (serverTick < lastServerTick_) return Fail(ReplicationError::StaleSnapshot);
     if (snapshotSequence_ == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::Capacity);
     struct CandidateState { uint16_t slotIndex = 0U; ReplicatedEntityState state{}; Transform3 previous{}; };
     std::array<CandidateState, kMaxEntities> candidates{};
@@ -191,6 +192,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     }
     snapshot = std::move(snapshotCandidate);
     snapshotSequence_ = snapshot.sequence;
+    lastServerTick_ = serverTick;
     lastError_ = ReplicationError::None;
     return true;
 }
@@ -218,7 +220,7 @@ bool ReplicationWorld::SetDynamicLifecycleEnabled(bool enabled) {
 bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
     if (!ValidateSnapshot(snapshot)) return Fail(ReplicationError::InvalidSnapshot);
-    if (snapshot.sequence <= snapshotSequence_) return Fail(ReplicationError::StaleSnapshot);
+    if (snapshot.sequence <= snapshotSequence_ || snapshot.serverTick < lastServerTick_) return Fail(ReplicationError::StaleSnapshot);
     std::array<uint16_t, kMaxEntities> resolvedSlots{};
     std::array<SceneEntity, kMaxEntities> spawnedEntities{};
     std::array<bool, kMaxEntities> usedSlots{};
@@ -303,6 +305,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         --registeredCount_;
     }
     snapshotSequence_ = snapshot.sequence;
+    lastServerTick_ = snapshot.serverTick;
     candidateReceipt.accepted = true;
     receipt = candidateReceipt;
     lastError_ = ReplicationError::None;

@@ -126,6 +126,7 @@ private:
     std::array<Slot, kMaxEntities> slots_{};
     uint16_t registeredCount_ = 0U;
     uint64_t snapshotSequence_ = 0U;
+    uint64_t lastServerTick_ = 0U;
     uint64_t predictionSequence_ = 0U;
     uint16_t interpolationAlphaPermille_ = 1000U;
     ReplicationError lastError_ = ReplicationError::None;

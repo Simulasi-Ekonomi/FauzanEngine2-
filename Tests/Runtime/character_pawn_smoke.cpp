@@ -15,24 +15,28 @@ int main() {
     CharacterPawn* characterView = character.get();
     CharacterAnimationGraph& graph = characterView->AnimationGraph();
     if (!graph.AddBaseState({"idle", "idle", AnimationPlayback::Loop}) || !graph.AddBaseState({"walk", "walk", AnimationPlayback::Loop}) || !graph.AddBaseState({"run", "run", AnimationPlayback::Loop}) || !graph.AddBaseTransition({"idle_walk", "idle", "walk", 0.10F}) || !graph.AddBaseTransition({"walk_idle", "walk", "idle", 0.10F}) || !graph.AddBaseTransition({"walk_run", "walk", "run", 0.10F}) || !graph.AddBaseTransition({"run_idle", "run", "idle", 0.10F}) || !graph.StartBase("idle")) return 2;
-    if (!graph.AddOverlayState({"none", "none", AnimationPlayback::Loop}) || !graph.AddOverlayState({"aim", "aim", AnimationPlayback::Loop}) || !graph.AddOverlayTransition({"none_aim", "none", "aim", 0.20F}) || !graph.AddOverlayTransition({"aim_none", "aim", "none", 0.20F}) || !graph.StartOverlay("none")) return 3;
-    if (!actors.AttachComponent(player, std::move(character)) || !characterView->IsAttached()) return 4;
-    if (!characterView->SetTransitionBinding({"idle", "walk", "idle_walk"}) || !characterView->SetTransitionBinding({"walk", "idle", "walk_idle"}) || !characterView->SetTransitionBinding({"walk", "run", "walk_run"}) || !characterView->SetTransitionBinding({"run", "idle", "run_idle"})) return 5;
+    if (!graph.AddOverlayState({"none", "none", AnimationPlayback::Loop}) || !graph.AddOverlayState({"aim", "aim", AnimationPlayback::Loop}) || !graph.AddOverlayTransition({"none_aim", "none", "aim", 0.20F}) || !graph.AddOverlayTransition({"aim_none", "aim", "none", 0.20F}) || !graph.StartOverlay("none") || !graph.SetOverlayWeightPermille(500U)) return 3;
+    AnimationTimeline timeline;
+    if (!timeline.AddTrack("idle", {{0.0F, 1.0F}, {1.0F, 1.0F}}) || !timeline.AddTrack("walk", {{0.0F, 2.0F}, {1.0F, 2.0F}}) || !timeline.AddTrack("run", {{0.0F, 3.0F}, {1.0F, 3.0F}}) || !timeline.AddTrack("none", {{0.0F, 0.0F}, {1.0F, 0.0F}}) || !timeline.AddTrack("aim", {{0.0F, 10.0F}, {1.0F, 10.0F}})) return 4;
+    if (!actors.AttachComponent(player, std::move(character)) || !characterView->IsAttached()) return 5;
+    if (!characterView->SetTransitionBinding({"idle", "walk", "idle_walk"}) || !characterView->SetTransitionBinding({"walk", "idle", "walk_idle"}) || !characterView->SetTransitionBinding({"walk", "run", "walk_run"}) || !characterView->SetTransitionBinding({"run", "idle", "run_idle"})) return 6;
 
     ActorComponentWorldReceipt receipt{};
     if (!characterView->SubmitInput({}) || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 1U) return 6;
     CharacterPawnSnapshot snapshot{};
-    if (!characterView->Snapshot(snapshot) || snapshot.actor != player || snapshot.authority != CharacterMovementAuthority::KinematicRoute || !snapshot.grounded || snapshot.animation.base.activeStateId != "idle") return 7;
+    if (!characterView->Snapshot(snapshot) || snapshot.actor != player || snapshot.authority != CharacterMovementAuthority::KinematicRoute || !snapshot.grounded || snapshot.animation.base.activeStateId != "idle" || snapshot.animation.overlayWeightPermille != 500U) return 8;
 
     if (!characterView->SubmitInput({1.0F, 0.0F, false, false}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.animation.base.blending || snapshot.velocity.x <= 0.0F) return 8;
-    if (!characterView->TriggerOverlay("none_aim") || !actors.TickFixed(15U, receipt) || !characterView->Snapshot(snapshot) || snapshot.animation.hasOverlay == false || snapshot.animation.overlay.activeStateId != "aim") return 9;
+    if (!characterView->TriggerOverlay("none_aim") || !actors.TickFixed(15U, receipt) || !characterView->Snapshot(snapshot) || snapshot.animation.hasOverlay == false || snapshot.animation.overlay.activeStateId != "aim") return 10;
+    float compositeSample = 0.0F;
+    if (!graph.Sample(timeline, compositeSample) || std::abs(compositeSample - 6.0F) > 0.0001F) return 11;
     const CharacterPawnSnapshot savedSnapshot = snapshot;
     CharacterPawnSnapshot invalidSnapshot = savedSnapshot;
     invalidSnapshot.actor.generation += 1U;
-    if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != savedSnapshot.animation.overlay.activeStateId) return 10;
-    if (!characterView->Restore(savedSnapshot) || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != "aim") return 11;
-    if (!characterView->SubmitInput({0.0F, 0.0F, false, true}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.grounded || snapshot.velocity.y <= 0.0F) return 12;
-    if (!actors.TickFixed(60U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.grounded || std::abs(snapshot.velocity.y) > 0.0001F) return 13;
+    if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != savedSnapshot.animation.overlay.activeStateId) return 12;
+    if (!characterView->Restore(savedSnapshot) || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != "aim" || snapshot.animation.overlayWeightPermille != 500U) return 13;
+    if (!characterView->SubmitInput({0.0F, 0.0F, false, true}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.grounded || snapshot.velocity.y <= 0.0F) return 14;
+    if (!actors.TickFixed(60U, receipt) || !characterView->Snapshot(snapshot) || !snapshot.grounded || std::abs(snapshot.velocity.y) > 0.0001F) return 15;
 
     const Transform3* beforeRoot = scene.GetTransform(player);
     if (beforeRoot == nullptr) return 14;

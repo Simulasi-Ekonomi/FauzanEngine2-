@@ -52,6 +52,7 @@ struct CharacterRootMotionDelta {
 struct CharacterAnimationGraphSnapshot {
     AnimationStateMachineSnapshot base{};
     AnimationStateMachineSnapshot overlay{};
+    uint16_t overlayWeightPermille = 1000U;
     bool hasOverlay = false;
 };
 
@@ -77,6 +78,8 @@ public:
     bool StartOverlay(std::string_view stateId);
     bool TriggerOverlay(std::string_view transitionId);
     bool Tick(float deltaSeconds);
+    bool SetOverlayWeightPermille(uint16_t weightPermille);
+    bool Sample(const AnimationTimeline& timeline, float& value) const;
     bool Snapshot(CharacterAnimationGraphSnapshot& snapshot) const;
     bool Restore(const CharacterAnimationGraphSnapshot& snapshot);
     [[nodiscard]] bool HasBase() const { return hasBase_; }
@@ -95,6 +98,7 @@ private:
     bool hasOverlay_ = false;
     bool baseStarted_ = false;
     bool overlayStarted_ = false;
+    uint16_t overlayWeightPermille_ = 1000U;
     mutable AnimationStateMachineError lastError_ = AnimationStateMachineError::None;
 };
 

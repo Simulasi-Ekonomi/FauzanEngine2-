@@ -48,7 +48,7 @@ bool AssetResourceManager::RefreshUnleasedSlot(Slot& slot, const AssetDefinition
 
 bool AssetResourceManager::FillReceipt(const Slot& slot, AssetResourceHandle handle, AssetResourceReceipt& receipt) const {
     if (!slot.occupied) return false;
-    receipt = {slot.assetId, handle, slot.state, slot.contentHash, slot.refCount, slot.dependencyCount, slot.hotReloadGeneration};
+    receipt = {slot.assetId, handle, slot.state, slot.contentHash, slot.refCount, slot.dependencyCount, slot.hotReloadGeneration, slot.generation};
     return true;
 }
 

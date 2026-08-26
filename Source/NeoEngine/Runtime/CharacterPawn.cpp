@@ -73,18 +73,43 @@ bool CharacterAnimationGraph::TriggerOverlay(std::string_view transitionId) {
 
 bool CharacterAnimationGraph::Tick(float deltaSeconds) {
     if (!Finite(deltaSeconds) || deltaSeconds <= 0.0F || deltaSeconds > kMaxFixedSeconds) { lastError_ = AnimationStateMachineError::InvalidDelta; return false; }
-    if (baseStarted_ && !base_.Update(deltaSeconds)) { lastError_ = base_.LastError(); return false; }
-    if (overlayStarted_ && !overlay_.Update(deltaSeconds)) { lastError_ = overlay_.LastError(); return false; }
-    if (baseStarted_) baseState_ = base_.ActiveStateId();
-    if (overlayStarted_) overlayState_ = overlay_.ActiveStateId();
+    CharacterAnimationGraph candidate = *this;
+    if (candidate.baseStarted_ && !candidate.base_.Update(deltaSeconds)) { lastError_ = candidate.base_.LastError(); return false; }
+    if (candidate.overlayStarted_ && !candidate.overlay_.Update(deltaSeconds)) { lastError_ = candidate.overlay_.LastError(); return false; }
+    if (candidate.baseStarted_) candidate.baseState_ = candidate.base_.ActiveStateId();
+    if (candidate.overlayStarted_) candidate.overlayState_ = candidate.overlay_.ActiveStateId();
+    base_ = std::move(candidate.base_);
+    overlay_ = std::move(candidate.overlay_);
+    baseState_ = std::move(candidate.baseState_);
+    overlayState_ = std::move(candidate.overlayState_);
     lastError_ = AnimationStateMachineError::None;
     return true;
+}
+
+bool CharacterAnimationGraph::SetOverlayWeightPermille(uint16_t weightPermille) {
+    if (weightPermille > 1000U) { lastError_ = AnimationStateMachineError::InvalidState; return false; }
+    overlayWeightPermille_ = weightPermille;
+    lastError_ = AnimationStateMachineError::None;
+    return true;
+}
+
+bool CharacterAnimationGraph::Sample(const AnimationTimeline& timeline, float& value) const {
+    float baseValue = 0.0F;
+    if (!baseStarted_ || !base_.Sample(timeline, baseValue)) { lastError_ = base_.LastError(); return false; }
+    if (!overlayStarted_ || overlayWeightPermille_ == 0U) { value = baseValue; lastError_ = AnimationStateMachineError::None; return true; }
+    float overlayValue = 0.0F;
+    if (!overlay_.Sample(timeline, overlayValue)) { lastError_ = overlay_.LastError(); return false; }
+    const float weight = static_cast<float>(overlayWeightPermille_) / 1000.0F;
+    value = baseValue + (overlayValue - baseValue) * weight;
+    lastError_ = std::isfinite(value) ? AnimationStateMachineError::None : AnimationStateMachineError::SampleFailed;
+    return lastError_ == AnimationStateMachineError::None;
 }
 
 bool CharacterAnimationGraph::Snapshot(CharacterAnimationGraphSnapshot& snapshot) const {
     CharacterAnimationGraphSnapshot candidate{};
     if (baseStarted_ && !base_.Snapshot(candidate.base)) { lastError_ = base_.LastError(); return false; }
     candidate.hasOverlay = hasOverlay_ && overlayStarted_;
+    candidate.overlayWeightPermille = overlayWeightPermille_;
     if (candidate.hasOverlay && !overlay_.Snapshot(candidate.overlay)) { lastError_ = overlay_.LastError(); return false; }
     snapshot = std::move(candidate);
     lastError_ = AnimationStateMachineError::None;
@@ -167,7 +192,7 @@ bool CharacterPawn::SetRootMotionMode(CharacterRootMotionMode mode) {
 
 bool CharacterPawn::SetTransitionBinding(CharacterTransitionBinding binding) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
-    if (binding.from.empty() || binding.to.empty() || binding.transitionId.empty()) return Fail(CharacterPawnError::AnimationRejected);
+    if (binding.from.empty() || binding.to.empty() || binding.transitionId.empty() || binding.from.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.to.size() > AnimationStateMachine::kMaxIdentifierBytes || binding.transitionId.size() > AnimationStateMachine::kMaxIdentifierBytes) return Fail(CharacterPawnError::AnimationRejected);
     for (uint8_t index = 0U; index < transitionBindingCount_; ++index) {
         if (transitionBindings_[index].from == binding.from && transitionBindings_[index].to == binding.to) {
             transitionBindings_[index] = std::move(binding);
@@ -262,7 +287,9 @@ bool CharacterPawn::TriggerOverlay(std::string_view transitionId) {
 }
 
 bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& snapshot) {
+    if (snapshot.overlayWeightPermille > 1000U) { lastError_ = AnimationStateMachineError::InvalidSnapshot; return false; }
     CharacterAnimationGraph candidate = *this;
+    candidate.overlayWeightPermille_ = snapshot.overlayWeightPermille;
     if (snapshot.base.activeStateId.empty()) {
         if (!candidate.base_.Reset()) return false;
         candidate.baseStarted_ = false;
@@ -286,6 +313,7 @@ bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& sna
     overlay_ = std::move(candidate.overlay_);
     baseState_ = std::move(candidate.baseState_);
     overlayState_ = std::move(candidate.overlayState_);
+    overlayWeightPermille_ = candidate.overlayWeightPermille_;
     hasBase_ = candidate.hasBase_;
     hasOverlay_ = candidate.hasOverlay_;
     baseStarted_ = candidate.baseStarted_;

@@ -18,6 +18,7 @@ class AnimationStateMachine {
 public:
     static constexpr uint8_t kMaxStates = 32;
     static constexpr uint8_t kMaxTransitions = 64;
+    static constexpr uint8_t kMaxIdentifierBytes = 64;
     bool AddState(AnimationStateSpec state);
     bool AddTransition(AnimationTransitionSpec transition);
     bool Start(const std::string& stateId);
