@@ -35,7 +35,8 @@ int main() {
     if (!resources.Release(meshHandle) || resources.TotalLeaseCount() != 0U || resources.ActiveLeaseCount() != 0U || !resources.SyncHotReload("texture.wheat") || !resources.Query("texture.wheat", textureReceipt) || textureReceipt.state != AssetResourceState::Ready) return 14;
 
     AssetResourceHandle invalid{0U, 999999U};
-    if (resources.Release(invalid) || resources.LastError() != AssetResourceError::InvalidHandle || resources.Data(invalid) != nullptr) return 15;
+    materialReceipt.assetId = "query-preserve";
+    if (resources.Release(invalid) || resources.LastError() != AssetResourceError::InvalidHandle || resources.Data(invalid) != nullptr || resources.Query(invalid, materialReceipt) || resources.LastError() != AssetResourceError::InvalidHandle || materialReceipt.assetId != "query-preserve") return 15;
     const AssetResourceHandle preservedAcquireHandle{123U, 456U};
     materialHandle = preservedAcquireHandle;
     if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency || materialHandle != preservedAcquireHandle) return 16;

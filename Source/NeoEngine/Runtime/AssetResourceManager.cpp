@@ -56,8 +56,13 @@ bool AssetResourceManager::RefreshUnleasedSlot(Slot& slot, const AssetDefinition
 
 bool AssetResourceManager::FillReceipt(const Slot& slot, AssetResourceHandle handle, AssetResourceReceipt& receipt) const {
     if (!slot.occupied) return false;
-    receipt = {slot.assetId, handle, slot.state, slot.contentHash, slot.refCount, slot.dependencyCount, slot.hotReloadGeneration, slot.generation};
-    return true;
+    try {
+        AssetResourceReceipt candidate{slot.assetId, handle, slot.state, slot.contentHash, slot.refCount, slot.dependencyCount, slot.hotReloadGeneration, slot.generation};
+        receipt = std::move(candidate);
+        return true;
+    } catch (const std::bad_alloc&) {
+        return false;
+    }
 }
 
 bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle& handle) {
@@ -273,13 +278,17 @@ bool AssetResourceManager::EvictUnleased(uint16_t& evictedResources) {
 bool AssetResourceManager::Query(AssetResourceHandle handle, AssetResourceReceipt& receipt) const {
     if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
     const LeaseSlot& lease = leases_[handle.slot];
-    return FillReceipt(slots_[lease.rootResourceSlot], handle, receipt);
+    if (!FillReceipt(slots_[lease.rootResourceSlot], handle, receipt)) return Fail(AssetResourceError::Capacity);
+    lastError_ = AssetResourceError::None;
+    return true;
 }
 
 bool AssetResourceManager::Query(std::string_view assetId, AssetResourceReceipt& receipt) const {
     const uint16_t slot = FindSlot(assetId);
     if (slot == 0xFFFFU) return Fail(AssetResourceError::InvalidIdentifier);
-    return FillReceipt(slots_[slot], {}, receipt);
+    if (!FillReceipt(slots_[slot], {}, receipt)) return Fail(AssetResourceError::Capacity);
+    lastError_ = AssetResourceError::None;
+    return true;
 }
 
 const std::vector<uint8_t>* AssetResourceManager::Data(AssetResourceHandle handle) const {
