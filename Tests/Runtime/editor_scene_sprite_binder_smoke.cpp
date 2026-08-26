@@ -40,6 +40,15 @@ int main() {
     const uint64_t movedHash = renderer.FrameHash();
     EditorSceneDocument noSprite{.version = 3, .sceneId = "sprite-farm", .revision = 2, .actors = {{.id = 2, .kind = EditorSceneActorKind::Marker, .transform = {0, 0, 1, 0, 0, 0, 1, 1, 1}}}};
     if (!require(!binder.BindDocumentAssets(noSprite, documentAdapter, assets, textures, sprites) && binder.LastError() == EditorSceneSpriteBinderError::InvalidDocument && sprites.InstanceCount() == 1U, "atomic-rejection")) return 1;
+    const std::vector<uint8_t> malformed{'N', 'O'};
+    if (!require(assets.ImportBytes("broken.ppm", AssetKind::Texture, {}, malformed) && assets.MarkReady("broken.ppm"), "broken-ready")) return 1;
+    EditorSceneDocument laterFailure = document;
+    laterFailure.revision = 3;
+    laterFailure.actors.push_back({.id = 2, .kind = EditorSceneActorKind::Sprite, .transform = {2, 0, 1, 0, 0, 0, 1, 1, 1}, .assetId = "broken.ppm", .spriteWidth = 2.0F, .spriteHeight = 2.0F});
+    if (!require(documentAdapter.Load(laterFailure, assets, world), "later-document-load")) return 1;
+    TextureStagingStore atomicTextures;
+    SceneSpriteAdapter atomicSprites = sprites;
+    if (!require(!binder.BindDocumentAssets(laterFailure, documentAdapter, assets, atomicTextures, atomicSprites) && binder.LastError() == EditorSceneSpriteBinderError::TextureStageFailed && atomicTextures.ResourceCount() == 0U && atomicSprites.InstanceCount() == 1U, "later-atomic-rollback")) return 1;
     std::printf("EDITOR_SCENE_SPRITE_BINDER_SMOKE_OK sprites=%zu texture=1 moved=1 hash=%llu\n", sprites.InstanceCount(), static_cast<unsigned long long>(movedHash));
     return 0;
 }
