@@ -245,7 +245,18 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (fixedTicks == 0U) return Fail(ActorComponentError::TickRejected);
     if (!begunPlay_ && !BeginPlay()) return false;
-    for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled && (slot.component->TickGroup() >= kMaxTickGroups || slot.component->TickOrder() >= kMaxTickOrders)) return Fail(ActorComponentError::TickRejected);
+    for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled) {
+        const uint8_t group = slot.component->TickGroup();
+        const uint8_t order = slot.component->TickOrder();
+        const uint8_t dependencyCount = slot.component->TickDependencyCount();
+        if (group >= kMaxTickGroups || order >= kMaxTickOrders || dependencyCount > kMaxComponentsPerActor) return Fail(ActorComponentError::TickRejected);
+        for (uint8_t dependencyIndex = 0U; dependencyIndex < dependencyCount; ++dependencyIndex) {
+            const uint16_t dependencyType = slot.component->TickDependencyTypeId(dependencyIndex);
+            const ComponentSlot* dependency = FindSlot(actor.scene, dependencyType);
+            if (dependencyType == 0U || dependencyType == slot.component->TypeId() || dependency == nullptr || dependency->component == nullptr || !dependency->enabled || dependency->component->TickGroup() > group || (dependency->component->TickGroup() == group && dependency->component->TickOrder() >= order)) return Fail(ActorComponentError::DependencyRejected);
+            for (uint8_t priorIndex = 0U; priorIndex < dependencyIndex; ++priorIndex) if (slot.component->TickDependencyTypeId(priorIndex) == dependencyType) return Fail(ActorComponentError::DependencyRejected);
+        }
+    }
     uint32_t ticked = 0U;
     for (uint8_t group = 0U; group < kMaxTickGroups; ++group) for (uint8_t order = 0U; order < kMaxTickOrders; ++order) for (uint16_t actorIndex = 0U; actorIndex < kCapacity; ++actorIndex) {
         ActorSlot& actor = actors_[actorIndex];

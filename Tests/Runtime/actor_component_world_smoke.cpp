@@ -41,16 +41,27 @@ public:
     bool OnDetach(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { return false; }
 };
 
+class MissingDependencyComponent final : public ProbeComponent {
+public:
+    MissingDependencyComponent() : ProbeComponent(31U) {}
+    uint8_t TickDependencyCount() const override { return 1U; }
+    uint16_t TickDependencyTypeId(uint8_t) const override { return 999U; }
+};
+
 class ReentrantMutationComponent final : public ProbeComponent {
 public:
-    ReentrantMutationComponent(NeoEngine::ActorComponentWorld& world, NeoEngine::SceneEntity actor) : ProbeComponent(30U), world_(world), actor_(actor) {}
+    ReentrantMutationComponent(NeoEngine::ActorComponentWorld& world, NeoEngine::SceneEntity actor, ProbeComponent& dependency) : ProbeComponent(30U), world_(world), actor_(actor), dependency_(dependency) {}
+    uint8_t TickGroup() const override { return 2U; }
+    uint8_t TickDependencyCount() const override { return 1U; }
+    uint16_t TickDependencyTypeId(uint8_t index) const override { return index == 0U ? 29U : 0U; }
     bool OnFixedTick(NeoEngine::SceneWorld&, NeoEngine::SceneEntity, uint32_t fixedTicks) override {
         tickedFixedTicks += fixedTicks;
-        mutationRejected = !world_.SetComponentEnabled(actor_, typeId_, false) && world_.LastError() == NeoEngine::ActorComponentError::MutationDuringDispatch;
+        mutationRejected = dependency_.tickCalls > 0U && !world_.SetComponentEnabled(actor_, typeId_, false) && world_.LastError() == NeoEngine::ActorComponentError::MutationDuringDispatch;
         return mutationRejected;
     }
     NeoEngine::ActorComponentWorld& world_;
     NeoEngine::SceneEntity actor_{};
+    ProbeComponent& dependency_;
     bool mutationRejected = false;
 };
 }
@@ -110,8 +121,14 @@ int main() {
     if (actors.DestroyActor(child) || actors.LastError() != ActorComponentError::DetachRejected || !actors.IsActorAlive(child) || actors.ComponentCount() != 2U) return 23;
     if (actors.DetachComponent(child, 20U) || actors.LastError() != ActorComponentError::DetachRejected || actors.FindComponent(child, 20U) == nullptr) return 24;
     if (actors.AttachComponent(hero, std::make_unique<ProbeComponent>(30U)) || actors.LastError() != ActorComponentError::InvalidActor) return 25;
-    auto reentrant = std::make_unique<ReentrantMutationComponent>(actors, replacement);
+    auto dependency = std::make_unique<ProbeComponent>(29U);
+    ProbeComponent* dependencyView = dependency.get();
+    if (!actors.AttachComponent(replacement, std::move(dependency))) return 26;
+    auto reentrant = std::make_unique<ReentrantMutationComponent>(actors, replacement, *dependencyView);
     ReentrantMutationComponent* reentrantView = reentrant.get();
-    if (!actors.AttachComponent(replacement, std::move(reentrant)) || !actors.TickFixed(1U, receipt) || !reentrantView->mutationRejected || receipt.tickedComponents != 3U || actors.IsComponentEnabled(replacement, 30U) == false) return 26;
+    if (!actors.AttachComponent(replacement, std::move(reentrant)) || !actors.TickFixed(1U, receipt) || !reentrantView->mutationRejected || dependencyView->tickCalls != 1U || receipt.tickedComponents != 4U || actors.IsComponentEnabled(replacement, 30U) == false) return 27;
+    if (!actors.AttachComponent(replacement, std::make_unique<MissingDependencyComponent>())) return 28;
+    const ActorComponentWorldReceipt beforeRejectedTick = receipt;
+    if (actors.TickFixed(1U, receipt) || actors.LastError() != ActorComponentError::DependencyRejected || receipt.tickedComponents != beforeRejectedTick.tickedComponents || actors.FindComponent(replacement, 31U) == nullptr) return 29;
     return 0;
 }

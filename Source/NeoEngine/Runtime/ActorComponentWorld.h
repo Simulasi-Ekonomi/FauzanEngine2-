@@ -23,6 +23,7 @@ enum class ActorComponentError : uint8_t {
     AttachRejected,
     DetachRejected,
     TickRejected,
+    DependencyRejected,
     BeginPlayRejected,
     EndPlayRejected,
     SnapshotRejected,
@@ -42,6 +43,8 @@ public:
     [[nodiscard]] virtual bool OnEndPlay(SceneWorld&, SceneEntity) { return true; }
     [[nodiscard]] virtual uint8_t TickGroup() const { return 0U; }
     [[nodiscard]] virtual uint8_t TickOrder() const { return 0U; }
+    [[nodiscard]] virtual uint8_t TickDependencyCount() const { return 0U; }
+    [[nodiscard]] virtual uint16_t TickDependencyTypeId(uint8_t) const { return 0U; }
     [[nodiscard]] virtual uint16_t SnapshotSizeBytes() const { return 0U; }
     [[nodiscard]] virtual bool CaptureSnapshot(std::span<uint8_t> bytes) const { return bytes.empty(); }
     [[nodiscard]] virtual bool RestoreSnapshot(std::span<const uint8_t> bytes) { return bytes.empty(); }
