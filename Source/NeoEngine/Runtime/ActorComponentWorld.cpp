@@ -293,8 +293,16 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
                 if (snapshotSize != 0U) {
                     const size_t oldSize = candidate.componentBytes.size();
                     candidate.componentBytes.resize(oldSize + snapshotSize);
-                    if (!component.component->CaptureSnapshot(std::span<uint8_t>(candidate.componentBytes.data() + oldSize, snapshotSize))) return Fail(ActorComponentError::SnapshotRejected);
-                } else if (!component.component->CaptureSnapshot({})) return Fail(ActorComponentError::SnapshotRejected);
+                    dispatching_ = true;
+                    const bool captured = component.component->CaptureSnapshot(std::span<uint8_t>(candidate.componentBytes.data() + oldSize, snapshotSize));
+                    dispatching_ = false;
+                    if (!captured) return Fail(ActorComponentError::SnapshotRejected);
+                } else {
+                    dispatching_ = true;
+                    const bool captured = component.component->CaptureSnapshot({});
+                    dispatching_ = false;
+                    if (!captured) return Fail(ActorComponentError::SnapshotRejected);
+                }
                 ++record.componentCount;
             }
             candidate.actors.push_back(std::move(record));

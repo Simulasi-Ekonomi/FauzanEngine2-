@@ -141,7 +141,7 @@ private:
     uint32_t componentCount_ = 0U;
     uint64_t registrationRevision_ = 0U;
     bool begunPlay_ = false;
-    bool dispatching_ = false;
+    mutable bool dispatching_ = false;
     ActorComponentWorldReceipt lastReceipt_{};
     mutable ActorComponentError lastError_ = ActorComponentError::NotInitialized;
 };

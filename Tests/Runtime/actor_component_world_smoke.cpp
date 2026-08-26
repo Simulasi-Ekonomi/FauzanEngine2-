@@ -19,8 +19,10 @@ public:
     uint8_t TickGroup() const override { return typeId_ == 11U ? 1U : 0U; }
     uint8_t TickOrder() const override { return typeId_ == 10U ? 1U : 0U; }
     uint16_t SnapshotSizeBytes() const override { return typeId_ == 10U ? sizeof(uint32_t) : 0U; }
-    bool CaptureSnapshot(std::span<uint8_t> bytes) const override { if (typeId_ != 10U) return bytes.empty(); if (bytes.size() != sizeof(uint32_t)) return false; std::memcpy(bytes.data(), &snapshotValue, sizeof(snapshotValue)); return true; }
+    bool CaptureSnapshot(std::span<uint8_t> bytes) const override { if (typeId_ != 10U) return bytes.empty(); if (bytes.size() != sizeof(uint32_t)) return false; if (snapshotWorld_ != nullptr && (snapshotWorld_->SetComponentEnabled(snapshotActor_, typeId_, false) || snapshotWorld_->LastError() != NeoEngine::ActorComponentError::MutationDuringDispatch)) return false; std::memcpy(bytes.data(), &snapshotValue, sizeof(snapshotValue)); return true; }
     uint32_t snapshotValue = 0U;
+    NeoEngine::ActorComponentWorld* snapshotWorld_ = nullptr;
+    NeoEngine::SceneEntity snapshotActor_{};
     bool OnFixedTick(NeoEngine::SceneWorld&, NeoEngine::SceneEntity, uint32_t fixedTicks) override { tickedFixedTicks += fixedTicks; ++tickCalls; return true; }
     uint16_t typeId_ = 0U;
     uint32_t* detachSink_ = nullptr;
@@ -77,6 +79,8 @@ int main() {
     std::vector<uint16_t> componentQuery;
     ActorComponentWorldSnapshot structuralSnapshot{};
     movementView->snapshotValue = 42U;
+    movementView->snapshotWorld_ = &actors;
+    movementView->snapshotActor_ = hero;
     if (!actors.CollectActors(actorQuery) || actorQuery.size() != 1U || actorQuery[0] != hero || !actors.CollectComponentTypes(hero, componentQuery) || componentQuery.size() != 2U || componentQuery[0] != 10U || componentQuery[1] != 11U || !actors.CaptureSnapshot(structuralSnapshot) || structuralSnapshot.actors.size() != 1U || structuralSnapshot.begunPlay || structuralSnapshot.componentBytes.size() != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotSizes[0] != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotOffsets[0] != 0U || std::memcmp(structuralSnapshot.componentBytes.data(), &movementView->snapshotValue, sizeof(uint32_t)) != 0) return 7;
     if (!actors.BeginPlay() || !structuralSnapshot.actors.empty() && structuralSnapshot.actors[0].begunPlay || movementView->beginPlayCount != 1U || renderView->beginPlayCount != 1U) return 8;
     if (!actors.CaptureSnapshot(structuralSnapshot) || !structuralSnapshot.begunPlay || structuralSnapshot.actors[0].begunPlay != true || structuralSnapshot.componentBytes.size() != sizeof(uint32_t)) return 9;
