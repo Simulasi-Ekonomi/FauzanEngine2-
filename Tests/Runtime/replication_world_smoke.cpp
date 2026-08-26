@@ -1,6 +1,7 @@
 #include "Runtime/ReplicationWorld.h"
 
 #include <cmath>
+#include <limits>
 #include <vector>
 
 int main() {
@@ -22,6 +23,13 @@ int main() {
     std::vector<uint8_t> encoded;
     ReplicationError codecError = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Serialize(snapshot, encoded, codecError) || encoded.empty() || codecError != ReplicationError::None) return 7;
+    std::vector<uint8_t> preservedBytes{0xA5U};
+    ReplicationSnapshot invalidCodecSnapshot = snapshot;
+    invalidCodecSnapshot.states[0].transform.x = std::numeric_limits<float>::quiet_NaN();
+    if (ReplicationSnapshotCodec::Serialize(invalidCodecSnapshot, preservedBytes, codecError) || codecError != ReplicationError::InvalidSnapshot || preservedBytes.size() != 1U || preservedBytes[0] != 0xA5U) return 7;
+    ReplicationSnapshot invalidOrderSnapshot = snapshot;
+    invalidOrderSnapshot.states[1].networkId = invalidOrderSnapshot.states[0].networkId;
+    if (ReplicationSnapshotCodec::Serialize(invalidOrderSnapshot, preservedBytes, codecError) || codecError != ReplicationError::InvalidSnapshot || preservedBytes.size() != 1U || preservedBytes[0] != 0xA5U) return 7;
     ReplicationSnapshot decoded{};
     if (!ReplicationSnapshotCodec::Deserialize(encoded, decoded, codecError) || decoded.sequence != snapshot.sequence || decoded.states[1].transform.x != 20.0F) return 8;
     encoded.back() ^= 0x4FU;
@@ -59,6 +67,15 @@ int main() {
     if (!client.SetInterpolationAlphaPermille(500U) || !client.ApplyInterpolation(apply) || apply.interpolatedEntities != 1U) return 18;
     const Transform3* remoteAfterInterpolation = clientScene.GetTransform(clientRemote);
     if (remoteAfterInterpolation == nullptr || std::abs(remoteAfterInterpolation->x - 15.0F) > 0.0001F) return 19;
+    SceneWorld interpolationScene;
+    SceneEntity interpolationFirst{}, interpolationSecond{};
+    if (!interpolationScene.Create(interpolationFirst) || !interpolationScene.Create(interpolationSecond) || !interpolationScene.SetTransform(interpolationFirst, {2.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !interpolationScene.SetTransform(interpolationSecond, {3.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 19;
+    ReplicationWorld interpolationClient(interpolationScene, ReplicationRole::Client, 7U);
+    if (!interpolationClient.RegisterEntity(interpolationFirst, 401U, 8U) || !interpolationClient.RegisterEntity(interpolationSecond, 402U, 8U) || !interpolationClient.SetInterpolationAlphaPermille(500U) || !interpolationScene.Destroy(interpolationSecond)) return 19;
+    ReplicationApplyReceipt preservedInterpolationReceipt{0U, 0U, 0U, 0U, 0U, 99U, 77U, false};
+    if (interpolationClient.ApplyInterpolation(preservedInterpolationReceipt) || interpolationClient.LastError() != ReplicationError::SceneApplyRejected || preservedInterpolationReceipt.interpolatedEntities != 99U || preservedInterpolationReceipt.reconciledPredictions != 77U || preservedInterpolationReceipt.accepted) return 19;
+    const Transform3* interpolationFirstAfterFailure = interpolationScene.GetTransform(interpolationFirst);
+    if (interpolationFirstAfterFailure == nullptr || std::abs(interpolationFirstAfterFailure->x - 2.0F) > 0.0001F) return 19;
     if (client.ApplyServerSnapshot(snapshot, apply) || client.LastError() != ReplicationError::StaleSnapshot) return 20;
     ReplicationSnapshot perEntityStale = snapshot; perEntityStale.sequence = 2U; perEntityStale.states[0].stateRevision = 0U;
     std::vector<uint8_t> staleBytes;

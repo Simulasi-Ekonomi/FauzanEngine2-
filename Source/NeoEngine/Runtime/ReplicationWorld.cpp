@@ -93,6 +93,10 @@ Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPerm
 
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
     if (snapshot.sequence == 0U || snapshot.count > ReplicationSnapshot::kMaxEntities || snapshot.count > 1024U) { error = ReplicationError::InvalidSnapshot; return false; }
+    for (uint16_t index = 0U; index < snapshot.count; ++index) {
+        const ReplicatedEntityState& state = snapshot.states[index];
+        if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
+    }
     std::vector<uint8_t> content;
     AppendSnapshotContent(content, snapshot);
     if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
@@ -366,13 +370,15 @@ bool ReplicationWorld::SetInterpolationAlphaPermille(uint16_t alphaPermille) {
 
 bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
+    auto candidateScene = std::make_unique<SceneWorld>(sceneWorld_);
     uint16_t interpolated = 0U;
     for (const Slot& slot : slots_) {
         if (!slot.registered || slot.ownerId == localClientId_ || !slot.hasAuthoritative) continue;
         const Transform3 candidate = Lerp(slot.previousAuthoritative, slot.authoritative, interpolationAlphaPermille_);
-        if (!ApplyTransform(slot, candidate)) return Fail(ReplicationError::SceneApplyRejected);
+        if (!candidateScene->SetTransform(slot.entity, candidate)) return Fail(ReplicationError::SceneApplyRejected);
         ++interpolated;
     }
+    sceneWorld_ = *candidateScene;
     receipt.interpolatedEntities = interpolated; receipt.accepted = true; lastError_ = ReplicationError::None; return true;
 }
 
