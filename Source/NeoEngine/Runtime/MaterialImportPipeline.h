@@ -18,6 +18,7 @@ public:
     bool ImportMtl(AssetRegistry& registry, MaterialStagingStore& materials, std::string assetId, std::vector<std::string> dependencies, std::vector<uint8_t> bytes, std::string materialName, MaterialImportReceipt& receipt);
     bool ImportMtlSet(AssetRegistry& registry, MaterialStagingStore& materials, std::string assetId, std::vector<std::string> dependencies, std::vector<uint8_t> bytes, std::vector<std::string> materialNames, std::vector<MaterialImportReceipt>& receipts);
     bool RefreshMtl(AssetRegistry& registry, MaterialStagingStore& materials, std::string assetId, std::vector<uint8_t> bytes, std::string materialName, MaterialImportReceipt& receipt);
+    bool RefreshMtlSet(AssetRegistry& registry, MaterialStagingStore& materials, std::string assetId, std::vector<uint8_t> bytes, std::vector<std::string> materialNames, std::vector<MaterialImportReceipt>& receipts);
     [[nodiscard]] MaterialImportPipelineError LastError() const { return lastError_; }
 private:
     MaterialImportPipelineError lastError_ = MaterialImportPipelineError::None;
