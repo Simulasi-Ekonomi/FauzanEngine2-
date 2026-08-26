@@ -11,4 +11,11 @@ bool MeshImportPipeline::ImportObj(AssetRegistry& registry, MeshStagingStore& me
     if (definition == nullptr || resource == nullptr || resource->vertices.size() > UINT16_MAX || resource->indices.size() > UINT16_MAX) { lastError_ = MeshImportPipelineError::StageFailed; return false; }
     MeshImportReceipt candidateReceipt{assetId, definition->contentHash, static_cast<uint16_t>(resource->vertices.size()), static_cast<uint16_t>(resource->indices.size()), resource->generatedFlatNormals}; registry = std::move(candidateRegistry); meshes = std::move(candidateMeshes); receipt = std::move(candidateReceipt); lastError_ = MeshImportPipelineError::None; return true;
 }
+bool MeshImportPipeline::ImportObjSet(AssetRegistry& registry, MeshStagingStore& meshes, const std::vector<MeshImportRequest>& requests, std::vector<MeshImportReceipt>& receipts) {
+    if (requests.empty()) { lastError_ = MeshImportPipelineError::InvalidRequest; return false; }
+    if (requests.size() > kMaxImportSetEntries) { lastError_ = MeshImportPipelineError::BatchCapacity; return false; }
+    AssetRegistry candidateRegistry = registry; MeshStagingStore candidateMeshes = meshes; std::vector<MeshImportReceipt> candidateReceipts; candidateReceipts.reserve(requests.size());
+    for (const MeshImportRequest& request : requests) { MeshImportReceipt receipt{}; if (!ImportObj(candidateRegistry, candidateMeshes, request.assetId, request.dependencies, request.bytes, request.options, receipt)) return false; candidateReceipts.push_back(std::move(receipt)); }
+    registry = std::move(candidateRegistry); meshes = std::move(candidateMeshes); receipts = std::move(candidateReceipts); lastError_ = MeshImportPipelineError::None; return true;
+}
 } // namespace NeoEngine

@@ -82,6 +82,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Texture import pipeline | [`TEXTURE_IMPORT_PIPELINE_V1.md`](TEXTURE_IMPORT_PIPELINE_V1.md) | Atomic in-memory PPM/BMP import through registry-ready-to-CPU-staging. |
 | Texture import set | [`TEXTURE_IMPORT_SET_V1.md`](TEXTURE_IMPORT_SET_V1.md) | Bounded candidate-commit multi-texture import into registry and CPU staging. |
 | Mesh import pipeline | [`MESH_IMPORT_PIPELINE_V1.md`](MESH_IMPORT_PIPELINE_V1.md) | Atomic in-memory OBJ import through registry-ready-to-CPU-mesh staging. |
+| Mesh import set | [`MESH_IMPORT_SET_V1.md`](MESH_IMPORT_SET_V1.md) | Bounded candidate-commit multi-OBJ import into registry and CPU mesh staging. |
 | Material import pipeline | [`MATERIAL_IMPORT_PIPELINE_V1.md`](MATERIAL_IMPORT_PIPELINE_V1.md) | Atomic in-memory named MTL material import through registry-ready-to-CPU-material staging. |
 | Material import pipeline refresh | [`MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md`](MATERIAL_IMPORT_PIPELINE_REFRESH_V1.md) | Explicit candidate/commit in-memory MTL replacement into an existing staged named material. |
 | Material refresh surface demo | [`MATERIAL_REFRESH_SURFACE_DEMO_V1.md`](MATERIAL_REFRESH_SURFACE_DEMO_V1.md) | Caller-invoked MTL replacement plus explicit staged SceneMeshAdapter refresh to a finite software surface. |
