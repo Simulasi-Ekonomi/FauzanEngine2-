@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <memory>
 
 namespace NeoEngine {
 namespace {
@@ -218,6 +219,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         if (state.stateRevision < slot->stateRevision) return Fail(ReplicationError::StaleSnapshot);
         if (state.ownerId == localClientId_ && sceneWorld_.GetTransform(slot->entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
     }
+    auto candidateScene = std::make_unique<SceneWorld>(sceneWorld_);
     ReplicationApplyReceipt candidateReceipt{};
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
@@ -227,11 +229,19 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         if (slot == nullptr) return Fail(ReplicationError::UnknownEntity);
         if (state.ownerId == localClientId_) {
             if (slot->hasPrediction && !SameTransform(slot->predictedTransform, state.transform)) ++candidateReceipt.reconciledPredictions;
-            if (!ApplyTransform(*slot, state.transform)) return Fail(ReplicationError::SceneApplyRejected);
+            if (!candidateScene->SetTransform(slot->entity, state.transform)) return Fail(ReplicationError::SceneApplyRejected);
+        }
+        ++candidateReceipt.appliedEntities;
+    }
+    sceneWorld_ = *candidateScene;
+    for (uint16_t index = 0U; index < snapshot.count; ++index) {
+        const ReplicatedEntityState& state = snapshot.states[index];
+        Slot* slot = FindSlot(state.networkId);
+        if (slot == nullptr) return Fail(ReplicationError::UnknownEntity);
+        if (state.ownerId == localClientId_) {
             slot->hasPrediction = false;
         }
         slot->previousAuthoritative = slot->authoritative; slot->authoritative = state.transform; slot->ownerId = state.ownerId; slot->stateRevision = state.stateRevision; slot->hasAuthoritative = true;
-        ++candidateReceipt.appliedEntities;
     }
     snapshotSequence_ = snapshot.sequence;
     candidateReceipt.accepted = true;

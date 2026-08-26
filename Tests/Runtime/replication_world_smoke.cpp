@@ -34,7 +34,15 @@ int main() {
     const Transform3* localAfterReconcile = clientScene.GetTransform(clientLocal);
     const Transform3* remoteBeforeInterpolation = clientScene.GetTransform(clientRemote);
     if (localAfterReconcile == nullptr || std::abs(localAfterReconcile->x - 6.0F) > 0.0001F || remoteBeforeInterpolation == nullptr || std::abs(remoteBeforeInterpolation->x - 10.0F) > 0.0001F) return 12;
-    if (!client.SetInterpolationAlphaPermille(500U) || !client.ApplyInterpolation(apply) || apply.interpolatedEntities != 1U) return 13;
+    ReplicationSnapshot unknownEntitySnapshot = snapshot;
+    unknownEntitySnapshot.sequence = 3U;
+    unknownEntitySnapshot.states[0].transform.x = 123.0F;
+    unknownEntitySnapshot.states[1].networkId = 999U;
+    std::vector<uint8_t> unknownEntityBytes;
+    if (!ReplicationSnapshotCodec::Serialize(unknownEntitySnapshot, unknownEntityBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(unknownEntityBytes, decoded, codecError) || client.ApplyServerSnapshot(decoded, apply) || client.LastError() != ReplicationError::UnknownEntity) return 13;
+    localAfterReconcile = clientScene.GetTransform(clientLocal);
+    if (localAfterReconcile == nullptr || std::abs(localAfterReconcile->x - 6.0F) > 0.0001F) return 14;
+    if (!client.SetInterpolationAlphaPermille(500U) || !client.ApplyInterpolation(apply) || apply.interpolatedEntities != 1U) return 15;
     const Transform3* remoteAfterInterpolation = clientScene.GetTransform(clientRemote);
     if (remoteAfterInterpolation == nullptr || std::abs(remoteAfterInterpolation->x - 15.0F) > 0.0001F) return 14;
     if (client.ApplyServerSnapshot(snapshot, apply) || client.LastError() != ReplicationError::StaleSnapshot) return 15;

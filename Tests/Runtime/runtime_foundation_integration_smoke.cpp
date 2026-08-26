@@ -17,7 +17,7 @@ int main() {
     if (!runtime.Actors()->CreateActor(actor, "RuntimeCharacter") || !runtime.Replication()->RegisterEntity(actor, 700U, 7U)) return 2;
     auto character = std::make_unique<CharacterPawn>();
     CharacterPawn* characterView = character.get();
-    if (!runtime.Actors()->AttachComponent(actor, std::move(character)) || !characterView->SubmitInput({1.0F, 0.0F, false, false})) return 3;
+    if (runtime.MotionAuthority() == nullptr || !characterView->BindMovementAuthorityGate(runtime.MotionAuthority()) || !runtime.Actors()->AttachComponent(actor, std::move(character)) || !characterView->SubmitInput({1.0F, 0.0F, false, false})) return 3;
     const Transform3* before = runtime.Scene()->GetTransform(actor);
     if (before == nullptr) return 4;
     const float beforeX = before->x;

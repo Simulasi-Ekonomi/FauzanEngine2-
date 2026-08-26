@@ -124,6 +124,13 @@ bool CharacterPawn::OnDetach(SceneWorld&, SceneEntity actor) {
     return true;
 }
 
+bool CharacterPawn::BindMovementAuthorityGate(MovementAuthorityGate* gate) {
+    if (attached_ || gate == nullptr) return Fail(CharacterPawnError::AuthorityRejected);
+    authorityGate_ = gate;
+    lastError_ = CharacterPawnError::None;
+    return true;
+}
+
 bool CharacterPawn::SubmitInput(const CharacterPawnInput& input) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
     if (!ValidateInput(input)) return Fail(CharacterPawnError::InvalidInput);
@@ -186,7 +193,7 @@ bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInpu
     Transform3 candidate = *local;
     if (rootMotionMode_ == CharacterRootMotionMode::Kinematic) {
         if (std::abs(rootMotion.x) > 0.0001F || std::abs(rootMotion.y) > 0.0001F || std::abs(rootMotion.z) > 0.0001F) return Fail(CharacterPawnError::InvalidRootMotion);
-        if (!authorityGate_.Acquire(actor_, MovementAuthority::KinematicRoute)) return Fail(CharacterPawnError::AuthorityRejected);
+        if (authorityGate_ == nullptr || !authorityGate_->Acquire(actor_, MovementAuthority::KinematicRoute)) return Fail(CharacterPawnError::AuthorityRejected);
         const float speed = input.sprint ? config_.runSpeed : config_.walkSpeed;
         const CharacterRootMotionDelta candidateVelocity{input.moveX * speed, velocity_.y, input.moveZ * speed};
         if (grounded_ && input.jump) {
@@ -205,7 +212,7 @@ bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInpu
         lastAuthority_ = CharacterMovementAuthority::KinematicRoute;
     } else if (rootMotionMode_ == CharacterRootMotionMode::SkeletalRoot) {
         if (!ValidRootMotion(rootMotion)) return Fail(CharacterPawnError::InvalidRootMotion);
-        if (!authorityGate_.Acquire(actor_, MovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AuthorityRejected);
+        if (authorityGate_ == nullptr || !authorityGate_->Acquire(actor_, MovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AuthorityRejected);
         candidate.x += rootMotion.x;
         candidate.y += rootMotion.y;
         candidate.z += rootMotion.z;
@@ -223,7 +230,7 @@ bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInpu
 
 bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) {
     if (!attached_ || actor_ != actor || fixedTicks == 0U) return Fail(CharacterPawnError::NotInitialized);
-    authorityGate_.BeginFrame();
+    if (authorityGate_ == &ownedAuthorityGate_) authorityGate_->BeginFrame();
     for (uint32_t tick = 0U; tick < fixedTicks; ++tick) {
         if (!SelectLocomotionState(pendingInput_) || !animation_.Tick(config_.fixedSeconds) || !ApplyOneFixedStep(world, pendingInput_, pendingRootMotion_)) return lastError_ == CharacterPawnError::None ? Fail(CharacterPawnError::AnimationRejected) : false;
     }

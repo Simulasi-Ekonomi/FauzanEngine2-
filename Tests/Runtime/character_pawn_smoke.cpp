@@ -37,8 +37,24 @@ int main() {
     if (afterRoot == nullptr || std::abs(afterRoot->x - beforeRootX - 0.25F) > 0.0001F) return 14;
     if (!characterView->SubmitInput({1.0F, 0.0F, false, false}) || !actors.TickFixed(1U, receipt) || !characterView->Snapshot(snapshot) || snapshot.authority != CharacterMovementAuthority::SkeletalRoot) return 15;
     if (!characterView->SetRootMotionMode(CharacterRootMotionMode::Kinematic) || !characterView->SubmitRootMotion({1.0F, 0.0F, 0.0F}) || actors.TickFixed(1U, receipt) || characterView->LastError() != CharacterPawnError::InvalidRootMotion) return 16;
-    if (characterView->SubmitInput({2.0F, 0.0F, false, false}) || characterView->LastError() != CharacterPawnError::InvalidInput) return 17;
-    if (!actors.DetachComponent(player, CharacterPawn::kTypeId) || actors.FindComponent(player, CharacterPawn::kTypeId) != nullptr || actors.ComponentCount(player) != 0U) return 18;
-    if (!actors.TickFixed(1U, receipt) || receipt.tickedComponents != 0U) return 19;
+    if (characterView->SubmitInput({2.0F, 0.0F, false, false}) || characterView->LastError() != CharacterPawnError::InvalidInput || !characterView->SubmitRootMotion({})) return 17;
+
+    SceneEntity sharedPlayer{};
+    MovementAuthorityGate sharedGate;
+    if (!actors.CreateActor(sharedPlayer, "SharedGatePlayer")) return 18;
+    auto sharedCharacter = std::make_unique<CharacterPawn>();
+    CharacterPawn* sharedCharacterView = sharedCharacter.get();
+    if (!sharedCharacterView->BindMovementAuthorityGate(&sharedGate) || !actors.AttachComponent(sharedPlayer, std::move(sharedCharacter)) || !sharedCharacterView->SubmitInput({1.0F, 0.0F, false, false})) return 19;
+    const Transform3* sharedBefore = scene.GetTransform(sharedPlayer);
+    if (sharedBefore == nullptr) return 20;
+    const float sharedBeforeX = sharedBefore->x;
+    sharedGate.BeginFrame();
+    if (!sharedGate.Acquire(sharedPlayer, MovementAuthority::SkeletalRoot) || actors.TickFixed(1U, receipt) || sharedCharacterView->LastError() != CharacterPawnError::AuthorityRejected) return 21;
+    const Transform3* sharedAfterReject = scene.GetTransform(sharedPlayer);
+    if (sharedAfterReject == nullptr || std::abs(sharedAfterReject->x - sharedBeforeX) > 0.0001F) return 22;
+    sharedGate.BeginFrame();
+    if (!actors.TickFixed(1U, receipt) || !sharedCharacterView->Snapshot(snapshot) || snapshot.authority != CharacterMovementAuthority::KinematicRoute) return 23;
+    if (!actors.DetachComponent(sharedPlayer, CharacterPawn::kTypeId) || !actors.DetachComponent(player, CharacterPawn::kTypeId) || actors.FindComponent(player, CharacterPawn::kTypeId) != nullptr || actors.ComponentCount(player) != 0U) return 24;
+    if (!actors.TickFixed(1U, receipt) || receipt.tickedComponents != 0U) return 25;
     return 0;
 }

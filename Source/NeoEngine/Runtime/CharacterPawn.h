@@ -113,6 +113,7 @@ public:
     [[nodiscard]] bool OnDetach(SceneWorld& world, SceneEntity actor) override;
     [[nodiscard]] bool OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) override;
 
+    [[nodiscard]] bool BindMovementAuthorityGate(MovementAuthorityGate* gate);
     [[nodiscard]] bool SubmitInput(const CharacterPawnInput& input);
     [[nodiscard]] bool SubmitRootMotion(const CharacterRootMotionDelta& delta);
     [[nodiscard]] bool SetRootMotionMode(CharacterRootMotionMode mode);
@@ -141,7 +142,8 @@ private:
     CharacterRootMotionMode rootMotionMode_ = CharacterRootMotionMode::Kinematic;
     CharacterMovementAuthority lastAuthority_ = CharacterMovementAuthority::None;
     CharacterRootMotionDelta velocity_{};
-    MovementAuthorityGate authorityGate_{};
+    MovementAuthorityGate ownedAuthorityGate_{};
+    MovementAuthorityGate* authorityGate_ = &ownedAuthorityGate_;
     bool grounded_ = true;
     bool attached_ = false;
     CharacterPawnError lastError_ = CharacterPawnError::NotInitialized;
