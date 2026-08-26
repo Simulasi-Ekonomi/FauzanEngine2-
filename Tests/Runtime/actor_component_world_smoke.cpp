@@ -16,6 +16,8 @@ public:
     bool OnDetach(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { ++detachCount; if (detachSink_ != nullptr) ++*detachSink_; return true; }
     bool OnBeginPlay(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { ++beginPlayCount; return true; }
     bool OnEndPlay(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { ++endPlayCount; if (endPlaySink_ != nullptr) ++*endPlaySink_; return true; }
+    bool OnActivate(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { ++activateCount; return true; }
+    bool OnDeactivate(NeoEngine::SceneWorld&, NeoEngine::SceneEntity) override { ++deactivateCount; return true; }
     uint8_t TickGroup() const override { return typeId_ == 11U ? 1U : 0U; }
     uint8_t TickOrder() const override { return typeId_ == 10U ? 1U : 0U; }
     uint16_t SnapshotSizeBytes() const override { return typeId_ == 10U ? sizeof(uint32_t) : 0U; }
@@ -33,6 +35,8 @@ public:
     uint32_t tickedFixedTicks = 0U;
     uint32_t beginPlayCount = 0U;
     uint32_t endPlayCount = 0U;
+    uint32_t activateCount = 0U;
+    uint32_t deactivateCount = 0U;
 };
 
 class RejectDetachComponent final : public ProbeComponent {
@@ -95,12 +99,13 @@ int main() {
     if (!actors.CollectActors(actorQuery) || actorQuery.size() != 1U || actorQuery[0] != hero || !actors.CollectComponentTypes(hero, componentQuery) || componentQuery.size() != 2U || componentQuery[0] != 10U || componentQuery[1] != 11U || !actors.CaptureSnapshot(structuralSnapshot) || structuralSnapshot.actors.size() != 1U || structuralSnapshot.begunPlay || structuralSnapshot.componentBytes.size() != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotSizes[0] != sizeof(uint32_t) || structuralSnapshot.actors[0].snapshotOffsets[0] != 0U || std::memcmp(structuralSnapshot.componentBytes.data(), &movementView->snapshotValue, sizeof(uint32_t)) != 0) return 7;
     if (!actors.BeginPlay() || !structuralSnapshot.actors.empty() && structuralSnapshot.actors[0].begunPlay || movementView->beginPlayCount != 1U || renderView->beginPlayCount != 1U) return 8;
     if (!actors.CaptureSnapshot(structuralSnapshot) || !structuralSnapshot.begunPlay || structuralSnapshot.actors[0].begunPlay != true || structuralSnapshot.componentBytes.size() != sizeof(uint32_t)) return 9;
-    if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 10;
+    if (!actors.SetComponentActive(hero, 11U, false) || actors.IsComponentActive(hero, 11U) || renderView->deactivateCount != 1U || !actors.SetComponentActive(hero, 11U, true) || !actors.IsComponentActive(hero, 11U) || renderView->activateCount != 1U) return 10;
+    if (!actors.SetComponentEnabled(hero, 10U, false) || actors.IsComponentEnabled(hero, 10U)) return 11;
 
     ActorComponentWorldReceipt receipt{};
-    if (!actors.TickFixed(3U, receipt) || receipt.tickedComponents != 1U || renderView->tickedFixedTicks != 3U || movementView->tickedFixedTicks != 0U) return 11;
-    if (!actors.SetComponentEnabled(hero, 10U, true) || !actors.TickFixed(2U, receipt) || receipt.tickedComponents != 2U || movementView->tickedFixedTicks != 2U || renderView->tickedFixedTicks != 5U) return 12;
-    if (actors.TickFixed(0U, receipt) || actors.LastError() != ActorComponentError::TickRejected) return 13;
+    if (!actors.TickFixed(3U, receipt) || receipt.tickedComponents != 1U || renderView->tickedFixedTicks != 3U || movementView->tickedFixedTicks != 0U) return 12;
+    if (!actors.SetComponentEnabled(hero, 10U, true) || !actors.TickFixed(2U, receipt) || receipt.tickedComponents != 2U || movementView->tickedFixedTicks != 2U || renderView->tickedFixedTicks != 5U) return 13;
+    if (actors.TickFixed(0U, receipt) || actors.LastError() != ActorComponentError::TickRejected) return 14;
     if (!actors.DetachComponent(hero, 10U) || movementDetachCount != 1U || movementEndPlayCount != 1U || actors.ComponentCount(hero) != 1U) return 14;
     if (actors.DetachComponent(hero, 10U) || actors.LastError() != ActorComponentError::InvalidComponent) return 15;
 

@@ -24,6 +24,7 @@ enum class ActorComponentError : uint8_t {
     DetachRejected,
     TickRejected,
     DependencyRejected,
+    ActivationRejected,
     BeginPlayRejected,
     EndPlayRejected,
     SnapshotRejected,
@@ -41,6 +42,8 @@ public:
     [[nodiscard]] virtual bool OnDetach(SceneWorld& world, SceneEntity actor) = 0;
     [[nodiscard]] virtual bool OnBeginPlay(SceneWorld&, SceneEntity) { return true; }
     [[nodiscard]] virtual bool OnEndPlay(SceneWorld&, SceneEntity) { return true; }
+    [[nodiscard]] virtual bool OnActivate(SceneWorld&, SceneEntity) { return true; }
+    [[nodiscard]] virtual bool OnDeactivate(SceneWorld&, SceneEntity) { return true; }
     [[nodiscard]] virtual uint8_t TickGroup() const { return 0U; }
     [[nodiscard]] virtual uint8_t TickOrder() const { return 0U; }
     [[nodiscard]] virtual uint8_t TickDependencyCount() const { return 0U; }
@@ -57,6 +60,7 @@ struct ActorComponentSnapshot {
     uint8_t componentCount = 0U;
     std::array<uint16_t, 16U> componentTypeIds{};
     std::array<bool, 16U> componentEnabled{};
+    std::array<bool, 16U> componentActive{};
     std::array<uint32_t, 16U> snapshotOffsets{};
     std::array<uint16_t, 16U> snapshotSizes{};
     bool begunPlay = false;
@@ -94,6 +98,7 @@ public:
     bool AttachComponent(SceneEntity actor, std::unique_ptr<IActorComponent> component);
     bool DetachComponent(SceneEntity actor, uint16_t typeId);
     bool SetComponentEnabled(SceneEntity actor, uint16_t typeId, bool enabled);
+    bool SetComponentActive(SceneEntity actor, uint16_t typeId, bool active);
     bool BeginPlay();
     bool EndPlay();
     bool TickFixed(uint32_t fixedTicks, ActorComponentWorldReceipt& receipt);
@@ -106,6 +111,7 @@ public:
     [[nodiscard]] IActorComponent* FindComponent(SceneEntity actor, uint16_t typeId);
     [[nodiscard]] const IActorComponent* FindComponent(SceneEntity actor, uint16_t typeId) const;
     [[nodiscard]] bool IsComponentEnabled(SceneEntity actor, uint16_t typeId) const;
+    [[nodiscard]] bool IsComponentActive(SceneEntity actor, uint16_t typeId) const;
     [[nodiscard]] uint8_t ComponentCount(SceneEntity actor) const;
     [[nodiscard]] uint32_t ActorCount() const { return actorCount_; }
     [[nodiscard]] uint32_t ComponentCount() const { return componentCount_; }
@@ -119,6 +125,7 @@ private:
     struct ComponentSlot {
         std::unique_ptr<IActorComponent> component;
         bool enabled = true;
+        bool active = true;
         bool begunPlay = false;
     };
     struct ActorSlot {

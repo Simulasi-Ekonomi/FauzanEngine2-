@@ -166,6 +166,7 @@ bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IAc
     }
     target->component = std::move(component);
     target->enabled = true;
+    target->active = true;
     target->begunPlay = slot->begunPlay;
     ++componentCount_;
     ++registrationRevision_;
@@ -194,6 +195,7 @@ bool ActorComponentWorld::DetachComponent(SceneEntity actor, uint16_t typeId) {
     if (!detached) return Fail(ActorComponentError::DetachRejected);
     slot->component.reset();
     slot->enabled = true;
+    slot->active = true;
     --componentCount_;
     ++registrationRevision_;
     if (actorSlot->begunPlay) {
@@ -213,6 +215,25 @@ bool ActorComponentWorld::SetComponentEnabled(SceneEntity actor, uint16_t typeId
     if (slot->enabled == enabled) { lastError_ = ActorComponentError::None; return true; }
     if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
     slot->enabled = enabled;
+    ++registrationRevision_;
+    lastReceipt_ = {actorCount_, componentCount_, 0U, registrationRevision_};
+    lastError_ = ActorComponentError::None;
+    return true;
+}
+
+bool ActorComponentWorld::SetComponentActive(SceneEntity actor, uint16_t typeId, bool active) {
+    if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
+    ComponentSlot* slot = FindSlot(actor, typeId);
+    if (slot == nullptr) return Fail(ActorComponentError::InvalidComponent);
+    if (slot->active == active) { lastError_ = ActorComponentError::None; return true; }
+    if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
+    if (slot->begunPlay) {
+        dispatching_ = true;
+        const bool callback = active ? slot->component->OnActivate(sceneWorld_, actor) : slot->component->OnDeactivate(sceneWorld_, actor);
+        dispatching_ = false;
+        if (!callback) return Fail(ActorComponentError::ActivationRejected);
+    }
+    slot->active = active;
     ++registrationRevision_;
     lastReceipt_ = {actorCount_, componentCount_, 0U, registrationRevision_};
     lastError_ = ActorComponentError::None;
@@ -245,7 +266,7 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (fixedTicks == 0U) return Fail(ActorComponentError::TickRejected);
     if (!begunPlay_ && !BeginPlay()) return false;
-    for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled) {
+    for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled && slot.active) {
         const uint8_t group = slot.component->TickGroup();
         const uint8_t order = slot.component->TickOrder();
         const uint8_t dependencyCount = slot.component->TickDependencyCount();
@@ -299,6 +320,7 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
                 const uint32_t offset = static_cast<uint32_t>(candidate.componentBytes.size());
                 record.componentTypeIds[record.componentCount] = component.component->TypeId();
                 record.componentEnabled[record.componentCount] = component.enabled;
+                record.componentActive[record.componentCount] = component.active;
                 record.snapshotOffsets[record.componentCount] = offset;
                 record.snapshotSizes[record.componentCount] = snapshotSize;
                 if (snapshotSize != 0U) {
@@ -374,6 +396,11 @@ const IActorComponent* ActorComponentWorld::FindComponent(SceneEntity actor, uin
 bool ActorComponentWorld::IsComponentEnabled(SceneEntity actor, uint16_t typeId) const {
     const ComponentSlot* slot = FindSlot(actor, typeId);
     return slot != nullptr && slot->enabled;
+}
+
+bool ActorComponentWorld::IsComponentActive(SceneEntity actor, uint16_t typeId) const {
+    const ComponentSlot* slot = FindSlot(actor, typeId);
+    return slot != nullptr && slot->active;
 }
 
 uint8_t ActorComponentWorld::ComponentCount(SceneEntity actor) const {
