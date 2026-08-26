@@ -10,4 +10,6 @@ On an enhanced session-owned HUD, the action-panel background is a `UiCanvasImag
 
 Each successful `FarmPlayerInputBridge::Step` now commits one immutable input receipt—none, movement, or action—with the selected action, resulting player coordinate, and harvest units where that payload exists. Rejected input preserves the prior bridge receipt. `FarmRuntimeSession` copies that receipt into both frame and HUD receipts, and the enhanced HUD renders a concise action/movement status label from it. This is feedback only; it does not add energy/stamina simulation or new world authority.
 
+The enhanced retained HUD separately renders `SEED` from canonical wheat-seed inventory and `WHEAT` from canonical harvested-produce inventory. UI code only reads the committed session snapshot; planting and harvesting continue to mutate inventory exclusively through later canonical Farm input frames.
+
 The session commits wheat seed/produce counts into immutable frame and HUD receipts from `FarmSystem::ItemCount` after a successful world tick and render. Invalid or unframed HUD input fails closed and preserves the selected action and caller receipt. HUD composition uses a candidate software renderer and has no persistence, network authority, advertising/monetization, APK, or production game claim.
