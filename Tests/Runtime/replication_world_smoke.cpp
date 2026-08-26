@@ -16,6 +16,7 @@ int main() {
     ReplicationWorld client(clientScene, ReplicationRole::Client, 7U);
     if (!server.RegisterEntity(serverLocal, 100U, 7U) || !server.RegisterEntity(serverRemote, 200U, 8U) || !client.RegisterEntity(clientLocal, 100U, 7U) || !client.RegisterEntity(clientRemote, 200U, 8U)) return 3;
     if (client.RegisterEntity(clientLocal, 200U, 7U) || client.LastError() != ReplicationError::DuplicateNetworkId) return 4;
+    if (client.RegisterEntity(clientLocal, 201U, 7U) || client.LastError() != ReplicationError::DuplicateEntity || client.RegisteredCount() != 2U) return 4;
     if (server.RegisterEntity(serverLocal, 0U, 7U) || server.LastError() != ReplicationError::InvalidNetworkId || !serverScene.SetTransform(serverLocal, {6.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 5;
 
     ReplicationSnapshot snapshot{};

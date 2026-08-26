@@ -16,6 +16,7 @@ enum class ReplicationError : uint8_t {
     InvalidEntity,
     InvalidNetworkId,
     DuplicateNetworkId,
+    DuplicateEntity,
     Capacity,
     NotServer,
     NotClient,
