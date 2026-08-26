@@ -19,4 +19,11 @@ bool GameplayPhysicsQuery::OverlapCircle(const XPBDPhysicsSystem& physics, const
     std::vector<EntityID> candidate; candidate.reserve(raw.size()); for (const uint32_t index : raw) { EntityID entity = 0; if (!physics.TryGetEntityId(index, entity)) { lastError_ = GameplayPhysicsQueryError::EntityMappingFailed; return false; } candidate.push_back(entity); } std::sort(candidate.begin(), candidate.end());
     entities = std::move(candidate); lastError_ = GameplayPhysicsQueryError::None; return true;
 }
+bool GameplayPhysicsQuery::OverlapCircleSet(const XPBDPhysicsSystem& physics, const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets) {
+    if (circles.empty()) { lastError_ = GameplayPhysicsQueryError::InvalidBatch; return false; }
+    if (circles.size() > kMaxOverlapBatch) { lastError_ = GameplayPhysicsQueryError::BatchCapacity; return false; }
+    std::vector<std::vector<EntityID>> candidate; candidate.reserve(circles.size());
+    for (const GameplayOverlapCircle2& circle : circles) { std::vector<EntityID> entities; if (!OverlapCircle(physics, circle, entities)) return false; candidate.push_back(std::move(entities)); }
+    entitySets = std::move(candidate); lastError_ = GameplayPhysicsQueryError::None; return true;
+}
 } // namespace NeoEngine

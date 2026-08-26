@@ -79,6 +79,7 @@ This directory provides a stable entry point for the **canonical C++ NeoEngine b
 | Farm HUD surface proof | [`FARM_HUD_SURFACE_PROOF_V1.md`](FARM_HUD_SURFACE_PROOF_V1.md) | Finite Farm world artifact with distinct world-only and HUD-overlaid hashes. |
 | Gameplay physics query | [`GAMEPLAY_PHYSICS_QUERY_V1.md`](GAMEPLAY_PHYSICS_QUERY_V1.md) | Read-only finite-validated XPBD raycast mapped to EntityID. |
 | Gameplay physics query ordering | [`GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md`](GAMEPLAY_PHYSICS_QUERY_ORDERING_V1.md) | Canonical ascending EntityID overlap output after atomic XPBD collider mapping. |
+| Gameplay physics query batch | [`GAMEPLAY_PHYSICS_QUERY_BATCH_V1.md`](GAMEPLAY_PHYSICS_QUERY_BATCH_V1.md) | Candidate-output batch overlap circles with ordered per-zone EntityID sets. |
 | Gameplay physics body | [`GAMEPLAY_PHYSICS_BODY_V1.md`](GAMEPLAY_PHYSICS_BODY_V1.md) | Validated static/dynamic circle-body creation through canonical ECS components. |
 | Gameplay physics body snapshot | [`GAMEPLAY_PHYSICS_BODY_SNAPSHOT_V1.md`](GAMEPLAY_PHYSICS_BODY_SNAPSHOT_V1.md) | Read-only validated snapshot of a canonical ECS circle body. |
 | Gameplay physics body velocity | [`GAMEPLAY_PHYSICS_BODY_VELOCITY_V1.md`](GAMEPLAY_PHYSICS_BODY_VELOCITY_V1.md) | Validated dynamic planar-velocity command with a single physics-revision commit. |
