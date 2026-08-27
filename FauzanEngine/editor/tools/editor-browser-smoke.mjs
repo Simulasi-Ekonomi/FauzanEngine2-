@@ -13,6 +13,8 @@ try {
   await page.getByText('Actors: 5', { exact: true }).first().waitFor();
   await page.getByTitle('Save All (Ctrl+S)').waitFor();
   if (!(await page.locator('body').innerText()).includes('Unsaved')) throw new Error('add actor did not set dirty state');
+  await page.locator('.tree-item').nth(1).click({ modifiers: ['Control'] });
+  await page.getByText('Selected: 2', { exact: true }).first().waitFor();
   const locationX = page.locator('input[type="number"]').first();
   await locationX.fill('2.5');
   await page.keyboard.press('Enter');
@@ -26,7 +28,7 @@ try {
   if (!(await page.getByTitle('Rotate (E)').getAttribute('class')).includes('active')) throw new Error('E shortcut did not select rotate mode');
   await page.getByTitle('Save All (Ctrl+S)').click();
   await page.getByText(/✓ Saved/).waitFor();
-  console.log(`EDITOR_BROWSER_SMOKE_OK initial=4 add=5 transform=1 component=1 reparent=1 shortcut=1 save=1`);
+  console.log(`EDITOR_BROWSER_SMOKE_OK initial=4 add=5 multi=2 transform=1 component=1 reparent=1 shortcut=1 save=1`);
 } finally {
   await browser.close();
 }
