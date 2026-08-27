@@ -270,6 +270,22 @@ bool NeoRuntime::RenderFarm() {
     return true;
 }
 
+bool NeoRuntime::RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt) {
+    receipt = {};
+    if (m_State != RuntimeState::Initialized || m_FarmRuntimeHud == nullptr || m_FarmPlayerInput == nullptr) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!m_FarmRuntimeHud->RoutePointer(x, y, phase, *m_FarmPlayerInput, receipt)) { m_LastError = RuntimeError::HudInputFailed; return false; }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt) {
+    receipt = {};
+    if (m_State != RuntimeState::Initialized || m_FarmRuntimeHud == nullptr || m_FarmPlayerInput == nullptr) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!m_FarmRuntimeHud->RouteKeyboard(key, *m_FarmPlayerInput, receipt)) { m_LastError = RuntimeError::HudInputFailed; return false; }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::SetPaused(bool paused) {
     if (m_State != RuntimeState::Initialized || !m_Clock || !m_Time || !m_Events || m_Events->PendingCount() >= EventSignalBus::kMaxEvents) { m_LastError = RuntimeError::InvalidState; return false; }
     if (!m_Clock->SetPaused(paused) || !m_Time->SetPaused(paused) || !m_Events->Queue({paused ? RuntimeEventKind::RuntimePaused : RuntimeEventKind::RuntimeResumed, 0, 0, m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::TimeFailed; return false; }
