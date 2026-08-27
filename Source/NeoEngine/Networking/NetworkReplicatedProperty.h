@@ -17,7 +17,11 @@ public:
     uint16_t collectDirty(uint16_t*ids,uint16_t capacity){if(!ids)return 0;uint16_t n=0;for(auto&p:properties_)if(p.id&&p.dirty&&n<capacity){ids[n++]=p.id;p.dirty=false;}return n;}
 private:
     static bool markDirty(ReplicatedProperty&p){++p.revision;p.dirty=true;return true;}
-    ReplicatedProperty* findWritable(uint16_t id,uint32_t writer,ReplicatedType type){auto*p=find(id);if(!p||p->type!=type||(!writer||p->ownerPeer!=0&&p->ownerPeer!=writer))return nullptr;return p;}
+    ReplicatedProperty* findWritable(uint16_t id, uint32_t writer, ReplicatedType type) {
+        auto* p = find(id);
+        if (!p || p->type != type || (!writer || (p->ownerPeer != 0U && p->ownerPeer != writer))) return nullptr;
+        return p;
+    }
     ReplicatedProperty* find(uint16_t id){for(auto&p:properties_)if(p.id==id)return &p;return nullptr;}
     std::array<ReplicatedProperty,Capacity> properties_{};
 };

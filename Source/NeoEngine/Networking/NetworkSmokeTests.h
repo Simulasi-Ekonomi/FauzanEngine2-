@@ -19,6 +19,7 @@
 #include "NetworkReplicationBudget.h"
 #include "NetworkReplicationScheduler.h"
 #include "NetworkLagCompensation.h"
+#include "NetworkTimeSync.h"
 
 namespace NeoEngine::Networking::SmokeTests {
 inline void run(){
@@ -30,15 +31,17 @@ inline void run(){
     ConnectionStateMachine cs; assert(cs.transition(ConnectionEvent::Begin)); assert(cs.transition(ConnectionEvent::ChallengeAccepted)); assert(cs.state()==ConnectionState::Connected);
     SnapshotInterpolator si; assert(si.push({1,0,0,0})); assert(si.push({3,2,0,0})); InterpolatedTransform it{}; assert(si.sample(2,it)&&it.x==1.0F);
     auto ex=SnapshotExtrapolator::predict({1,0,0,0},{2,1,0,0},4); assert(ex.valid&&ex.x==3.0F);
-    InputCommandBuffer ib; assert(ib.push({1,1,1,0,0,0,0})); InputCommand ic{}; assert(ib.pop(ic)&&ic.sequence==1);
+    InputCommandBuffer ib; assert(ib.push({1,1,1,0,0,0})); InputCommand ic{};
+ assert(ib.pop(ic)&&ic.sequence==1);
     ReconciliationBuffer rb; assert(rb.record({1,1,0,0})); PredictedState corrected{}; assert(rb.reconcile(1,{1,2,0,0},corrected)&&corrected.x==2);
     AuthoritativeInputValidator av; auto vr=av.validate({2,2,0.5F,0,0,0},3,1); assert(vr.accepted);
-    InputCommandBuffer replayInputs; assert(replayInputs.push({1,1,1,0,0,0,0})); assert(replayInputs.push({2,2,1,0,0,0,0})); PredictedState ps{1,0,0,0}; auto sim=[](const InputCommand&c,PredictedState&s){s.x+=c.x;s.inputSequence=c.sequence;}; assert(PredictionReplay::replay(replayInputs,1,ps,sim)==1&&ps.x==1);
+    InputCommandBuffer replayInputs; assert(replayInputs.push({1,1,1,0,0,0})); assert(replayInputs.push({2,2,1,0,0,0}));
+ PredictedState ps{1,0,0,0}; auto sim=[](const InputCommand&c,PredictedState&s){s.x+=c.x;s.inputSequence=c.sequence;}; assert(PredictionReplay::replay(replayInputs,1,ps,sim)==1&&ps.x==1);
     RpcRegistry rr; auto handler=[](const RpcRequest&){return true;}; assert(rr.registerRpc(1,RpcDirection::ClientToServer,handler)); assert(rr.dispatch({1,1,1,1},RpcDirection::ClientToServer)); assert(!rr.dispatch({1,1,1,1},RpcDirection::ServerToClient));
     assert(OwnershipPolicy::canWrite(AuthorityRole::Server,99,1)); assert(OwnershipPolicy::canWrite(AuthorityRole::Owner,1,1)); assert(!OwnershipPolicy::canWrite(AuthorityRole::Owner,2,1));
     ReplicatedPropertySet props; assert(props.define(1,ReplicatedType::Float,1)); assert(props.setFloat(1,2.0F,1)); uint16_t ids[4]{}; assert(props.collectDirty(ids,4)==1&&ids[0]==1);
     ReplicationBudget budget(100); assert(budget.reserve(40)); assert(!budget.reserve(61));
-    ReplicationCandidate candidates[2]={{1,20,10,0},{2,20,5,0}}; uint32_t selected[2]{}; ReplicationScheduler sched; assert(sched.schedule(candidates,2,budget,selected,2,10)==0);
+    ReplicationCandidate candidates[2]={{1,20,10,0},{2,20,5,0}}; uint32_t selected[2]{}; ReplicationScheduler sched; assert(sched.schedule(candidates,2,budget,selected,2,10)==2);
     LagCompensationHistory lh; assert(lh.record(1,1,0,0,1)); assert(lh.record(2,2,0,0,2)); HistoricalTransform ht{}; assert(lh.sample(2,ht)&&ht.x==2);
     NetworkClock clock; clock.observe({10,11,0.033}); assert(clock.serverTickEstimate(10)>=10);
 }
