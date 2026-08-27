@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { MenuBar } from './components/Layout/MenuBar';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { Viewport } from './components/Viewport/Viewport';
+import { ProfilerOverlay } from './components/Profiler/ProfilerOverlay';
 import { Outliner } from './components/Outliner/Outliner';
 import { Properties } from './components/Properties/Properties';
 import { ContentBrowser } from './components/ContentBrowser/ContentBrowser';
@@ -14,6 +15,7 @@ import { SettingsDialog } from './components/Settings/SettingsDialog';
 import { MonetizationManager } from './components/Monetization/MonetizationManager';
 import type { GeneratedModel } from './components/BuildPublish/ModelGenerator';
 import { GameRuntime, GAME_TEMPLATES } from './engine/GameRuntime';
+import { saveSceneDraft } from './engine/SceneBridge';
 import type { UIElement, GameScript } from './engine/GameRuntime';
 import { useEditorStore } from './stores/editorStore';
 
@@ -32,6 +34,46 @@ export function App() {
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const addGeneratedAsset = useEditorStore((s) => s.addGeneratedAsset);
   const togglePlay = useEditorStore((s) => s.togglePlay);
+  const selectedActorId = useEditorStore((s) => s.selectedActorId);
+  const saveScene = useEditorStore((s) => s.saveScene);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+  const removeSelected = useEditorStore((s) => s.removeSelected);
+  const duplicateSelected = useEditorStore((s) => s.duplicateSelected);
+  const setTransformMode = useEditorStore((s) => s.setTransformMode);
+  const setViewMode = useEditorStore((s) => s.setViewMode);
+
+  useEffect(() => {
+    const persistDraft = () => {
+      const state = useEditorStore.getState();
+      if (state.isDirty) saveSceneDraft(state.sceneName, state.sceneRevision, state.actors);
+    };
+    const timer = window.setInterval(persistDraft, 5000);
+    window.addEventListener('beforeunload', persistDraft);
+    return () => { window.clearInterval(timer); window.removeEventListener('beforeunload', persistDraft); };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === 's') { event.preventDefault(); saveScene(); }
+      else if ((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
+      else if ((event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))) { event.preventDefault(); redo(); }
+      else if (key === 'delete' && selectedActorId) { event.preventDefault(); removeSelected(); }
+      else if (key === 'w') setTransformMode('translate');
+      else if (key === 'e') setTransformMode('rotate');
+      else if (key === 'r') setTransformMode('scale');
+      else if (key === '1') setViewMode('perspective');
+      else if (key === '2') setViewMode('top');
+      else if (key === '3') setViewMode('front');
+      else if (key === '4') setViewMode('right');
+      else if (key === 'd' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); duplicateSelected(); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [duplicateSelected, redo, removeSelected, saveScene, selectedActorId, setTransformMode, setViewMode, undo]);
 
   // Handle 3D model generation - NOW WITH PROPER TRANSFORMS AND COLORS
   const handleModelGenerate = useCallback((model: GeneratedModel) => {
@@ -208,6 +250,8 @@ export function App() {
                           padding: '4px 12px', borderRadius: 3, cursor: 'pointer', fontSize: 11,
                         }}>Stop</button>
                       </div>
+
+                      <ProfilerOverlay runtime={gameRuntime} />
 
                       {/* Dynamic UI from game scripts */}
                       {gameUIElements.map((el) => {

@@ -10,12 +10,16 @@ export function Toolbar() {
     snapEnabled, toggleSnap,
     gridVisible, toggleGrid,
     addActor,
+    saveScene, undo, redo, isDirty, sceneName,
   } = useEditorStore();
 
   return (
     <div className="neo-toolbar">
       {/* Save */}
-      <button className="toolbar-btn" title="Save All (Ctrl+S)">💾</button>
+      <button className={`toolbar-btn ${isDirty ? 'dirty' : ''}`} onClick={saveScene} title="Save All (Ctrl+S)">💾{isDirty ? '•' : ''}</button>
+      <span className="scene-title" title="Current scene">{sceneName}{isDirty ? ' *' : ''}</span>
+      <button className="toolbar-btn compact" onClick={undo} title="Undo (Ctrl+Z)">↶</button>
+      <button className="toolbar-btn compact" onClick={redo} title="Redo (Ctrl+Y)">↷</button>
       <div className="toolbar-separator" />
 
       {/* Transform Tools */}

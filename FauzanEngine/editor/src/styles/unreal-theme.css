@@ -593,3 +593,51 @@
   padding: 2px 12px;
   border-radius: 3px;
 }
+
+/* ===== Editor V1 workflow affordances ===== */
+.scene-title {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 0 6px;
+}
+.toolbar-btn.compact { width: 26px; font-size: 16px; }
+.toolbar-btn.dirty { color: var(--accent-yellow); }
+.tree-visibility {
+  border: 0;
+  background: transparent;
+  color: var(--accent-green);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 4px;
+}
+.tree-visibility:hover { color: var(--text-bright); }
+
+/* Make the main editor surface feel like a desktop authoring tool. */
+.neo-panel-content { scrollbar-color: #404040 #202020; }
+.neo-toolbar button:focus-visible,
+.tree-item:focus-visible,
+.property-value input:focus-visible { outline: 1px solid var(--accent-blue-hover); outline-offset: -1px; }
+
+.status-dirty { color: var(--accent-yellow); font-weight: 600; }
+.status-clean { color: var(--accent-green); }
+
+.bridge-status { margin-left: 6px; font-size: 10px; }
+.bridge-connected { color: var(--accent-green); }
+.bridge-local { color: var(--accent-yellow); }
+.bridge-error { color: var(--accent-red); }
+
+.property-reset { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; width: 18px; padding: 0; }
+.property-reset:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.pie-profiler { position: absolute; right: 12px; bottom: 12px; z-index: 110; min-width: 150px; padding: 8px; background: rgba(10, 12, 16, 0.92); border: 1px solid #58616e; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.35); pointer-events: none; }
+.pie-profiler-title { color: #8fc8ff; font-size: 10px; font-weight: 700; letter-spacing: .8px; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 5px; }
+.pie-profiler-grid { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 10px; color: #9aa3ae; }
+.pie-profiler-grid strong { color: #f5f7fa; font-variant-numeric: tabular-nums; }
+.breadcrumb-button { border: 0; background: transparent; color: #aaa; padding: 0; cursor: pointer; font-size: 11px; }
+.breadcrumb-button:hover { color: #fff; text-decoration: underline; }
+.content-item[draggable="true"] { cursor: grab; }
+.content-item[draggable="true"]:active { cursor: grabbing; }

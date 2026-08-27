@@ -1,7 +1,11 @@
 import { create } from 'zustand';
-import type { EditorState, ActorType, Transform, ChatMessage, NeoActor, TransformMode, TransformSpace, ViewMode, ActorCreateOptions, MaterialProperties } from '../types/editor';
+import type { EditorState, ActorType, Transform, ChatMessage, NeoActor, NeoComponent, TransformMode, TransformSpace, ViewMode, ActorCreateOptions, MaterialProperties } from '../types/editor';
 import { processWithAriesBrain, queryLLM } from '../engine/AriesBrain';
+import { clearSceneDraft, commitLocalScene, commitRuntimeScene, restoreLocalScene, restoreSceneDraft, saveSceneDraft } from '../engine/SceneBridge';
 
+const restoredScene = restoreLocalScene();
+const restoredDraft = restoreSceneDraft();
+const restoredDocument = restoredDraft?.document || restoredScene;
 let actorCounter = 0;
 let messageCounter = 0;
 
@@ -571,8 +575,15 @@ ${proactiveSuggestion}`,
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   // Scene
-  actors: createDefaultScene(),
+  actors: restoredDocument?.actors || createDefaultScene(),
   selectedActorId: null,
+  selectedActorIds: [],
+  sceneName: restoredDocument?.sceneName || localStorage.getItem('neoengine_scene_name') || 'Untitled',
+  sceneRevision: restoredDocument?.revision || 0,
+  bridgeStatus: restoredDocument ? 'local' : 'local',
+  bridgeChecksum: restoredDocument?.checksum || null,
+  isDirty: Boolean(restoredDraft),
+  lastSavedAt: restoredScene ? Date.now() : null,
 
   // Tools
   transformMode: 'translate',
@@ -625,6 +636,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Content Browser
   currentPath: '/Game',
+  setCurrentPath: (path) => set({ currentPath: path }),
   assets: [
     { id: 'a1', name: 'Maps', type: 'folder', path: '/Game/Maps' },
     { id: 'a2', name: 'Blueprints', type: 'folder', path: '/Game/Blueprints' },
@@ -643,7 +655,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   ],
 
   // Actions
-  selectActor: (id) => set({ selectedActorId: id }),
+  selectActor: (id) => set({ selectedActorId: id, selectedActorIds: id ? [id] : [] }),
+
+  setSelection: (ids) => {
+    const valid = ids.filter((id) => Boolean(get().actors[id]));
+    set({ selectedActorIds: valid, selectedActorId: valid[valid.length - 1] || null });
+  },
+
+  toggleActorSelection: (id) => {
+    const current = get().selectedActorIds;
+    const next = current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id];
+    set({ selectedActorIds: next, selectedActorId: next.includes(id) ? id : (next[next.length - 1] || null) });
+  },
 
   addActor: (type, name, options) => {
     pushUndo(get().actors);
@@ -686,6 +709,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       actors: { ...state.actors, [id]: actor },
       selectedActorId: id,
+      selectedActorIds: [id],
+      isDirty: true,
     }));
     return id;
   },
@@ -726,6 +751,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
     set((state) => ({
       actors: { ...state.actors, ...newActors },
+      isDirty: true,
     }));
   },
 
@@ -737,29 +763,42 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return {
         actors: newActors,
         selectedActorId: state.selectedActorId === id ? null : state.selectedActorId,
+        selectedActorIds: state.selectedActorIds.filter((selectedId) => selectedId !== id),
+        isDirty: true,
       };
     });
   },
 
   updateActorTransform: (id, transform) => {
-    set((state) => {
-      const actor = state.actors[id];
-      if (!actor) return state;
-      return {
-        actors: {
-          ...state.actors,
-          [id]: {
-            ...actor,
-            transform: {
-              ...actor.transform,
-              position: transform.position || actor.transform.position,
-              rotation: transform.rotation || actor.transform.rotation,
-              scale: transform.scale || actor.transform.scale,
-            },
-          },
-        },
-      };
-    });
+    const state = get();
+    const current = state.actors[id];
+    if (!current) return;
+    const nextTransform = {
+      ...current.transform,
+      position: transform.position || current.transform.position,
+      rotation: transform.rotation || current.transform.rotation,
+      scale: transform.scale || current.transform.scale,
+    };
+    if (JSON.stringify(current.transform) === JSON.stringify(nextTransform)) return;
+    pushUndo(state.actors);
+    const selection = state.selectedActorIds.includes(id) ? state.selectedActorIds : [id];
+    const delta = {
+      position: { x: nextTransform.position.x - current.transform.position.x, y: nextTransform.position.y - current.transform.position.y, z: nextTransform.position.z - current.transform.position.z },
+      rotation: { x: nextTransform.rotation.x - current.transform.rotation.x, y: nextTransform.rotation.y - current.transform.rotation.y, z: nextTransform.rotation.z - current.transform.rotation.z },
+      scale: { x: nextTransform.scale.x / (current.transform.scale.x || 1), y: nextTransform.scale.y / (current.transform.scale.y || 1), z: nextTransform.scale.z / (current.transform.scale.z || 1) },
+    };
+    set((currentState) => ({
+      actors: Object.fromEntries(Object.entries(currentState.actors).map(([actorId, actor]) => {
+        if (!selection.includes(actorId)) return [actorId, actor];
+        const base = actorId === id ? current.transform : actor.transform;
+        return [actorId, { ...actor, transform: {
+          position: { x: base.position.x + delta.position.x, y: base.position.y + delta.position.y, z: base.position.z + delta.position.z },
+          rotation: { x: base.rotation.x + delta.rotation.x, y: base.rotation.y + delta.rotation.y, z: base.rotation.z + delta.rotation.z },
+          scale: { x: base.scale.x * delta.scale.x, y: base.scale.y * delta.scale.y, z: base.scale.z * delta.scale.z },
+        } }];
+      })),
+      isDirty: true,
+    }));
   },
 
   renameActor: (id, name) => {
@@ -769,7 +808,57 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (!actor) return state;
       return {
         actors: { ...state.actors, [id]: { ...actor, name } },
+        isDirty: true,
       };
+    });
+  },
+
+  toggleActorVisibility: (id) => {
+    pushUndo(get().actors);
+    set((state) => {
+      const actor = state.actors[id];
+      if (!actor) return state;
+      return { actors: { ...state.actors, [id]: { ...actor, visible: !actor.visible } }, isDirty: true };
+    });
+  },
+
+  reparentActor: (id, parentId) => {
+    const actors = get().actors;
+    const actor = actors[id];
+    const wouldCycle = (candidate: string | null): boolean => {
+      if (!candidate) return false;
+      if (candidate === id) return true;
+      return wouldCycle(actors[candidate]?.parentId || null);
+    };
+    if (!actor || id === parentId || wouldCycle(parentId) || (parentId && actors[parentId]?.children.includes(id))) return;
+    pushUndo(actors);
+    const nextActors = { ...actors };
+    if (actor.parentId && nextActors[actor.parentId]) {
+      nextActors[actor.parentId] = { ...nextActors[actor.parentId], children: nextActors[actor.parentId].children.filter((child) => child !== id) };
+    }
+    if (parentId && nextActors[parentId]) {
+      nextActors[parentId] = { ...nextActors[parentId], children: [...nextActors[parentId].children, id] };
+    }
+    nextActors[id] = { ...actor, parentId };
+    set({ actors: nextActors, isDirty: true });
+  },
+
+  addComponent: (id, type) => {
+    pushUndo(get().actors);
+    set((state) => {
+      const actor = state.actors[id];
+      if (!actor) return state;
+      const component: NeoComponent = { id: `comp_${Date.now()}`, type, name: type.replace(/Component$/, ''), properties: type === 'LightComponent' ? { intensity: 1, castShadows: true } : { enabled: true } };
+      return { actors: { ...state.actors, [id]: { ...actor, components: [...actor.components, component] } }, isDirty: true };
+    });
+  },
+
+  setComponentProperty: (actorId, componentId, key, value) => {
+    pushUndo(get().actors);
+    set((state) => {
+      const actor = state.actors[actorId];
+      if (!actor) return state;
+      return { actors: { ...state.actors, [actorId]: { ...actor, components: actor.components.map((component) => component.id === componentId ? { ...component, properties: { ...component.properties, [key]: value } } : component) } }, isDirty: true };
     });
   },
 
@@ -794,18 +883,36 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // --- Scene Management ---
   newScene: () => {
     pushUndo(get().actors);
-    set({ actors: createDefaultScene(), selectedActorId: null });
+    set({ actors: createDefaultScene(), selectedActorId: null, selectedActorIds: [], sceneName: 'Untitled', isDirty: true });
     get().addSystemMessage('[Scene] New scene created.');
   },
 
   saveScene: () => {
-    const data = JSON.stringify(get().actors, null, 2);
-    localStorage.setItem('neoengine_scene', data);
-    get().addSystemMessage('[Scene] Scene saved to local storage.');
+    const state = get();
+    const revision = state.sceneRevision + 1;
+    try {
+      const localResult = commitLocalScene(state.sceneName, revision, state.actors);
+      set({ isDirty: false, lastSavedAt: Date.now(), sceneRevision: revision, bridgeStatus: 'local', bridgeChecksum: localResult.document.checksum });
+      localStorage.setItem('neoengine_scene', JSON.stringify(localResult.document));
+      localStorage.setItem('neoengine_scene_name', state.sceneName);
+      clearSceneDraft();
+      get().addSystemMessage(`[Scene] ${state.sceneName} committed r${revision} (${localResult.document.checksum}).`);
+      void commitRuntimeScene(state.sceneName, revision, state.actors).then((result) => {
+        set({ bridgeStatus: result.receipt.source === 'runtime-bridge' ? 'connected' : 'local', bridgeChecksum: result.receipt.checksum });
+        get().addSystemMessage(`[SceneBridge] ${result.receipt.source} receipt r${result.receipt.revision}.`);
+      }).catch((error: unknown) => {
+        set({ bridgeStatus: 'error' });
+        get().addSystemMessage(`[SceneBridge] Runtime unavailable; local commit retained (${error instanceof Error ? error.message : 'unknown error'}).`);
+      });
+    } catch (error: unknown) {
+      set({ bridgeStatus: 'error' });
+      get().addSystemMessage(`[Scene] Save rejected: ${error instanceof Error ? error.message : 'invalid scene'}.`);
+    }
   },
 
   saveSceneAs: () => {
-    const data = JSON.stringify(get().actors, null, 2);
+    const state = get();
+    const data = JSON.stringify({ version: 1, sceneName: state.sceneName, actors: state.actors }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -813,7 +920,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     a.download = `NeoScene_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    get().addSystemMessage('[Scene] Scene exported as JSON file.');
+    set({ isDirty: false, lastSavedAt: Date.now() });
+    get().addSystemMessage(`[Scene] ${state.sceneName} exported as JSON file.`);
   },
 
   loadSceneFromFile: () => {
@@ -828,8 +936,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         try {
           const data = JSON.parse(ev.target?.result as string);
           pushUndo(get().actors);
-          set({ actors: data, selectedActorId: null });
-          get().addSystemMessage(`[Scene] Loaded scene from ${file.name} (${Object.keys(data).length} actors)`);
+          const loadedActors = data.actors || data;
+          set({ actors: loadedActors, sceneName: data.sceneName || file.name.replace(/\.json$/i, ''), sceneRevision: data.revision || 0, bridgeChecksum: data.checksum || null, bridgeStatus: 'local', selectedActorId: null, selectedActorIds: [], isDirty: false, lastSavedAt: Date.now() });
+          get().addSystemMessage(`[Scene] Loaded scene from ${file.name} (${Object.keys(loadedActors).length} actors)`);
         } catch {
           get().addSystemMessage('[Scene] Error: Invalid scene file.');
         }
@@ -852,46 +961,50 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (undoStack.length === 0) return;
     redoStack.push(JSON.parse(JSON.stringify(get().actors)));
     const prev = undoStack.pop()!;
-    set({ actors: prev });
+    set({ actors: prev, isDirty: true });
   },
 
   redo: () => {
     if (redoStack.length === 0) return;
     undoStack.push(JSON.parse(JSON.stringify(get().actors)));
     const next = redoStack.pop()!;
-    set({ actors: next });
+    set({ actors: next, isDirty: true });
   },
 
   // --- Selection helpers ---
   duplicateSelected: () => {
-    const { selectedActorId, actors } = get();
-    if (!selectedActorId || !actors[selectedActorId]) return;
-    const original = actors[selectedActorId];
+    const { selectedActorId, selectedActorIds, actors } = get();
+    const sourceIds = selectedActorIds.length ? selectedActorIds : (selectedActorId ? [selectedActorId] : []);
+    if (sourceIds.length === 0) return;
     pushUndo(actors);
-    const id = generateId();
-    const clone: NeoActor = {
-      ...JSON.parse(JSON.stringify(original)),
-      id,
-      name: `${original.name}_Copy`,
-      transform: {
-        ...original.transform,
-        position: {
-          x: original.transform.position.x + 1,
-          y: original.transform.position.y,
-          z: original.transform.position.z + 1,
-        },
-      },
-    };
-    set((state) => ({
-      actors: { ...state.actors, [id]: clone },
-      selectedActorId: id,
-    }));
+    const clones: Record<string, NeoActor> = {};
+    const cloneIds: string[] = [];
+    for (const sourceId of sourceIds) {
+      const original = actors[sourceId];
+      if (!original) continue;
+      const id = generateId();
+      cloneIds.push(id);
+      clones[id] = { ...JSON.parse(JSON.stringify(original)), id, name: `${original.name}_Copy`, children: [], transform: { ...original.transform, position: { x: original.transform.position.x + 1, y: original.transform.position.y, z: original.transform.position.z + 1 } } };
+    }
+    set((state) => ({ actors: { ...state.actors, ...clones }, selectedActorId: cloneIds[cloneIds.length - 1] || null, selectedActorIds: cloneIds, isDirty: true }));
+  },
+
+  removeSelected: () => {
+    const { actors, selectedActorIds, selectedActorId } = get();
+    const sourceIds = selectedActorIds.length ? selectedActorIds : (selectedActorId ? [selectedActorId] : []);
+    if (sourceIds.length === 0) return;
+    pushUndo(actors);
+    const toDelete = new Set<string>();
+    const visit = (id: string) => { if (toDelete.has(id)) return; toDelete.add(id); actors[id]?.children.forEach(visit); };
+    sourceIds.forEach(visit);
+    const remaining = Object.fromEntries(Object.entries(actors).filter(([id]) => !toDelete.has(id)));
+    for (const actor of Object.values(remaining)) actor.children = actor.children.filter((childId) => !toDelete.has(childId));
+    set({ actors: remaining, selectedActorId: null, selectedActorIds: [], isDirty: true });
   },
 
   selectAll: () => {
-    // Select first actor (multi-select not implemented yet)
     const ids = Object.keys(get().actors);
-    if (ids.length > 0) set({ selectedActorId: ids[0] });
+    set({ selectedActorId: ids[ids.length - 1] || null, selectedActorIds: ids });
   },
 
   // --- AI Chat ---

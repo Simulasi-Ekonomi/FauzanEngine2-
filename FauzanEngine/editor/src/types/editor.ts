@@ -135,6 +135,13 @@ export interface EditorState {
   // Scene
   actors: Record<string, NeoActor>;
   selectedActorId: string | null;
+  selectedActorIds: string[];
+  sceneName: string;
+  sceneRevision: number;
+  bridgeStatus: 'local' | 'connected' | 'error';
+  bridgeChecksum: string | null;
+  isDirty: boolean;
+  lastSavedAt: number | null;
   
   // Tools
   transformMode: TransformMode;
@@ -157,14 +164,21 @@ export interface EditorState {
   // Content Browser
   currentPath: string;
   assets: AssetItem[];
+  setCurrentPath: (path: string) => void;
   
   // Actions
   selectActor: (id: string | null) => void;
+  setSelection: (ids: string[]) => void;
+  toggleActorSelection: (id: string) => void;
   addActor: (type: ActorType, name?: string, options?: ActorCreateOptions) => void;
   addActorBatch: (actors: Array<{ type: ActorType; name: string; transform?: Partial<Transform>; material?: MaterialProperties }>) => void;
   removeActor: (id: string) => void;
   updateActorTransform: (id: string, transform: Partial<Transform>) => void;
   renameActor: (id: string, name: string) => void;
+  toggleActorVisibility: (id: string) => void;
+  reparentActor: (id: string, parentId: string | null) => void;
+  addComponent: (id: string, type: string) => void;
+  setComponentProperty: (actorId: string, componentId: string, key: string, value: PropertyValue) => void;
   setTransformMode: (mode: TransformMode) => void;
   setTransformSpace: (space: TransformSpace) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -196,5 +210,6 @@ export interface EditorState {
 
   // Selection
   duplicateSelected: () => void;
+  removeSelected: () => void;
   selectAll: () => void;
 }
