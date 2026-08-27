@@ -301,7 +301,7 @@ int main() {
     if (childWorld == nullptr || childWorld->x != 11.0F) return 17;
     auto childComponent = std::make_unique<ProbeComponent>(12U);
     ProbeComponent* childView = childComponent.get();
-    if (!actors.AttachComponent(child, std::move(childComponent)) || childView->beginPlayCount != 1U || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 2U || renderView->tickedFixedTicks != 6U || childView->tickedFixedTicks != 1U) return 18;
+    if (!actors.AttachComponent(child, std::move(childComponent)) || childView->beginPlayCount != 1U || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 2U || renderView->tickedFixedTicks != 6U || childView->tickedFixedTicks != 1U || !actors.SetComponentActive(child, 12U, false) || actors.IsComponentActive(child, 12U) || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 1U || childView->tickedFixedTicks != 1U || renderView->tickedFixedTicks != 7U) return 18;
 
     if (!actors.DestroyActor(hero) || actors.IsActorAlive(hero) || actors.ActorCount() != 1U || actors.ComponentCount() != 1U || renderDetachCount != 1U || renderEndPlayCount != 1U) return 19;
     if (actors.IsActorAlive(child) == false || scene.GetTransform(child) == nullptr) return 20;
@@ -317,7 +317,7 @@ int main() {
     if (!actors.AttachComponent(replacement, std::move(dependency))) return 26;
     auto reentrant = std::make_unique<ReentrantMutationComponent>(actors, replacement, *dependencyView);
     ReentrantMutationComponent* reentrantView = reentrant.get();
-    if (!actors.AttachComponent(replacement, std::move(reentrant)) || !actors.TickFixed(1U, receipt) || !reentrantView->mutationRejected || dependencyView->tickCalls != 1U || receipt.tickedComponents != 4U || actors.IsComponentEnabled(replacement, 30U) == false) return 27;
+    if (!actors.AttachComponent(replacement, std::move(reentrant)) || !actors.TickFixed(1U, receipt) || !reentrantView->mutationRejected || dependencyView->tickCalls != 1U || receipt.tickedComponents != 3U || actors.IsComponentEnabled(replacement, 30U) == false) return 27;
     if (!actors.AttachComponent(replacement, std::make_unique<MissingDependencyComponent>())) return 28;
     const ActorComponentWorldReceipt beforeRejectedTick = receipt;
     if (actors.TickFixed(1U, receipt) || actors.LastError() != ActorComponentError::DependencyRejected || receipt.tickedComponents != beforeRejectedTick.tickedComponents || actors.FindComponent(replacement, 31U) == nullptr) return 29;

@@ -307,7 +307,7 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
         ActorSlot& actor = actors_[actorIndex];
         if (!actor.registered) continue;
         for (ComponentSlot& slot : actor.components) {
-            if (slot.component == nullptr || !slot.enabled) continue;
+            if (slot.component == nullptr || !slot.enabled || !slot.active) continue;
             TickMetadata metadata{};
             if (!ReadTickMetadata(dispatching_, *slot.component, metadata)) { lastReceipt_ = {actorCount_, componentCount_, ticked, registrationRevision_}; return Fail(ActorComponentError::TickRejected); }
             if (metadata.group != group || metadata.order != order) continue;
