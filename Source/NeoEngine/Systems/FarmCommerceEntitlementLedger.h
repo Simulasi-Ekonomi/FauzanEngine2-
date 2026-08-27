@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -11,7 +12,7 @@ namespace NeoEngine {
 
 class FarmWorldTool;
 
-enum class FarmCommerceError : uint8_t { None, NotInitialized, InvalidConfiguration, InvalidReceipt, WrongPlayer, VerifierRejected, Duplicate, Reversed, ApplyRejected, Capacity, ReconciliationMismatch };
+enum class FarmCommerceError : uint8_t { None, NotInitialized, InvalidConfiguration, InvalidReceipt, WrongPlayer, VerifierRejected, Duplicate, Reversed, ApplyRejected, Capacity, ReconciliationMismatch, CorruptState };
 enum class FarmCommerceAuditKind : uint8_t { Approved, Rejected }; 
 
 struct FarmProviderReceipt {
@@ -37,11 +38,14 @@ class FarmCommerceEntitlementLedger {
 public:
     static constexpr uint16_t kMaxAcceptedReceipts = 1024U;
     static constexpr uint16_t kMaxAuditReceipts = 256U;
+    static constexpr uint32_t kMaxSnapshotBytes = 65536U;
     using ReceiptVerifier = std::function<bool(const FarmProviderReceipt&)>;
 
     bool Initialize(FarmWorldTool& world, std::string configuredPlayerId, ReceiptVerifier verifier);
     bool Apply(const FarmProviderReceipt& receipt, FarmCommerceAuditReceipt& audit);
     bool Reconcile(uint64_t providerReceiptId, int64_t expectedCoins, FarmCommerceAuditReceipt& audit);
+    [[nodiscard]] std::vector<uint8_t> SerializeState() const;
+    bool RestoreState(std::span<const uint8_t> bytes);
 
     [[nodiscard]] bool IsReady() const { return initialized_; }
     [[nodiscard]] FarmCommerceError LastError() const { return lastError_; }
