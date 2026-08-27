@@ -24,6 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/r5-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 

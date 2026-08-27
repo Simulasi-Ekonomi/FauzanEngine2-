@@ -45,6 +45,7 @@ public:
     bool Initialize(FarmWorldTool& world, std::string configuredPlayerId, ReceiptVerifier verifier, TrustSafetySystem* trustSafety = nullptr);
     bool Apply(const FarmProviderReceipt& receipt, FarmCommerceAuditReceipt& audit);
     bool Reconcile(uint64_t providerReceiptId, int64_t expectedCoins, FarmCommerceAuditReceipt& audit);
+    bool ExportAuditLog(std::vector<FarmCommerceAuditReceipt>& out) const;
     [[nodiscard]] std::vector<uint8_t> SerializeState() const;
     bool RestoreState(std::span<const uint8_t> bytes);
 

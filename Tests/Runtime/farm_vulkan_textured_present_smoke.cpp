@@ -37,7 +37,11 @@ int main() {
         !presented.deviceCreated || !presented.swapchainCreated || !presented.textureUploaded || !presented.pipelineCreated ||
         !presented.frameSubmitted || !presented.framePresented || presented.imageCount == 0U || presented.textureHash == 0U ||
         farmFrameHash == 0U || !runtime.Shutdown()) {
-        std::fprintf(stderr, "FARM_VULKAN_TEXTURED_PRESENT_SMOKE_FAIL stage=present status=%u\n", static_cast<unsigned>(presented.status));
+        std::fprintf(stderr, "FARM_VULKAN_TEXTURED_PRESENT_SMOKE_FAIL stage=present status=%u window=%u surface=%u device=%u swapchain=%u texture=%u pipeline=%u acquire=%u submit=%u fence=%u present=%u driver=%d/%d/%d/%d\n",
+            static_cast<unsigned>(presented.status), presented.windowCreated, presented.surfaceCreated, presented.deviceCreated,
+            presented.swapchainCreated, presented.textureUploaded, presented.pipelineCreated, presented.acquireAttempted,
+            presented.submitAttempted, presented.fenceWaitAttempted, presented.presentAttempted, presented.acquireDriverResult,
+            presented.submitDriverResult, presented.fenceWaitDriverResult, presented.presentDriverResult);
         return 3;
     }
 

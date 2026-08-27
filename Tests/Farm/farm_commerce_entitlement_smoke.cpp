@@ -28,7 +28,11 @@ int main() {
     ok = ok && !ledger.Apply({1U, "player-a", 25, "provider-ok", false}, audit) && ledger.LastError() == FarmCommerceError::Duplicate && trust.Score("player-a") == 3U && !trust.IsBanned("player-a") && farm.Coins() == initialCoins + 25;
     ok = ok && !ledger.Apply({1U, "player-a", 25, "provider-ok", true}, audit) && ledger.LastError() == FarmCommerceError::Reversed && farm.Coins() == initialCoins + 25;
     ok = ok && !ledger.Reconcile(1U, 24, audit) && ledger.LastError() == FarmCommerceError::ReconciliationMismatch && trust.Score("player-a") == 8U && trust.IsBanned("player-a") && ledger.Reconcile(1U, 25, audit) && audit.kind == FarmCommerceAuditKind::Approved && audit.providerReceiptId == 1U;
+    std::vector<FarmCommerceAuditReceipt> exported;
+    ok = ok && ledger.ExportAuditLog(exported) && exported.size() == 7U && exported.front().sequence == 1U && exported.back().kind == FarmCommerceAuditKind::Approved && exported.back().providerReceiptId == 1U;
+    if (!exported.empty()) exported.front().providerReceiptId = 999U;
+    ok = ok && ledger.LastAudit() && ledger.LastAudit()->providerReceiptId == 1U;
     if (!ok) { std::fprintf(stderr, "FARM_COMMERCE_ENTITLEMENT_SMOKE_FAIL\n"); return 1; }
-    std::printf("FARM_COMMERCE_ENTITLEMENT_SMOKE_OK approved=1 duplicate=1 reversal=1 reconcile=1 fraud_report=duplicate,reconcile ban=1\n");
+    std::printf("FARM_COMMERCE_ENTITLEMENT_SMOKE_OK approved=1 duplicate=1 reversal=1 reconcile=1 fraud_report=duplicate,reconcile ban=1 audit_export=%zu\n", exported.size());
     return 0;
 }

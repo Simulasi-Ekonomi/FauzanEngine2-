@@ -98,6 +98,18 @@ bool FarmCommerceEntitlementLedger::Apply(const FarmProviderReceipt& receipt, Fa
     return Audit(FarmCommerceAuditKind::Approved, FarmCommerceError::None, receipt.providerReceiptId, receipt.entitlementCoins, audit);
 }
 
+bool FarmCommerceEntitlementLedger::ExportAuditLog(std::vector<FarmCommerceAuditReceipt>& out) const {
+    out.clear();
+    if (!initialized_ || auditLog_.size() > kMaxAuditReceipts) return false;
+    try {
+        out = auditLog_;
+        return true;
+    } catch (...) {
+        out.clear();
+        return false;
+    }
+}
+
 bool FarmCommerceEntitlementLedger::Reconcile(uint64_t providerReceiptId, int64_t expectedCoins, FarmCommerceAuditReceipt& audit) {
     audit = {};
     const FarmProviderReceipt input{providerReceiptId, configuredPlayerId_, expectedCoins, "reconcile", false};
