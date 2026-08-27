@@ -1,0 +1,38 @@
+# Canonical Runtime Scope Manifest V1
+#
+# Format: <classification>|<path relative to Source/NeoEngine>
+#
+# Every current C++ source/header containing one of the tracked capability
+# markers is classified here. The verifier treats an unclassified marker, a
+# missing classified file, a duplicate path, or an accidental admission of a
+# non-active path to XPBD_RUNTIME_SOURCES as a hard failure.
+
+active_fail_closed_legacy|Core/EngineLoop.cpp
+non_active_legacy|AI/OpenCodeIntegration.cpp
+non_active_experimental|AI/V4/AIAgent.h
+non_active_experimental|AI/V4/AILearning.h
+non_active_experimental|AI/V4/RL/RLAgent.h
+non_active_experimental|AI/V4/RL/RLSimulator.h
+non_active_experimental|AI/V4/RL/RLTrainingPipeline.h
+non_active_legacy|CharacterCore.cpp
+non_active_legacy|Core/ECS/ChunkedSystems.h
+non_active_legacy|Core/ECS/ECSGPUBridge.cpp
+non_active_legacy|Core/ECS/LiveEditorAuto.h
+non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorFull.h
+non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorUltimate2.h
+non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorUltimate3.h
+non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorUltimate4.h
+non_active_legacy|Core/ECS/UltimateEditorSystem.h
+non_active_legacy|Core/ECS/UltimateReactive.h
+non_active_legacy|Core/Math/Transform.h
+non_active_legacy|Core/Memory/Memory/MemoryManager.cpp
+non_active_legacy|Core/Memory/Memory/MemoryPool.h
+non_active_legacy|Core/Memory/MemoryPool.h
+non_active_experimental|ECS/V4/FauzanECSSystems.h
+non_active_legacy|Platform/Android/AndroidPlatform.cpp
+non_active_fail_closed_legacy|Rendering/RHI/Vulkan/VulkanRHI.cpp
+non_active_legacy|Rendering/Rendering/FrameGraph/FrameGraph.h
+active_enum_marker|Runtime/RendererCapability.h
+non_active_legacy|Streaming/StreamManager.h
+non_active_legacy|Systems/ItemSerialTracker.cpp
+third_party_upstream_marker|ThirdParty/tiny_obj_loader.h
