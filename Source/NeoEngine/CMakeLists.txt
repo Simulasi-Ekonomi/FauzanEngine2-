@@ -122,6 +122,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanTextureUpload.cpp
     Runtime/VulkanTexturedOffscreen.cpp
     Runtime/VulkanPresentProbe.cpp
+    Runtime/VulkanTexturedPresent.cpp
     Demos/FarmSurfaceDemo.cpp
     Demos/FarmInteractiveSurfaceDemo.cpp
     Demos/MeshSurfaceDemo.cpp
@@ -584,6 +585,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_offsc
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_present_smoke.cpp")
     add_xpbd_executable(vulkan_present_smoke ../../Tests/Runtime/vulkan_present_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
+    add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_render_smoke.cpp")
     add_xpbd_executable(farm_render_smoke ../../Tests/Runtime/farm_render_smoke.cpp)
