@@ -6,7 +6,7 @@
 
 | Ukuran | Hasil | Cara membaca |
 |---|---:|---|
-| Checklist historis `todo.md` pada `main` | **452/552 = 81,9%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
+| Checklist historis `todo.md` pada `main` | **453/553 = 81,9%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
 | Mandatory release gates | **1/12 = 8,3% lulus pada scope Farm R1** | R1 lulus hanya untuk canonical Farm tool scope; R2–R12 tetap Not passed dan template lain memerlukan evidence independen. |
 | Indeks kemajuan menuju release, estimasi berbobot | **33,8%** | Estimasi analitis setelah R1 Farm scope mencapai evidence penuh; bukan status resmi proyek dan tidak berarti release-ready. |
 | Editor/Tooling pada `main` | **Satu slice authoring fungsional** | Workflow Unreal-like V1 sudah terintegrasi ke `main`, tetapi belum setara Unreal Editor penuh. |
