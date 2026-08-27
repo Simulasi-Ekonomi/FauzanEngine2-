@@ -10,7 +10,7 @@
 namespace NeoEngine {
 
 enum class FarmRenderAssetManifestError : uint8_t { None, AlreadyBound, InvalidAssetSet, MissingAsset, WrongKind, NotReady, InvalidData, AcquireFailed, ResourceMismatch, Capacity };
-struct FarmRenderAssetManifestReceipt { uint16_t assetCount = 0U; uint64_t aggregateContentHash = 0U; };
+struct FarmRenderAssetManifestReceipt { uint16_t assetCount = 0U; uint64_t aggregateContentHash = 0U; bool operator==(const FarmRenderAssetManifestReceipt&) const = default; };
 
 class FarmRenderAssetManifest {
 public:
