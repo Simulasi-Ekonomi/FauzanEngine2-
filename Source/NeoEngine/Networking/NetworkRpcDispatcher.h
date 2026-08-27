@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 
@@ -17,7 +18,7 @@ struct RpcEnvelope {
 
 struct RpcDispatchResult {
     bool accepted{false};
-    enum class Reason : uint8_t { None, UnknownRpc, DirectionDenied, DuplicateSequence, PayloadTooLarge } reason{Reason::None};
+    enum class Reason : uint8_t { None, UnknownRpc, DirectionDenied, DuplicateSequence, PayloadTooLarge, InvalidPeer, InvalidSequence, HandlerRejected } reason{Reason::None};
 };
 
 class RpcDispatcher {
@@ -27,11 +28,12 @@ public:
 
     bool registerRpc(uint32_t rpcId, RpcDirection direction, Handler handler) {
         if (!rpcId || !handler || handlers_.count(rpcId)) return false;
-        handlers_.emplace(rpcId, Entry{direction, handler});
-        return true;
+        try { handlers_.emplace(rpcId, Entry{direction, handler}); return true; } catch (...) { return false; }
     }
 
     RpcDispatchResult dispatch(const RpcEnvelope& rpc) {
+        if (!rpc.peerId) return {false, RpcDispatchResult::Reason::InvalidPeer};
+        if (!rpc.sequence) return {false, RpcDispatchResult::Reason::InvalidSequence};
         const auto it = handlers_.find(rpc.rpcId);
         if (it == handlers_.end()) return {false, RpcDispatchResult::Reason::UnknownRpc};
         if (it->second.direction != rpc.direction) return {false, RpcDispatchResult::Reason::DirectionDenied};
@@ -40,7 +42,9 @@ public:
         const auto last = lastSequences_.find(key);
         if (last != lastSequences_.end() && rpc.sequence <= last->second)
             return {false, RpcDispatchResult::Reason::DuplicateSequence};
-        if (!rpc.sequence || !it->second.handler(rpc)) return {false, RpcDispatchResult::Reason::DuplicateSequence};
+        bool handled = false;
+        try { handled = it->second.handler(rpc); } catch (...) { return {false, RpcDispatchResult::Reason::HandlerRejected}; }
+        if (!handled) return {false, RpcDispatchResult::Reason::HandlerRejected};
         lastSequences_[key] = rpc.sequence;
         return {true, RpcDispatchResult::Reason::None};
     }

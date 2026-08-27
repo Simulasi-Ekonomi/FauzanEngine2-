@@ -6,6 +6,7 @@ using namespace NeoEngine::Networking;
 
 namespace {
 bool Handler(const RpcEnvelope&) { return true; }
+bool RejectHandler(const RpcEnvelope&) { return false; }
 
 bool Require(bool condition, const char* label) {
     if (!condition) std::fprintf(stderr, "NETWORK_RPC_SMOKE_FAIL step=%s\n", label);
@@ -27,6 +28,16 @@ int main() {
     if (!Require(dispatcher.dispatch(peerOne).accepted, "peer_one_cleared") ||
         !Require(dispatcher.dispatch(peerTwo).reason == RpcDispatchResult::Reason::DuplicateSequence, "peer_two_preserved")) return 1;
 
-    std::printf("NETWORK_RPC_SMOKE_OK peer_clear_isolated=1 duplicate_protection=1\n");
+    const RpcEnvelope invalidPeer{0U, 0U, 2U, 7U, RpcDirection::ClientToServer, 0U};
+    if (!Require(dispatcher.dispatch(invalidPeer).reason == RpcDispatchResult::Reason::InvalidPeer, "invalid_peer_rejected")) return 1;
+    const RpcEnvelope invalidSequence{1U, 0U, 0U, 7U, RpcDirection::ClientToServer, 0U};
+    if (!Require(dispatcher.dispatch(invalidSequence).reason == RpcDispatchResult::Reason::InvalidSequence, "invalid_sequence_rejected")) return 1;
+
+    if (!Require(dispatcher.registerRpc(8U, RpcDirection::ClientToServer, &RejectHandler), "register_reject_handler")) return 1;
+    const RpcEnvelope rejected{3U, 0U, 1U, 8U, RpcDirection::ClientToServer, 0U};
+    if (!Require(dispatcher.dispatch(rejected).reason == RpcDispatchResult::Reason::HandlerRejected, "handler_rejection")) return 1;
+    if (!Require(dispatcher.dispatch(rejected).reason == RpcDispatchResult::Reason::HandlerRejected, "rejected_retry_not_replay")) return 1;
+
+    std::printf("NETWORK_RPC_SMOKE_OK peer_clear_isolated=1 duplicate_protection=1 validation=1 rejection_atomic=1\n");
     return 0;
 }
