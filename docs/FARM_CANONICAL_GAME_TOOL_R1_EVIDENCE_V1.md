@@ -33,6 +33,8 @@ FARM_CANONICAL_GAME_TOOL_SMOKE_OK version=2 content=2 commands=3 migration=1 inv
 
 Target tersebut terdaftar pada `Source/NeoEngine/CMakeLists.txt` dan dibangun dari `FarmCanonicalGameTool.cpp`, `FarmWorldTool.cpp`, serta canonical runtime source set. Smoke juga memverifikasi bahwa corrupt load tidak mengubah state yang sudah valid.
 
+GitHub Actions workflow `R1 Canonical Game Tool` run **33089796273** pada main SHA **`347475d`** lulus untuk konfigurasi Release dan AddressSanitizer. Workflow menginstal dependency native runner, mengonfigurasi CMake/Ninja, membangun target smoke, lalu menjalankan kedua konfigurasi tersebut.
+
 ## Status
 
 R1 dinyatakan **Passed untuk canonical Farm tool scope** berdasarkan evidence di atas. Status ini tidak menyatakan seluruh release siap, karena R2–R12 tetap memiliki gate terpisah.
