@@ -1,15 +1,15 @@
 # Audit Kemajuan Seluruh Repositori FauzanEngine2-
 
-**Snapshot audit:** 27 Agustus 2026. Default `main` berada pada `dae27ea`; branch kerja Editor/Tooling berada pada `657b427`. Keduanya belum menjadi satu garis riwayat terintegrasi: `main` memiliki tiga commit runtime yang tidak ada di branch editor, sedangkan branch editor memiliki lima commit editor yang belum masuk `main`.
+**Snapshot audit:** 27 Agustus 2026. Seluruh perubahan Editor/Tooling yang valid sudah dipindahkan ke `main`, branch tambahan lokal/remote sudah dihapus, dan snapshot terbaru berada pada `fe523573` setelah scope manifest runtime ditambahkan.
 
 ## Jawaban singkat
 
 | Ukuran | Hasil | Cara membaca |
 |---|---:|---|
-| Checklist historis `todo.md` pada `main` | **436/537 = 81,2%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
+| Checklist historis `todo.md` pada `main` | **443/543 = 81,6%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
 | Mandatory release gates | **0/12 = 0% lulus penuh** | Tidak satu pun dari R1–R12 boleh disebut production-ready sebelum seluruh evidencenya lulus. |
 | Indeks kemajuan menuju release, estimasi berbobot | **27,9%** | Estimasi analitis; rata-rata kemajuan parsial 12 gate, bukan status resmi proyek. |
-| Editor/Tooling branch | **Satu slice authoring fungsional** | Sudah memiliki workflow Unreal-like V1, tetapi belum menjadi bagian `main` dan belum setara Unreal Editor penuh. |
+| Editor/Tooling pada `main` | **Satu slice authoring fungsional** | Workflow Unreal-like V1 sudah terintegrasi ke `main`, tetapi belum setara Unreal Editor penuh. |
 
 > **Kesimpulan paling jujur:** repo sudah sekitar **80% menyelesaikan backlog engineering yang tercatat**, tetapi baru sekitar **28% menuju standar release end-to-end**, dan status rilis resmi tetap **0%** karena 0 dari 12 gate wajib telah lulus penuh.
 
@@ -54,28 +54,28 @@ Release matrix mendefinisikan seluruh R1–R12 sebagai mandatory dan menyatakan 
 | AI/agents | Typed gateway, dry-run/approval policy, prompt graph; legacy AI placeholder tetap tidak aktif | **30%** |
 | Android | Canonical subset dan lifecycle/native cross-compile | **20%** |
 | Multiplayer/live ops/commerce | Local contracts saja; layanan authoritative dan operasi produksi belum ada | **10–20%** |
-| Editor/Tooling | V1 authoring branch: Outliner, inspector, viewport, scene bridge, browser smoke, profiler, asset drop | **60% pada branch editor; 0% pada main sampai merge** |
+| Editor/Tooling | V1 authoring: Outliner, inspector, viewport, scene bridge, browser smoke, profiler, asset drop sudah terintegrasi | **60% pada main** |
 
 Persentase domain adalah estimasi internal berbasis kedalaman integration/evidence, bukan hitungan jumlah file. Audit repository terbaru sendiri menolak klaim “Unreal-like 60%” sebagai angka yang dapat dibuktikan hanya dari file/smoke count [4].
 
 ## Perkembangan terbaru yang penting
 
-`main` bergerak pada tiga commit runtime terbaru: canonical Farm player input, canonical Farm HUD composition, dan topology-safe Farm progress checkpoint. Ini merupakan kemajuan nyata pada playable Farm foundation, tetapi masih berada dalam batas local/headless/CPU evidence dan belum menyelesaikan R2–R12 [5].
+`main` kini juga memuat bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, serta canonical runtime scope manifest. Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap berada dalam batas smoke/local/headless/CPU atau probe GPU yang sempit dan belum menyelesaikan R2–R12 [5].
 
-Branch `editor-tooling-v1` menambahkan Editor Tooling V1, Runtime SceneBridge, automated bridge/browser smoke, multi-selection, reflection inspector, asset-to-scene drop, Play-in-Editor profiler, autosave/recovery, dan bundle splitting. Semua smoke lokal yang dijalankan pada branch tersebut lulus: bridge `200/409/422`, browser authoring flow, C++ Editor V1 Release, dan AddressSanitizer. Namun branch ini masih perlu direbase/merge ke `main` agar kemajuan Editor menjadi bagian dari default line.
+Editor Tooling V1, Runtime SceneBridge, automated bridge/browser smoke, multi-selection, reflection inspector, asset-to-scene drop, Play-in-Editor profiler, autosave/recovery, dan bundle splitting kini sudah di-merge ke `main`. Smoke lokal lulus: bridge `200/409/422`, browser authoring flow, C++ Editor V1 Release, dan AddressSanitizer. Branch tambahan sudah dihapus; `main` adalah satu-satunya branch kerja.
 
 ## CI dan release blockers yang terkonfirmasi
 
-CI GitHub pada `main` terbaru belum sehat. Build/deploy Web Editor gagal pada tahap GitHub Pages deployment karena Pages belum diaktifkan (`404`), bukan karena build frontend. CI backend gagal saat memasang `jnius` karena build membutuhkan Cython. Android debug gagal pada Jetifier terhadap `litertlm-android` dengan unsupported class file major version 65, sedangkan Android release berhenti karena secret signing `NEO_ANDROID_KEYSTORE`, alias, dan passwords belum tersedia [6].
+CI GitHub pada `main` terbaru **sebagian sudah sehat**: lint/type-check, backend import smoke, dan Web Editor build berhasil; Android debug juga berhasil. Backend tidak lagi memasang `jnius` karena dependency JNI/Android itu bukan jalur import FastAPI aktif. `LiteRTManager.kt` tetap legacy/inaktif pada source set Android saat ini karena plugin Kotlin tidak diterapkan di app dan tidak ada dependency LiteRT; bridge Java secara eksplisit fail-close sebagai `LITERT_UNAVAILABLE`. Dua blocker konfigurasi tetap terkonfirmasi: deploy Web Editor gagal `404` karena GitHub Pages belum diaktifkan pada repository, sedangkan Android release berhenti secara sengaja karena secret signing belum tersedia [6].
 
 ## Urutan kemajuan berikutnya
 
-1. **Satukan branch:** rebase/merge `editor-tooling-v1` ke `main`, jalankan seluruh smoke/regression pada satu SHA, dan pastikan CI membaca package/editor path yang benar.
+1. **Pertahankan satu branch:** seluruh perubahan valid sudah berada di `main`; jalankan smoke/regression pada SHA yang sama dan jangan membuat branch kerja tambahan.
 2. **Selesaikan P0 vertical slice lokal:** input pemain → Farm state/HUD → audio minimum → canonical save/recovery → renderer surface/presentation → error/recovery, tanpa loop Farm kedua yang terpisah dari `NeoRuntime`.
 3. **Naikkan renderer:** pilih backend GPU production, surface/swapchain, mesh/texture/material/light upload, resource lifetime, device-loss handling, dan desktop presentation evidence.
 4. **Naikkan asset pipeline:** filesystem import, content cache, dependency executor, deterministic cooking, memory budget, live refresh, dan GPU binding.
 5. **Integrasikan gameplay:** collision/trigger/query, transform authority, animation state machine/blend, mesh binding, dan NPC locomotion.
-6. **Perbaiki CI:** isolasikan dependency `jnius` dari static syntax check bila tidak diperlukan, perbaiki compatibility Jetifier/LiteRT atau pin dependency yang kompatibel, konfigurasi Pages, dan simpan signing hanya di GitHub Secrets.
+6. **Perbaiki CI lanjutan:** backend `jnius` sudah diisolasi dan debug Android sudah hijau; Pages tetap memerlukan enablement repository, sedangkan signing release hanya boleh melalui GitHub Secrets. LiteRT legacy jangan diaktifkan kembali tanpa kontrak dependency/toolchain dan smoke.
 7. **Baru setelah itu:** authoritative multiplayer, durable persistence, commerce/anti-cheat/live ops, lalu APK/AAB/device evidence.
 
 ## Referensi
