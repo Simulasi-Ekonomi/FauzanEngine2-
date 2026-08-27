@@ -11,6 +11,7 @@
 #include "ReplicationWorld.h"
 #include "EventSignalBus.h"
 #include "FarmRuntimeHud.h"
+#include "FarmPlayerInputBridge.h"
 #include "FarmRenderAssetManifest.h"
 #include "TextureStaging.h"
 #include "InputMotionBridge.h"
@@ -29,11 +30,11 @@
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, PresentationFailed, TimeFailed, ActorComponentTickFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, PresentationFailed, TimeFailed, ActorComponentTickFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
-struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; InputStateSummary input{}; AssetRegistrySummary assets{}; uint32_t sceneAliveEntityCount = 0U; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; };
+struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; uint32_t sceneAliveEntityCount = 0U; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
-struct RuntimeConfig { uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableFarmRuntimeHud=false; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;     std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; };
+struct RuntimeConfig { uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32; uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; bool enableFarmRuntimeHud=false; bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;     std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; };
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
@@ -83,6 +84,8 @@ public:
     const EventSignalBus* Events() const { return m_Events.get(); }
     InputState* Input() { return m_Input.get(); }
     const InputState* Input() const { return m_Input.get(); }
+    FarmPlayerInputBridge* FarmPlayerInput() { return m_FarmPlayerInput.get(); }
+    const FarmPlayerInputBridge* FarmPlayerInput() const { return m_FarmPlayerInput.get(); }
     const SceneEntity* InputMotionEntity() const { return m_InputMotionEntity_.index==0xFFFFU ? nullptr : &m_InputMotionEntity_; }
     GridNavigation* RouteNavigation() { return m_RouteNavigation.get(); }
     const GridNavigation* RouteNavigation() const { return m_RouteNavigation.get(); }
@@ -111,6 +114,7 @@ private:
     std::unique_ptr<InputState> m_Input;
     std::unique_ptr<KinematicMotionController> m_KinematicMotion;
     std::unique_ptr<InputMotionBridge> m_InputMotion;
+    std::unique_ptr<FarmPlayerInputBridge> m_FarmPlayerInput;
     SceneEntity m_InputMotionEntity_{0xFFFFU,0U};
     std::unique_ptr<GridNavigation> m_RouteNavigation;
     std::unique_ptr<KinematicMotionController> m_RouteMotionController;

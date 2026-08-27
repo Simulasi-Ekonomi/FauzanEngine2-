@@ -50,6 +50,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     auto input = std::unique_ptr<InputState>{};
     auto kinematicMotion = std::unique_ptr<KinematicMotionController>{};
     auto inputMotion = std::unique_ptr<InputMotionBridge>{};
+    auto farmPlayerInput = std::unique_ptr<FarmPlayerInputBridge>{};
     SceneEntity inputMotionEntity{0xFFFFU, 0U};
     if (config.enableInputMotion) {
         input = std::make_unique<InputState>();
@@ -61,6 +62,12 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
         if (!kinematicMotion->Initialize({config.inputMotionUnitsPerSecond, 0.25F, config.inputMotionFaceMovementDirection}) || !inputMotion->Initialize() || !scene->Create(inputMotionEntity) || !scene->SetTransform(inputMotionEntity, {0.0F, 0.0F, 0.0F, 0, 0, 0, 1, 1, 1})) {
             m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false;
         }
+    }
+    if (config.enableFarmPlayerInput) {
+        if (input == nullptr) input = std::make_unique<InputState>();
+        farmPlayerInput = std::make_unique<FarmPlayerInputBridge>();
+        const FarmPlayerInputBindings& bindings = config.farmPlayerInputBindings;
+        if (!farmPlayerInput->Initialize(bindings) || !input->Bind(bindings.moveUp, MakeInputCode(InputDeviceType::Keyboard, 20U)) || !input->Bind(bindings.moveDown, MakeInputCode(InputDeviceType::Keyboard, 21U)) || !input->Bind(bindings.moveLeft, MakeInputCode(InputDeviceType::Keyboard, 22U)) || !input->Bind(bindings.moveRight, MakeInputCode(InputDeviceType::Keyboard, 23U)) || !input->Bind(bindings.interact, MakeInputCode(InputDeviceType::Keyboard, 24U))) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     }
     if (config.enableRouteMotion && config.enableSkeletalRouteMotion) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto routeNavigation = std::unique_ptr<GridNavigation>{};
@@ -113,6 +120,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Input = std::move(input);
     m_KinematicMotion = std::move(kinematicMotion);
     m_InputMotion = std::move(inputMotion);
+    m_FarmPlayerInput = std::move(farmPlayerInput);
     m_InputMotionEntity_ = inputMotionEntity;
     m_RouteNavigation = std::move(routeNavigation);
     m_RouteMotionController = std::move(routeMotionController);
@@ -173,6 +181,10 @@ bool NeoRuntime::Tick() {
     }
     ActorComponentWorldReceipt actorReceipt{};
     if (m_Actors == nullptr || !m_Actors->TickFixed(simulatedTicks, actorReceipt)) { m_LastError = RuntimeError::ActorComponentTickFailed; m_State = RuntimeState::Failed; return false; }
+    FarmPlayerInputReceipt farmPlayerInputReceipt{};
+    const bool hasFarmPlayerInput = m_FarmPlayerInput != nullptr;
+    if (hasFarmPlayerInput && (m_Input == nullptr || !m_FarmPlayerInput->Step(*m_Input, *m_FarmWorld))) { m_LastError = RuntimeError::FarmPlayerInputFailed; m_State = RuntimeState::Failed; return false; }
+    if (hasFarmPlayerInput) farmPlayerInputReceipt = m_FarmPlayerInput->LastReceipt();
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
@@ -181,7 +193,7 @@ bool NeoRuntime::Tick() {
     if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return false; }
     m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), actorReceipt, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
     m_LastFrameReceipt.eventDispatch = dispatchReceipt;
-    m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
+    m_LastFrameReceipt.farmPlayerInput = farmPlayerInputReceipt; m_LastFrameReceipt.hasFarmPlayerInputReceipt = hasFarmPlayerInput; m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
     m_HasFrameReceipt = true;
     m_LastError = RuntimeError::None;
     return true;
@@ -253,6 +265,7 @@ bool NeoRuntime::Shutdown() {
     m_Timers.reset();
     m_Events.reset();
     m_InputMotion.reset();
+    m_FarmPlayerInput.reset();
     m_KinematicMotion.reset();
     m_Input.reset();
     m_InputMotionEntity_ = {0xFFFFU, 0U};
