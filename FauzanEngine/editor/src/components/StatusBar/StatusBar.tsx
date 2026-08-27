@@ -2,7 +2,7 @@ import React from 'react';
 import { useEditorStore } from '../../stores/editorStore';
 
 export function StatusBar() {
-  const { engineConnected, ariesConnected, fps, actors, selectedActorId, transformMode, sceneName, isDirty, lastSavedAt } = useEditorStore();
+  const { engineConnected, ariesConnected, fps, actors, selectedActorId, transformMode, sceneName, sceneRevision, bridgeStatus, bridgeChecksum, isDirty, lastSavedAt } = useEditorStore();
   const actorCount = Object.keys(actors).length;
   const selectedActor = selectedActorId ? actors[selectedActorId] : null;
 
@@ -22,6 +22,7 @@ export function StatusBar() {
         <span>Actors: {actorCount}</span>
         <span>|</span>
         <span className={isDirty ? 'status-dirty' : 'status-clean'}>{isDirty ? '● Unsaved' : '✓ Saved'}</span>
+        <span className={`bridge-status bridge-${bridgeStatus}`} title={bridgeChecksum ? `Scene bridge checksum ${bridgeChecksum}` : 'No bridge receipt'}>Bridge: {bridgeStatus} r{sceneRevision}</span>
         {selectedActor && (
           <>
             <span>|</span>

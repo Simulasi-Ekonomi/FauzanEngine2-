@@ -136,6 +136,9 @@ export interface EditorState {
   actors: Record<string, NeoActor>;
   selectedActorId: string | null;
   sceneName: string;
+  sceneRevision: number;
+  bridgeStatus: 'local' | 'connected' | 'error';
+  bridgeChecksum: string | null;
   isDirty: boolean;
   lastSavedAt: number | null;
   

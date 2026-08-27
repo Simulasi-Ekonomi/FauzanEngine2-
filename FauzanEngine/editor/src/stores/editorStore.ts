@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import type { EditorState, ActorType, Transform, ChatMessage, NeoActor, NeoComponent, TransformMode, TransformSpace, ViewMode, ActorCreateOptions, MaterialProperties } from '../types/editor';
 import { processWithAriesBrain, queryLLM } from '../engine/AriesBrain';
+import { commitLocalScene, commitRuntimeScene, restoreLocalScene } from '../engine/SceneBridge';
 
+const restoredScene = restoreLocalScene();
 let actorCounter = 0;
 let messageCounter = 0;
 
@@ -571,11 +573,14 @@ ${proactiveSuggestion}`,
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   // Scene
-  actors: createDefaultScene(),
+  actors: restoredScene?.actors || createDefaultScene(),
   selectedActorId: null,
-  sceneName: localStorage.getItem('neoengine_scene_name') || 'Untitled',
+  sceneName: restoredScene?.sceneName || localStorage.getItem('neoengine_scene_name') || 'Untitled',
+  sceneRevision: restoredScene?.revision || 0,
+  bridgeStatus: restoredScene ? 'local' : 'local',
+  bridgeChecksum: restoredScene?.checksum || null,
   isDirty: false,
-  lastSavedAt: null,
+  lastSavedAt: restoredScene ? Date.now() : null,
 
   // Tools
   transformMode: 'translate',
@@ -855,11 +860,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   saveScene: () => {
     const state = get();
-    const data = JSON.stringify({ version: 1, sceneName: state.sceneName, actors: state.actors }, null, 2);
-    localStorage.setItem('neoengine_scene', data);
-    localStorage.setItem('neoengine_scene_name', state.sceneName);
-    set({ isDirty: false, lastSavedAt: Date.now() });
-    get().addSystemMessage(`[Scene] ${state.sceneName} saved to local storage.`);
+    const revision = state.sceneRevision + 1;
+    try {
+      const localResult = commitLocalScene(state.sceneName, revision, state.actors);
+      set({ isDirty: false, lastSavedAt: Date.now(), sceneRevision: revision, bridgeStatus: 'local', bridgeChecksum: localResult.document.checksum });
+      localStorage.setItem('neoengine_scene', JSON.stringify(localResult.document));
+      localStorage.setItem('neoengine_scene_name', state.sceneName);
+      get().addSystemMessage(`[Scene] ${state.sceneName} committed r${revision} (${localResult.document.checksum}).`);
+      void commitRuntimeScene(state.sceneName, revision, state.actors).then((result) => {
+        set({ bridgeStatus: result.receipt.source === 'runtime-bridge' ? 'connected' : 'local', bridgeChecksum: result.receipt.checksum });
+        get().addSystemMessage(`[SceneBridge] ${result.receipt.source} receipt r${result.receipt.revision}.`);
+      }).catch((error: unknown) => {
+        set({ bridgeStatus: 'error' });
+        get().addSystemMessage(`[SceneBridge] Runtime unavailable; local commit retained (${error instanceof Error ? error.message : 'unknown error'}).`);
+      });
+    } catch (error: unknown) {
+      set({ bridgeStatus: 'error' });
+      get().addSystemMessage(`[Scene] Save rejected: ${error instanceof Error ? error.message : 'invalid scene'}.`);
+    }
   },
 
   saveSceneAs: () => {
@@ -889,7 +907,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           const data = JSON.parse(ev.target?.result as string);
           pushUndo(get().actors);
           const loadedActors = data.actors || data;
-          set({ actors: loadedActors, sceneName: data.sceneName || file.name.replace(/\.json$/i, ''), selectedActorId: null, isDirty: false, lastSavedAt: Date.now() });
+          set({ actors: loadedActors, sceneName: data.sceneName || file.name.replace(/\.json$/i, ''), sceneRevision: data.revision || 0, bridgeChecksum: data.checksum || null, bridgeStatus: 'local', selectedActorId: null, isDirty: false, lastSavedAt: Date.now() });
           get().addSystemMessage(`[Scene] Loaded scene from ${file.name} (${Object.keys(loadedActors).length} actors)`);
         } catch {
           get().addSystemMessage('[Scene] Error: Invalid scene file.');

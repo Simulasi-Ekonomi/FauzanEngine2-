@@ -624,3 +624,8 @@
 
 .status-dirty { color: var(--accent-yellow); font-weight: 600; }
 .status-clean { color: var(--accent-green); }
+
+.bridge-status { margin-left: 6px; font-size: 10px; }
+.bridge-connected { color: var(--accent-green); }
+.bridge-local { color: var(--accent-yellow); }
+.bridge-error { color: var(--accent-red); }

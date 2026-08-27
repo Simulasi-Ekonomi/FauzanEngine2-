@@ -19,6 +19,17 @@ The editor surface now provides:
 
 Scene mutations are recorded through the same Zustand scene store, use bounded undo snapshots, update dirty state, and preserve parent-child references when reparenting. Invalid hierarchy cycles are rejected. The canonical C++ editor session remains the authoritative validation boundary for scene open, selection, inspector, transform mutation, viewport rendering, save/load, undo/redo, deletion, and failure-preserving rollback.
 
+## Runtime SceneBridge P0
+
+`src/engine/SceneBridge.ts` defines protocol version 1, deterministic checksum, revisioned scene documents, hierarchy/finite-transform validation, local fallback storage, and optional HTTP runtime bridge delivery. `tools/scene-bridge.mjs` is a dependency-free strict bridge endpoint with GET/POST, stale-revision conflict rejection, invalid-scene rejection, and immutable receipts. Configure `VITE_SCENE_BRIDGE_URL` from `.env.example` to switch the frontend from local fallback to HTTP bridge mode.
+
+```bash
+npm run bridge -- --port 8787
+BRIDGE_URL=http://127.0.0.1:8787 npm run test:bridge
+```
+
+Expected output begins with `SCENE_BRIDGE_SMOKE_OK commit=200 roundtrip=200 stale=409 invalid=422`.
+
 ## Browser acceptance evidence
 
 `EDITOR_TOOLING_V1_BROWSER_EVIDENCE.md` records a live preview verification of the rendered Unreal-like surface, toolbar actor creation, dirty-state propagation, inspector transform editing, component addition, and parent reparenting in the World Outliner.
