@@ -23,6 +23,9 @@ const actorIcons: Record<string, string> = {
 
 function ActorTreeItem({ actor, depth = 0 }: { actor: NeoActor; depth?: number }) {
   const selectedActorId = useEditorStore((s) => s.selectedActorId);
+  const selectedActorIds = useEditorStore((s) => s.selectedActorIds);
+  const toggleActorSelection = useEditorStore((s) => s.toggleActorSelection);
+  const selectAll = useEditorStore((s) => s.selectAll);
   const selectActor = useEditorStore((s) => s.selectActor);
   const renameActor = useEditorStore((s) => s.renameActor);
   const toggleActorVisibility = useEditorStore((s) => s.toggleActorVisibility);
@@ -31,7 +34,7 @@ function ActorTreeItem({ actor, depth = 0 }: { actor: NeoActor; depth?: number }
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState(actor.name);
   
-  const isSelected = selectedActorId === actor.id;
+  const isSelected = selectedActorIds.includes(actor.id);
   const hasChildren = actor.children.length > 0;
   const icon = actorIcons[actor.type] || '○';
 
@@ -40,7 +43,7 @@ function ActorTreeItem({ actor, depth = 0 }: { actor: NeoActor; depth?: number }
       <div
         className={`tree-item ${isSelected ? 'selected' : ''}`}
         style={{ paddingLeft: `${8 + depth * 16}px` } as React.CSSProperties}
-        onClick={() => selectActor(actor.id)}
+        onClick={(e) => (e.ctrlKey || e.metaKey) ? toggleActorSelection(actor.id) : selectActor(actor.id)}
         onDoubleClick={() => { setDraftName(actor.name); setRenaming(true); }}
         onContextMenu={(e) => { e.preventDefault(); selectActor(actor.id); }}
       >
@@ -81,8 +84,11 @@ export function Outliner() {
   const actors = useEditorStore((s) => s.actors);
   const selectActor = useEditorStore((s) => s.selectActor);
   const addActor = useEditorStore((s) => s.addActor);
-  const removeActor = useEditorStore((s) => s.removeActor);
+  const removeSelected = useEditorStore((s) => s.removeSelected);
   const selectedActorId = useEditorStore((s) => s.selectedActorId);
+  const selectedActorIds = useEditorStore((s) => s.selectedActorIds);
+  const toggleActorSelection = useEditorStore((s) => s.toggleActorSelection);
+  const selectAll = useEditorStore((s) => s.selectAll);
   const [filter, setFilter] = useState('');
   const rootActors = Object.values(actors).filter((a) => a.parentId === null);
 
@@ -116,15 +122,12 @@ export function Outliner() {
         display: 'flex',
         gap: 4,
       }}>
+        <button onClick={selectAll} style={{ flex: 1, fontSize: 10 }} title="Select All Actors">Select All</button>
+        <button onClick={() => addActor('cube', 'NewActor')} style={{ flex: 1, fontSize: 10 }} title="Add Actor">+ Add</button>
         <button
-          onClick={() => addActor('cube', 'NewActor')}
-          style={{ flex: 1, fontSize: 10 }}
-          title="Add Actor"
-        >+ Add</button>
-        <button
-          onClick={() => selectedActorId && removeActor(selectedActorId)}
-          style={{ flex: 1, fontSize: 10, background: selectedActorId ? '#6a2020' : '#333' }}
-          disabled={!selectedActorId}
+          onClick={removeSelected}
+          style={{ flex: 1, fontSize: 10, background: selectedActorIds.length ? '#6a2020' : '#333' }}
+          disabled={selectedActorIds.length === 0}
           title="Delete Selected"
         >✕ Delete</button>
       </div>

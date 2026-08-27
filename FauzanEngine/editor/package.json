@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "bridge": "node tools/scene-bridge.mjs",
     "test:bridge": "node tools/scene-bridge-smoke.mjs",
-    "test:browser": "node tools/editor-browser-smoke.mjs"
+    "test:browser": "node tools/editor-browser-smoke.mjs",
+    "test:acceptance": "node tools/editor-acceptance.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.108.0",

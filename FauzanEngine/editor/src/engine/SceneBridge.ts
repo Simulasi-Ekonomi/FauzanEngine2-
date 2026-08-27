@@ -2,6 +2,7 @@ import type { NeoActor } from '../types/editor';
 
 export const SCENE_BRIDGE_PROTOCOL = 1 as const;
 const STORAGE_KEY = 'neoengine_runtime_scene_v1';
+const DRAFT_KEY = 'neoengine_runtime_scene_draft_v1';
 
 export interface SceneBridgeDocument {
   protocolVersion: typeof SCENE_BRIDGE_PROTOCOL;
@@ -23,6 +24,11 @@ export interface SceneBridgeReceipt {
 export interface SceneBridgeResult {
   document: SceneBridgeDocument;
   receipt: SceneBridgeReceipt;
+}
+
+export interface SceneDraft {
+  document: SceneBridgeDocument;
+  updatedAt: number;
 }
 
 function stableValue(value: unknown): string {
@@ -77,6 +83,25 @@ export function commitLocalScene(sceneName: string, revision: number, actors: Re
   const document = buildSceneDocument(sceneName, revision, actors);
   if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, JSON.stringify(document));
   return { document, receipt: { ok: true, revision, checksum: document.checksum, actorCount: Object.keys(actors).length, validationErrors: [], source: 'local-fallback' } };
+}
+
+export function saveSceneDraft(sceneName: string, revision: number, actors: Record<string, NeoActor>): SceneDraft {
+  const draft = { document: buildSceneDocument(sceneName, revision, actors), updatedAt: Date.now() };
+  if (typeof localStorage !== 'undefined') localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  return draft;
+}
+
+export function restoreSceneDraft(): SceneDraft | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') as SceneDraft | null;
+    if (!parsed || !parsed.document || validateScene(parsed.document.actors).length > 0) return null;
+    return parsed;
+  } catch { return null; }
+}
+
+export function clearSceneDraft(): void {
+  if (typeof localStorage !== 'undefined') localStorage.removeItem(DRAFT_KEY);
 }
 
 export function restoreLocalScene(): SceneBridgeDocument | null {

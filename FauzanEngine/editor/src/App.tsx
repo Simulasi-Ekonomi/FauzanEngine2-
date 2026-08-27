@@ -3,6 +3,7 @@ import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { MenuBar } from './components/Layout/MenuBar';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { Viewport } from './components/Viewport/Viewport';
+import { ProfilerOverlay } from './components/Profiler/ProfilerOverlay';
 import { Outliner } from './components/Outliner/Outliner';
 import { Properties } from './components/Properties/Properties';
 import { ContentBrowser } from './components/ContentBrowser/ContentBrowser';
@@ -14,6 +15,7 @@ import { SettingsDialog } from './components/Settings/SettingsDialog';
 import { MonetizationManager } from './components/Monetization/MonetizationManager';
 import type { GeneratedModel } from './components/BuildPublish/ModelGenerator';
 import { GameRuntime, GAME_TEMPLATES } from './engine/GameRuntime';
+import { saveSceneDraft } from './engine/SceneBridge';
 import type { UIElement, GameScript } from './engine/GameRuntime';
 import { useEditorStore } from './stores/editorStore';
 
@@ -36,10 +38,20 @@ export function App() {
   const saveScene = useEditorStore((s) => s.saveScene);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
-  const removeActor = useEditorStore((s) => s.removeActor);
+  const removeSelected = useEditorStore((s) => s.removeSelected);
   const duplicateSelected = useEditorStore((s) => s.duplicateSelected);
   const setTransformMode = useEditorStore((s) => s.setTransformMode);
   const setViewMode = useEditorStore((s) => s.setViewMode);
+
+  useEffect(() => {
+    const persistDraft = () => {
+      const state = useEditorStore.getState();
+      if (state.isDirty) saveSceneDraft(state.sceneName, state.sceneRevision, state.actors);
+    };
+    const timer = window.setInterval(persistDraft, 5000);
+    window.addEventListener('beforeunload', persistDraft);
+    return () => { window.clearInterval(timer); window.removeEventListener('beforeunload', persistDraft); };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -49,7 +61,7 @@ export function App() {
       if ((event.ctrlKey || event.metaKey) && key === 's') { event.preventDefault(); saveScene(); }
       else if ((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
       else if ((event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))) { event.preventDefault(); redo(); }
-      else if (key === 'delete' && selectedActorId) { event.preventDefault(); removeActor(selectedActorId); }
+      else if (key === 'delete' && selectedActorId) { event.preventDefault(); removeSelected(); }
       else if (key === 'w') setTransformMode('translate');
       else if (key === 'e') setTransformMode('rotate');
       else if (key === 'r') setTransformMode('scale');
@@ -61,7 +73,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [duplicateSelected, redo, removeActor, saveScene, selectedActorId, setTransformMode, setViewMode, undo]);
+  }, [duplicateSelected, redo, removeSelected, saveScene, selectedActorId, setTransformMode, setViewMode, undo]);
 
   // Handle 3D model generation - NOW WITH PROPER TRANSFORMS AND COLORS
   const handleModelGenerate = useCallback((model: GeneratedModel) => {
@@ -238,6 +250,8 @@ export function App() {
                           padding: '4px 12px', borderRadius: 3, cursor: 'pointer', fontSize: 11,
                         }}>Stop</button>
                       </div>
+
+                      <ProfilerOverlay runtime={gameRuntime} />
 
                       {/* Dynamic UI from game scripts */}
                       {gameUIElements.map((el) => {

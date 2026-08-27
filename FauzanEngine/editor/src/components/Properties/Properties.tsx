@@ -1,6 +1,7 @@
 import React from 'react';
 import { useEditorStore } from '../../stores/editorStore';
 import type { Vector3 } from '../../types/editor';
+import { coerceProperty, getPropertyDefinition } from '../../engine/PropertySchema';
 
 function VectorInput({ label, value, onChange }: {
   label: string;
@@ -48,20 +49,24 @@ function ComponentSection({ actorId, component }: { actorId: string; component: 
         <span style={{ marginRight: 6 }}>▼</span>
         {component.name} ({component.type})
       </div>
-      {Object.entries(component.properties).map(([key, value]) => (
-        <div className="property-row" key={key}>
-          <span className="property-label">{key}</span>
-          <div className="property-value">
-            {typeof value === 'boolean' ? (
-              <input type="checkbox" checked={value as boolean} onChange={(e) => setComponentProperty(actorId, component.id, key, e.target.checked)} />
-            ) : typeof value === 'number' ? (
-              <input type="number" step={0.1} value={value as number} onChange={(e) => setComponentProperty(actorId, component.id, key, Number(e.target.value) || 0)} style={{ width: '100%' }} />
-            ) : (
-              <input type="text" value={String(value)} onChange={(e) => setComponentProperty(actorId, component.id, key, e.target.value)} style={{ width: '100%' }} />
-            )}
+      {Object.entries(component.properties).map(([key, value]) => {
+        const definition = getPropertyDefinition(component.type, key, value);
+        return (
+          <div className="property-row" key={key}>
+            <span className="property-label" title={definition.key}>{definition.label}</span>
+            <div className="property-value">
+              {definition.kind === 'boolean' ? (
+                <input type="checkbox" checked={Boolean(value)} disabled={definition.readOnly} onChange={(e) => setComponentProperty(actorId, component.id, key, coerceProperty(definition, e.target.checked))} />
+              ) : definition.kind === 'number' ? (
+                <input type="number" step={definition.step ?? 0.1} min={definition.min} max={definition.max} value={Number(value)} disabled={definition.readOnly} onChange={(e) => setComponentProperty(actorId, component.id, key, coerceProperty(definition, e.target.value))} style={{ width: '100%' }} />
+              ) : (
+                <input type="text" value={String(value)} disabled={definition.readOnly} onChange={(e) => setComponentProperty(actorId, component.id, key, coerceProperty(definition, e.target.value))} style={{ width: '100%' }} />
+              )}
+              {!definition.readOnly && <button className="property-reset" onClick={() => setComponentProperty(actorId, component.id, key, definition.defaultValue)} title={`Reset ${definition.label}`}>↺</button>}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

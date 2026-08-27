@@ -135,6 +135,7 @@ export interface EditorState {
   // Scene
   actors: Record<string, NeoActor>;
   selectedActorId: string | null;
+  selectedActorIds: string[];
   sceneName: string;
   sceneRevision: number;
   bridgeStatus: 'local' | 'connected' | 'error';
@@ -163,9 +164,12 @@ export interface EditorState {
   // Content Browser
   currentPath: string;
   assets: AssetItem[];
+  setCurrentPath: (path: string) => void;
   
   // Actions
   selectActor: (id: string | null) => void;
+  setSelection: (ids: string[]) => void;
+  toggleActorSelection: (id: string) => void;
   addActor: (type: ActorType, name?: string, options?: ActorCreateOptions) => void;
   addActorBatch: (actors: Array<{ type: ActorType; name: string; transform?: Partial<Transform>; material?: MaterialProperties }>) => void;
   removeActor: (id: string) => void;
@@ -206,5 +210,6 @@ export interface EditorState {
 
   // Selection
   duplicateSelected: () => void;
+  removeSelected: () => void;
   selectAll: () => void;
 }

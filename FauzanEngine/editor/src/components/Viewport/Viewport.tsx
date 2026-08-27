@@ -490,11 +490,13 @@ export function Viewport() {
   const viewMode = useEditorStore((s) => s.viewMode);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const transformMode = useEditorStore((s) => s.transformMode);
+  const addActor = useEditorStore((s) => s.addActor);
+  const addSystemMessage = useEditorStore((s) => s.addSystemMessage);
 
   const actorCount = Object.keys(actors).length;
 
   return (
-    <div className="neo-panel" style={{ height: '100%', position: 'relative' }}>
+    <div className="neo-panel" style={{ height: '100%', position: 'relative' }} onDragOver={(event) => { if (event.dataTransfer.types.includes('application/x-neoengine-asset')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} onDrop={(event) => { event.preventDefault(); const raw = event.dataTransfer.getData('application/x-neoengine-asset'); if (!raw) return; const asset = JSON.parse(raw) as { id: string; name: string; type: string; path: string }; const actorType = asset.type === 'mesh' ? 'cube' : asset.type === 'blueprint' ? 'empty' : 'sprite'; addActor(actorType, asset.name, { components: [{ id: `asset_${asset.id}`, name: 'AssetReference', type: 'AssetReferenceComponent', properties: { assetId: asset.id, assetPath: asset.path } }] }); addSystemMessage(`[Viewport] Dropped ${asset.name} into scene.`); }}>
       <div className="neo-tabs">
         <div className="neo-tab active">Viewport</div>
       </div>

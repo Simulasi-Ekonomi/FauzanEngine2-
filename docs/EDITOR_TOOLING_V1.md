@@ -52,4 +52,4 @@ Expected smoke output begins with `EDITOR_TOOLING_SMOKE_OK` and includes `hierar
 
 ## Explicit residual gap
 
-This is an Editor Tooling V1 slice, not the full Unreal Editor. Asset cooking/streaming, a complete GPU scene presentation path, multi-selection, property metadata/schema reflection, prefab authoring UI, material/animation/physics editors, collaboration, hot reload, packaging, and production readiness remain outside this checkpoint.
+This is an Editor Tooling V1 slice, not the full Unreal Editor. Asset cooking/streaming, a complete GPU scene presentation path, property metadata/schema reflection, prefab authoring UI, material/animation/physics editors, collaboration, hot reload, packaging, and production readiness remain outside this checkpoint.
