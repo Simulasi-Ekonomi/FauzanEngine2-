@@ -288,7 +288,7 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (fixedTicks == 0U || fixedTicks > kMaxFixedTicks) return Fail(ActorComponentError::TickRejected);
     if (!begunPlay_ && !BeginPlay()) return false;
-    struct StagedTick { IActorComponent* component = nullptr; SceneEntity actor{}; uint8_t group = 0U; uint8_t order = 0U; };
+    struct StagedTick { IActorComponent* component = nullptr; SceneEntity actor{}; uint8_t group = 0U; uint8_t order = 0U; uint8_t dependencyCount = 0U; uint16_t typeId = 0U; std::array<uint16_t, kMaxComponentsPerActor> dependencies{}; };
     std::unique_ptr<StagedTick[]> staged;
     try { staged = std::make_unique<StagedTick[]>(static_cast<size_t>(kCapacity) * kMaxComponentsPerActor); }
     catch (const std::bad_alloc&) { return Fail(ActorComponentError::Capacity); }
@@ -296,17 +296,21 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
     for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled && slot.active) {
         TickMetadata metadata{};
         if (stagedCount >= static_cast<size_t>(kCapacity) * kMaxComponentsPerActor || !ReadTickMetadata(dispatching_, *slot.component, metadata) || metadata.group >= kMaxTickGroups || metadata.order >= kMaxTickOrders || metadata.dependencyCount > kMaxComponentsPerActor) return Fail(ActorComponentError::TickRejected);
-        for (uint8_t dependencyIndex = 0U; dependencyIndex < metadata.dependencyCount; ++dependencyIndex) {
-            uint16_t dependencyType = 0U;
-            if (!ReadDependencyType(dispatching_, *slot.component, dependencyIndex, dependencyType)) return Fail(ActorComponentError::TickRejected);
-            const ComponentSlot* dependency = FindSlot(actor.scene, dependencyType);
-            if (dependencyType == 0U || dependencyType == metadata.typeId || dependency == nullptr || dependency->component == nullptr || !dependency->enabled || !dependency->active) return Fail(ActorComponentError::DependencyRejected);
-            TickMetadata dependencyMetadata{};
-            if (!ReadTickMetadata(dispatching_, *dependency->component, dependencyMetadata)) return Fail(ActorComponentError::TickRejected);
-            if (dependencyMetadata.group > metadata.group || (dependencyMetadata.group == metadata.group && dependencyMetadata.order >= metadata.order)) return Fail(ActorComponentError::DependencyRejected);
-            for (uint8_t priorIndex = 0U; priorIndex < dependencyIndex; ++priorIndex) { uint16_t priorType = 0U; if (!ReadDependencyType(dispatching_, *slot.component, priorIndex, priorType)) return Fail(ActorComponentError::TickRejected); if (priorType == dependencyType) return Fail(ActorComponentError::DependencyRejected); }
+        StagedTick& entry = staged[stagedCount];
+        entry = {slot.component.get(), actor.scene, metadata.group, metadata.order, metadata.dependencyCount, metadata.typeId, {}};
+        for (uint8_t dependencyIndex = 0U; dependencyIndex < metadata.dependencyCount; ++dependencyIndex) if (!ReadDependencyType(dispatching_, *slot.component, dependencyIndex, entry.dependencies[dependencyIndex])) return Fail(ActorComponentError::TickRejected);
+        ++stagedCount;
+    }
+    for (uint16_t index = 0U; index < stagedCount; ++index) {
+        StagedTick& entry = staged[index];
+        for (uint8_t dependencyIndex = 0U; dependencyIndex < entry.dependencyCount; ++dependencyIndex) {
+            const uint16_t dependencyType = entry.dependencies[dependencyIndex];
+            StagedTick* dependency = nullptr;
+            for (uint16_t candidate = 0U; candidate < stagedCount; ++candidate) if (staged[candidate].actor == entry.actor && staged[candidate].typeId == dependencyType) { dependency = &staged[candidate]; break; }
+            if (dependencyType == 0U || dependencyType == entry.typeId || dependency == nullptr) return Fail(ActorComponentError::DependencyRejected);
+            if (dependency->group > entry.group || (dependency->group == entry.group && dependency->order >= entry.order)) return Fail(ActorComponentError::DependencyRejected);
+            for (uint8_t priorIndex = 0U; priorIndex < dependencyIndex; ++priorIndex) if (entry.dependencies[priorIndex] == dependencyType) return Fail(ActorComponentError::DependencyRejected);
         }
-        staged[stagedCount++] = {slot.component.get(), actor.scene, metadata.group, metadata.order};
     }
     uint32_t ticked = 0U;
     for (uint8_t group = 0U; group < kMaxTickGroups; ++group) for (uint8_t order = 0U; order < kMaxTickOrders; ++order) for (uint16_t index = 0U; index < stagedCount; ++index) {

@@ -80,6 +80,15 @@ public:
     mutable uint32_t tickGroupCalls = 0U;
 };
 
+class StatefulDependencyComponent final : public ProbeComponent {
+public:
+    StatefulDependencyComponent() : ProbeComponent(33U) {}
+    uint8_t TickGroup() const override { return 1U; }
+    uint8_t TickDependencyCount() const override { return 2U; }
+    uint16_t TickDependencyTypeId(uint8_t) const override { ++dependencyCalls; return dependencyCalls == 1U ? 29U : 30U; }
+    mutable uint32_t dependencyCalls = 0U;
+};
+
 class ThrowingSnapshotMetadataComponent final : public ProbeComponent {
 public:
     ThrowingSnapshotMetadataComponent() : ProbeComponent(25U) {}
@@ -243,6 +252,20 @@ bool RunStatefulTickMetadataRegression() {
     return world->EndPlay();
 }
 
+bool RunStatefulDependencyMetadataRegression() {
+    using namespace NeoEngine;
+    auto scene = std::make_unique<SceneWorld>();
+    auto world = std::make_unique<ActorComponentWorld>(*scene);
+    SceneEntity actor{};
+    auto dependencyA = std::make_unique<ProbeComponent>(29U);
+    auto dependencyB = std::make_unique<ProbeComponent>(30U);
+    auto component = std::make_unique<StatefulDependencyComponent>();
+    StatefulDependencyComponent* view = component.get();
+    ActorComponentWorldReceipt receipt{};
+    if (!world->CreateActor(actor, "StatefulDependencyActor") || !world->AttachComponent(actor, std::move(dependencyA)) || !world->AttachComponent(actor, std::move(dependencyB)) || !world->AttachComponent(actor, std::move(component)) || !world->TickFixed(1U, receipt) || view->dependencyCalls != 2U || view->tickCalls != 1U || receipt.tickedComponents != 3U) return false;
+    return world->EndPlay();
+}
+
 bool RunSnapshotMetadataExceptionRegression() {
     using namespace NeoEngine;
     auto scene = std::make_unique<SceneWorld>();
@@ -394,6 +417,6 @@ int main() {
     if (retryWorld.EndPlay() || retryWorld.LastError() != ActorComponentError::EndPlayRejected) return 33;
     ActorComponentWorldSnapshot endedSnapshot{};
     if (!retryWorld.EndPlay() || !retryWorld.CaptureSnapshot(endedSnapshot) || endedSnapshot.begunPlay || endedSnapshot.actors.size() != 1U || endedSnapshot.actors[0].begunPlay) return 33;
-    if (!RunBeginPlayRollbackRetryRegression() || !RunActivationRollbackRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression() || !RunTickMetadataExceptionRegression() || !RunStatefulTickMetadataRegression() || !RunSnapshotMetadataExceptionRegression() || !RunTypeIdExceptionRegression()) return 34;
+    if (!RunBeginPlayRollbackRetryRegression() || !RunActivationRollbackRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression() || !RunTickMetadataExceptionRegression() || !RunStatefulTickMetadataRegression() || !RunStatefulDependencyMetadataRegression() || !RunSnapshotMetadataExceptionRegression() || !RunTypeIdExceptionRegression()) return 34;
     return 0;
 }
