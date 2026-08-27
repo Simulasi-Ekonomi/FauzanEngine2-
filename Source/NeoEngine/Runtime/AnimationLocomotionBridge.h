@@ -7,8 +7,8 @@
 #include <string>
 
 namespace NeoEngine {
-enum class AnimationLocomotionBridgeError : uint8_t { None, InvalidConfiguration, StateMachineNotStarted, InvalidInput, StateTriggerFailed };
-struct AnimationLocomotionBridgeConfig { std::string idleToLocomotionTransitionId; std::string locomotionToIdleTransitionId; float movementThreshold = 0.01F; };
+enum class AnimationLocomotionBridgeError : uint8_t { None, InvalidConfiguration, StateMachineNotStarted, InvalidInput, StateTriggerFailed, StateMismatch };
+struct AnimationLocomotionBridgeConfig { std::string idleToLocomotionTransitionId; std::string locomotionToIdleTransitionId; float movementThreshold = 0.01F; std::string idleStateId; std::string locomotionStateId; };
 
 // Input-to-animation selector only: no SceneWorld, RouteIntent, movement authority,
 // transform, controller stepping, or root-motion ownership is present in this type.
