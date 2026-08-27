@@ -4,7 +4,40 @@
 #include "FarmSpriteRenderAdapter.h"
 #include "TextureStaging.h"
 
+#include <limits>
+
 namespace NeoEngine {
+namespace {
+constexpr const char* kFarmProgressCheckpointKind = "neo-farm-progress";
+
+void AppendU32(std::vector<uint8_t>& bytes, uint32_t value) {
+    for (uint8_t shift = 0U; shift < 32U; shift += 8U) bytes.push_back(static_cast<uint8_t>((value >> shift) & 0xFFU));
+}
+
+bool ReadU32(const std::vector<uint8_t>& bytes, size_t& offset, uint32_t& value) {
+    if (offset > bytes.size() || bytes.size() - offset < sizeof(uint32_t)) return false;
+    value = 0U;
+    for (uint8_t shift = 0U; shift < 32U; shift += 8U) value |= static_cast<uint32_t>(bytes[offset + shift / 8U]) << shift;
+    offset += sizeof(uint32_t);
+    return true;
+}
+
+bool AppendBlob(std::vector<uint8_t>& bytes, const std::vector<uint8_t>& blob) {
+    if (blob.size() > std::numeric_limits<uint32_t>::max() || bytes.size() > RuntimeSaveCodec::kMaxPayloadBytes - sizeof(uint32_t) ||
+        blob.size() > RuntimeSaveCodec::kMaxPayloadBytes - sizeof(uint32_t) - bytes.size()) return false;
+    AppendU32(bytes, static_cast<uint32_t>(blob.size()));
+    bytes.insert(bytes.end(), blob.begin(), blob.end());
+    return true;
+}
+
+bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uint8_t>& blob) {
+    uint32_t length = 0U;
+    if (!ReadU32(bytes, offset, length) || length == 0U || offset > bytes.size() || bytes.size() - offset < length) return false;
+    blob.assign(bytes.begin() + static_cast<std::ptrdiff_t>(offset), bytes.begin() + static_cast<std::ptrdiff_t>(offset + length));
+    offset += length;
+    return true;
+}
+} // namespace
 
 bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
@@ -103,6 +136,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     }
 
     m_FixedTicksPerFrame = config.fixedTicksPerFrame;
+    m_FarmWorldConfig = worldConfig;
     m_TrustSafety = std::move(trustSafety);
     m_Farm = std::move(farm);
     m_FarmWorld = std::move(world);
@@ -256,6 +290,84 @@ bool NeoRuntime::SetTimeScalePermille(uint16_t scalePermille) {
     return true;
 }
 
+bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes) {
+    if (m_State != RuntimeState::Initialized || revision == 0U || !m_FarmWorld || !m_Time || !m_FarmAuthority || m_Events == nullptr || m_Events->PendingCount() != 0U) {
+        m_LastError = RuntimeError::CheckpointEncodeFailed;
+        return false;
+    }
+    const std::vector<uint8_t> worldBytes = m_FarmWorld->Serialize();
+    std::vector<uint8_t> timeBytes;
+    const std::vector<uint8_t> authorityBytes = m_FarmAuthority->SerializeAuthorityLedger();
+    if (worldBytes.empty() || !m_Time->Serialize(timeBytes) || timeBytes.empty() || authorityBytes.empty()) {
+        m_LastError = RuntimeError::CheckpointEncodeFailed;
+        return false;
+    }
+    std::vector<uint8_t> payload;
+    if (!AppendBlob(payload, worldBytes) || !AppendBlob(payload, timeBytes) || !AppendBlob(payload, authorityBytes)) {
+        m_LastError = RuntimeError::CheckpointEncodeFailed;
+        return false;
+    }
+    RuntimePersistenceError error = RuntimePersistenceError::None;
+    std::vector<uint8_t> encoded;
+    if (!RuntimeSaveCodec::Serialize({kFarmProgressCheckpointKind, revision, std::move(payload)}, encoded, error)) {
+        m_LastError = RuntimeError::CheckpointEncodeFailed;
+        return false;
+    }
+    bytes = std::move(encoded);
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision) {
+    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Time || !m_FarmAuthority || !m_TrustSafety || !m_Scene || !m_Clock || m_Events == nullptr || m_Events->PendingCount() != 0U) {
+        m_LastError = RuntimeError::CheckpointDecodeFailed;
+        return false;
+    }
+    RuntimeSaveEnvelope envelope{};
+    RuntimePersistenceError error = RuntimePersistenceError::None;
+    if (!RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kFarmProgressCheckpointKind || envelope.revision == 0U || envelope.payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) {
+        m_LastError = RuntimeError::CheckpointDecodeFailed;
+        return false;
+    }
+    size_t offset = 0U;
+    std::vector<uint8_t> worldBytes, timeBytes, authorityBytes;
+    if (!ReadBlob(envelope.payload, offset, worldBytes) || !ReadBlob(envelope.payload, offset, timeBytes) || !ReadBlob(envelope.payload, offset, authorityBytes) || offset != envelope.payload.size()) {
+        m_LastError = RuntimeError::CheckpointDecodeFailed;
+        return false;
+    }
+    auto candidateFarm = std::make_unique<FarmSystem>(*m_Farm);
+    candidateFarm->SetTrustSafety(m_TrustSafety.get(), "runtime-farm-player");
+    auto candidateWorld = std::make_unique<FarmWorldTool>();
+    auto candidateTime = std::make_unique<RuntimeTimeSystem>(*m_Time);
+    auto candidateAuthority = std::make_unique<FarmAuthoritativeService>();
+    if (!candidateWorld->Initialize(*candidateFarm, *m_TrustSafety, "runtime-farm-player", m_FarmWorldConfig) || !candidateWorld->Deserialize(worldBytes) ||
+        !candidateTime->Deserialize(timeBytes) || !candidateAuthority->Initialize(*candidateWorld, *m_TrustSafety, "runtime-farm-player", "runtime-farm-session") ||
+        !candidateAuthority->RestoreAuthorityLedger(authorityBytes) || !candidateAuthority->BindSession("runtime-farm-player", "runtime-farm-session") ||
+        !candidateWorld->AdoptTopologyPreservingSceneBinding(*m_FarmWorld)) {
+        m_LastError = RuntimeError::CheckpointDecodeFailed;
+        return false;
+    }
+    const RuntimeTimeSnapshot restoredTime = candidateTime->Snapshot();
+    RuntimeClock candidateClock = *m_Clock;
+    if (restoredTime.timeScalePermille > RuntimeTimeSystem::kMaxTimeScalePermille || !candidateClock.SetPaused(restoredTime.paused) ||
+        !candidateClock.SetTimeScale(static_cast<float>(restoredTime.timeScalePermille) / 1000.0F) || !candidateWorld->SyncScene()) {
+        m_LastError = RuntimeError::CheckpointDecodeFailed;
+        return false;
+    }
+    m_Farm = std::move(candidateFarm);
+    m_FarmWorld = std::move(candidateWorld);
+    m_Time = std::move(candidateTime);
+    m_FarmAuthority = std::move(candidateAuthority);
+    *m_Clock = std::move(candidateClock);
+    m_LastFrameReceipt = {};
+    m_HasFrameReceipt = false;
+    m_LastFarmRenderReceipt = {};
+    m_HasFarmRenderReceipt = false;
+    revision = envelope.revision;
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
@@ -269,6 +381,7 @@ bool NeoRuntime::Shutdown() {
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
     m_Renderer.reset();
+    m_FarmWorldConfig = {};
     m_Clock.reset();
     m_Time.reset();
     m_Timers.reset();

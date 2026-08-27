@@ -127,6 +127,7 @@ public:
     bool CompleteQuest(uint32_t questId);
 
     bool PopulateScene(SceneWorld& scene);
+    bool AdoptTopologyPreservingSceneBinding(const FarmWorldTool& activeWorld);
     bool SyncScene();
     [[nodiscard]] FarmWorldSnapshot Snapshot() const;
     [[nodiscard]] const FarmWorldBuilding* Building(uint32_t buildingId) const;

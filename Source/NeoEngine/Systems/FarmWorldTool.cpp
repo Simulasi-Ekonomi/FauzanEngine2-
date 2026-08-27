@@ -297,6 +297,33 @@ bool FarmWorldTool::PopulateScene(SceneWorld& scene) {
     return true;
 }
 
+bool FarmWorldTool::AdoptTopologyPreservingSceneBinding(const FarmWorldTool& activeWorld) {
+    if (!initialized_ || !activeWorld.initialized_ || activeWorld.scene_ == nullptr || config_.worldWidth != activeWorld.config_.worldWidth ||
+        config_.worldHeight != activeWorld.config_.worldHeight || config_.npcCount != activeWorld.config_.npcCount ||
+        config_.maxBuildings != activeWorld.config_.maxBuildings || config_.maxQuests != activeWorld.config_.maxQuests ||
+        buildings_.size() != activeWorld.buildings_.size() || npcs_.size() != activeWorld.npcs_.size() ||
+        activeWorld.buildingSceneEntities_.size() != activeWorld.buildings_.size() || activeWorld.npcSceneEntities_.size() != activeWorld.npcs_.size() ||
+        activeWorld.scene_->GetTransform(activeWorld.characterSceneEntity_) == nullptr) {
+        return Fail(FarmWorldError::SceneSyncFailed);
+    }
+    for (size_t index = 0; index < buildings_.size(); ++index) {
+        if (buildings_[index].id != activeWorld.buildings_[index].id || activeWorld.scene_->GetTransform(activeWorld.buildingSceneEntities_[index]) == nullptr) {
+            return Fail(FarmWorldError::SceneSyncFailed);
+        }
+    }
+    for (size_t index = 0; index < npcs_.size(); ++index) {
+        if (npcs_[index].id != activeWorld.npcs_[index].id || activeWorld.scene_->GetTransform(activeWorld.npcSceneEntities_[index]) == nullptr) {
+            return Fail(FarmWorldError::SceneSyncFailed);
+        }
+    }
+    scene_ = activeWorld.scene_;
+    characterSceneEntity_ = activeWorld.characterSceneEntity_;
+    buildingSceneEntities_ = activeWorld.buildingSceneEntities_;
+    npcSceneEntities_ = activeWorld.npcSceneEntities_;
+    lastError_ = FarmWorldError::None;
+    return true;
+}
+
 bool FarmWorldTool::SyncScene() {
     if (!initialized_ || scene_ == nullptr || buildingSceneEntities_.size() != buildings_.size() || npcSceneEntities_.size() != npcs_.size() || !SetBoundSceneTransform(characterSceneEntity_, character_.x, character_.z)) return Fail(FarmWorldError::SceneSyncFailed);
     for (size_t index = 0; index < buildings_.size(); ++index) if (!SetBoundSceneTransform(buildingSceneEntities_[index], buildings_[index].x, buildings_[index].z)) return Fail(FarmWorldError::SceneSyncFailed);
