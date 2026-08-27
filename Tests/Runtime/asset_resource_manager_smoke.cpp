@@ -15,6 +15,9 @@ int main() {
     AssetResourceManager resources(registry);
     AssetResourceHandle malformedHandle{321U, 654U};
     if (resources.Acquire("bad id", malformedHandle) || resources.LastError() != AssetResourceError::InvalidIdentifier || malformedHandle != AssetResourceHandle{321U, 654U} || resources.ReloadIfSafe("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier || resources.SyncHotReload("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier) return 2;
+    AssetResourceReceipt missingReceipt{};
+    missingReceipt.assetId = "missing-preserved";
+    if (resources.Query("missing.asset", missingReceipt) || resources.LastError() != AssetResourceError::MissingAsset || missingReceipt.assetId != "missing-preserved") return 2;
 
     AssetResourceHandle materialHandle{};
     if (!resources.Acquire("material.crop", materialHandle) || materialHandle.generation == 0U || resources.ActiveResourceCount() != 3U || resources.TotalLeaseCount() != 3U || resources.ActiveLeaseCount() != 1U) return 2;
@@ -69,7 +72,7 @@ int main() {
     if (depthResources.Acquire("depth16", materialHandle) || depthResources.LastError() != AssetResourceError::Capacity || depthResources.ActiveResourceCount() != depthResourcesBefore || depthResources.ActiveLeaseCount() != 0U) return 16;
     if (!resources.ReloadIfSafe("never-loaded") || resources.LastError() != AssetResourceError::None) return 17;
     uint16_t evictedResources = 0U;
-    if (!resources.EvictUnleased(evictedResources) || evictedResources != 3U || resources.ActiveResourceCount() != 0U || resources.Query("texture.wheat", textureReceipt) || resources.LastError() != AssetResourceError::InvalidIdentifier) return 18;
+    if (!resources.EvictUnleased(evictedResources) || evictedResources != 3U || resources.ActiveResourceCount() != 0U || resources.Query("texture.wheat", textureReceipt) || resources.LastError() != AssetResourceError::MissingAsset) return 18;
     AssetResourceHandle rehydratedHandle{};
     if (!resources.Acquire("material.crop", rehydratedHandle) || resources.ActiveResourceCount() != 3U || resources.ActiveLeaseCount() != 1U || resources.ResidentBytes() != 7U) return 19;
     uint32_t budgetResidentBytes = 999U;

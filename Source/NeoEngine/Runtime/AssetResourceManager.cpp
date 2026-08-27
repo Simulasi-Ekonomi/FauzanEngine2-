@@ -286,8 +286,9 @@ bool AssetResourceManager::Query(AssetResourceHandle handle, AssetResourceReceip
 }
 
 bool AssetResourceManager::Query(std::string_view assetId, AssetResourceReceipt& receipt) const {
+    if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
     const uint16_t slot = FindSlot(assetId);
-    if (slot == 0xFFFFU) return Fail(AssetResourceError::InvalidIdentifier);
+    if (slot == 0xFFFFU) return Fail(AssetResourceError::MissingAsset);
     if (!FillReceipt(slots_[slot], {}, receipt)) return Fail(AssetResourceError::Capacity);
     lastError_ = AssetResourceError::None;
     return true;

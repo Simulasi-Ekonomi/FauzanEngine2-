@@ -24,6 +24,7 @@ enum class AssetResourceError : uint8_t {
     RefcountUnderflow,
     HotReloadRejected,
     BudgetExceeded,
+    MissingAsset,
 };
 
 struct AssetResourceHandle {
