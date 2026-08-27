@@ -11,6 +11,8 @@
 #include "ReplicationWorld.h"
 #include "EventSignalBus.h"
 #include "FarmRuntimeHud.h"
+#include "FarmRenderAssetManifest.h"
+#include "TextureStaging.h"
 #include "InputMotionBridge.h"
 #include "GridRouteFollower.h"
 #include "MovementAuthority.h"
@@ -39,6 +41,7 @@ public:
     bool SetPaused(bool paused);
     bool SetTimeScalePermille(uint16_t scalePermille);
     bool ReplanRouteMotion();
+    bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool Shutdown();
     RuntimeState State() const { return m_State; }
@@ -121,6 +124,9 @@ private:
     std::unique_ptr<SceneWorld> m_Scene;
     std::unique_ptr<SoftwareRenderer> m_Renderer;
     std::unique_ptr<FarmRuntimeHud> m_FarmRuntimeHud;
+    std::unique_ptr<FarmRenderAssetManifest> m_FarmRenderAssets;
+    std::unique_ptr<FarmSpriteRenderAdapter> m_FarmSpriteRenderer;
+    std::unique_ptr<TextureStagingStore> m_FarmSpriteTextures;
     NeoRuntimeFrameReceipt m_LastFrameReceipt{};
     bool m_HasFrameReceipt = false;
     uint64_t m_RenderedFarmFrames = 0U;

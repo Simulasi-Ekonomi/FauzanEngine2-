@@ -1,0 +1,7 @@
+# Farm Runtime Asset Manifest V1
+
+`FarmRenderAssetManifest` binds exactly sixteen `FarmSpriteAssetSet` identifiers to ready `AssetRegistry` texture definitions and `AssetResourceManager` leases. It snapshots each initial content hash and an order-sensitive aggregate hash. Binding is rejected before mutation for an empty identifier, missing asset, wrong kind, unready asset, empty/invalid source bytes, lease failure, or a resource receipt whose identity does not match the registry definition.
+
+`NeoRuntime::BindFarmSpriteAssets` is opt-in and may succeed once after runtime initialization. Without a bound manifest, `NeoRuntime::RenderFarm` retains the established CPU color renderer. With a bound manifest, the runtime validates all source hashes and lease receipts before calling the existing CPU `FarmSpriteRenderAdapter`; any validation/staging/render rejection leaves the committed renderer frame unchanged because rendering uses the adapter's candidate frame path.
+
+The runtime smoke imports sixteen minimal P6 textures, proves default color rendering before binding, proves a nonzero sprite-rendered frame after binding, then replaces one texture with malformed bytes. The next render rejects with `RuntimeError::RenderFailed` and preserves the prior sprite frame hash. This is a bounded CPU asset-to-render path only. It does not add GPU upload, generic import, file watching, hot-reload execution, UI authority, networking, persistence, Android packaging, monetization, or production readiness.

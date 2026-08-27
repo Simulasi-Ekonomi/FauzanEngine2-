@@ -138,6 +138,7 @@ set(XPBD_RUNTIME_SOURCES
     Demos/HybridSurfaceDemo.cpp
     Runtime/FarmRenderAdapter.cpp
     Runtime/FarmSpriteRenderAdapter.cpp
+    Runtime/FarmRenderAssetManifest.cpp
     Runtime/FarmActionPanelController.cpp
     Runtime/FarmPlayerInputBridge.cpp
     Runtime/FarmRuntimeSession.cpp

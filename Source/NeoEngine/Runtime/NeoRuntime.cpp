@@ -1,6 +1,8 @@
 #include "NeoRuntime.h"
 
 #include "FarmRenderAdapter.h"
+#include "FarmSpriteRenderAdapter.h"
+#include "TextureStaging.h"
 
 namespace NeoEngine {
 
@@ -124,6 +126,9 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Scene = std::move(scene);
     m_Renderer = std::move(renderer);
     m_FarmRuntimeHud = config.enableFarmRuntimeHud ? std::make_unique<FarmRuntimeHud>() : nullptr;
+    m_FarmRenderAssets.reset();
+    m_FarmSpriteRenderer = std::make_unique<FarmSpriteRenderAdapter>();
+    m_FarmSpriteTextures = std::make_unique<TextureStagingStore>();
     m_LastFrameReceipt = {};
     m_HasFrameReceipt = false;
     m_RenderedFarmFrames = 0U;
@@ -190,10 +195,19 @@ bool NeoRuntime::ReplanRouteMotion() {
     return true;
 }
 
+bool NeoRuntime::BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet) {
+    if (m_State != RuntimeState::Initialized || !m_Assets || !m_Resources || m_FarmRenderAssets != nullptr) { m_LastError = RuntimeError::InvalidState; return false; }
+    auto candidate = std::make_unique<FarmRenderAssetManifest>();
+    if (!candidate->Bind(assetSet, *m_Assets, *m_Resources)) { m_LastError = RuntimeError::InvalidState; return false; }
+    m_FarmRenderAssets = std::move(candidate);
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
     SoftwareRenderer candidate = *m_Renderer;
-    if (!FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate)) { m_LastError = RuntimeError::RenderFailed; return false; }
+    if ((m_FarmRenderAssets != nullptr && (m_FarmSpriteRenderer == nullptr || m_FarmSpriteTextures == nullptr || !m_FarmRenderAssets->Validate(*m_Assets, *m_Resources) || !m_FarmSpriteRenderer->RenderWorld(*m_Farm, *m_FarmWorld, m_FarmRenderAssets->AssetSet(), *m_Assets, *m_FarmSpriteTextures, candidate))) || (m_FarmRenderAssets == nullptr && !FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate))) { m_LastError = RuntimeError::RenderFailed; return false; }
     const uint64_t worldHash = candidate.FrameHash(); const FarmTelemetrySnapshot telemetry = m_Farm->Snapshot(); uint64_t hudHash = 0U;
     if (m_FarmRuntimeHud != nullptr) { const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry}; if (!m_FarmRuntimeHud->Draw(receipt, candidate)) { m_LastError = RuntimeError::HudFailed; return false; } hudHash = candidate.FrameHash(); }
     if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(candidate))) { m_LastError = RuntimeError::PresentationFailed; return false; }
@@ -225,6 +239,9 @@ bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
     m_FarmRuntimeHud.reset();
+    m_FarmRenderAssets.reset();
+    m_FarmSpriteRenderer.reset();
+    m_FarmSpriteTextures.reset();
     m_LastFrameReceipt = {};
     m_HasFrameReceipt = false;
     m_RenderedFarmFrames = 0U;
