@@ -42,6 +42,24 @@ int main() {
     NetworkInputCommand invalid{42U, 7U, 3U, 3U, 2.0F, 0.0F};
     if (!Require(!server.serverConsume(invalid, authoritative), "magnitude_reject") || !Require(server.lastError() == NetworkError::InvalidInput, "magnitude_error")) return 1;
 
+    NetworkSession ownershipAtomic(NetworkRole::Server, 9001U);
+    if (!Require(ownershipAtomic.initialize(), "ownership_atomic_init") || !Require(ownershipAtomic.registerPeer(42U), "ownership_atomic_peer") ||
+        !Require(ownershipAtomic.assignOwnership(7U, 42U), "ownership_atomic_entity")) return 1;
+    NetworkTransformState preserved{99U, 88U, 77U, 6.0F, 7.0F, 8.0F};
+    const NetworkInputCommand forgedBeforeRegistration{99U, 7U, 2U, 2U, 0.1F, 0.1F};
+    if (!Require(!ownershipAtomic.serverConsume(forgedBeforeRegistration, preserved), "forged_before_registration_reject") ||
+        !Require(ownershipAtomic.lastError() == NetworkError::Ownership, "forged_before_registration_error") ||
+        !Require(preserved.networkId == 99U && preserved.ownerId == 88U && preserved.revision == 77U, "forged_output_preserved") ||
+        !Require(ownershipAtomic.registerPeer(99U), "forged_peer_register") || !Require(ownershipAtomic.assignOwnership(8U, 99U), "forged_peer_entity") ||
+        !Require(ownershipAtomic.serverConsume({99U, 8U, 2U, 3U, 0.1F, 0.1F}, preserved), "forged_sequence_not_consumed")) return 1;
+
+    NetworkSession peerWindowIsolation(NetworkRole::Server, 9002U);
+    if (!Require(peerWindowIsolation.initialize(), "window_isolation_init") || !Require(peerWindowIsolation.registerPeer(42U), "window_peer_a") ||
+        !Require(peerWindowIsolation.registerPeer(170U), "window_peer_b") || !Require(peerWindowIsolation.assignOwnership(1U, 42U), "window_entity_a") ||
+        !Require(peerWindowIsolation.assignOwnership(2U, 170U), "window_entity_b") ||
+        !Require(peerWindowIsolation.serverConsume({42U, 1U, 10U, 10U, 0.1F, 0.0F}, preserved), "window_peer_a_accept") ||
+        !Require(peerWindowIsolation.serverConsume({170U, 2U, 10U, 10U, 0.1F, 0.0F}, preserved), "window_peer_b_isolated")) return 1;
+
     const NetworkSnapshot snapshot = server.snapshot(10U);
     if (!Require(snapshot.sequence == 1U && snapshot.states.size() == 1U, "snapshot") ||
         !Require(client.acceptSnapshot(snapshot), "snapshot_accept") || !Require(client.lastError() == NetworkError::None, "snapshot_accept_error") ||
@@ -60,6 +78,6 @@ int main() {
     if (!Require(saturated.reconcile({7U, 42U, 0U, 0.0F, 0.0F, 0.0F}, 0U, saturatedReceipt), "prediction_capacity_reconcile") ||
         !Require(std::fabs(saturatedReceipt.correctionDistance - 256.0F * 256.0F) < 0.01F, "prediction_capacity_atomic")) return 1;
 
-    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1 capacity_atomic=1\n");
+    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1 capacity_atomic=1 peer_validation_atomic=1 window_isolation=1\n");
     return 0;
 }
