@@ -6,12 +6,12 @@
 
 | Ukuran | Hasil | Cara membaca |
 |---|---:|---|
-| Checklist historis `todo.md` pada `main` | **453/553 = 81,9%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
+| Checklist historis `todo.md` pada `main` | **454/554 = 81,9%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
 | Mandatory release gates | **1/12 = 8,3% lulus pada scope Farm R1** | R1 lulus hanya untuk canonical Farm tool scope; R2–R12 tetap Not passed dan template lain memerlukan evidence independen. |
-| Indeks kemajuan menuju release, estimasi berbobot | **33,8%** | Estimasi analitis setelah R1 Farm scope mencapai evidence penuh; bukan status resmi proyek dan tidak berarti release-ready. |
+| Indeks kemajuan menuju release, estimasi berbobot | **35,0%** | Estimasi analitis setelah R2 memperoleh progression/HUD/checkpoint evidence tambahan; bukan status resmi proyek dan tidak berarti release-ready. |
 | Editor/Tooling pada `main` | **Satu slice authoring fungsional** | Workflow Unreal-like V1 sudah terintegrasi ke `main`, tetapi belum setara Unreal Editor penuh. |
 
-> **Kesimpulan paling jujur:** repo sudah sekitar **82% menyelesaikan backlog engineering yang tercatat**, tetapi baru sekitar **34% menuju standar release end-to-end** menurut estimasi evidence parsial, dan baru **1 dari 12 gate** lulus pada scope Farm canonical tool. Ini tetap bukan release readiness karena R2–R12 belum lulus.
+> **Kesimpulan paling jujur:** repo sudah sekitar **82% menyelesaikan backlog engineering yang tercatat**, tetapi baru sekitar **35% menuju standar release end-to-end** menurut estimasi evidence parsial, dan baru **1 dari 12 gate** lulus pada scope Farm canonical tool. R2 mendapat evidence tambahan tetapi tetap Not passed; ini tetap bukan release readiness.
 
 ## Basis repository dan bukti implementasi
 
@@ -26,7 +26,7 @@ Skor berikut adalah estimasi konservatif 0–100 untuk **kemajuan evidence terha
 | Gate | Estimasi evidence | Status resmi | Alasan |
 |---|---:|---|---|
 | R1 Canonical game tool | 100% pada scope Farm | Passed untuk Farm canonical tool scope | `FarmCanonicalGameTool` memiliki typed world/rules/content commands, v2 payload, v1→v2 migration, fail-closed invalid input, dan deterministic replay; Release/ASAN smoke lulus. Template lain tetap memerlukan evidence independen. |
-| R2 Complete game loop | 30% | Not passed | Satu local Farm input→HUD/action→CPU present→checkpoint/recovery slice sudah terbukti; audio, onboarding, broader game loop, dan production recovery belum lengkap. |
+| R2 Complete game loop | 45% | Not passed | NeoRuntime kini mengintegrasikan authored AgricultureCurriculum ke frame/HUD dan checkpoint, di atas core Farm actions, CPU presentation, inventory, dan local recovery; energy/economy feedback, complete onboarding UX, executed balance, persistent production save, accessibility/platform acceptance, dan package evidence belum lengkap. |
 | R3 Asset and renderer path | 50% | Not passed | CPU renderer, staging, Vulkan textured-present, dan texture provenance proof ada; scene integration, production resource lifetime, device-loss, dan physical-GPU coverage belum selesai. |
 | R4 Input, audio, accessibility | 30% | Not passed | InputState, PCM mixer, UI router, dan bitmap UI ada; touch/controller, output lifecycle, localization, scaling, accessibility belum terbukti. |
 | R5 Authoritative multiplayer | 25% | Not passed | Farm localhost loopback dan bounded prediction/transport/replication primitives ada; belum ada public transport, TLS, durable session, load, atau multiplayer runtime. |
@@ -60,7 +60,8 @@ Persentase domain adalah estimasi internal berbasis kedalaman integration/eviden
 
 ## Perkembangan terbaru yang penting
 
-`main` kini juga memuat `FarmCanonicalGameTool` dan smoke R1 untuk typed world/rules/content, v1→v2 migration, invalid-input rejection, dan deterministic replay, di samping smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, Farm localhost session loopback, dan commerce checkpoint. Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, localhost, atau in-memory evidence dan belum menyelesaikan R2–R12 [5] [7] [8] [9].
+`main` kini juga memuat `FarmCanonicalGameTool` dan smoke R1 untuk typed world/rules/content, v1→v2 migration, invalid-input rejection, dan deterministic replay, serta integrasi `AgricultureCurriculum` ke NeoRuntime/HUD/checkpoint untuk R2. Ini berjalan di samping smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, Farm localhost session loopback, dan commerce checkpoint.
+Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, localhost, atau in-memory evidence dan belum menyelesaikan R2–R12 [5] [7] [8] [9] [10].
 
 Editor Tooling V1, Runtime SceneBridge, automated bridge/browser smoke, multi-selection, reflection inspector, asset-to-scene drop, Play-in-Editor profiler, autosave/recovery, dan bundle splitting kini sudah di-merge ke `main`. Smoke lokal lulus: bridge `200/409/422`, browser authoring flow, C++ Editor V1 Release, dan AddressSanitizer. Branch tambahan sudah dihapus; `main` adalah satu-satunya branch kerja.
 
@@ -89,3 +90,4 @@ CI GitHub pada `main` terbaru **sebagian sudah sehat**: lint/type-check dan back
 [7]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_VERTICAL_SLICE_EVIDENCE_V1.md "Farm vertical slice evidence"
 [8]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/NETWORK_BOUNDARY_EVIDENCE_V1.md "Network boundary evidence"
 [9]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_CANONICAL_GAME_TOOL_R1_EVIDENCE_V1.md "Farm canonical game tool R1 evidence"
+[10]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/NEO_RUNTIME_FARM_PROGRESSION_EVIDENCE_V1.md "NeoRuntime Farm progression evidence"

@@ -3,6 +3,7 @@
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
 #include "TextureStaging.h"
+#include "Systems/AgricultureCurriculum.h"
 
 #include <limits>
 
@@ -79,6 +80,12 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!authoringWorld->Generate(authoringWorldConfig) || !authoringWorld->BindScene(*scene)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto actors = std::make_unique<ActorComponentWorld>(*scene);
     auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId);
+    auto curriculum = std::unique_ptr<CurriculumSystem>{};
+    if (config.enableFarmCurriculum) {
+        CurriculumGraph graph;
+        curriculum = std::make_unique<CurriculumSystem>();
+        if (!BuildAgricultureCurriculum(graph) || !curriculum->Initialize(graph)) { m_LastError = RuntimeError::CurriculumFailed; m_State = RuntimeState::Failed; return false; }
+    }
 
     auto input = std::unique_ptr<InputState>{};
     auto kinematicMotion = std::unique_ptr<KinematicMotionController>{};
@@ -146,6 +153,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Actors = std::move(actors);
     m_Replication = std::move(replication);
     m_Authoring = std::make_unique<AuthoringCatalog>();
+    m_Curriculum = std::move(curriculum);
+    m_LastCurriculumEvents.clear();
     m_AuthoringWorld = std::move(authoringWorld);
     m_Clock = std::move(clock);
     m_Time = std::move(gameTime);
@@ -199,9 +208,11 @@ bool NeoRuntime::Tick() {
     if (m_Clock->Snapshot().paused || simulatedTicks == 0U) {
         const uint32_t eventCount = m_Events->PendingCount();
         EventSignalDispatchReceipt dispatchReceipt{};
+        CurriculumProgressReceipt curriculumReceipt{};
+        if (m_Curriculum != nullptr && !m_Curriculum->Snapshot(curriculumReceipt)) { m_LastError = RuntimeError::CurriculumFailed; return false; }
         if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return false; }
         m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), {}, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
-        m_LastFrameReceipt.eventDispatch = dispatchReceipt;
+        m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
         m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
         m_HasFrameReceipt = true;
         m_LastError = RuntimeError::None;
@@ -222,11 +233,14 @@ bool NeoRuntime::Tick() {
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
+    CurriculumProgressReceipt curriculumReceipt{};
+    m_LastCurriculumEvents.clear();
+    if (m_Curriculum != nullptr && (!m_Curriculum->Evaluate({m_Time->Snapshot(), m_Farm->Snapshot()}, m_LastCurriculumEvents) || !m_Curriculum->Snapshot(curriculumReceipt))) { m_LastError = RuntimeError::CurriculumFailed; m_State = RuntimeState::Failed; return false; }
     const uint32_t eventCount = m_Events->PendingCount();
     EventSignalDispatchReceipt dispatchReceipt{};
     if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return false; }
     m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), actorReceipt, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
-    m_LastFrameReceipt.eventDispatch = dispatchReceipt;
+    m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
     m_LastFrameReceipt.farmPlayerInput = farmPlayerInputReceipt; m_LastFrameReceipt.hasFarmPlayerInputReceipt = hasFarmPlayerInput; m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
     m_HasFrameReceipt = true;
     m_LastError = RuntimeError::None;
@@ -260,7 +274,9 @@ bool NeoRuntime::RenderFarm() {
         const FarmActionAvailability availability{tile == FarmTileState::Empty, tile == FarmTileState::Tilled && m_Farm->ItemCount(FarmItem::WheatSeed) != 0U, tile == FarmTileState::Growing && !m_Farm->IsWateredAt(player.x, player.z), tile == FarmTileState::Harvestable};
         const FarmPlayerInputReceipt inputReceipt = m_FarmPlayerInput == nullptr ? FarmPlayerInputReceipt{} : m_FarmPlayerInput->LastReceipt();
         const FarmPlayerAction selectedAction = m_FarmPlayerInput == nullptr ? FarmPlayerAction::Till : m_FarmPlayerInput->SelectedAction();
-        const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry, {m_Farm->ItemCount(FarmItem::WheatSeed), m_Farm->ItemCount(FarmItem::WheatProduce)}, inputReceipt, availability, m_Time == nullptr ? RuntimeTimeSnapshot{} : m_Time->Snapshot(), {}};
+        CurriculumProgressReceipt curriculumReceipt{};
+        if (m_Curriculum != nullptr && !m_Curriculum->Snapshot(curriculumReceipt)) { m_LastError = RuntimeError::CurriculumFailed; return false; }
+        const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry, {m_Farm->ItemCount(FarmItem::WheatSeed), m_Farm->ItemCount(FarmItem::WheatProduce)}, inputReceipt, availability, m_Time == nullptr ? RuntimeTimeSnapshot{} : m_Time->Snapshot(), curriculumReceipt};
         m_FarmRuntimeHud->SetActionAvailability(availability);
         if (!m_FarmRuntimeHud->Draw(receipt, selectedAction, candidate)) { m_LastError = RuntimeError::HudFailed; return false; }
         hudHash = candidate.FrameHash();
@@ -313,13 +329,16 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
     }
     const std::vector<uint8_t> worldBytes = m_FarmWorld->Serialize();
     std::vector<uint8_t> timeBytes;
+    std::vector<uint8_t> curriculumBytes;
     const std::vector<uint8_t> authorityBytes = m_FarmAuthority->SerializeAuthorityLedger();
-    if (worldBytes.empty() || !m_Time->Serialize(timeBytes) || timeBytes.empty() || authorityBytes.empty()) {
+    if (worldBytes.empty() || !m_Time->Serialize(timeBytes) || timeBytes.empty() || authorityBytes.empty() ||
+        (m_Curriculum != nullptr && (!m_Curriculum->Serialize(curriculumBytes) || curriculumBytes.empty()))) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
     }
     std::vector<uint8_t> payload;
-    if (!AppendBlob(payload, worldBytes) || !AppendBlob(payload, timeBytes) || !AppendBlob(payload, authorityBytes)) {
+    if (!AppendBlob(payload, worldBytes) || !AppendBlob(payload, timeBytes) || !AppendBlob(payload, authorityBytes) ||
+        (m_Curriculum != nullptr && !AppendBlob(payload, curriculumBytes))) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
     }
@@ -346,8 +365,10 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
         return false;
     }
     size_t offset = 0U;
-    std::vector<uint8_t> worldBytes, timeBytes, authorityBytes;
-    if (!ReadBlob(envelope.payload, offset, worldBytes) || !ReadBlob(envelope.payload, offset, timeBytes) || !ReadBlob(envelope.payload, offset, authorityBytes) || offset != envelope.payload.size()) {
+    std::vector<uint8_t> worldBytes, timeBytes, authorityBytes, curriculumBytes;
+    if (!ReadBlob(envelope.payload, offset, worldBytes) || !ReadBlob(envelope.payload, offset, timeBytes) || !ReadBlob(envelope.payload, offset, authorityBytes) ||
+        (offset < envelope.payload.size() && !ReadBlob(envelope.payload, offset, curriculumBytes)) || offset != envelope.payload.size() ||
+        (m_Curriculum == nullptr && !curriculumBytes.empty())) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
         return false;
     }
@@ -356,8 +377,10 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     auto candidateWorld = std::make_unique<FarmWorldTool>();
     auto candidateTime = std::make_unique<RuntimeTimeSystem>(*m_Time);
     auto candidateAuthority = std::make_unique<FarmAuthoritativeService>();
+    auto candidateCurriculum = m_Curriculum == nullptr ? std::unique_ptr<CurriculumSystem>{} : std::make_unique<CurriculumSystem>(*m_Curriculum);
     if (!candidateWorld->Initialize(*candidateFarm, *m_TrustSafety, "runtime-farm-player", m_FarmWorldConfig) || !candidateWorld->Deserialize(worldBytes) ||
-        !candidateTime->Deserialize(timeBytes) || !candidateAuthority->Initialize(*candidateWorld, *m_TrustSafety, "runtime-farm-player", "runtime-farm-session") ||
+        !candidateTime->Deserialize(timeBytes) || (candidateCurriculum != nullptr && !curriculumBytes.empty() && !candidateCurriculum->Deserialize(curriculumBytes)) ||
+        !candidateAuthority->Initialize(*candidateWorld, *m_TrustSafety, "runtime-farm-player", "runtime-farm-session") ||
         !candidateAuthority->RestoreAuthorityLedger(authorityBytes) || !candidateAuthority->BindSession("runtime-farm-player", "runtime-farm-session") ||
         !candidateWorld->AdoptTopologyPreservingSceneBinding(*m_FarmWorld)) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
@@ -374,6 +397,8 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     m_FarmWorld = std::move(candidateWorld);
     m_Time = std::move(candidateTime);
     m_FarmAuthority = std::move(candidateAuthority);
+    m_Curriculum = std::move(candidateCurriculum);
+    m_LastCurriculumEvents.clear();
     *m_Clock = std::move(candidateClock);
     m_LastFrameReceipt = {};
     m_HasFrameReceipt = false;
@@ -420,6 +445,8 @@ bool NeoRuntime::Shutdown() {
     m_Actors.reset();
     m_Resources.reset();
     m_Authoring.reset();
+    m_Curriculum.reset();
+    m_LastCurriculumEvents.clear();
     m_AuthoringWorld.reset();
     m_Scene.reset();
     m_Assets.reset();
