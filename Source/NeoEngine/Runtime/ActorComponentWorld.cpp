@@ -288,9 +288,14 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (fixedTicks == 0U || fixedTicks > kMaxFixedTicks) return Fail(ActorComponentError::TickRejected);
     if (!begunPlay_ && !BeginPlay()) return false;
+    struct StagedTick { IActorComponent* component = nullptr; SceneEntity actor{}; uint8_t group = 0U; uint8_t order = 0U; };
+    std::unique_ptr<StagedTick[]> staged;
+    try { staged = std::make_unique<StagedTick[]>(static_cast<size_t>(kCapacity) * kMaxComponentsPerActor); }
+    catch (const std::bad_alloc&) { return Fail(ActorComponentError::Capacity); }
+    uint16_t stagedCount = 0U;
     for (const ActorSlot& actor : actors_) if (actor.registered) for (const ComponentSlot& slot : actor.components) if (slot.component != nullptr && slot.enabled && slot.active) {
         TickMetadata metadata{};
-        if (!ReadTickMetadata(dispatching_, *slot.component, metadata) || metadata.group >= kMaxTickGroups || metadata.order >= kMaxTickOrders || metadata.dependencyCount > kMaxComponentsPerActor) return Fail(ActorComponentError::TickRejected);
+        if (stagedCount >= static_cast<size_t>(kCapacity) * kMaxComponentsPerActor || !ReadTickMetadata(dispatching_, *slot.component, metadata) || metadata.group >= kMaxTickGroups || metadata.order >= kMaxTickOrders || metadata.dependencyCount > kMaxComponentsPerActor) return Fail(ActorComponentError::TickRejected);
         for (uint8_t dependencyIndex = 0U; dependencyIndex < metadata.dependencyCount; ++dependencyIndex) {
             uint16_t dependencyType = 0U;
             if (!ReadDependencyType(dispatching_, *slot.component, dependencyIndex, dependencyType)) return Fail(ActorComponentError::TickRejected);
@@ -301,23 +306,18 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
             if (dependencyMetadata.group > metadata.group || (dependencyMetadata.group == metadata.group && dependencyMetadata.order >= metadata.order)) return Fail(ActorComponentError::DependencyRejected);
             for (uint8_t priorIndex = 0U; priorIndex < dependencyIndex; ++priorIndex) { uint16_t priorType = 0U; if (!ReadDependencyType(dispatching_, *slot.component, priorIndex, priorType)) return Fail(ActorComponentError::TickRejected); if (priorType == dependencyType) return Fail(ActorComponentError::DependencyRejected); }
         }
+        staged[stagedCount++] = {slot.component.get(), actor.scene, metadata.group, metadata.order};
     }
     uint32_t ticked = 0U;
-    for (uint8_t group = 0U; group < kMaxTickGroups; ++group) for (uint8_t order = 0U; order < kMaxTickOrders; ++order) for (uint16_t actorIndex = 0U; actorIndex < kCapacity; ++actorIndex) {
-        ActorSlot& actor = actors_[actorIndex];
-        if (!actor.registered) continue;
-        for (ComponentSlot& slot : actor.components) {
-            if (slot.component == nullptr || !slot.enabled || !slot.active) continue;
-            TickMetadata metadata{};
-            if (!ReadTickMetadata(dispatching_, *slot.component, metadata)) { lastReceipt_ = {actorCount_, componentCount_, ticked, registrationRevision_}; return Fail(ActorComponentError::TickRejected); }
-            if (metadata.group != group || metadata.order != order) continue;
-            const bool tickedSuccessfully = InvokeDispatch(dispatching_, [&] { return slot.component->OnFixedTick(sceneWorld_, actor.scene, fixedTicks); });
-            if (!tickedSuccessfully) {
-                lastReceipt_ = {actorCount_, componentCount_, ticked, registrationRevision_};
-                return Fail(ActorComponentError::TickRejected);
-            }
-            ++ticked;
+    for (uint8_t group = 0U; group < kMaxTickGroups; ++group) for (uint8_t order = 0U; order < kMaxTickOrders; ++order) for (uint16_t index = 0U; index < stagedCount; ++index) {
+        StagedTick& entry = staged[index];
+        if (entry.group != group || entry.order != order) continue;
+        const bool tickedSuccessfully = InvokeDispatch(dispatching_, [&] { return entry.component->OnFixedTick(sceneWorld_, entry.actor, fixedTicks); });
+        if (!tickedSuccessfully) {
+            lastReceipt_ = {actorCount_, componentCount_, ticked, registrationRevision_};
+            return Fail(ActorComponentError::TickRejected);
         }
+        ++ticked;
     }
     receipt = {actorCount_, componentCount_, ticked, registrationRevision_};
     lastReceipt_ = receipt;
