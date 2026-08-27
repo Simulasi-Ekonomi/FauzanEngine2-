@@ -1,5 +1,7 @@
 #include "VulkanTexturedPresent.h"
 
+#include "TextureStaging.h"
+
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <vulkan/vulkan.h>
@@ -211,6 +213,16 @@ VkExtent2D ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t w
 }
 
 } // namespace
+
+VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const CpuTextureResource& texture, uint32_t width, uint32_t height) {
+    VulkanTexturedPresentResult result{};
+    const uint64_t expectedBytes = static_cast<uint64_t>(texture.width) * texture.height * 4U;
+    if (texture.assetId.empty() || texture.sourceHash == 0 || texture.width == 0 || texture.height == 0 ||
+        expectedBytes == 0 || texture.rgba.size() != expectedBytes) return result;
+    result = Present(RgbaTexture{texture.width, texture.height, texture.rgba}, width, height);
+    if (result.framePresented) result.stagedSourceHash = texture.sourceHash;
+    return result;
+}
 
 VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTexture& texture, uint32_t width, uint32_t height) {
     VulkanTexturedPresentResult result{};

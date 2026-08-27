@@ -6,6 +6,8 @@
 
 namespace NeoEngine {
 
+struct CpuTextureResource;
+
 struct VulkanTexturedPresentResult {
     bool windowCreated = false;
     bool surfaceCreated = false;
@@ -17,11 +19,13 @@ struct VulkanTexturedPresentResult {
     bool framePresented = false;
     uint32_t imageCount = 0;
     uint64_t textureHash = 0;
+    uint64_t stagedSourceHash = 0;
 };
 
 class VulkanTexturedPresentProbe {
 public:
     static VulkanTexturedPresentResult Present(const RgbaTexture& texture, uint32_t width = 64, uint32_t height = 64);
+    static VulkanTexturedPresentResult Present(const CpuTextureResource& texture, uint32_t width = 64, uint32_t height = 64);
 };
 
 } // namespace NeoEngine
