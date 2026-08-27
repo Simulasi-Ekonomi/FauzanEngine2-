@@ -314,9 +314,13 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             const uint16_t slotIndex = static_cast<uint16_t>(slot - slots_.data());
             resolvedSlots[index] = slotIndex;
             presentSlots[slotIndex] = true;
-            if (state.stateRevision < slot->stateRevision) return Fail(ReplicationError::StaleSnapshot);
             if (sceneWorld_.GetTransform(slot->entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
         }
+    }
+    for (uint16_t index = 0U; index < snapshot.count; ++index) {
+        const ReplicatedEntityState& state = snapshot.states[index];
+        const Slot* slot = FindSlot(state.networkId);
+        if (slot != nullptr && (state.stateRevision < slot->stateRevision || (snapshotSequence_ != 0U && state.stateRevision == slot->stateRevision && slot->hasAuthoritative && !SameTransform(slot->authoritative, state.transform)))) return Fail(ReplicationError::StaleSnapshot);
     }
     std::unique_ptr<SceneWorld> candidateScene;
     try { candidateScene = std::make_unique<SceneWorld>(sceneWorld_); }
