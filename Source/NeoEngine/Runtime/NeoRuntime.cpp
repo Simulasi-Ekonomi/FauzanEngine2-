@@ -153,6 +153,7 @@ bool NeoRuntime::Tick() {
         const uint32_t eventCount = m_Events->PendingCount();
         if (!m_Events->Dispatch()) { m_LastError = RuntimeError::InvalidState; return false; }
         m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), {}, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
+        m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
         m_HasFrameReceipt = true;
         m_LastError = RuntimeError::None;
         return true;
@@ -171,6 +172,7 @@ bool NeoRuntime::Tick() {
     const uint32_t eventCount = m_Events->PendingCount();
     if (!m_Events->Dispatch()) { m_LastError = RuntimeError::InvalidState; return false; }
     m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), actorReceipt, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
+    m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
     m_HasFrameReceipt = true;
     m_LastError = RuntimeError::None;
     return true;
