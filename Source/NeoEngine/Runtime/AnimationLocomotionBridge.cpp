@@ -4,7 +4,7 @@
 
 namespace NeoEngine {
 bool AnimationLocomotionBridge::Initialize(AnimationLocomotionBridgeConfig config) {
-    if (config.idleToLocomotionTransitionId.empty() || config.locomotionToIdleTransitionId.empty() || !std::isfinite(config.movementThreshold) || config.movementThreshold < 0.0F) { lastError_ = AnimationLocomotionBridgeError::InvalidConfiguration; return false; }
+    if (config.idleToLocomotionTransitionId.empty() || config.locomotionToIdleTransitionId.empty() || config.idleToLocomotionTransitionId.find('\0') != std::string::npos || config.locomotionToIdleTransitionId.find('\0') != std::string::npos || config.idleToLocomotionTransitionId.size() > 64U || config.locomotionToIdleTransitionId.size() > 64U || config.idleToLocomotionTransitionId == config.locomotionToIdleTransitionId || !std::isfinite(config.movementThreshold) || config.movementThreshold < 0.0F) { lastError_ = AnimationLocomotionBridgeError::InvalidConfiguration; return false; }
     config_ = std::move(config); initialized_ = true; locomoting_ = false; lastError_ = AnimationLocomotionBridgeError::None; return true;
 }
 bool AnimationLocomotionBridge::Apply(KinematicPlanarInput input, AnimationStateMachine& machine) {

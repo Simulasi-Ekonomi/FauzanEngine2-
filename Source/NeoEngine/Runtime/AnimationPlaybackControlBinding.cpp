@@ -3,7 +3,7 @@
 
 namespace NeoEngine {
 bool AnimationPlaybackControlBinding::Configure(AnimationPlaybackControlBindingConfig config) {
-    if (config.pauseStateId.empty() || config.resumeStateId.empty() || config.pauseStateId == config.resumeStateId || config.pauseStateId.size() > 64U || config.resumeStateId.size() > 64U) { lastError_ = AnimationPlaybackControlBindingError::InvalidConfiguration; return false; }
+    if (config.pauseStateId.empty() || config.resumeStateId.empty() || config.pauseStateId.find('\0') != std::string::npos || config.resumeStateId.find('\0') != std::string::npos || config.pauseStateId == config.resumeStateId || config.pauseStateId.size() > 64U || config.resumeStateId.size() > 64U) { lastError_ = AnimationPlaybackControlBindingError::InvalidConfiguration; return false; }
     config_ = std::move(config); configured_ = true; lastError_ = AnimationPlaybackControlBindingError::None; return true;
 }
 bool AnimationPlaybackControlBinding::Apply(const std::string& activeStateId, FlipbookPlayback& playback) {
