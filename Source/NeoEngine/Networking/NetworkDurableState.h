@@ -1,6 +1,7 @@
 #pragma once
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <vector>
 
 namespace NeoEngine::Networking {
 
@@ -18,33 +19,37 @@ public:
     bool stage(const DurableStateRecord& record) {
         if (!record.sessionId || !record.revision || !record.data || !record.size || record.size > MaxStateBytes) return false;
         if (hasRevision_ && record.revision <= revision_) return false;
+        ownedData_.assign(record.data, record.data + record.size);
         sessionId_ = record.sessionId;
         revision_ = record.revision;
-        data_ = record.data;
-        size_ = record.size;
         hasRevision_ = true;
         return true;
     }
 
-    bool commit(uint64_t sessionId, uint64_t revision) {
+    bool commit(uint64_t sessionId, uint64_t revision) const {
         return hasRevision_ && sessionId == sessionId_ && revision == revision_;
     }
 
     bool load(uint64_t sessionId, uint64_t revision, DurableStateRecord& out) const {
         if (!hasRevision_ || sessionId != sessionId_ || revision != revision_) return false;
-        out = {sessionId_, revision_, data_, size_};
+        out = {sessionId_, revision_, ownedData_.data(), ownedData_.size()};
         return true;
     }
 
-    void clear() { sessionId_ = revision_ = size_ = 0; data_ = nullptr; hasRevision_ = false; }
+    void clear() {
+        ownedData_.clear();
+        ownedData_.shrink_to_fit();
+        sessionId_ = revision_ = 0;
+        hasRevision_ = false;
+    }
+
     uint64_t revision() const { return revision_; }
-    size_t size() const { return size_; }
+    size_t size() const { return ownedData_.size(); }
 
 private:
     uint64_t sessionId_{};
     uint64_t revision_{};
-    const std::byte* data_{nullptr};
-    size_t size_{};
+    std::vector<std::byte> ownedData_{};
     bool hasRevision_{false};
 };
 
