@@ -5,7 +5,7 @@
 namespace NeoEngine {
 
 bool FarmAuthoritativeSessionLoopback::Start(FarmAuthoritativeSessionHost& host, AuthorityLoopbackServer& transport,
-                                             const FarmSessionPrincipal& serverAuthenticatedPrincipal, uint64_t serverTick) {
+                                             const FarmSessionPrincipal& serverAuthenticatedPrincipal, uint64_t serverTick, uint16_t maxConnections) {
     Stop();
     if (!host.IsReady() || transport.IsRunning() || serverTick == 0U) {
         lastError_.store(FarmAuthoritativeSessionLoopbackError::InvalidConfiguration);
@@ -27,7 +27,8 @@ bool FarmAuthoritativeSessionLoopback::Start(FarmAuthoritativeSessionHost& host,
     lastError_.store(FarmAuthoritativeSessionLoopbackError::None);
     if (!transport.Start(
             [this](const AuthorityCommand& command) { return Dispatch(command); },
-            [this](const AuthorityDecision& decision, AuthorityWireSnapshot& snapshot) { return BuildSnapshot(decision, snapshot); })) {
+            [this](const AuthorityDecision& decision, AuthorityWireSnapshot& snapshot) { return BuildSnapshot(decision, snapshot); },
+            maxConnections)) {
         Reset();
         lastError_.store(FarmAuthoritativeSessionLoopbackError::TransportStartRejected);
         return false;

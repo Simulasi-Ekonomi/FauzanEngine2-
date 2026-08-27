@@ -15,6 +15,7 @@ enum class AuthorityTransportError : uint8_t { None, InvalidConfiguration, Socke
 class AuthorityLoopbackServer {
 public:
     static constexpr uint16_t kMaxCommandsPerConnection = 32;
+    static constexpr uint16_t kMaxConnectionsPerServer = 2;
     using Handler = AuthoritativeCommandGate::CommandHandler;
     using Dispatcher = std::function<AuthorityDecision(const AuthorityCommand&)>;
     using SnapshotBuilder = std::function<bool(const AuthorityDecision&, AuthorityWireSnapshot&)>;
@@ -26,7 +27,7 @@ public:
     AuthorityLoopbackServer& operator=(const AuthorityLoopbackServer&) = delete;
 
     bool Start(AuthoritativeCommandGate& gate, uint64_t serverTick, Handler handler);
-    bool Start(Dispatcher dispatcher, SnapshotBuilder snapshotBuilder);
+    bool Start(Dispatcher dispatcher, SnapshotBuilder snapshotBuilder, uint16_t maxConnections = 1U);
     void Stop();
 
     [[nodiscard]] bool IsRunning() const { return running_.load(); }
@@ -41,6 +42,7 @@ private:
     std::atomic<int> listenFd_{-1};
     std::atomic<int> clientFd_{-1};
     uint16_t port_ = 0;
+    uint16_t maxConnections_ = 1U;
     Dispatcher dispatcher_;
     SnapshotBuilder snapshotBuilder_;
     std::thread worker_;

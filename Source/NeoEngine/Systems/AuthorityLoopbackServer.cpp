@@ -51,9 +51,9 @@ bool AuthorityLoopbackServer::Start(AuthoritativeCommandGate& gate, uint64_t ser
         });
 }
 
-bool AuthorityLoopbackServer::Start(Dispatcher dispatcher, SnapshotBuilder snapshotBuilder) {
+bool AuthorityLoopbackServer::Start(Dispatcher dispatcher, SnapshotBuilder snapshotBuilder, uint16_t maxConnections) {
     Stop();
-    if (!dispatcher || !snapshotBuilder) {
+    if (!dispatcher || !snapshotBuilder || maxConnections == 0U || maxConnections > kMaxConnectionsPerServer) {
         lastError_.store(AuthorityTransportError::InvalidConfiguration);
         return false;
     }
@@ -71,6 +71,7 @@ bool AuthorityLoopbackServer::Start(Dispatcher dispatcher, SnapshotBuilder snaps
     if (getsockname(fd, reinterpret_cast<sockaddr*>(&address), &addressSize) != 0 || ntohs(address.sin_port) == 0) { close(fd); lastError_.store(AuthorityTransportError::BindFailed); return false; }
     dispatcher_ = std::move(dispatcher);
     snapshotBuilder_ = std::move(snapshotBuilder);
+    maxConnections_ = maxConnections;
     listenFd_ = fd;
     port_ = ntohs(address.sin_port);
     running_.store(true);
@@ -87,48 +88,52 @@ void AuthorityLoopbackServer::Stop() {
     if (fd >= 0) { shutdown(fd, SHUT_RDWR); close(fd); }
     if (worker_.joinable()) worker_.join();
     port_ = 0;
+    maxConnections_ = 1U;
     dispatcher_ = {};
     snapshotBuilder_ = {};
 }
 
 void AuthorityLoopbackServer::Run() {
-    sockaddr_in peer{};
-    socklen_t peerSize = sizeof(peer);
-    const int client = accept(listenFd_.load(), reinterpret_cast<sockaddr*>(&peer), &peerSize);
-    if (client < 0) {
-        if (running_.load()) lastError_.store(AuthorityTransportError::AcceptFailed);
-        running_.store(false);
-        return;
-    }
-    clientFd_.store(client);
-    const auto closeClient = [this, client]() {
-        if (clientFd_.exchange(-1) == client) close(client);
-    };
-    uint16_t commandCount = 0;
-    while (running_.load() && commandCount < kMaxCommandsPerConnection) {
-        std::array<uint8_t, 4> lengthBytes{};
-        if (!ReceiveAll(client, lengthBytes.data(), lengthBytes.size())) {
-            if (running_.load() && commandCount == 0) lastError_.store(AuthorityTransportError::ReceiveFailed);
+    uint16_t connectionCount = 0U;
+    while (running_.load() && connectionCount < maxConnections_) {
+        sockaddr_in peer{};
+        socklen_t peerSize = sizeof(peer);
+        const int client = accept(listenFd_.load(), reinterpret_cast<sockaddr*>(&peer), &peerSize);
+        if (client < 0) {
+            if (running_.load()) lastError_.store(AuthorityTransportError::AcceptFailed);
             break;
         }
-        const uint32_t frameLength = (static_cast<uint32_t>(lengthBytes[0]) << 24U) | (static_cast<uint32_t>(lengthBytes[1]) << 16U) | (static_cast<uint32_t>(lengthBytes[2]) << 8U) | lengthBytes[3];
-        if (frameLength == 0 || frameLength > AuthorityWireProtocol::kMaxFrameBytes) { lastError_.store(AuthorityTransportError::WireRejected); break; }
-        std::vector<uint8_t> frame(frameLength);
-        if (!ReceiveAll(client, frame.data(), frame.size())) { if (running_.load()) lastError_.store(AuthorityTransportError::ReceiveFailed); break; }
-        AuthorityCommand command{};
-        AuthorityWireError wireError{};
-        if (!AuthorityWireProtocol::DecodeCommand(frame, command, wireError)) { lastError_.store(AuthorityTransportError::WireRejected); break; }
-        const AuthorityDecision decision = dispatcher_(command);
-        AuthorityWireSnapshot snapshot{};
-        if (!snapshotBuilder_(decision, snapshot)) { lastError_.store(AuthorityTransportError::WireRejected); break; }
-        std::vector<uint8_t> response;
-        if (!AuthorityWireProtocol::EncodeSnapshot(snapshot, response, wireError) || response.size() > UINT32_MAX) { lastError_.store(AuthorityTransportError::WireRejected); break; }
-        const uint32_t responseLength = static_cast<uint32_t>(response.size());
-        const std::array<uint8_t, 4> responseHeader{static_cast<uint8_t>(responseLength >> 24U), static_cast<uint8_t>(responseLength >> 16U), static_cast<uint8_t>(responseLength >> 8U), static_cast<uint8_t>(responseLength)};
-        if (!SendAll(client, responseHeader.data(), responseHeader.size()) || !SendAll(client, response.data(), response.size())) { lastError_.store(AuthorityTransportError::SendFailed); break; }
-        ++commandCount;
+        clientFd_.store(client);
+        const auto closeClient = [this, client]() {
+            if (clientFd_.exchange(-1) == client) close(client);
+        };
+        uint16_t commandCount = 0U;
+        while (running_.load() && commandCount < kMaxCommandsPerConnection) {
+            std::array<uint8_t, 4> lengthBytes{};
+            if (!ReceiveAll(client, lengthBytes.data(), lengthBytes.size())) {
+                if (running_.load() && commandCount == 0U) lastError_.store(AuthorityTransportError::ReceiveFailed);
+                break;
+            }
+            const uint32_t frameLength = (static_cast<uint32_t>(lengthBytes[0]) << 24U) | (static_cast<uint32_t>(lengthBytes[1]) << 16U) | (static_cast<uint32_t>(lengthBytes[2]) << 8U) | lengthBytes[3];
+            if (frameLength == 0U || frameLength > AuthorityWireProtocol::kMaxFrameBytes) { lastError_.store(AuthorityTransportError::WireRejected); break; }
+            std::vector<uint8_t> frame(frameLength);
+            if (!ReceiveAll(client, frame.data(), frame.size())) { if (running_.load()) lastError_.store(AuthorityTransportError::ReceiveFailed); break; }
+            AuthorityCommand command{};
+            AuthorityWireError wireError{};
+            if (!AuthorityWireProtocol::DecodeCommand(frame, command, wireError)) { lastError_.store(AuthorityTransportError::WireRejected); break; }
+            const AuthorityDecision decision = dispatcher_(command);
+            AuthorityWireSnapshot snapshot{};
+            if (!snapshotBuilder_(decision, snapshot)) { lastError_.store(AuthorityTransportError::WireRejected); break; }
+            std::vector<uint8_t> response;
+            if (!AuthorityWireProtocol::EncodeSnapshot(snapshot, response, wireError) || response.size() > UINT32_MAX) { lastError_.store(AuthorityTransportError::WireRejected); break; }
+            const uint32_t responseLength = static_cast<uint32_t>(response.size());
+            const std::array<uint8_t, 4> responseHeader{static_cast<uint8_t>(responseLength >> 24U), static_cast<uint8_t>(responseLength >> 16U), static_cast<uint8_t>(responseLength >> 8U), static_cast<uint8_t>(responseLength)};
+            if (!SendAll(client, responseHeader.data(), responseHeader.size()) || !SendAll(client, response.data(), response.size())) { lastError_.store(AuthorityTransportError::SendFailed); break; }
+            ++commandCount;
+        }
+        closeClient();
+        ++connectionCount;
     }
-    closeClient();
     running_.store(false);
 }
 

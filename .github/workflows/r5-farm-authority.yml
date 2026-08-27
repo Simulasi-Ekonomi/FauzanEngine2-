@@ -1,0 +1,49 @@
+name: R5 Farm authority reconnect
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Farm/farm_authoritative_session_loopback_smoke.cpp'
+      - 'Tests/Systems/authority_loopback_transport_smoke.cpp'
+      - '.github/workflows/r5-farm-authority.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Farm/farm_authoritative_session_loopback_smoke.cpp'
+      - 'Tests/Systems/authority_loopback_transport_smoke.cpp'
+      - '.github/workflows/r5-farm-authority.yml'
+  workflow_dispatch:
+
+jobs:
+  farm-authority:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r5-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run Release smokes
+        run: |
+          cmake --build build/r5-release --target farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
+          ./build/r5-release/farm_authoritative_session_loopback_smoke
+          ./build/r5-release/authority_loopback_transport_smoke
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r5-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run ASAN smokes
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          cmake --build build/r5-asan --target farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
+          ./build/r5-asan/farm_authoritative_session_loopback_smoke
+          ./build/r5-asan/authority_loopback_transport_smoke

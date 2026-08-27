@@ -103,15 +103,25 @@ int main() {
     AuthorityLoopbackServer transport;
     FarmAuthoritativeSessionLoopback adapter;
     const FarmSessionPrincipal principal{"session-loop-player", "server-session-01"};
-    if (!adapter.Start(host, transport, principal, 10U) || adapter.Port() == 0U || !adapter.IsRunning()) return 3;
+    if (!adapter.Start(host, transport, principal, 10U, 2U) || adapter.Port() == 0U || !adapter.IsRunning()) return 3;
     const int validClient = Connect(adapter.Port());
     if (validClient < 0) return 3;
     const AuthorityCommand command{"session-loop-player", "server-session-01", "loopback-command-001", "farm.till", 1U, 10U, {2U, 0U, 2U, 0U}};
     AuthorityWireSnapshot first{}, replay{};
     if (!SendCommandAndReceiveSnapshot(validClient, command, first) || !SendCommandAndReceiveSnapshot(validClient, command, replay)) return 4;
     close(validClient);
+    int reconnectClient = -1;
+    for (uint8_t attempt = 0U; attempt < 50U && reconnectClient < 0; ++attempt) {
+        reconnectClient = Connect(adapter.Port());
+        if (reconnectClient < 0) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    if (reconnectClient < 0) return 4;
+    AuthorityWireSnapshot reconnectReplay{};
+    if (!SendCommandAndReceiveSnapshot(reconnectClient, command, reconnectReplay)) return 4;
+    close(reconnectClient);
     adapter.Stop();
-    if (first.revision != 1U || replay.revision != 1U || first.state != replay.state || farm.TileStateAt(2U, 2U) != FarmTileState::Tilled ||
+    if (first.revision != 1U || replay.revision != 1U || reconnectReplay.revision != 1U || first.state != replay.state || first.state != reconnectReplay.state ||
+        farm.TileStateAt(2U, 2U) != FarmTileState::Tilled ||
         transport.LastError() != AuthorityTransportError::None || adapter.IsRunning() || adapter.Port() != 0U) return 4;
 
     AuthorityLoopbackServer subjectTransport;
@@ -139,7 +149,7 @@ int main() {
         sessionTransport.LastError() != AuthorityTransportError::WireRejected || farm.TileStateAt(3U, 2U) == FarmTileState::Tilled || authority.Revision() != 1U) return 6;
     sessionAdapter.Stop();
 
-    std::printf("FARM_AUTHORITATIVE_SESSION_LOOPBACK_SMOKE_OK revision=%llu replay=1 subject_rejected=1 session_rejected=1\n",
+    std::printf("FARM_AUTHORITATIVE_SESSION_LOOPBACK_SMOKE_OK revision=%llu replay=1 reconnect=1 subject_rejected=1 session_rejected=1\n",
                 static_cast<unsigned long long>(authority.Revision()));
     return 0;
 }

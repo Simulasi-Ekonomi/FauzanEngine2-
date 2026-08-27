@@ -21,7 +21,7 @@ enum class FarmAuthoritativeSessionLoopbackError : uint8_t {
 class FarmAuthoritativeSessionLoopback {
 public:
     bool Start(FarmAuthoritativeSessionHost& host, AuthorityLoopbackServer& transport,
-               const FarmSessionPrincipal& serverAuthenticatedPrincipal, uint64_t serverTick);
+               const FarmSessionPrincipal& serverAuthenticatedPrincipal, uint64_t serverTick, uint16_t maxConnections = 1U);
     void Stop();
 
     [[nodiscard]] bool IsRunning() const;
