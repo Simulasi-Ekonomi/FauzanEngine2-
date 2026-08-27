@@ -50,3 +50,4 @@ jobs:
         cd backend
         python -m py_compile main.py
         python -m py_compile aries/brain.py
+        python backend_import_smoke.py

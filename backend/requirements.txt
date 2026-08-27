@@ -4,4 +4,4 @@ websockets>=12.0
 httpx>=0.27.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0
-jnius
+# JNI/Android bindings are optional and are validated by the native Android build, not the backend CI smoke.
