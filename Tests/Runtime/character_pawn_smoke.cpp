@@ -118,7 +118,17 @@ int main() {
     if (sharedAfterReject == nullptr || std::abs(sharedAfterReject->x - sharedBeforeX) > 0.0001F) return 22;
     sharedGate.BeginFrame();
     if (!actors.TickFixed(1U, receipt) || !sharedCharacterView->Snapshot(snapshot) || snapshot.authority != CharacterMovementAuthority::KinematicRoute) return 23;
-    if (!actors.DetachComponent(sharedPlayer, CharacterPawn::kTypeId) || !actors.DetachComponent(player, CharacterPawn::kTypeId) || actors.FindComponent(player, CharacterPawn::kTypeId) != nullptr || actors.ComponentCount(player) != 0U) return 24;
-    if (!actors.TickFixed(1U, receipt) || receipt.tickedComponents != 0U) return 25;
+    auto failedScene = std::make_unique<SceneWorld>();
+    SceneEntity failedActor{};
+    CharacterPawn failedPawn;
+    CharacterAnimationGraph& failedGraph = failedPawn.AnimationGraph();
+    if (!failedScene->Create(failedActor) || !failedGraph.AddBaseState({"idle", "idle"}) || !failedGraph.AddBaseState({"walk", "walk"}) || !failedGraph.AddBaseTransition({"idle_walk", "idle", "walk", 0.1F}) || !failedGraph.StartBase("idle") || !failedPawn.OnAttach(*failedScene, failedActor) || !failedPawn.SetTransitionBinding({"idle", "walk", "idle_walk"}) || !failedPawn.SubmitInput({1.0F, 0.0F, false, false})) return 24;
+    CharacterPawnSnapshot beforeFailed{};
+    if (!failedPawn.Snapshot(beforeFailed) || !failedScene->Destroy(failedActor)) return 24;
+    if (failedPawn.OnFixedTick(*failedScene, failedActor, 1U) || failedPawn.LastError() != CharacterPawnError::SceneApplyRejected) return 24;
+    CharacterPawnSnapshot afterFailed{};
+    if (!failedPawn.Snapshot(afterFailed) || afterFailed.animation.base.activeStateId != beforeFailed.animation.base.activeStateId || afterFailed.animation.base.blending != beforeFailed.animation.base.blending || afterFailed.pendingInput.moveX != beforeFailed.pendingInput.moveX) return 24;
+    if (!actors.DetachComponent(sharedPlayer, CharacterPawn::kTypeId) || !actors.DetachComponent(player, CharacterPawn::kTypeId) || actors.FindComponent(player, CharacterPawn::kTypeId) != nullptr || actors.ComponentCount(player) != 0U) return 25;
+    if (!actors.TickFixed(1U, receipt) || receipt.tickedComponents != 0U) return 26;
     return 0;
 }

@@ -318,15 +318,14 @@ const std::string* CharacterPawn::FindTransition(std::string_view from, std::str
     for (uint8_t index = 0U; index < transitionBindingCount_; ++index) if (transitionBindings_[index].from == from && transitionBindings_[index].to == to) return &transitionBindings_[index].transitionId;
     return nullptr;
 }
-bool CharacterPawn::SelectLocomotionState(const CharacterPawnInput& input) {
-    if (!animation_.HasBase() || animation_.ActiveBaseState().empty() || animation_.IsBaseBlending()) return true;
+bool CharacterPawn::SelectLocomotionState(CharacterAnimationGraph& animation, const CharacterPawnInput& input) const {
+    if (!animation.HasBase() || animation.ActiveBaseState().empty() || animation.IsBaseBlending()) return true;
     const bool moving = std::abs(input.moveX) > 0.0001F || std::abs(input.moveZ) > 0.0001F;
     const std::string target = moving ? (input.sprint ? "run" : "walk") : "idle";
-    if (animation_.ActiveBaseState() == target) return true;
-    const std::string* transition = FindTransition(animation_.ActiveBaseState(), target);
+    if (animation.ActiveBaseState() == target) return true;
+    const std::string* transition = FindTransition(animation.ActiveBaseState(), target);
     if (transition == nullptr) return true;
-    if (!animation_.TriggerBase(*transition)) return Fail(CharacterPawnError::AnimationRejected);
-    return true;
+    return animation.TriggerBase(*transition);
 }
 bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInput& input, const CharacterRootMotionDelta& rootMotion) {
     const Transform3* local = world.GetLocalTransform(actor_);
@@ -376,9 +375,8 @@ bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t f
     if (fixedTicks > ActorComponentWorld::kMaxFixedTicks) return Fail(CharacterPawnError::InvalidTickCount);
     if (animationResources_ != nullptr && animationResources_->Data(animationResource_) == nullptr) return Fail(CharacterPawnError::AnimationRejected);
     if (authorityGate_ == &ownedAuthorityGate_) authorityGate_->BeginFrame();
-    for (uint32_t tick = 0U; tick < fixedTicks; ++tick) {
-        if (!SelectLocomotionState(pendingInput_) || !animation_.Tick(config_.fixedSeconds) || !ApplyOneFixedStep(world, pendingInput_, pendingRootMotion_)) return lastError_ == CharacterPawnError::None ? Fail(CharacterPawnError::AnimationRejected) : false;
-    }
+    try { for (uint32_t tick = 0U; tick < fixedTicks; ++tick) { CharacterAnimationGraph candidateAnimation = animation_; if (!SelectLocomotionState(candidateAnimation, pendingInput_) || !candidateAnimation.Tick(config_.fixedSeconds) || !ApplyOneFixedStep(world, pendingInput_, pendingRootMotion_)) return lastError_ == CharacterPawnError::None ? Fail(CharacterPawnError::AnimationRejected) : false; animation_ = std::move(candidateAnimation); } }
+    catch (const std::bad_alloc&) { return Fail(CharacterPawnError::AnimationRejected); }
     pendingInput_.jump = false;
     pendingRootMotion_ = {};
     lastError_ = CharacterPawnError::None;

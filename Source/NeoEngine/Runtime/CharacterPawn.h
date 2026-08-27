@@ -152,7 +152,7 @@ private:
     bool Fail(CharacterPawnError error);
     bool ValidateInput(const CharacterPawnInput& input) const;
     bool ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInput& input, const CharacterRootMotionDelta& rootMotion);
-    bool SelectLocomotionState(const CharacterPawnInput& input);
+    bool SelectLocomotionState(CharacterAnimationGraph& animation, const CharacterPawnInput& input) const;
     const std::string* FindTransition(std::string_view from, std::string_view to) const;
 
     CharacterPawnConfig config_{};
