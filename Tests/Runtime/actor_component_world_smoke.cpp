@@ -79,6 +79,13 @@ public:
     uint16_t SnapshotSizeBytes() const override { throw std::runtime_error("snapshot metadata failure"); }
 };
 
+class ThrowingTypeIdComponent final : public ProbeComponent {
+public:
+    ThrowingTypeIdComponent() : ProbeComponent(26U) {}
+    uint16_t TypeId() const override { if (++typeIdCalls > 1U) throw std::runtime_error("type id failure"); return ProbeComponent::TypeId(); }
+    mutable uint32_t typeIdCalls = 0U;
+};
+
 class ThrowingBeginPlayComponent final : public ProbeComponent {
 public:
     ThrowingBeginPlayComponent() : ProbeComponent(43U) {}
@@ -217,6 +224,20 @@ bool RunSnapshotMetadataExceptionRegression() {
     snapshot.begunPlay = true;
     return !world->CaptureSnapshot(snapshot) && world->LastError() == ActorComponentError::SnapshotRejected && snapshot.begunPlay && snapshot.actors.empty() && snapshot.componentBytes.empty();
 }
+
+bool RunTypeIdExceptionRegression() {
+    using namespace NeoEngine;
+    auto scene = std::make_unique<SceneWorld>();
+    auto world = std::make_unique<ActorComponentWorld>(*scene);
+    SceneEntity actor{};
+    auto component = std::make_unique<ThrowingTypeIdComponent>();
+    ThrowingTypeIdComponent* view = component.get();
+    if (!world->CreateActor(actor, "TypeIdActor") || !world->AttachComponent(actor, std::move(component)) || view->typeIdCalls != 1U) return false;
+    std::vector<uint16_t> types{91U};
+    if (world->CollectComponentTypes(actor, types) || world->LastError() != ActorComponentError::SnapshotRejected || types.size() != 1U || types[0] != 91U) return false;
+    if (world->DetachComponent(actor, 26U) || world->LastError() != ActorComponentError::InvalidComponent || world->ComponentCount(actor) != 1U) return false;
+    return world->FindComponent(actor, 26U) == nullptr;
+}
 }
 
 int main() {
@@ -338,6 +359,6 @@ int main() {
     if (retryWorld.EndPlay() || retryWorld.LastError() != ActorComponentError::EndPlayRejected) return 33;
     ActorComponentWorldSnapshot endedSnapshot{};
     if (!retryWorld.EndPlay() || !retryWorld.CaptureSnapshot(endedSnapshot) || endedSnapshot.begunPlay || endedSnapshot.actors.size() != 1U || endedSnapshot.actors[0].begunPlay) return 33;
-    if (!RunBeginPlayRollbackRetryRegression() || !RunActivationRollbackRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression() || !RunTickMetadataExceptionRegression() || !RunSnapshotMetadataExceptionRegression()) return 34;
+    if (!RunBeginPlayRollbackRetryRegression() || !RunActivationRollbackRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression() || !RunTickMetadataExceptionRegression() || !RunSnapshotMetadataExceptionRegression() || !RunTypeIdExceptionRegression()) return 34;
     return 0;
 }

@@ -6,6 +6,8 @@ namespace {
 template <typename Callback> bool InvokeDispatch(bool& dispatching, Callback callback) { dispatching = true; try { const bool result = callback(); dispatching = false; return result; } catch (...) { dispatching = false; return false; } }
 struct TickMetadata { uint8_t group = 0U; uint8_t order = 0U; uint8_t dependencyCount = 0U; uint16_t typeId = 0U; };
 struct SnapshotMetadata { uint16_t size = 0U; uint16_t typeId = 0U; std::string_view typeName{}; };
+bool ReadComponentTypeId(bool& dispatching, const IActorComponent& component, uint16_t& typeId) { return InvokeDispatch(dispatching, [&] { typeId = component.TypeId(); return true; }); }
+bool ReadComponentTypeAndName(bool& dispatching, const IActorComponent& component, uint16_t& typeId, std::string_view& typeName) { return InvokeDispatch(dispatching, [&] { typeId = component.TypeId(); typeName = component.TypeName(); return true; }); }
 bool ReadSnapshotMetadata(bool& dispatching, const IActorComponent& component, SnapshotMetadata& metadata) { return InvokeDispatch(dispatching, [&] { metadata = {component.SnapshotSizeBytes(), component.TypeId(), component.TypeName()}; return true; }); }
 bool ReadTickMetadata(bool& dispatching, IActorComponent& component, TickMetadata& metadata) { return InvokeDispatch(dispatching, [&] { metadata = {component.TickGroup(), component.TickOrder(), component.TickDependencyCount(), component.TypeId()}; return true; }); }
 bool ReadDependencyType(bool& dispatching, IActorComponent& component, uint8_t index, uint16_t& typeId) { return InvokeDispatch(dispatching, [&] { typeId = component.TickDependencyTypeId(index); return true; }); }
@@ -93,13 +95,19 @@ const ActorComponentWorld::ActorSlot* ActorComponentWorld::FindActorSlot(SceneEn
 ActorComponentWorld::ComponentSlot* ActorComponentWorld::FindSlot(SceneEntity actor, uint16_t typeId) {
     ActorSlot* slot = FindActorSlot(actor);
     if (slot == nullptr || typeId == 0U) return nullptr;
-    for (ComponentSlot& component : slot->components) if (component.component != nullptr && component.component->TypeId() == typeId) return &component;
+    for (ComponentSlot& component : slot->components) {
+        uint16_t existingTypeId = 0U;
+        if (component.component != nullptr && ReadComponentTypeId(dispatching_, *component.component, existingTypeId) && existingTypeId == typeId) return &component;
+    }
     return nullptr;
 }
 const ActorComponentWorld::ComponentSlot* ActorComponentWorld::FindSlot(SceneEntity actor, uint16_t typeId) const {
     const ActorSlot* slot = FindActorSlot(actor);
     if (slot == nullptr || typeId == 0U) return nullptr;
-    for (const ComponentSlot& component : slot->components) if (component.component != nullptr && component.component->TypeId() == typeId) return &component;
+    for (const ComponentSlot& component : slot->components) {
+        uint16_t existingTypeId = 0U;
+        if (component.component != nullptr && ReadComponentTypeId(dispatching_, *component.component, existingTypeId) && existingTypeId == typeId) return &component;
+    }
     return nullptr;
 }
 bool ActorComponentWorld::CreateActor(SceneEntity& output, std::string name) {
@@ -155,13 +163,18 @@ bool ActorComponentWorld::DestroyActor(SceneEntity actor) {
 bool ActorComponentWorld::AttachComponent(SceneEntity actor, std::unique_ptr<IActorComponent> component) {
     if (dispatching_) return Fail(ActorComponentError::MutationDuringDispatch);
     if (!ValidActor(actor)) return Fail(ActorComponentError::InvalidActor);
-    if (component == nullptr || component->TypeId() == 0U) return Fail(ActorComponentError::InvalidComponent);
-    const std::string_view typeName = component->TypeName();
+    if (component == nullptr) return Fail(ActorComponentError::InvalidComponent);
+    uint16_t componentTypeId = 0U; std::string_view typeName{};
+    if (!ReadComponentTypeAndName(dispatching_, *component, componentTypeId, typeName) || componentTypeId == 0U) return Fail(ActorComponentError::InvalidComponent);
     if (typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos) return Fail(ActorComponentError::InvalidComponent);
     if (registrationRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(ActorComponentError::Capacity);
     ActorSlot* slot = &actors_[actor.index];
-    for (const ComponentSlot& existing : slot->components) if (existing.component != nullptr && existing.component->TypeId() == component->TypeId()) return Fail(ActorComponentError::DuplicateComponent);
     ComponentSlot* target = nullptr;
+    for (const ComponentSlot& existing : slot->components) if (existing.component != nullptr) {
+        uint16_t existingTypeId = 0U;
+        if (!ReadComponentTypeId(dispatching_, *existing.component, existingTypeId)) return Fail(ActorComponentError::InvalidComponent);
+        if (existingTypeId == componentTypeId) return Fail(ActorComponentError::DuplicateComponent);
+    }
     for (ComponentSlot& existing : slot->components) if (existing.component == nullptr) { target = &existing; break; }
     if (target == nullptr) return Fail(ActorComponentError::Capacity);
     const bool attached = InvokeDispatch(dispatching_, [&] { return component->OnAttach(sceneWorld_, actor); });
@@ -422,7 +435,11 @@ bool ActorComponentWorld::CollectComponentTypes(SceneEntity actor, std::vector<u
     std::vector<uint16_t> candidate;
     try {
         candidate.reserve(kMaxComponentsPerActor);
-        for (const ComponentSlot& component : slot->components) if (component.component != nullptr) candidate.push_back(component.component->TypeId());
+        for (const ComponentSlot& component : slot->components) if (component.component != nullptr) {
+        uint16_t typeId = 0U;
+        if (!ReadComponentTypeId(dispatching_, *component.component, typeId) || typeId == 0U) return Fail(ActorComponentError::SnapshotRejected);
+        candidate.push_back(typeId);
+    }
     } catch (const std::bad_alloc&) {
         return Fail(ActorComponentError::SnapshotRejected);
     }
