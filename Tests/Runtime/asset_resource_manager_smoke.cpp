@@ -13,6 +13,8 @@ int main() {
     if (registry.MarkReady("missing.asset") || registry.LastError() != AssetRegistryError::MissingAsset || !registry.All().empty()) return 1;
     if (!registry.ImportBytes("texture.wheat", AssetKind::Texture, {}, {1U, 2U, 3U}) || !registry.ImportBytes("mesh.crop", AssetKind::Mesh, {"texture.wheat"}, {4U, 5U}) || !registry.ImportBytes("material.crop", AssetKind::Material, {"mesh.crop"}, {6U, 7U, 8U}) || !registry.MarkReady("texture.wheat") || !registry.MarkReady("mesh.crop") || !registry.MarkReady("material.crop")) return 1;
     AssetResourceManager resources(registry);
+    AssetResourceHandle malformedHandle{321U, 654U};
+    if (resources.Acquire("bad id", malformedHandle) || resources.LastError() != AssetResourceError::InvalidIdentifier || malformedHandle != AssetResourceHandle{321U, 654U} || resources.ReloadIfSafe("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier || resources.SyncHotReload("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier) return 2;
 
     AssetResourceHandle materialHandle{};
     if (!resources.Acquire("material.crop", materialHandle) || materialHandle.generation == 0U || resources.ActiveResourceCount() != 3U || resources.TotalLeaseCount() != 3U || resources.ActiveLeaseCount() != 1U) return 2;

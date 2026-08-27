@@ -66,7 +66,7 @@ bool AssetResourceManager::FillReceipt(const Slot& slot, AssetResourceHandle han
 }
 
 bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle& handle) {
-    if (assetId.empty()) return Fail(AssetResourceError::InvalidIdentifier);
+    if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
     std::array<std::string, kMaxDependencyClosure> closureIds{};
     std::array<std::string_view, kMaxDependencyDepth> path{};
     uint16_t closureCount = 0U;
@@ -161,6 +161,7 @@ bool AssetResourceManager::Release(AssetResourceHandle handle) {
 }
 
 bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
+    if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
     const uint16_t rootSlot = FindSlot(assetId);
     if (rootSlot == 0xFFFFU) { lastError_ = AssetResourceError::None; return true; }
     if (slots_[rootSlot].refCount != 0U) return Fail(AssetResourceError::StaleInUse);
@@ -184,6 +185,7 @@ bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
 }
 
 bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
+    if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
     const AssetDefinition* definition = registry_.Find(assetId);
     if (definition == nullptr || definition->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
     const uint16_t rootSlot = FindSlot(assetId);
