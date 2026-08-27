@@ -99,6 +99,16 @@ public:
     uint16_t TickDependencyTypeId(uint8_t) const override { return 999U; }
 };
 
+class DependentComponent final : public ProbeComponent {
+public:
+    explicit DependentComponent(uint16_t dependencyType) : ProbeComponent(32U), dependencyType_(dependencyType) {}
+    uint8_t TickGroup() const override { return 1U; }
+    uint8_t TickDependencyCount() const override { return 1U; }
+    uint16_t TickDependencyTypeId(uint8_t) const override { return dependencyType_; }
+private:
+    uint16_t dependencyType_ = 0U;
+};
+
 class FailOnceRestoreComponent final : public ProbeComponent {
 public:
     FailOnceRestoreComponent() : ProbeComponent(40U) {}
@@ -318,9 +328,15 @@ int main() {
     auto reentrant = std::make_unique<ReentrantMutationComponent>(actors, replacement, *dependencyView);
     ReentrantMutationComponent* reentrantView = reentrant.get();
     if (!actors.AttachComponent(replacement, std::move(reentrant)) || !actors.TickFixed(1U, receipt) || !reentrantView->mutationRejected || dependencyView->tickCalls != 1U || receipt.tickedComponents != 3U || actors.IsComponentEnabled(replacement, 30U) == false) return 27;
-    if (!actors.AttachComponent(replacement, std::make_unique<MissingDependencyComponent>())) return 28;
+    auto dependent = std::make_unique<DependentComponent>(29U);
+    DependentComponent* dependentView = dependent.get();
+    if (!actors.AttachComponent(replacement, std::move(dependent)) || !actors.TickFixed(1U, receipt) || dependentView->tickCalls != 1U) return 28;
+    if (!actors.SetComponentActive(replacement, 29U, false) || actors.IsComponentActive(replacement, 29U)) return 28;
+    const ActorComponentWorldReceipt beforeInactiveDependencyTick = receipt;
+    if (actors.TickFixed(1U, receipt) || actors.LastError() != ActorComponentError::DependencyRejected || receipt.tickedComponents != beforeInactiveDependencyTick.tickedComponents || dependentView->tickCalls != 1U) return 29;
+    if (!actors.SetComponentActive(replacement, 29U, true) || !actors.AttachComponent(replacement, std::make_unique<MissingDependencyComponent>())) return 30;
     const ActorComponentWorldReceipt beforeRejectedTick = receipt;
-    if (actors.TickFixed(1U, receipt) || actors.LastError() != ActorComponentError::DependencyRejected || receipt.tickedComponents != beforeRejectedTick.tickedComponents || actors.FindComponent(replacement, 31U) == nullptr) return 29;
+    if (actors.TickFixed(1U, receipt) || actors.LastError() != ActorComponentError::DependencyRejected || receipt.tickedComponents != beforeRejectedTick.tickedComponents || actors.FindComponent(replacement, 31U) == nullptr) return 31;
 
     SceneWorld restoreScene;
     ActorComponentWorld restoreWorld(restoreScene);

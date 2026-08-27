@@ -295,7 +295,7 @@ bool ActorComponentWorld::TickFixed(uint32_t fixedTicks, ActorComponentWorldRece
             uint16_t dependencyType = 0U;
             if (!ReadDependencyType(dispatching_, *slot.component, dependencyIndex, dependencyType)) return Fail(ActorComponentError::TickRejected);
             const ComponentSlot* dependency = FindSlot(actor.scene, dependencyType);
-            if (dependencyType == 0U || dependencyType == metadata.typeId || dependency == nullptr || dependency->component == nullptr || !dependency->enabled) return Fail(ActorComponentError::DependencyRejected);
+            if (dependencyType == 0U || dependencyType == metadata.typeId || dependency == nullptr || dependency->component == nullptr || !dependency->enabled || !dependency->active) return Fail(ActorComponentError::DependencyRejected);
             TickMetadata dependencyMetadata{};
             if (!ReadTickMetadata(dispatching_, *dependency->component, dependencyMetadata)) return Fail(ActorComponentError::TickRejected);
             if (dependencyMetadata.group > metadata.group || (dependencyMetadata.group == metadata.group && dependencyMetadata.order >= metadata.order)) return Fail(ActorComponentError::DependencyRejected);
