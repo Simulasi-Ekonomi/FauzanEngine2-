@@ -9,6 +9,7 @@ bool AnimationTimeline::AddTrack(std::string id, std::vector<AnimationKeyframe> 
     catch (const std::bad_alloc&) { lastError_ = AnimationError::Capacity; return false; }
     lastError_=AnimationError::None;return true; }
 bool AnimationTimeline::AddEventMarker(std::string trackId, AnimationEventMarker marker) {
+    if (trackId.empty() || trackId.find('\0') != std::string::npos || trackId.size() > kMaxIdentifierBytes) { lastError_ = AnimationError::InvalidTrack; return false; }
     const auto found = std::find_if(tracks_.begin(), tracks_.end(), [&trackId](const Track& track) { return track.id == trackId; });
     if (found == tracks_.end()) { lastError_ = AnimationError::MissingTrack; return false; }
     if (marker.id.empty() || marker.id.size() > kMaxIdentifierBytes || marker.id.find('\0') != std::string::npos || !std::isfinite(marker.time) || marker.time < 0.0F || marker.time > found->keys.back().time) { lastError_ = AnimationError::InvalidEvent; return false; }
