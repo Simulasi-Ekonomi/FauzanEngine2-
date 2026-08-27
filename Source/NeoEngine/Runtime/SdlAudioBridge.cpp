@@ -57,8 +57,25 @@ bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ
     return true;
 }
 
+uint16_t SdlAudioBridge::QueuedVoiceCount() const {
+    std::lock_guard<std::mutex> lock(mixerMutex_);
+    return static_cast<uint16_t>(mixer_.ActiveVoices());
+}
+
 void SdlAudioBridge::Reset() {
-    if (deviceId_ != 0) SDL_CloseAudioDevice(deviceId_);
+    if (deviceId_ != 0) {
+        SDL_PauseAudioDevice(deviceId_, 1);
+        SDL_LockAudioDevice(deviceId_);
+        {
+            std::lock_guard<std::mutex> lock(mixerMutex_);
+            mixer_.Clear();
+        }
+        SDL_UnlockAudioDevice(deviceId_);
+        SDL_CloseAudioDevice(deviceId_);
+    } else {
+        std::lock_guard<std::mutex> lock(mixerMutex_);
+        mixer_.Clear();
+    }
     deviceId_ = 0;
     if (audioInitialized_) SDL_QuitSubSystem(SDL_INIT_AUDIO);
     audioInitialized_ = false;

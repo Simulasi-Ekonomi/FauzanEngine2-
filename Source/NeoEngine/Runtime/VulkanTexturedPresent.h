@@ -8,7 +8,10 @@ namespace NeoEngine {
 
 struct CpuTextureResource;
 
+enum class VulkanPresentStatus : uint8_t { None, InvalidInput, Unavailable, DeviceLost, SurfaceOutOfDate, Timeout, DriverRejected, Presented };
+
 struct VulkanTexturedPresentResult {
+    VulkanPresentStatus status = VulkanPresentStatus::None;
     bool windowCreated = false;
     bool surfaceCreated = false;
     bool deviceCreated = false;
@@ -17,6 +20,14 @@ struct VulkanTexturedPresentResult {
     bool pipelineCreated = false;
     bool frameSubmitted = false;
     bool framePresented = false;
+    bool acquireAttempted = false;
+    bool submitAttempted = false;
+    bool fenceWaitAttempted = false;
+    bool presentAttempted = false;
+    int32_t acquireDriverResult = 0;
+    int32_t submitDriverResult = 0;
+    int32_t fenceWaitDriverResult = 0;
+    int32_t presentDriverResult = 0;
     uint32_t imageCount = 0;
     uint64_t textureHash = 0;
     uint64_t stagedSourceHash = 0;
@@ -24,6 +35,7 @@ struct VulkanTexturedPresentResult {
 
 class VulkanTexturedPresentProbe {
 public:
+    static VulkanPresentStatus ClassifyDriverResult(int32_t result);
     static VulkanTexturedPresentResult Present(const RgbaTexture& texture, uint32_t width = 64, uint32_t height = 64);
     static VulkanTexturedPresentResult Present(const CpuTextureResource& texture, uint32_t width = 64, uint32_t height = 64);
 };

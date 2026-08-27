@@ -155,6 +155,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmAuthoritativeSessionLoopback.cpp
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
+    Systems/FarmCommerceCheckpointFile.cpp
     Systems/FarmAuthorityCheckpoint.cpp
     Systems/FarmTelemetryAdapter.cpp
     Systems/AuthoritativeCommandGate.cpp
@@ -244,6 +245,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_entitlemen
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp")
     add_xpbd_executable(farm_commerce_checkpoint_smoke ../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_file_smoke.cpp")
+    add_xpbd_executable(farm_commerce_checkpoint_file_smoke ../../Tests/Farm/farm_commerce_checkpoint_file_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Agents/agent_gateway_smoke.cpp")
@@ -597,6 +601,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_present_status_smoke.cpp")
+    add_xpbd_executable(vulkan_present_status_smoke ../../Tests/Runtime/vulkan_present_status_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_render_smoke.cpp")
     add_xpbd_executable(farm_render_smoke ../../Tests/Runtime/farm_render_smoke.cpp)
 endif()
@@ -629,6 +636,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_farm_hud_smok
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_checkpoint_smoke.cpp")
     add_xpbd_executable(neo_runtime_checkpoint_smoke ../../Tests/Runtime/neo_runtime_checkpoint_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp")
+    add_xpbd_executable(neo_runtime_farm_vertical_slice_smoke ../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp")
     add_xpbd_executable(farm_runtime_save_codec_smoke ../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp)

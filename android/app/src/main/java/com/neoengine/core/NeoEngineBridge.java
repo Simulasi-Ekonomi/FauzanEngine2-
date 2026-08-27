@@ -54,11 +54,20 @@ public class NeoEngineBridge {
         Log.d(TAG, "LiteRT remains unavailable in this debug artifact.");
     }
 
-    // ========== Massive World Streaming ==========
-    public static native void startWorldStreaming(int seed, float sizeKm);
-    public static native void updateCameraPosition(float x, float y, float z);
-    public static native void stopWorldStreaming();
+    // Legacy world-streaming and LiteRT native calls are not part of the canonical Android subset.
+    // Keep the Java surface fail-closed until a separately audited native implementation exists.
+    public static boolean startWorldStreaming(int seed, float sizeKm) {
+        Log.w(TAG, "World streaming is unavailable in this debug artifact.");
+        return false;
+    }
 
-    // Native callback from C++
-    public static native void nativeOnLiteRTInitialized(boolean success);
+    public static boolean updateCameraPosition(float x, float y, float z) {
+        Log.w(TAG, "World streaming is unavailable in this debug artifact.");
+        return false;
+    }
+
+    public static boolean stopWorldStreaming() {
+        Log.w(TAG, "World streaming is unavailable in this debug artifact.");
+        return false;
+    }
 }

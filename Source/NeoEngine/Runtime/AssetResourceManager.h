@@ -25,6 +25,8 @@ enum class AssetResourceError : uint8_t {
     HotReloadRejected,
     BudgetExceeded,
     MissingAsset,
+    InvalidEvictionPlan,
+    StaleEvictionPlan,
 };
 
 struct AssetResourceHandle {
@@ -44,6 +46,24 @@ struct AssetResourceReceipt {
     uint32_t resourceGeneration = 0U;
 };
 
+struct AssetEvictionTarget {
+    uint16_t slot = 0xFFFFU;
+    uint32_t generation = 0U;
+    uint32_t byteSize = 0U;
+    bool operator==(const AssetEvictionTarget&) const = default;
+};
+
+struct AssetEvictionPlan {
+    uint64_t managerRevision = 0U;
+    uint32_t maxResidentBytes = 0U;
+    uint32_t residentBytesBefore = 0U;
+    uint32_t residentBytesAfter = 0U;
+    uint16_t activeResourcesBefore = 0U;
+    uint16_t victimCount = 0U;
+    std::array<AssetEvictionTarget, AssetRegistry::kMaxAssets> victims{};
+    bool operator==(const AssetEvictionPlan&) const = default;
+};
+
 class AssetResourceManager {
 public:
     static constexpr uint16_t kMaxResources = static_cast<uint16_t>(AssetRegistry::kMaxAssets);
@@ -61,6 +81,8 @@ public:
     bool ReloadIfSafe(std::string_view assetId);
     bool EvictUnleased(uint16_t& evictedResources);
     bool EvictToBudget(uint32_t maxResidentBytes, uint32_t& residentBytes, uint16_t& evictedResources);
+    bool PlanEviction(uint32_t maxResidentBytes, AssetEvictionPlan& plan) const;
+    bool CommitEviction(const AssetEvictionPlan& plan);
     bool Query(AssetResourceHandle handle, AssetResourceReceipt& receipt) const;
     bool Query(std::string_view assetId, AssetResourceReceipt& receipt) const;
     const std::vector<uint8_t>* Data(AssetResourceHandle handle) const;
@@ -105,6 +127,7 @@ private:
     uint16_t activeResourceCount_ = 0U;
     uint32_t totalLeaseCount_ = 0U;
     uint32_t activeLeaseCount_ = 0U;
+    uint64_t managerRevision_ = 1U;
     mutable AssetResourceError lastError_ = AssetResourceError::None;
 };
 

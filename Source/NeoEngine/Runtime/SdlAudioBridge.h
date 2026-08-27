@@ -25,6 +25,7 @@ public:
 
     [[nodiscard]] bool IsReady() const { return deviceId_ != 0; }
     [[nodiscard]] uint64_t FramesMixed() const { return framesMixed_.load(); }
+    [[nodiscard]] uint16_t QueuedVoiceCount() const;
     [[nodiscard]] SdlAudioBridgeError LastError() const { return lastError_; }
 
 private:
@@ -33,7 +34,7 @@ private:
     uint32_t deviceId_ = 0;
     bool audioInitialized_ = false;
     AudioMixer mixer_;
-    std::mutex mixerMutex_;
+    mutable std::mutex mixerMutex_;
     std::atomic<uint64_t> framesMixed_{0};
     SdlAudioBridgeError lastError_ = SdlAudioBridgeError::None;
 };

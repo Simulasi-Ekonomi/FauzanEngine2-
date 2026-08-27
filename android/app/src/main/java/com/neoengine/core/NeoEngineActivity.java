@@ -11,9 +11,10 @@ import android.view.WindowManager;
 import android.os.Build;
 
 public class NeoEngineActivity extends Activity {
-    
     private WebView webView;
     private NeoEngineBridge bridge;
+    private boolean nativeInitialized;
+    private boolean nativeActive;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,23 +27,6 @@ public class NeoEngineActivity extends Activity {
 
         webView = new WebView(this);
         setContentView(webView);
-        // ===== TEST BUTTON FOR WORLD STREAMING =====
-        android.widget.Button testWorldBtn = new android.widget.Button(this);
-        testWorldBtn.setText("🌍 Generate 10km World");
-        testWorldBtn.setBackgroundColor(0xFF2a5a2a);
-        testWorldBtn.setTextColor(0xFFFFFFFF);
-        testWorldBtn.setOnClickListener(v -> {
-            NeoEngineBridge.startWorldStreaming(12345, 10.0f);
-            testWorldBtn.setText("⏳ Generating...");
-            testWorldBtn.setEnabled(false);
-        });
-        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
-        params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.END;
-        params.setMargins(0, 0, 16, 16);
-        addContentView(testWorldBtn, params);
-
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -59,23 +43,8 @@ public class NeoEngineActivity extends Activity {
 
         bridge = new NeoEngineBridge();
         bridge.init(this);
-        
-        // Copy LiteRT model from sdcard to internal storage (hanya satu kali)
-        java.io.File modelFile = new java.io.File("/sdcard/Gemma4/gemma4_2b_v09_obfus_fix_all_modalities_thinking.litertlm");
-        java.io.File destFile = new java.io.File(getFilesDir(), "gemma4.litertlm");
-        if (!destFile.exists() && modelFile.exists()) {
-            try {
-                java.io.FileInputStream fis = new java.io.FileInputStream(modelFile);
-                java.io.FileOutputStream fos = new java.io.FileOutputStream(destFile);
-                byte[] buf = new byte[8192];
-                int len;
-                while ((len = fis.read(buf)) > 0) fos.write(buf, 0, len);
-                fis.close(); fos.close();
-            } catch (Exception e) { e.printStackTrace(); }
-        }
-        if (destFile.exists()) {
-            NeoEngineBridge.initLiteRT(destFile.getAbsolutePath());
-        }
+        nativeInitialized = NeoEngineCanonicalBridge.initialize();
+        nativeActive = false;
         
         webView.addJavascriptInterface(bridge, "NeoEngineBridge");
         webView.addJavascriptInterface(this, "AndroidActivity");
@@ -99,6 +68,7 @@ public class NeoEngineActivity extends Activity {
 
     @Override
     protected void onPause() {
+        if (nativeActive && NeoEngineCanonicalBridge.pause()) nativeActive = false;
         super.onPause();
         if (webView != null) webView.onPause();
     }
@@ -107,10 +77,15 @@ public class NeoEngineActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (webView != null) webView.onResume();
+        if (nativeInitialized && !nativeActive) nativeActive = NeoEngineCanonicalBridge.resume();
     }
 
     @Override
     protected void onDestroy() {
+        if (nativeActive) NeoEngineCanonicalBridge.pause();
+        if (nativeInitialized) NeoEngineCanonicalBridge.shutdown();
+        nativeActive = false;
+        nativeInitialized = false;
         if (bridge != null) bridge.shutdown();
         NeoEngineBridge.shutdownLiteRT();
         if (webView != null) {
