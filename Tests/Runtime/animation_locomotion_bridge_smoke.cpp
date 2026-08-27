@@ -11,5 +11,7 @@ int main() {
     if(!machine.Start("idle")||!bridge.Apply({0.05F,0.05F},machine)||bridge.IsLocomoting()||machine.IsBlending()||!bridge.Apply({1,0},machine)||!bridge.IsLocomoting()||!machine.IsBlending()||!machine.Update(0.1F)||machine.ActiveStateId()!="locomotion")return 1;
     if(!bridge.Apply({0,0},machine)||bridge.IsLocomoting()||!machine.IsBlending()||!machine.Update(0.1F)||machine.ActiveStateId()!="idle")return 1;
     if(bridge.Apply({std::numeric_limits<float>::quiet_NaN(),0},machine)||bridge.LastError()!=AnimationLocomotionBridgeError::InvalidInput||bridge.IsLocomoting()||machine.ActiveStateId()!="idle")return 1;
+    const float extreme = std::numeric_limits<float>::max();
+    if(!bridge.Initialize({"to_move","to_idle",extreme * 0.5F})||!bridge.Apply({extreme,0.0F},machine)||!bridge.IsLocomoting()||!machine.IsBlending())return 1;
     std::printf("ANIMATION_LOCOMOTION_BRIDGE_SMOKE_OK idle=1 locomotion=1 noTransformWrite=1 invalid=1\n"); return 0;
 }

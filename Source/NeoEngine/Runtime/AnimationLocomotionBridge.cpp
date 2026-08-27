@@ -11,7 +11,9 @@ bool AnimationLocomotionBridge::Apply(KinematicPlanarInput input, AnimationState
     if (!initialized_) { lastError_ = AnimationLocomotionBridgeError::InvalidConfiguration; return false; }
     if (!std::isfinite(input.x) || !std::isfinite(input.z)) { lastError_ = AnimationLocomotionBridgeError::InvalidInput; return false; }
     if (machine.ActiveStateId().empty()) { lastError_ = AnimationLocomotionBridgeError::StateMachineNotStarted; return false; }
-    const bool desiredLocomotion = (input.x * input.x) + (input.z * input.z) > config_.movementThreshold * config_.movementThreshold;
+    const double inputMagnitudeSquared = (static_cast<double>(input.x) * static_cast<double>(input.x)) + (static_cast<double>(input.z) * static_cast<double>(input.z));
+    const double thresholdSquared = static_cast<double>(config_.movementThreshold) * static_cast<double>(config_.movementThreshold);
+    const bool desiredLocomotion = inputMagnitudeSquared > thresholdSquared;
     if (desiredLocomotion == locomoting_) { lastError_ = AnimationLocomotionBridgeError::None; return true; }
     if (!machine.Trigger(desiredLocomotion ? config_.idleToLocomotionTransitionId : config_.locomotionToIdleTransitionId)) { lastError_ = AnimationLocomotionBridgeError::StateTriggerFailed; return false; }
     locomoting_ = desiredLocomotion; lastError_ = AnimationLocomotionBridgeError::None; return true;
