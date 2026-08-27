@@ -478,7 +478,8 @@ bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
     }
 }
 bool CharacterPawn::Restore(const CharacterPawnSnapshot& snapshot) {
-    if (!attached_ || snapshot.actor != actor_ || !ValidRootMotion(snapshot.velocity) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || !ValidateInput(snapshot.pendingInput) || !ValidRootMotion(snapshot.pendingRootMotion) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AnimationRejected);
+    if (!attached_) return Fail(CharacterPawnError::NotInitialized);
+    if (snapshot.actor != actor_ || !ValidRootMotion(snapshot.velocity) || (snapshot.grounded && std::abs(snapshot.velocity.y) > 0.0001F) || !ValidateInput(snapshot.pendingInput) || !ValidRootMotion(snapshot.pendingRootMotion) || (snapshot.rootMotionMode != CharacterRootMotionMode::Kinematic && snapshot.rootMotionMode != CharacterRootMotionMode::SkeletalRoot) || (snapshot.authority != CharacterMovementAuthority::None && snapshot.authority != CharacterMovementAuthority::KinematicRoute && snapshot.authority != CharacterMovementAuthority::SkeletalRoot)) return Fail(CharacterPawnError::AnimationRejected);
     try {
         CharacterAnimationGraph candidateAnimation = animation_;
         if (!candidateAnimation.Restore(snapshot.animation)) return Fail(CharacterPawnError::AnimationRejected);

@@ -25,7 +25,7 @@ int main() {
     CharacterPawn invalidCharacter(invalidConfig);
     if (invalidCharacter.OnAttach(scene, player) || invalidCharacter.LastError() != CharacterPawnError::InvalidConfig || invalidCharacter.IsAttached()) return 1;
     CharacterPawnSnapshot unattachedSnapshot{};
-    if (invalidCharacter.Snapshot(unattachedSnapshot) || invalidCharacter.LastError() != CharacterPawnError::NotInitialized) return 1;
+    if (invalidCharacter.Snapshot(unattachedSnapshot) || invalidCharacter.LastError() != CharacterPawnError::NotInitialized || invalidCharacter.Restore(unattachedSnapshot) || invalidCharacter.LastError() != CharacterPawnError::NotInitialized) return 1;
 
     auto character = std::make_unique<CharacterPawn>();
     CharacterPawn* characterView = character.get();
