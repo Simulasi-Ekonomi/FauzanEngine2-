@@ -149,7 +149,7 @@ struct Resources {
         if (surface != VK_NULL_HANDLE && instance != VK_NULL_HANDLE) vkDestroySurfaceKHR(instance, surface, nullptr);
         if (instance != VK_NULL_HANDLE) vkDestroyInstance(instance, nullptr);
         if (window != nullptr) SDL_DestroyWindow(window);
-        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        SDL_Quit();
     }
 };
 
@@ -214,11 +214,19 @@ VkExtent2D ChooseExtent(const VkSurfaceCapabilitiesKHR& capabilities, uint32_t w
 
 } // namespace
 
+VulkanPresentStatus VulkanTexturedPresentProbe::ClassifyDriverResult(int32_t result) {
+    if (result == static_cast<int32_t>(VK_SUCCESS) || result == static_cast<int32_t>(VK_SUBOPTIMAL_KHR)) return VulkanPresentStatus::None;
+    if (result == static_cast<int32_t>(VK_ERROR_DEVICE_LOST)) return VulkanPresentStatus::DeviceLost;
+    if (result == static_cast<int32_t>(VK_ERROR_OUT_OF_DATE_KHR)) return VulkanPresentStatus::SurfaceOutOfDate;
+    if (result == static_cast<int32_t>(VK_TIMEOUT)) return VulkanPresentStatus::Timeout;
+    return VulkanPresentStatus::DriverRejected;
+}
+
 VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const CpuTextureResource& texture, uint32_t width, uint32_t height) {
     VulkanTexturedPresentResult result{};
     const uint64_t expectedBytes = static_cast<uint64_t>(texture.width) * texture.height * 4U;
     if (texture.assetId.empty() || texture.sourceHash == 0 || texture.width == 0 || texture.height == 0 ||
-        expectedBytes == 0 || texture.rgba.size() != expectedBytes) return result;
+        expectedBytes == 0 || texture.rgba.size() != expectedBytes) { result.status = VulkanPresentStatus::InvalidInput; return result; }
     result = Present(RgbaTexture{texture.width, texture.height, texture.rgba}, width, height);
     if (result.framePresented) result.stagedSourceHash = texture.sourceHash;
     return result;
@@ -228,8 +236,9 @@ VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTextur
     VulkanTexturedPresentResult result{};
     const uint64_t bytes = static_cast<uint64_t>(texture.width) * texture.height * 4U;
     if (width == 0 || height == 0 || width > 2048 || height > 2048 || texture.width == 0 || texture.height == 0 ||
-        bytes == 0 || bytes > kMaxBytes || texture.rgba.size() != bytes) return result;
+        bytes == 0 || bytes > kMaxBytes || texture.rgba.size() != bytes) { result.status = VulkanPresentStatus::InvalidInput; return result; }
     result.textureHash = Hash(texture.rgba);
+    result.status = VulkanPresentStatus::Unavailable;
     Resources resources{};
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) return result;
     resources.window = SDL_CreateWindow("NeoEngine Textured Present Probe", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -506,7 +515,10 @@ VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTextur
     uint32_t imageIndex = 0;
     const VkResult acquireResult = vkAcquireNextImageKHR(resources.device, resources.swapchain, 5'000'000'000ULL,
                                                          resources.imageAvailable, VK_NULL_HANDLE, &imageIndex);
-    if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) return result;
+    result.acquireAttempted = true;
+    result.acquireDriverResult = static_cast<int32_t>(acquireResult);
+    result.status = ClassifyDriverResult(result.acquireDriverResult);
+    if (result.status != VulkanPresentStatus::None) return result;
     const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.waitSemaphoreCount = 1;
@@ -516,8 +528,16 @@ VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTextur
     submitInfo.pCommandBuffers = &resources.commandBuffers[imageIndex];
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &resources.renderFinished;
-    if (vkQueueSubmit(resources.queue, 1, &submitInfo, resources.fence) != VK_SUCCESS ||
-        vkWaitForFences(resources.device, 1, &resources.fence, VK_TRUE, 5'000'000'000ULL) != VK_SUCCESS) return result;
+    const VkResult submitResult = vkQueueSubmit(resources.queue, 1, &submitInfo, resources.fence);
+    result.submitAttempted = true;
+    result.submitDriverResult = static_cast<int32_t>(submitResult);
+    result.status = ClassifyDriverResult(result.submitDriverResult);
+    if (result.status != VulkanPresentStatus::None) return result;
+    const VkResult fenceWaitResult = vkWaitForFences(resources.device, 1, &resources.fence, VK_TRUE, 5'000'000'000ULL);
+    result.fenceWaitAttempted = true;
+    result.fenceWaitDriverResult = static_cast<int32_t>(fenceWaitResult);
+    result.status = ClassifyDriverResult(result.fenceWaitDriverResult);
+    if (result.status != VulkanPresentStatus::None) return result;
     result.frameSubmitted = true;
     VkPresentInfoKHR presentInfo{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     presentInfo.waitSemaphoreCount = 1;
@@ -526,8 +546,12 @@ VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTextur
     presentInfo.pSwapchains = &resources.swapchain;
     presentInfo.pImageIndices = &imageIndex;
     const VkResult presentResult = vkQueuePresentKHR(resources.queue, &presentInfo);
-    if (presentResult != VK_SUCCESS && presentResult != VK_SUBOPTIMAL_KHR) return result;
+    result.presentAttempted = true;
+    result.presentDriverResult = static_cast<int32_t>(presentResult);
+    result.status = ClassifyDriverResult(result.presentDriverResult);
+    if (result.status != VulkanPresentStatus::None) return result;
     result.framePresented = true;
+    result.status = VulkanPresentStatus::Presented;
     return result;
 }
 
