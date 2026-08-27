@@ -24,8 +24,12 @@ const actorIcons: Record<string, string> = {
 function ActorTreeItem({ actor, depth = 0 }: { actor: NeoActor; depth?: number }) {
   const selectedActorId = useEditorStore((s) => s.selectedActorId);
   const selectActor = useEditorStore((s) => s.selectActor);
+  const renameActor = useEditorStore((s) => s.renameActor);
+  const toggleActorVisibility = useEditorStore((s) => s.toggleActorVisibility);
   const actors = useEditorStore((s) => s.actors);
   const [expanded, setExpanded] = useState(true);
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(actor.name);
   
   const isSelected = selectedActorId === actor.id;
   const hasChildren = actor.children.length > 0;
@@ -37,18 +41,32 @@ function ActorTreeItem({ actor, depth = 0 }: { actor: NeoActor; depth?: number }
         className={`tree-item ${isSelected ? 'selected' : ''}`}
         style={{ paddingLeft: `${8 + depth * 16}px` } as React.CSSProperties}
         onClick={() => selectActor(actor.id)}
-        onDoubleClick={() => {/* TODO: rename */}}
+        onDoubleClick={() => { setDraftName(actor.name); setRenaming(true); }}
+        onContextMenu={(e) => { e.preventDefault(); selectActor(actor.id); }}
       >
         <span className="tree-expand" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
           {hasChildren ? (expanded ? '▼' : '▶') : ''}
         </span>
         <span className="tree-icon">{icon}</span>
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {actor.name}
-        </span>
-        <span style={{ fontSize: 9, color: '#555', marginLeft: 4 }}>
-          {actor.visible ? '👁' : ''}
-        </span>
+        {renaming ? (
+          <input
+            autoFocus
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === 'Enter') { renameActor(actor.id, draftName.trim() || actor.name); setRenaming(false); } if (e.key === 'Escape') setRenaming(false); }}
+            onBlur={() => { renameActor(actor.id, draftName.trim() || actor.name); setRenaming(false); }}
+            style={{ flex: 1, minWidth: 0, height: 18, fontSize: 11 }}
+            aria-label={`Rename ${actor.name}`}
+          />
+        ) : (
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {actor.name}
+          </span>
+        )}
+        <button className="tree-visibility" onClick={(e) => { e.stopPropagation(); toggleActorVisibility(actor.id); }} title={actor.visible ? 'Hide actor' : 'Show actor'}>
+          {actor.visible ? '●' : '○'}
+        </button>
       </div>
       {expanded && actor.children.map((childId) => {
         const child = actors[childId];
@@ -66,8 +84,8 @@ export function Outliner() {
   const removeActor = useEditorStore((s) => s.removeActor);
   const selectedActorId = useEditorStore((s) => s.selectedActorId);
   const [filter, setFilter] = useState('');
-
   const rootActors = Object.values(actors).filter((a) => a.parentId === null);
+
   const filteredActors = filter
     ? rootActors.filter((a) => a.name.toLowerCase().includes(filter.toLowerCase()))
     : rootActors;

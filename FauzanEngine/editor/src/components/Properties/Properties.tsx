@@ -40,7 +40,8 @@ function VectorInput({ label, value, onChange }: {
   );
 }
 
-function ComponentSection({ component }: { component: any }) {
+function ComponentSection({ actorId, component }: { actorId: string; component: any }) {
+  const setComponentProperty = useEditorStore((s) => s.setComponentProperty);
   return (
     <div className="property-group">
       <div className="property-group-header">
@@ -52,11 +53,11 @@ function ComponentSection({ component }: { component: any }) {
           <span className="property-label">{key}</span>
           <div className="property-value">
             {typeof value === 'boolean' ? (
-              <input type="checkbox" checked={value as boolean} readOnly />
+              <input type="checkbox" checked={value as boolean} onChange={(e) => setComponentProperty(actorId, component.id, key, e.target.checked)} />
             ) : typeof value === 'number' ? (
-              <input type="number" step={0.1} value={value as number} readOnly style={{ width: '100%' }} />
+              <input type="number" step={0.1} value={value as number} onChange={(e) => setComponentProperty(actorId, component.id, key, Number(e.target.value) || 0)} style={{ width: '100%' }} />
             ) : (
-              <input type="text" value={String(value)} readOnly style={{ width: '100%' }} />
+              <input type="text" value={String(value)} onChange={(e) => setComponentProperty(actorId, component.id, key, e.target.value)} style={{ width: '100%' }} />
             )}
           </div>
         </div>
@@ -70,6 +71,7 @@ export function Properties() {
   const selectedActorId = useEditorStore((s) => s.selectedActorId);
   const updateActorTransform = useEditorStore((s) => s.updateActorTransform);
   const renameActor = useEditorStore((s) => s.renameActor);
+  const addComponent = useEditorStore((s) => s.addComponent);
 
   const actor = selectedActorId ? actors[selectedActorId] : null;
 
@@ -142,18 +144,13 @@ export function Properties() {
 
             {/* Components */}
             {actor.components.map((comp) => (
-              <ComponentSection key={comp.id} component={comp} />
+              <ComponentSection key={comp.id} actorId={actor.id} component={comp} />
             ))}
 
             {/* Add Component Button */}
             <div style={{ padding: 8 }}>
-              <button style={{
-                width: '100%',
-                padding: '6px',
-                background: '#2a4a2a',
-                color: '#88cc88',
-                fontSize: 11,
-                borderRadius: 3,
+              <button onClick={() => addComponent(actor.id, 'SceneComponent')} style={{
+                width: '100%', padding: '6px', background: '#2a4a2a', color: '#88cc88', fontSize: 11, borderRadius: 3,
               }}>
                 + Add Component
               </button>

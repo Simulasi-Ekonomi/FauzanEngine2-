@@ -381,6 +381,59 @@ function FPSCounter() {
   return null;
 }
 
+function ViewModeRig() {
+  const viewMode = useEditorStore((s) => s.viewMode);
+  const { camera } = useThree();
+  useEffect(() => {
+    const presets = {
+      perspective: new THREE.Vector3(8, 6, 10),
+      top: new THREE.Vector3(0, 18, 0.01),
+      front: new THREE.Vector3(0, 4, 18),
+      right: new THREE.Vector3(18, 4, 0),
+    };
+    camera.position.copy(presets[viewMode]);
+    camera.lookAt(0, 0, 0);
+  }, [camera, viewMode]);
+  return null;
+}
+
+function SelectedTransformGizmo({ actor }: { actor: any }) {
+  const group = useRef<THREE.Group>(null);
+  const transformMode = useEditorStore((s) => s.transformMode);
+  const transformSpace = useEditorStore((s) => s.transformSpace);
+  const updateActorTransform = useEditorStore((s) => s.updateActorTransform);
+  const isPlaying = useEditorStore((s) => s.isPlaying);
+  if (isPlaying) return null;
+  return (
+    <TransformControls
+      mode={transformMode}
+      space={transformSpace}
+      onObjectChange={() => {
+        const object = group.current;
+        if (!object) return;
+        updateActorTransform(actor.id, {
+          position: { x: object.position.x, y: object.position.y, z: object.position.z },
+          rotation: { x: THREE.MathUtils.radToDeg(object.rotation.x), y: THREE.MathUtils.radToDeg(object.rotation.y), z: THREE.MathUtils.radToDeg(object.rotation.z) },
+          scale: { x: object.scale.x, y: object.scale.y, z: object.scale.z },
+        });
+      }}
+    >
+      <group
+        ref={group}
+        position={[actor.transform.position.x, actor.transform.position.y, actor.transform.position.z]}
+        rotation={[
+          THREE.MathUtils.degToRad(actor.transform.rotation.x),
+          THREE.MathUtils.degToRad(actor.transform.rotation.y),
+          THREE.MathUtils.degToRad(actor.transform.rotation.z),
+        ]}
+        scale={[actor.transform.scale.x, actor.transform.scale.y, actor.transform.scale.z]}
+      >
+        <mesh visible={false}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial transparent opacity={0} /></mesh>
+      </group>
+    </TransformControls>
+  );
+}
+
 function SceneContent() {
   const actors = useEditorStore((s) => s.actors);
   const selectedActorId = useEditorStore((s) => s.selectedActorId);
@@ -412,8 +465,9 @@ function SceneContent() {
       )}
 
       {Object.values(actors).map((actor) => (
-        <SceneActor key={actor.id} actor={actor} />
+        actor.visible ? <SceneActor key={actor.id} actor={actor} /> : null
       ))}
+      {selectedActor && <SelectedTransformGizmo actor={selectedActor} />}
 
       <mesh
         visible={false}
@@ -453,6 +507,7 @@ export function Viewport() {
         >
           <color attach="background" args={['#1a1a2e']} />
           <fog attach="fog" args={['#1a1a2e', 50, 150]} />
+          <ViewModeRig />
           <SceneContent />
           <OrbitControls
             makeDefault

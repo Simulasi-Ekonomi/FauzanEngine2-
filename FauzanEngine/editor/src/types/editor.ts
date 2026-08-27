@@ -135,6 +135,9 @@ export interface EditorState {
   // Scene
   actors: Record<string, NeoActor>;
   selectedActorId: string | null;
+  sceneName: string;
+  isDirty: boolean;
+  lastSavedAt: number | null;
   
   // Tools
   transformMode: TransformMode;
@@ -165,6 +168,10 @@ export interface EditorState {
   removeActor: (id: string) => void;
   updateActorTransform: (id: string, transform: Partial<Transform>) => void;
   renameActor: (id: string, name: string) => void;
+  toggleActorVisibility: (id: string) => void;
+  reparentActor: (id: string, parentId: string | null) => void;
+  addComponent: (id: string, type: string) => void;
+  setComponentProperty: (actorId: string, componentId: string, key: string, value: PropertyValue) => void;
   setTransformMode: (mode: TransformMode) => void;
   setTransformSpace: (space: TransformSpace) => void;
   setViewMode: (mode: ViewMode) => void;

@@ -593,3 +593,34 @@
   padding: 2px 12px;
   border-radius: 3px;
 }
+
+/* ===== Editor V1 workflow affordances ===== */
+.scene-title {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 0 6px;
+}
+.toolbar-btn.compact { width: 26px; font-size: 16px; }
+.toolbar-btn.dirty { color: var(--accent-yellow); }
+.tree-visibility {
+  border: 0;
+  background: transparent;
+  color: var(--accent-green);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 4px;
+}
+.tree-visibility:hover { color: var(--text-bright); }
+
+/* Make the main editor surface feel like a desktop authoring tool. */
+.neo-panel-content { scrollbar-color: #404040 #202020; }
+.neo-toolbar button:focus-visible,
+.tree-item:focus-visible,
+.property-value input:focus-visible { outline: 1px solid var(--accent-blue-hover); outline-offset: -1px; }
+
+.status-dirty { color: var(--accent-yellow); font-weight: 600; }
+.status-clean { color: var(--accent-green); }

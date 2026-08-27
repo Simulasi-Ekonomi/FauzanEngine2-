@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { EditorState, ActorType, Transform, ChatMessage, NeoActor, TransformMode, TransformSpace, ViewMode, ActorCreateOptions, MaterialProperties } from '../types/editor';
+import type { EditorState, ActorType, Transform, ChatMessage, NeoActor, NeoComponent, TransformMode, TransformSpace, ViewMode, ActorCreateOptions, MaterialProperties } from '../types/editor';
 import { processWithAriesBrain, queryLLM } from '../engine/AriesBrain';
 
 let actorCounter = 0;
@@ -573,6 +573,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Scene
   actors: createDefaultScene(),
   selectedActorId: null,
+  sceneName: localStorage.getItem('neoengine_scene_name') || 'Untitled',
+  isDirty: false,
+  lastSavedAt: null,
 
   // Tools
   transformMode: 'translate',
@@ -686,6 +689,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       actors: { ...state.actors, [id]: actor },
       selectedActorId: id,
+      isDirty: true,
     }));
     return id;
   },
@@ -726,6 +730,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
     set((state) => ({
       actors: { ...state.actors, ...newActors },
+      isDirty: true,
     }));
   },
 
@@ -737,29 +742,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return {
         actors: newActors,
         selectedActorId: state.selectedActorId === id ? null : state.selectedActorId,
+        isDirty: true,
       };
     });
   },
 
   updateActorTransform: (id, transform) => {
-    set((state) => {
-      const actor = state.actors[id];
-      if (!actor) return state;
-      return {
-        actors: {
-          ...state.actors,
-          [id]: {
-            ...actor,
-            transform: {
-              ...actor.transform,
-              position: transform.position || actor.transform.position,
-              rotation: transform.rotation || actor.transform.rotation,
-              scale: transform.scale || actor.transform.scale,
-            },
-          },
-        },
-      };
-    });
+    const current = get().actors[id];
+    if (!current) return;
+    const nextTransform = {
+      ...current.transform,
+      position: transform.position || current.transform.position,
+      rotation: transform.rotation || current.transform.rotation,
+      scale: transform.scale || current.transform.scale,
+    };
+    if (JSON.stringify(current.transform) === JSON.stringify(nextTransform)) return;
+    pushUndo(get().actors);
+    set((state) => ({
+      actors: {
+        ...state.actors,
+        [id]: { ...state.actors[id], transform: nextTransform },
+      },
+      isDirty: true,
+    }));
   },
 
   renameActor: (id, name) => {
@@ -769,7 +774,57 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (!actor) return state;
       return {
         actors: { ...state.actors, [id]: { ...actor, name } },
+        isDirty: true,
       };
+    });
+  },
+
+  toggleActorVisibility: (id) => {
+    pushUndo(get().actors);
+    set((state) => {
+      const actor = state.actors[id];
+      if (!actor) return state;
+      return { actors: { ...state.actors, [id]: { ...actor, visible: !actor.visible } }, isDirty: true };
+    });
+  },
+
+  reparentActor: (id, parentId) => {
+    const actors = get().actors;
+    const actor = actors[id];
+    const wouldCycle = (candidate: string | null): boolean => {
+      if (!candidate) return false;
+      if (candidate === id) return true;
+      return wouldCycle(actors[candidate]?.parentId || null);
+    };
+    if (!actor || id === parentId || wouldCycle(parentId) || (parentId && actors[parentId]?.children.includes(id))) return;
+    pushUndo(actors);
+    const nextActors = { ...actors };
+    if (actor.parentId && nextActors[actor.parentId]) {
+      nextActors[actor.parentId] = { ...nextActors[actor.parentId], children: nextActors[actor.parentId].children.filter((child) => child !== id) };
+    }
+    if (parentId && nextActors[parentId]) {
+      nextActors[parentId] = { ...nextActors[parentId], children: [...nextActors[parentId].children, id] };
+    }
+    nextActors[id] = { ...actor, parentId };
+    set({ actors: nextActors, isDirty: true });
+  },
+
+  addComponent: (id, type) => {
+    pushUndo(get().actors);
+    set((state) => {
+      const actor = state.actors[id];
+      if (!actor) return state;
+      const component: NeoComponent = { id: `comp_${Date.now()}`, type, name: type.replace(/Component$/, ''), properties: type === 'LightComponent' ? { intensity: 1, castShadows: true } : { enabled: true } };
+      return { actors: { ...state.actors, [id]: { ...actor, components: [...actor.components, component] } }, isDirty: true };
+    });
+  },
+
+  setComponentProperty: (actorId, componentId, key, value) => {
+    pushUndo(get().actors);
+    set((state) => {
+      const actor = state.actors[actorId];
+      if (!actor) return state;
+      return { actors: { ...state.actors, [actorId]: { ...actor, components: actor.components.map((component) => component.id === componentId ? { ...component, properties: { ...component.properties, [key]: value } } : component) } }, isDirty: true };
     });
   },
 
@@ -794,18 +849,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // --- Scene Management ---
   newScene: () => {
     pushUndo(get().actors);
-    set({ actors: createDefaultScene(), selectedActorId: null });
+    set({ actors: createDefaultScene(), selectedActorId: null, sceneName: 'Untitled', isDirty: true });
     get().addSystemMessage('[Scene] New scene created.');
   },
 
   saveScene: () => {
-    const data = JSON.stringify(get().actors, null, 2);
+    const state = get();
+    const data = JSON.stringify({ version: 1, sceneName: state.sceneName, actors: state.actors }, null, 2);
     localStorage.setItem('neoengine_scene', data);
-    get().addSystemMessage('[Scene] Scene saved to local storage.');
+    localStorage.setItem('neoengine_scene_name', state.sceneName);
+    set({ isDirty: false, lastSavedAt: Date.now() });
+    get().addSystemMessage(`[Scene] ${state.sceneName} saved to local storage.`);
   },
 
   saveSceneAs: () => {
-    const data = JSON.stringify(get().actors, null, 2);
+    const state = get();
+    const data = JSON.stringify({ version: 1, sceneName: state.sceneName, actors: state.actors }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -813,7 +872,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     a.download = `NeoScene_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    get().addSystemMessage('[Scene] Scene exported as JSON file.');
+    set({ isDirty: false, lastSavedAt: Date.now() });
+    get().addSystemMessage(`[Scene] ${state.sceneName} exported as JSON file.`);
   },
 
   loadSceneFromFile: () => {
@@ -828,8 +888,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         try {
           const data = JSON.parse(ev.target?.result as string);
           pushUndo(get().actors);
-          set({ actors: data, selectedActorId: null });
-          get().addSystemMessage(`[Scene] Loaded scene from ${file.name} (${Object.keys(data).length} actors)`);
+          const loadedActors = data.actors || data;
+          set({ actors: loadedActors, sceneName: data.sceneName || file.name.replace(/\.json$/i, ''), selectedActorId: null, isDirty: false, lastSavedAt: Date.now() });
+          get().addSystemMessage(`[Scene] Loaded scene from ${file.name} (${Object.keys(loadedActors).length} actors)`);
         } catch {
           get().addSystemMessage('[Scene] Error: Invalid scene file.');
         }
@@ -852,14 +913,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (undoStack.length === 0) return;
     redoStack.push(JSON.parse(JSON.stringify(get().actors)));
     const prev = undoStack.pop()!;
-    set({ actors: prev });
+    set({ actors: prev, isDirty: true });
   },
 
   redo: () => {
     if (redoStack.length === 0) return;
     undoStack.push(JSON.parse(JSON.stringify(get().actors)));
     const next = redoStack.pop()!;
-    set({ actors: next });
+    set({ actors: next, isDirty: true });
   },
 
   // --- Selection helpers ---
