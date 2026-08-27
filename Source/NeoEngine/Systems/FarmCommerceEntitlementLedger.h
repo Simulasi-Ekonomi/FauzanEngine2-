@@ -11,6 +11,7 @@
 namespace NeoEngine {
 
 class FarmWorldTool;
+class TrustSafetySystem;
 
 enum class FarmCommerceError : uint8_t { None, NotInitialized, InvalidConfiguration, InvalidReceipt, WrongPlayer, VerifierRejected, Duplicate, Reversed, ApplyRejected, Capacity, ReconciliationMismatch, CorruptState };
 enum class FarmCommerceAuditKind : uint8_t { Approved, Rejected }; 
@@ -41,7 +42,7 @@ public:
     static constexpr uint32_t kMaxSnapshotBytes = 65536U;
     using ReceiptVerifier = std::function<bool(const FarmProviderReceipt&)>;
 
-    bool Initialize(FarmWorldTool& world, std::string configuredPlayerId, ReceiptVerifier verifier);
+    bool Initialize(FarmWorldTool& world, std::string configuredPlayerId, ReceiptVerifier verifier, TrustSafetySystem* trustSafety = nullptr);
     bool Apply(const FarmProviderReceipt& receipt, FarmCommerceAuditReceipt& audit);
     bool Reconcile(uint64_t providerReceiptId, int64_t expectedCoins, FarmCommerceAuditReceipt& audit);
     [[nodiscard]] std::vector<uint8_t> SerializeState() const;
@@ -59,6 +60,7 @@ private:
     const AcceptedReceipt* Find(uint64_t providerReceiptId) const;
 
     FarmWorldTool* world_ = nullptr;
+    TrustSafetySystem* trustSafety_ = nullptr;
     std::string configuredPlayerId_;
     ReceiptVerifier verifier_;
     std::vector<AcceptedReceipt> accepted_;

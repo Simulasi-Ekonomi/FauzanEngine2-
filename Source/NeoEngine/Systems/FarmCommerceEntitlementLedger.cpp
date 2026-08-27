@@ -1,6 +1,7 @@
 #include "FarmCommerceEntitlementLedger.h"
 
 #include "FarmWorldTool.h"
+#include "TrustSafetySystem.h"
 
 #include <algorithm>
 #include <limits>
@@ -76,10 +77,10 @@ bool ReadAudit(std::span<const uint8_t> bytes, size_t& offset, FarmCommerceAudit
 
 } // namespace
 
-bool FarmCommerceEntitlementLedger::Initialize(FarmWorldTool& world, std::string configuredPlayerId, ReceiptVerifier verifier) {
-    world_ = nullptr; configuredPlayerId_.clear(); verifier_ = {}; accepted_.clear(); auditLog_.clear(); nextAuditSequence_ = 1U; lastAudit_ = {}; hasLastAudit_ = false; lastError_ = FarmCommerceError::None; initialized_ = false;
+bool FarmCommerceEntitlementLedger::Initialize(FarmWorldTool& world, std::string configuredPlayerId, ReceiptVerifier verifier, TrustSafetySystem* trustSafety) {
+    world_ = nullptr; trustSafety_ = nullptr; configuredPlayerId_.clear(); verifier_ = {}; accepted_.clear(); auditLog_.clear(); nextAuditSequence_ = 1U; lastAudit_ = {}; hasLastAudit_ = false; lastError_ = FarmCommerceError::None; initialized_ = false;
     if (!world.IsReady() || !ValidText(configuredPlayerId, 1U) || !verifier) { lastError_ = FarmCommerceError::InvalidConfiguration; return false; }
-    world_ = &world; configuredPlayerId_ = std::move(configuredPlayerId); verifier_ = std::move(verifier); accepted_.reserve(kMaxAcceptedReceipts); auditLog_.reserve(kMaxAuditReceipts); initialized_ = true;
+    world_ = &world; trustSafety_ = trustSafety; configuredPlayerId_ = std::move(configuredPlayerId); verifier_ = std::move(verifier); accepted_.reserve(kMaxAcceptedReceipts); auditLog_.reserve(kMaxAuditReceipts); initialized_ = true;
     return true;
 }
 
@@ -202,6 +203,13 @@ bool FarmCommerceEntitlementLedger::RestoreState(std::span<const uint8_t> bytes)
 
 bool FarmCommerceEntitlementLedger::Fail(FarmCommerceError error, const FarmProviderReceipt& receipt, FarmCommerceAuditReceipt& audit) {
     lastError_ = error;
+    if (trustSafety_ != nullptr && !receipt.playerId.empty()) {
+        const char* suffix = error == FarmCommerceError::Duplicate ? "duplicate" : error == FarmCommerceError::ReconciliationMismatch ? "reconcile" : nullptr;
+        if (suffix != nullptr && receipt.providerReceiptId != 0U) {
+            std::string eventId = "commerce-" + std::string(suffix) + "-" + std::to_string(receipt.providerReceiptId);
+            trustSafety_->Report(receipt.playerId, eventId, error == FarmCommerceError::ReconciliationMismatch ? FraudSignal::LedgerMismatch : FraudSignal::DuplicateReceipt);
+        }
+    }
     if (initialized_ && auditLog_.size() < kMaxAuditReceipts && nextAuditSequence_ != 0U) Audit(FarmCommerceAuditKind::Rejected, error, receipt.providerReceiptId, receipt.entitlementCoins, audit);
     return false;
 }

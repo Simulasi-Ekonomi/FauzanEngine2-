@@ -6,12 +6,12 @@
 
 | Ukuran | Hasil | Cara membaca |
 |---|---:|---|
-| Checklist historis `todo.md` pada `main` | **456/556 = 82,0%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
+| Checklist historis `todo.md` pada `main` | **457/557 = 82,0%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
 | Mandatory release gates | **1/12 = 8,3% lulus pada scope Farm R1** | R1 lulus hanya untuk canonical Farm tool scope; R2–R12 tetap Not passed dan template lain memerlukan evidence independen. |
-| Indeks kemajuan menuju release, estimasi berbobot | **36,7%** | Estimasi analitis setelah R5 memperoleh bounded Farm TCP reconnect evidence tambahan; bukan status resmi proyek dan tidak berarti release-ready. |
+| Indeks kemajuan menuju release, estimasi berbobot | **37,5%** | Estimasi analitis setelah R6 memperoleh canonical commerce fraud-to-trust evidence tambahan; bukan status resmi proyek dan tidak berarti release-ready. |
 | Editor/Tooling pada `main` | **Satu slice authoring fungsional** | Workflow Unreal-like V1 sudah terintegrasi ke `main`, tetapi belum setara Unreal Editor penuh. |
 
-> **Kesimpulan paling jujur:** repo sudah sekitar **82% menyelesaikan backlog engineering yang tercatat**, tetapi baru sekitar **37% menuju standar release end-to-end** menurut estimasi evidence parsial, dan baru **1 dari 12 gate** lulus pada scope Farm canonical tool. R2, R3, dan R5 mendapat evidence tambahan tetapi tetap Not passed; ini tetap bukan release readiness.
+> **Kesimpulan paling jujur:** repo sudah sekitar **82% menyelesaikan backlog engineering yang tercatat**, tetapi baru sekitar **38% menuju standar release end-to-end** menurut estimasi evidence parsial, dan baru **1 dari 12 gate** lulus pada scope Farm canonical tool. R2, R3, R5, dan R6 mendapat evidence tambahan tetapi tetap Not passed; ini tetap bukan release readiness.
 
 ## Basis repository dan bukti implementasi
 
@@ -30,7 +30,7 @@ Skor berikut adalah estimasi konservatif 0–100 untuk **kemajuan evidence terha
 | R3 Asset and renderer path | 60% | Not passed | Asset/texture/mesh/material bounded proofs, Farm manifest, dan canonical Farm framebuffer-to-Vulkan textured present kini ada pada Release/ASAN/Xvfb; production GPU scene, resource lifetime, device-loss/resize, physical-GPU, streaming, performance, dan Android GPU coverage belum selesai. |
 | R4 Input, audio, accessibility | 30% | Not passed | InputState, PCM mixer, UI router, dan bitmap UI ada; touch/controller, output lifecycle, localization, scaling, accessibility belum terbukti. |
 | R5 Authoritative multiplayer | 35% | Not passed | Farm authoritative host kini memiliki bounded TCP localhost reconnect dengan subject/session binding dan replay-stable snapshot, di atas prediction/transport/replication primitives; TLS, durable session, public transport, multi-client/load, dan multiplayer runtime belum ada. |
-| R6 Anti-cheat and fraud | 30% | Not passed | TrustSafety dan Farm anti-inject lokal ada; server-side enforcement, appeal, tamper evidence, dan adversarial load belum ada. |
+| R6 Anti-cheat and fraud | 40% | Not passed | Commerce duplicate receipt dan reconciliation mismatch kini dipromosikan ke TrustSafety/ban gate canonical dengan Release/ASAN smoke; provider-backed detection, rate-limit operations, tamper-resistant storage, appeal governance, identity controls, dan adversarial load belum ada. |
 | R7 Economy and commerce | 35% | Not passed | Commodity catalog, local ledger, receipt/idempotency, dan loan rule game ada; payment, entitlement, refund, reconciliation belum ada. |
 | R8 Persistence and recovery | 30% | Not passed | Versioned local codec, atomic save primitive, telemetry outbox ada; durable authority, backup/restore, migration service, privacy lifecycle belum ada. |
 | R9 Live operations | 20% | Not passed | Trusted forwarder contract dan telemetry outbox ada; alerting, SLO, incident runbook, rollback, dan consented production ingest belum ada. |
@@ -60,8 +60,8 @@ Persentase domain adalah estimasi internal berbasis kedalaman integration/eviden
 
 ## Perkembangan terbaru yang penting
 
-`main` kini juga memuat `FarmCanonicalGameTool` dan smoke R1 untuk typed world/rules/content, v1→v2 migration, invalid-input rejection, dan deterministic replay, serta integrasi `AgricultureCurriculum` ke NeoRuntime/HUD/checkpoint untuk R2, ditambah koneksi framebuffer Farm canonical ke Vulkan textured-present untuk R3. Ini berjalan di samping smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, Farm localhost session loopback/reconnect, dan commerce checkpoint.
-Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, localhost, atau in-memory evidence dan belum menyelesaikan R2–R12 [5] [7] [8] [9] [10] [11] [12].
+`main` kini juga memuat `FarmCanonicalGameTool` dan smoke R1 untuk typed world/rules/content, v1→v2 migration, invalid-input rejection, dan deterministic replay, serta integrasi `AgricultureCurriculum` ke NeoRuntime/HUD/checkpoint untuk R2, ditambah koneksi framebuffer Farm canonical ke Vulkan textured-present untuk R3. Ini berjalan di samping smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, Farm localhost session loopback/reconnect, commerce checkpoint, dan commerce fraud-to-trust evidence.
+Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, localhost, atau in-memory evidence dan belum menyelesaikan R2–R12 [5] [7] [8] [9] [10] [11] [12] [13].
 
 Editor Tooling V1, Runtime SceneBridge, automated bridge/browser smoke, multi-selection, reflection inspector, asset-to-scene drop, Play-in-Editor profiler, autosave/recovery, dan bundle splitting kini sudah di-merge ke `main`. Smoke lokal lulus: bridge `200/409/422`, browser authoring flow, C++ Editor V1 Release, dan AddressSanitizer. Branch tambahan sudah dihapus; `main` adalah satu-satunya branch kerja.
 
@@ -93,3 +93,4 @@ CI GitHub pada `main` terbaru **sebagian sudah sehat**: lint/type-check dan back
 [10]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/NEO_RUNTIME_FARM_PROGRESSION_EVIDENCE_V1.md "NeoRuntime Farm progression evidence"
 [11]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_GPU_RENDER_INTEGRATION_EVIDENCE_V1.md "Farm GPU render integration evidence"
 [12]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_AUTHORITY_RECONNECT_EVIDENCE_V1.md "Farm authority reconnect evidence"
+[13]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_COMMERCE_FRAUD_TRUST_EVIDENCE_V1.md "Farm commerce fraud trust evidence"

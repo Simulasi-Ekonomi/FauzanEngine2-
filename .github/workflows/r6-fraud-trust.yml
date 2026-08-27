@@ -1,0 +1,53 @@
+name: R6 Farm fraud trust
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Farm/farm_commerce_entitlement_smoke.cpp'
+      - 'Tests/Farm/farm_commerce_checkpoint_smoke.cpp'
+      - 'Tests/Farm/farm_authoritative_service_smoke.cpp'
+      - '.github/workflows/r6-fraud-trust.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Farm/farm_commerce_entitlement_smoke.cpp'
+      - 'Tests/Farm/farm_commerce_checkpoint_smoke.cpp'
+      - 'Tests/Farm/farm_authoritative_service_smoke.cpp'
+      - '.github/workflows/r6-fraud-trust.yml'
+  workflow_dispatch:
+
+jobs:
+  fraud-trust:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r6-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run Release smokes
+        run: |
+          cmake --build build/r6-release --target farm_commerce_entitlement_smoke farm_commerce_checkpoint_smoke farm_authoritative_service_smoke -j2
+          ./build/r6-release/farm_commerce_entitlement_smoke
+          ./build/r6-release/farm_commerce_checkpoint_smoke
+          ./build/r6-release/farm_authoritative_service_smoke
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r6-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run ASAN smokes
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          cmake --build build/r6-asan --target farm_commerce_entitlement_smoke farm_commerce_checkpoint_smoke farm_authoritative_service_smoke -j2
+          ./build/r6-asan/farm_commerce_entitlement_smoke
+          ./build/r6-asan/farm_commerce_checkpoint_smoke
+          ./build/r6-asan/farm_authoritative_service_smoke
