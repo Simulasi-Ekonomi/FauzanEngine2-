@@ -73,6 +73,12 @@ public:
     uint8_t TickGroup() const override { throw std::runtime_error("tick metadata failure"); }
 };
 
+class ThrowingSnapshotMetadataComponent final : public ProbeComponent {
+public:
+    ThrowingSnapshotMetadataComponent() : ProbeComponent(25U) {}
+    uint16_t SnapshotSizeBytes() const override { throw std::runtime_error("snapshot metadata failure"); }
+};
+
 class ThrowingBeginPlayComponent final : public ProbeComponent {
 public:
     ThrowingBeginPlayComponent() : ProbeComponent(43U) {}
@@ -200,6 +206,17 @@ bool RunTickMetadataExceptionRegression() {
     ActorComponentWorldReceipt receipt{9U, 8U, 7U, 6U};
     return !world->TickFixed(1U, receipt) && world->LastError() == ActorComponentError::TickRejected && receipt.actorCount == 9U && receipt.componentCount == 8U && receipt.tickedComponents == 7U && receipt.registrationRevision == 6U && world->EndPlay();
 }
+
+bool RunSnapshotMetadataExceptionRegression() {
+    using namespace NeoEngine;
+    auto scene = std::make_unique<SceneWorld>();
+    auto world = std::make_unique<ActorComponentWorld>(*scene);
+    SceneEntity actor{};
+    if (!world->CreateActor(actor, "SnapshotMetadataActor") || !world->AttachComponent(actor, std::make_unique<ThrowingSnapshotMetadataComponent>())) return false;
+    ActorComponentWorldSnapshot snapshot{};
+    snapshot.begunPlay = true;
+    return !world->CaptureSnapshot(snapshot) && world->LastError() == ActorComponentError::SnapshotRejected && snapshot.begunPlay && snapshot.actors.empty() && snapshot.componentBytes.empty();
+}
 }
 
 int main() {
@@ -321,6 +338,6 @@ int main() {
     if (retryWorld.EndPlay() || retryWorld.LastError() != ActorComponentError::EndPlayRejected) return 33;
     ActorComponentWorldSnapshot endedSnapshot{};
     if (!retryWorld.EndPlay() || !retryWorld.CaptureSnapshot(endedSnapshot) || endedSnapshot.begunPlay || endedSnapshot.actors.size() != 1U || endedSnapshot.actors[0].begunPlay) return 33;
-    if (!RunBeginPlayRollbackRetryRegression() || !RunActivationRollbackRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression() || !RunTickMetadataExceptionRegression()) return 34;
+    if (!RunBeginPlayRollbackRetryRegression() || !RunActivationRollbackRegression() || !RunAttachCallbackRollbackRegression() || !RunBeginPlayExceptionRegression() || !RunTickMetadataExceptionRegression() || !RunSnapshotMetadataExceptionRegression()) return 34;
     return 0;
 }

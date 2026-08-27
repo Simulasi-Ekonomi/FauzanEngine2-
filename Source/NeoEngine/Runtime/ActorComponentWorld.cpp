@@ -5,6 +5,8 @@ namespace NeoEngine {
 namespace {
 template <typename Callback> bool InvokeDispatch(bool& dispatching, Callback callback) { dispatching = true; try { const bool result = callback(); dispatching = false; return result; } catch (...) { dispatching = false; return false; } }
 struct TickMetadata { uint8_t group = 0U; uint8_t order = 0U; uint8_t dependencyCount = 0U; uint16_t typeId = 0U; };
+struct SnapshotMetadata { uint16_t size = 0U; uint16_t typeId = 0U; std::string_view typeName{}; };
+bool ReadSnapshotMetadata(bool& dispatching, const IActorComponent& component, SnapshotMetadata& metadata) { return InvokeDispatch(dispatching, [&] { metadata = {component.SnapshotSizeBytes(), component.TypeId(), component.TypeName()}; return true; }); }
 bool ReadTickMetadata(bool& dispatching, IActorComponent& component, TickMetadata& metadata) { return InvokeDispatch(dispatching, [&] { metadata = {component.TickGroup(), component.TickOrder(), component.TickDependencyCount(), component.TypeId()}; return true; }); }
 bool ReadDependencyType(bool& dispatching, IActorComponent& component, uint8_t index, uint16_t& typeId) { return InvokeDispatch(dispatching, [&] { typeId = component.TickDependencyTypeId(index); return true; }); }
 }
@@ -324,12 +326,14 @@ bool ActorComponentWorld::CaptureSnapshot(ActorComponentWorldSnapshot& snapshot)
             record.begunPlay = actor.begunPlay;
             for (const ComponentSlot& component : actor.components) if (component.component != nullptr) {
                 if (record.componentCount >= kMaxComponentsPerActor) return Fail(ActorComponentError::SnapshotRejected);
-                const uint16_t snapshotSize = component.component->SnapshotSizeBytes();
+                SnapshotMetadata metadata{};
+                if (!ReadSnapshotMetadata(dispatching_, *component.component, metadata)) return Fail(ActorComponentError::SnapshotRejected);
+                const uint16_t snapshotSize = metadata.size;
                 if (snapshotSize > kMaxActorComponentSnapshotBytes || candidate.componentBytes.size() > kMaxActorComponentWorldSnapshotBytes - snapshotSize) return Fail(ActorComponentError::SnapshotRejected);
                 const uint32_t offset = static_cast<uint32_t>(candidate.componentBytes.size());
-                const std::string_view typeName = component.component->TypeName();
-                if (typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos) return Fail(ActorComponentError::SnapshotRejected);
-                record.componentTypeIds[record.componentCount] = component.component->TypeId();
+                const std::string_view typeName = metadata.typeName;
+                if (typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos || metadata.typeId == 0U) return Fail(ActorComponentError::SnapshotRejected);
+                record.componentTypeIds[record.componentCount] = metadata.typeId;
                 record.componentTypeNames[record.componentCount] = typeName;
                 record.componentEnabled[record.componentCount] = component.enabled;
                 record.componentActive[record.componentCount] = component.active;
@@ -368,8 +372,10 @@ bool ActorComponentWorld::RestoreSnapshot(const ActorComponentWorldSnapshot& sna
             const ComponentSlot* component = FindSlot(record.actor, typeId);
             const uint32_t offset = record.snapshotOffsets[componentIndex];
             const uint16_t size = record.snapshotSizes[componentIndex];
-            const std::string_view typeName = component == nullptr || component->component == nullptr ? std::string_view{} : component->component->TypeName();
-            if (component == nullptr || component->component == nullptr || typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos || record.componentTypeNames[componentIndex] != typeName || component->component->TypeId() != typeId || offset > snapshot.componentBytes.size() || snapshot.componentBytes.size() - offset < size || size > kMaxActorComponentSnapshotBytes || component->component->SnapshotSizeBytes() != size) return Fail(ActorComponentError::RestoreRejected);
+            SnapshotMetadata metadata{};
+            if (component == nullptr || component->component == nullptr || !ReadSnapshotMetadata(dispatching_, *component->component, metadata)) return Fail(ActorComponentError::RestoreRejected);
+            const std::string_view typeName = metadata.typeName;
+            if (typeName.size() > kMaxComponentTypeNameBytes || typeName.find('\0') != std::string_view::npos || metadata.typeId != typeId || record.componentTypeNames[componentIndex] != typeName || offset > snapshot.componentBytes.size() || snapshot.componentBytes.size() - offset < size || size > kMaxActorComponentSnapshotBytes || metadata.size != size) return Fail(ActorComponentError::RestoreRejected);
             for (uint8_t priorIndex = 0U; priorIndex < componentIndex; ++priorIndex) if (record.componentTypeIds[priorIndex] == typeId) return Fail(ActorComponentError::RestoreRejected);
             const bool valid = InvokeDispatch(dispatching_, [&] { return component->component->ValidateSnapshot(std::span<const uint8_t>(snapshot.componentBytes.data() + offset, size)); });
             if (!valid) return Fail(ActorComponentError::RestoreRejected);
