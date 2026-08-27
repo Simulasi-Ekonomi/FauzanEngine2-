@@ -371,8 +371,8 @@ bool CharacterPawn::ApplyOneFixedStep(SceneWorld& world, const CharacterPawnInpu
     return true;
 }
 bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t fixedTicks) {
-    if (!attached_ || actor_ != actor || fixedTicks == 0U) return Fail(CharacterPawnError::NotInitialized);
-    if (fixedTicks > ActorComponentWorld::kMaxFixedTicks) return Fail(CharacterPawnError::InvalidTickCount);
+    if (!attached_ || actor_ != actor) return Fail(CharacterPawnError::NotInitialized);
+    if (fixedTicks == 0U || fixedTicks > ActorComponentWorld::kMaxFixedTicks) return Fail(CharacterPawnError::InvalidTickCount);
     if (animationResources_ != nullptr && animationResources_->Data(animationResource_) == nullptr) return Fail(CharacterPawnError::AnimationRejected);
     if (authorityGate_ == &ownedAuthorityGate_) authorityGate_->BeginFrame();
     try { for (uint32_t tick = 0U; tick < fixedTicks; ++tick) { CharacterAnimationGraph candidateAnimation = animation_; if (!SelectLocomotionState(candidateAnimation, pendingInput_) || !candidateAnimation.Tick(config_.fixedSeconds) || !ApplyOneFixedStep(world, pendingInput_, pendingRootMotion_)) return lastError_ == CharacterPawnError::None ? Fail(CharacterPawnError::AnimationRejected) : false; animation_ = std::move(candidateAnimation); } }

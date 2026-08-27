@@ -42,7 +42,7 @@ int main() {
     if (characterView->RestoreSnapshot(shortSnapshotBytes) || characterView->LastError() != CharacterPawnError::AnimationRejected) return 5;
     if (!characterView->SetTransitionBinding({"idle", "walk", "idle_walk"}) || !characterView->SetTransitionBinding({"walk", "idle", "walk_idle"}) || !characterView->SetTransitionBinding({"walk", "run", "walk_run"}) || !characterView->SetTransitionBinding({"run", "idle", "run_idle"})) return 6;
     if (characterView->SetTransitionBinding({std::string("idle\0bad", 8U), "walk", "idle_walk"}) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->SetTransitionBinding({"idle", "walk", "idle_walk"})) return 6;
-    if (characterView->OnFixedTick(scene, player, ActorComponentWorld::kMaxFixedTicks + 1U) || characterView->LastError() != CharacterPawnError::InvalidTickCount) return 6;
+    if (characterView->OnFixedTick(scene, player, 0U) || characterView->LastError() != CharacterPawnError::InvalidTickCount || !characterView->IsAttached() || characterView->OnFixedTick(scene, player, ActorComponentWorld::kMaxFixedTicks + 1U) || characterView->LastError() != CharacterPawnError::InvalidTickCount) return 6;
 
     ActorComponentWorldReceipt receipt{};
     if (!characterView->SubmitInput({}) || !actors.TickFixed(1U, receipt) || receipt.tickedComponents != 1U) return 6;
