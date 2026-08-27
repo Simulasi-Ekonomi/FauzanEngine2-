@@ -19,6 +19,8 @@ int main() {
     if (!bodies.SetDynamicPlanarVelocity(entities, dynamic, 1.0F, 0.0F) || !bridge.Apply(entities, dynamic, bodies, locomotion, machine) || machine.ActiveStateId() != "move" || !locomotion.IsLocomoting()) return 1;
     const std::string preservedState = machine.ActiveStateId(); const bool preservedLocomotion = locomotion.IsLocomoting(); const uint64_t preservedRevision = entities.GetPhysicsRevision();
     if (bridge.Apply(entities, 99999U, bodies, locomotion, machine) || bridge.LastError() != PhysicsAnimationLocomotionBridgeError::SnapshotFailed || machine.ActiveStateId() != preservedState || locomotion.IsLocomoting() != preservedLocomotion || entities.GetPhysicsRevision() != preservedRevision) return 1;
+    AnimationLocomotionBridge rejectedLocomotion;
+    if (!rejectedLocomotion.Initialize({"missing-transition", "missing-back", 0.1F}) || bridge.Apply(entities, dynamic, bodies, rejectedLocomotion, machine) || bridge.LastError() != PhysicsAnimationLocomotionBridgeError::LocomotionRejected || machine.ActiveStateId() != preservedState || rejectedLocomotion.IsLocomoting() || entities.GetPhysicsRevision() != preservedRevision) return 1;
     std::printf("PHYSICS_ANIMATION_LOCOMOTION_BRIDGE_SMOKE_OK move=1 idle=1 atomic=1 readOnly=1\n");
     return 0;
 }
