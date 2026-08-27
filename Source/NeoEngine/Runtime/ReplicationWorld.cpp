@@ -428,6 +428,7 @@ bool ReplicationWorld::AuthoritativeState(uint32_t networkId, ReplicatedEntitySt
     const Slot* slot = FindSlot(networkId);
     if (slot == nullptr || !slot->hasAuthoritative) return Fail(ReplicationError::UnknownEntity);
     state = {slot->networkId, slot->ownerId, slot->stateRevision, slot->authoritative};
+    lastError_ = ReplicationError::None;
     return true;
 }
 
