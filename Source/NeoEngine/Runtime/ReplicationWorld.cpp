@@ -426,7 +426,7 @@ bool ReplicationWorld::IsRegistered(uint32_t networkId) const { return FindSlot(
 
 bool ReplicationWorld::AuthoritativeState(uint32_t networkId, ReplicatedEntityState& state) const {
     const Slot* slot = FindSlot(networkId);
-    if (slot == nullptr || !slot->hasAuthoritative) return false;
+    if (slot == nullptr || !slot->hasAuthoritative) return Fail(ReplicationError::UnknownEntity);
     state = {slot->networkId, slot->ownerId, slot->stateRevision, slot->authoritative};
     return true;
 }
