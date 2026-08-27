@@ -25,7 +25,7 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build xvfb
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build xvfb mesa-vulkan-drivers
 
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/r3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -33,7 +33,7 @@ jobs:
       - name: Build and run Release smoke under Xvfb
         run: |
           cmake --build build/r3-release --target farm_vulkan_textured_present_smoke -j2
-          xvfb-run -a -s '-screen 0 1024x768x24' ./build/r3-release/farm_vulkan_textured_present_smoke
+          xvfb-run -a -s '-screen 0 1024x768x24' env VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json ./build/r3-release/farm_vulkan_textured_present_smoke
 
       - name: Configure AddressSanitizer
         run: |
@@ -47,4 +47,4 @@ jobs:
           ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
         run: |
           cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke -j2
-          xvfb-run -a -s '-screen 0 1024x768x24' ./build/r3-asan/farm_vulkan_textured_present_smoke
+          xvfb-run -a -s '-screen 0 1024x768x24' env VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json ./build/r3-asan/farm_vulkan_textured_present_smoke
