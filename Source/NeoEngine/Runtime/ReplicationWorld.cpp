@@ -404,7 +404,14 @@ bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
         ++interpolated;
     }
     sceneWorld_ = *candidateScene;
-    receipt.interpolatedEntities = interpolated; receipt.accepted = true; lastError_ = ReplicationError::None; return true;
+    ReplicationApplyReceipt candidateReceipt{};
+    candidateReceipt.sequence = snapshotSequence_;
+    candidateReceipt.serverTick = lastServerTick_;
+    candidateReceipt.interpolatedEntities = interpolated;
+    candidateReceipt.accepted = true;
+    receipt = candidateReceipt;
+    lastError_ = ReplicationError::None;
+    return true;
 }
 
 bool ReplicationWorld::PredictLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt) {

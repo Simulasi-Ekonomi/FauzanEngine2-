@@ -97,7 +97,7 @@ int main() {
     if (!ReplicationSnapshotCodec::Serialize(unknownEntitySnapshot, unknownEntityBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(unknownEntityBytes, decoded, codecError) || client.ApplyServerSnapshot(decoded, preservedApply) || client.LastError() != ReplicationError::UnknownEntity || preservedApply.sequence != 91U || preservedApply.serverTick != 92U || preservedApply.appliedEntities != 93U || preservedApply.spawnedEntities != 94U || preservedApply.despawnedEntities != 95U || preservedApply.interpolatedEntities != 96U || preservedApply.reconciledPredictions != 97U || !preservedApply.accepted) return 16;
     localAfterReconcile = clientScene.GetTransform(clientLocal);
     if (localAfterReconcile == nullptr || std::abs(localAfterReconcile->x - 6.0F) > 0.0001F) return 17;
-    if (!client.SetInterpolationAlphaPermille(500U) || !client.ApplyInterpolation(apply) || apply.interpolatedEntities != 1U) return 18;
+    if (!client.SetInterpolationAlphaPermille(500U) || !client.ApplyInterpolation(apply) || apply.sequence != 1U || apply.serverTick != 1U || apply.appliedEntities != 0U || apply.spawnedEntities != 0U || apply.despawnedEntities != 0U || apply.interpolatedEntities != 1U || apply.reconciledPredictions != 0U || !apply.accepted) return 18;
     const Transform3* remoteAfterInterpolation = clientScene.GetTransform(clientRemote);
     if (remoteAfterInterpolation == nullptr || std::abs(remoteAfterInterpolation->x - 15.0F) > 0.0001F) return 19;
     SceneWorld interpolationScene;
