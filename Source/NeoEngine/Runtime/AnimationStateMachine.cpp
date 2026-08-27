@@ -24,9 +24,10 @@ bool AnimationStateMachine::AddTransition(AnimationTransitionSpec transition) {
     catch (const std::bad_alloc&) { lastError_ = AnimationStateMachineError::Capacity; return false; }
     lastError_ = AnimationStateMachineError::None; return true;
 }
-bool AnimationStateMachine::Start(const std::string& stateId) { const int index = FindState(stateId); if (index < 0) { lastError_ = AnimationStateMachineError::MissingState; return false; } activeStateIndex_ = index; transitionIndex_ = -1; activeTime_ = 0.0F; targetTime_ = 0.0F; blendElapsed_ = 0.0F; lastError_ = AnimationStateMachineError::None; return true; }
+bool AnimationStateMachine::Start(const std::string& stateId) { if (stateId.empty() || stateId.find('\0') != std::string::npos || stateId.size() > kMaxIdentifierBytes) { lastError_ = AnimationStateMachineError::InvalidState; return false; } const int index = FindState(stateId); if (index < 0) { lastError_ = AnimationStateMachineError::MissingState; return false; } activeStateIndex_ = index; transitionIndex_ = -1; activeTime_ = 0.0F; targetTime_ = 0.0F; blendElapsed_ = 0.0F; lastError_ = AnimationStateMachineError::None; return true; }
 bool AnimationStateMachine::Reset() { activeStateIndex_ = -1; transitionIndex_ = -1; blendTargetIndex_ = 0U; activeTime_ = 0.0F; targetTime_ = 0.0F; blendElapsed_ = 0.0F; lastError_ = AnimationStateMachineError::None; return true; }
 bool AnimationStateMachine::Trigger(const std::string& transitionId) {
+    if (transitionId.empty() || transitionId.find('\0') != std::string::npos || transitionId.size() > kMaxIdentifierBytes) { lastError_ = AnimationStateMachineError::InvalidTransition; return false; }
     if (activeStateIndex_ < 0) { lastError_ = AnimationStateMachineError::NotStarted; return false; }
     if (transitionIndex_ >= 0) { lastError_ = AnimationStateMachineError::TransitionInProgress; return false; }
     const auto found = std::find_if(transitions_.begin(), transitions_.end(), [&transitionId](const Transition& transition) { return transition.spec.id == transitionId; });
