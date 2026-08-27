@@ -1,12 +1,12 @@
 # Audit Kemajuan Seluruh Repositori FauzanEngine2-
 
-**Snapshot audit:** 27 Agustus 2026. Seluruh perubahan valid dipertahankan pada satu-satunya branch `main`; branch tambahan lokal/remote sudah dihapus, dan snapshot terbaru berada pada `d8e3152` setelah vertical slice, network bounded, loopback, dan wiring smoke digabungkan.
+**Snapshot audit:** 27 Agustus 2026. Seluruh perubahan valid dipertahankan pada satu-satunya branch `main`; branch tambahan lokal/remote sudah dihapus, dan snapshot terbaru berada pada `2472be4` setelah vertical slice, network bounded, loopback, commerce checkpoint, dan wiring smoke digabungkan.
 
 ## Jawaban singkat
 
 | Ukuran | Hasil | Cara membaca |
 |---|---:|---|
-| Checklist historis `todo.md` pada `main` | **446/545 = 81,8%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
+| Checklist historis `todo.md` pada `main` | **445/545 = 81,7%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
 | Mandatory release gates | **0/12 = 0% lulus penuh** | Tidak satu pun dari R1–R12 boleh disebut production-ready sebelum seluruh evidencenya lulus. |
 | Indeks kemajuan menuju release, estimasi berbobot | **28,8%** | Estimasi analitis setelah evidence baru; rata-rata kemajuan parsial 12 gate, bukan status resmi proyek. |
 | Editor/Tooling pada `main` | **Satu slice authoring fungsional** | Workflow Unreal-like V1 sudah terintegrasi ke `main`, tetapi belum setara Unreal Editor penuh. |
@@ -15,7 +15,7 @@
 
 ## Basis repository dan bukti implementasi
 
-Audit terbaru menemukan **915 file C++/header pada Source/NeoEngine**, **202 file test C++**, dan **170 registrasi executable CMake** pada branch editor. CMake aktif mencakup runtime, Farm, rendering, asset, animation, physics, authority, trust/safety, template, Android lifecycle, Vulkan, input, audio, route, scene, dan editor. Namun jumlah file dan target tidak dihitung sebagai feature completion apabila belum memiliki jalur runtime kanonis dan smoke evidence.
+Audit terbaru menemukan **915 file C++/header pada Source/NeoEngine**, **202 file test C++**, dan scope verifier melaporkan **152 active sources**, **29 tracked marker paths**, serta **2 approved active markers** pada main. CMake aktif mencakup runtime, Farm, rendering, asset, animation, physics, authority, trust/safety, template, Android lifecycle, Vulkan, input, audio, route, scene, editor, dan smoke network bounded. Namun jumlah file dan target tidak dihitung sebagai feature completion apabila belum memiliki jalur runtime kanonis dan smoke evidence.
 
 Fondasi yang benar-benar terbukti mencakup `NeoRuntime`, `SceneWorld`, FarmSystem/FarmWorldTool, local authority/trust safety, CPU/software rendering, CPU mesh/material/texture staging, OBJ/MTL in-memory importer, bounded input/audio/UI, animation CPU primitives, local persistence codecs, asset registry/manifest/refresh diagnostics, beberapa game-state templates, Android native subset cross-compile, serta banyak Release/AddressSanitizer smoke. Batas utama yang terdokumentasi adalah bahwa sebagian besar masih bounded/local/headless proof, bukan produk terintegrasi [1] [2].
 
@@ -60,13 +60,13 @@ Persentase domain adalah estimasi internal berbasis kedalaman integration/eviden
 
 ## Perkembangan terbaru yang penting
 
-`main` kini juga memuat smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, dan Farm localhost session loopback. Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, atau localhost evidence dan belum menyelesaikan R2–R12 [5].
+`main` kini juga memuat smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, Farm localhost session loopback, dan commerce checkpoint. Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, localhost, atau in-memory evidence dan belum menyelesaikan R2–R12 [5] [7] [8].
 
 Editor Tooling V1, Runtime SceneBridge, automated bridge/browser smoke, multi-selection, reflection inspector, asset-to-scene drop, Play-in-Editor profiler, autosave/recovery, dan bundle splitting kini sudah di-merge ke `main`. Smoke lokal lulus: bridge `200/409/422`, browser authoring flow, C++ Editor V1 Release, dan AddressSanitizer. Branch tambahan sudah dihapus; `main` adalah satu-satunya branch kerja.
 
 ## CI dan release blockers yang terkonfirmasi
 
-CI GitHub pada `main` terbaru **sebagian sudah sehat**: lint/type-check, backend import smoke, dan Web Editor build berhasil; Android debug juga berhasil. Backend tidak lagi memasang `jnius` karena dependency JNI/Android itu bukan jalur import FastAPI aktif. `LiteRTManager.kt` tetap legacy/inaktif pada source set Android saat ini karena plugin Kotlin tidak diterapkan di app dan tidak ada dependency LiteRT; bridge Java secara eksplisit fail-close sebagai `LITERT_UNAVAILABLE`. Dua blocker konfigurasi tetap terkonfirmasi: deploy Web Editor gagal `404` karena GitHub Pages belum diaktifkan pada repository, sedangkan Android release berhenti secara sengaja karena secret signing belum tersedia [6].
+CI GitHub pada `main` terbaru **sebagian sudah sehat**: lint/type-check, backend import smoke, dan Networking Smoke Test berhasil pada SHA `2472be4`; Web Editor build berhasil tetapi deploy Pages gagal `404` karena GitHub Pages belum diaktifkan. Android debug berhasil, sedangkan Android release berhenti secara sengaja pada guard signing karena secret belum tersedia. Backend tidak lagi memasang `jnius` karena dependency JNI/Android itu bukan jalur import FastAPI aktif. `LiteRTManager.kt` tetap legacy/inaktif pada source set Android saat ini karena plugin Kotlin tidak diterapkan di app dan tidak ada dependency LiteRT; bridge Java secara eksplisit fail-close sebagai `LITERT_UNAVAILABLE` [6].
 
 ## Urutan kemajuan berikutnya
 
@@ -86,3 +86,5 @@ CI GitHub pada `main` terbaru **sebagian sudah sehat**: lint/type-check, backend
 [4]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/REPOSITORY_RESCAN_2026-08-27.md "Repository rescan 27 August 2026"
 [5]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/commits/main "Recent main commits"
 [6]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions "GitHub Actions runs"
+[7]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_VERTICAL_SLICE_EVIDENCE_V1.md "Farm vertical slice evidence"
+[8]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/NETWORK_BOUNDARY_EVIDENCE_V1.md "Network boundary evidence"
