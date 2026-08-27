@@ -155,6 +155,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmAuthoritativeSessionLoopback.cpp
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
+    Systems/FarmCommerceCheckpointFile.cpp
     Systems/FarmAuthorityCheckpoint.cpp
     Systems/FarmTelemetryAdapter.cpp
     Systems/AuthoritativeCommandGate.cpp
@@ -244,6 +245,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_entitlemen
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp")
     add_xpbd_executable(farm_commerce_checkpoint_smoke ../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_file_smoke.cpp")
+    add_xpbd_executable(farm_commerce_checkpoint_file_smoke ../../Tests/Farm/farm_commerce_checkpoint_file_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Agents/agent_gateway_smoke.cpp")
