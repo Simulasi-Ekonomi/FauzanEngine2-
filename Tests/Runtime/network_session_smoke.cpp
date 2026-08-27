@@ -17,6 +17,10 @@ int main() {
     if (!Require(!invalidPeer.initialize(), "invalid_peer_reject") || !Require(invalidPeer.lastError() == NetworkError::InvalidPeer, "invalid_peer_error")) return 1;
 
     NetworkSession server(NetworkRole::Server, 9000U);
+    NetworkSession unknownOwner(NetworkRole::Server, 9003U);
+    if (!Require(unknownOwner.initialize(), "unknown_owner_init") ||
+        !Require(!unknownOwner.assignOwnership(99U, 123U), "unknown_owner_reject") ||
+        !Require(unknownOwner.lastError() == NetworkError::InvalidPeer, "unknown_owner_error")) return 1;
     NetworkSession client(NetworkRole::Client, 42U);
     if (!Require(server.initialize(), "server_init") || !Require(server.lastError() == NetworkError::None, "server_init_error") ||
         !Require(client.initialize(), "client_init") || !Require(client.lastError() == NetworkError::None, "client_init_error") ||
@@ -78,6 +82,6 @@ int main() {
     if (!Require(saturated.reconcile({7U, 42U, 0U, 0.0F, 0.0F, 0.0F}, 0U, saturatedReceipt), "prediction_capacity_reconcile") ||
         !Require(std::fabs(saturatedReceipt.correctionDistance - 256.0F * 256.0F) < 0.01F, "prediction_capacity_atomic")) return 1;
 
-    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1 capacity_atomic=1 peer_validation_atomic=1 window_isolation=1\n");
+    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1 capacity_atomic=1 peer_validation_atomic=1 window_isolation=1 owner_admission=1\n");
     return 0;
 }
