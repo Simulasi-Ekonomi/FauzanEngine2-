@@ -1,6 +1,6 @@
 # Detail 12 Mandatory Release Gates FauzanEngine2-
 
-**Snapshot:** 27 Agustus 2026, berdasarkan `main` dan audit repository terbaru.
+**Snapshot:** 27 Agustus 2026, berdasarkan `main` pada HEAD `69f4d9c` dan audit repository terbaru.
 
 ## Cara membaca status
 
@@ -37,9 +37,9 @@
 
 **Evidence wajib:** Playable vertical slice dengan onboarding, core loop, progression, failure/recovery, balancing data, content authoring, dan player-facing UX.
 
-**Yang sudah ada:** `farm_vertical_slice_smoke` lulus Release dan ASAN untuk alur input pemain → pemilihan action melalui HUD → Farm tick → dua software-presented frames → checkpoint/restore → penolakan checkpoint korup. Ada juga HUD routing dan checkpoint NeoRuntime.
+**Yang sudah ada:** `farm_vertical_slice_smoke` lulus Release dan ASAN untuk alur input pemain → pemilihan action melalui HUD → Farm tick → dua software-presented frames → checkpoint/restore → penolakan checkpoint korup. `neo_runtime_farm_vertical_slice_smoke` juga menambah proof canonical NeoRuntime/Farm, disertai HUD routing dan checkpoint NeoRuntime.
 
-**Yang masih kurang:** Onboarding pemain, progression yang lebih lengkap, balancing data, audio lifecycle, inventory/energy feedback yang terintegrasi, content authoring end-to-end, UX offline/error, dan playable acceptance pada aplikasi nyata.
+**Yang masih kurang:** Onboarding pemain, progression yang lebih lengkap, balancing data, audio lifecycle pada platform nyata, inventory/energy feedback yang terintegrasi, content authoring end-to-end, UX offline/error, dan playable acceptance pada aplikasi nyata.
 
 **Mengapa belum lulus:** Smoke tersebut adalah local single-process CPU/software proof, bukan playable production build yang membuktikan onboarding sampai recovery bagi pemain.
 
@@ -49,9 +49,9 @@
 
 **Evidence wajib:** Decoder produksi, content limits, upload texture/mesh/material, camera, lighting, animation, surface/swapchain presentation, resource-loss handling, dan device evidence.
 
-**Yang sudah ada:** CPU/software renderer, mesh/material/texture staging, registry/hash/manifest, Vulkan bootstrap/offscreen proof, serta `VulkanTexturedPresentProbe` dengan SDL surface, FIFO swapchain, staged texture upload, sampler/descriptor, shader pipeline, submit, dan present. Provenance texture juga telah di-hardening.
+**Yang sudah ada:** CPU/software renderer, mesh/material/texture staging, registry/hash/manifest, `AssetResourceManager` dengan plan/commit eviction bounded, Vulkan bootstrap/offscreen proof, serta `VulkanTexturedPresentProbe` dengan SDL surface, FIFO swapchain, staged texture upload, sampler/descriptor, shader pipeline, submit, dan present. Provenance texture dan unsupported present status juga telah di-hardening.
 
-**Yang masih kurang:** Integrasi textured present ke scene/Farm runtime kanonis, decoder produksi dan content budget, mesh/material/light binding produksi, camera/animation scene path, resource lifetime, device-loss recovery, physical-GPU matrix, dan renderer performance evidence.
+**Yang masih kurang:** Integrasi textured present ke scene/Farm runtime kanonis, decoder produksi dan content budget, mesh/material/light binding produksi, camera/animation scene path, GPU resource lifetime, device-loss recovery, asynchronous streaming/concurrency, physical-GPU matrix, dan renderer performance evidence.
 
 **Mengapa belum lulus:** Vulkan textured present adalah probe bounded pada virtual surface; itu bukan production RHI/game renderer yang terintegrasi ke scene dan Farm.
 
@@ -61,9 +61,9 @@
 
 **Evidence wajib:** Touch/controller platform, audio output, localization/text scaling, focus handling, offline/error UX, dan accessibility acceptance tests.
 
-**Yang sudah ada:** Bounded `InputState`, SDL seams, keyboard/pointer routing, PCM mixer, UI router/canvas, bitmap UI, serta HUD input bridge.
+**Yang sudah ada:** Bounded `InputState`, SDL seams, keyboard/pointer routing, PCM mixer, UI router/canvas, bitmap UI, HUD input bridge, serta `SdlAudioBridge` reset/reinitialize lifecycle dengan smoke Release/ASAN pada dummy audio driver.
 
-**Yang masih kurang:** Touch dan controller pada platform target, audio device open/close/recovery, actual output lifecycle, focus/navigation semantics, localization, text scaling, contrast/accessibility semantics, offline/error UX, dan acceptance test pada package.
+**Yang masih kurang:** Touch dan controller pada platform target, physical audio output, hot-plug/device-loss notifications, Android/iOS audio focus, focus/navigation semantics, localization, text scaling, contrast/accessibility semantics, offline/error UX, dan acceptance test pada package.
 
 **Mengapa belum lulus:** PCM mixing atau input-state unit proof tidak membuktikan audio output serta aksesibilitas pada device yang didukung.
 
@@ -97,7 +97,7 @@
 
 **Evidence wajib:** Ledger invariants, product/receipt authority, refund/reversal, duplicate prevention, entitlement reconciliation, audit export, dan operational review.
 
-**Yang sudah ada:** Farm commodity catalog, local transactions, in-memory entitlement ledger, verifier-approved receipt boundary, duplicate/reversal rejection, wrong-player/verifier rejection, reconciliation mismatch detection, commerce checkpoint, dan audit receipts.
+**Yang sudah ada:** Farm commodity catalog, local transactions, in-memory entitlement ledger, verifier-approved receipt boundary, duplicate/reversal rejection, wrong-player/verifier rejection, reconciliation mismatch detection, commerce checkpoint file, dan audit receipts.
 
 **Yang masih kurang:** Provider/payment integration, durable ledger, real entitlement lifecycle, refund operations, authoritative reconciliation job, audit export, operational review, and failure handling for provider outage or delayed reversal.
 
@@ -109,7 +109,7 @@
 
 **Evidence wajib:** Authoritative durable store, schema migration, backup/restore, corruption handling, retention/deletion, privacy boundary, disaster-recovery test, dan no credentials in saves.
 
-**Yang sudah ada:** Versioned local serialization, NeoRuntime Farm progress checkpoint, atomic save primitive, checksum/corrupt-payload rejection, topology-preserving restore, receipt invalidation, dan telemetry outbox.
+**Yang sudah ada:** Versioned local serialization, NeoRuntime Farm progress checkpoint, atomic save primitive, checksum/corrupt-payload rejection, topology-preserving restore, receipt invalidation, local commerce checkpoint file, resource eviction plan/commit, dan telemetry outbox.
 
 **Yang masih kurang:** Durable authoritative backend store, migration service, scheduled backups, restore verification, retention/deletion lifecycle, privacy boundary, disaster-recovery exercise, multi-process recovery, dan formal scan bahwa credentials tidak masuk save artifacts.
 
@@ -145,7 +145,7 @@
 
 **Evidence wajib:** Pinned Android SDK/NDK/Java, debug APK, signed release AAB, emulator/device smoke, crash/ANR evidence, dan Play policy/store asset review.
 
-**Yang sudah ada:** Android toolchain preflight, canonical native lifecycle subset, arm64 cross-compile, host lifecycle smoke, debug APK build/package/signature verification pada CI. Job debug Android terbaru berhasil.
+**Yang sudah ada:** Android toolchain preflight, canonical native lifecycle subset, arm64 cross-compile, Java-to-JNI source smoke, host lifecycle smoke, debug APK build/package/signature verification pada CI, dan explicit fail-closed handling untuk legacy world-streaming/LiteRT routes. Job debug Android terbaru berhasil.
 
 **Yang masih kurang:** Signed release APK/AAB, signing provenance, emulator/device test, crash/ANR capture, supported-device matrix, Play policy review, store assets, and release artifact hash/verification.
 
@@ -167,7 +167,7 @@
 
 ## Kesimpulan
 
-Semua **12/12 gate formal tetap Not passed** karena setiap gate memerlukan paket evidence produksi yang lengkap. Kemajuan terbesar saat ini berada pada bounded local Farm slice, editor/tooling, renderer/Vulkan probe, local authority/commerce, network primitives, serta Android debug packaging. Gap terbesar yang masih bersifat sistemik adalah integrasi production renderer/asset path, durable backend, public authoritative multiplayer, device evidence, security/privacy operations, live operations, dan launch governance.
+Semua **12/12 gate formal tetap Not passed** karena setiap gate memerlukan paket evidence produksi yang lengkap. Kemajuan terbesar saat ini berada pada bounded local Farm slice, editor/tooling, renderer/Vulkan probe, resource ownership/audio lifecycle contracts, local authority/commerce, network primitives, serta Android debug/lifecycle packaging. Gap terbesar yang masih bersifat sistemik adalah integrasi production renderer/asset path, durable backend, public authoritative multiplayer, physical-device evidence, security/privacy operations, live operations, dan launch governance.
 
 ## Referensi
 
