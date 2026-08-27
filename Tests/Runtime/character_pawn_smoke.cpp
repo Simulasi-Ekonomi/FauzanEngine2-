@@ -34,7 +34,7 @@ int main() {
     if (!graph.AddOverlayState({"none", "none", AnimationPlayback::Loop}) || !graph.AddOverlayState({"aim", "aim", AnimationPlayback::Loop}) || !graph.AddOverlayTransition({"none_aim", "none", "aim", 0.20F}) || !graph.AddOverlayTransition({"aim_none", "aim", "none", 0.20F}) || !graph.StartOverlay("none") || !graph.SetOverlayWeightPermille(500U)) return 3;
     AnimationTimeline timeline;
     if (!timeline.AddTrack("idle", {{0.0F, 1.0F}, {1.0F, 1.0F}}) || !timeline.AddTrack("walk", {{0.0F, 2.0F}, {1.0F, 2.0F}}) || !timeline.AddTrack("run", {{0.0F, 3.0F}, {1.0F, 3.0F}}) || !timeline.AddTrack("none", {{0.0F, 0.0F}, {1.0F, 0.0F}}) || !timeline.AddTrack("aim", {{0.0F, 10.0F}, {1.0F, 10.0F}}) || !timeline.AddEventMarker("idle", {"idle_notify", 0.01F}) || !timeline.AddEventMarker("walk", {"walk_notify", 0.20F}) || !timeline.AddEventMarker("aim", {"aim_notify", 0.20F})) return 4;
-    if (!actors.AttachComponent(player, std::move(character)) || !characterView->IsAttached()) return 5;
+    if (!actors.AttachComponent(player, std::move(character)) || !characterView->IsAttached() || characterView->OnAttach(scene, player) || characterView->LastError() != CharacterPawnError::AlreadyAttached || !characterView->IsAttached()) return 5;
     std::array<uint8_t, CharacterPawn::kComponentSnapshotBytes - 1U> shortSnapshotBytes{};
     shortSnapshotBytes.fill(0xA5U);
     if (characterView->CaptureSnapshot(shortSnapshotBytes) || characterView->LastError() != CharacterPawnError::AnimationRejected || shortSnapshotBytes[0] != 0xA5U) return 5;

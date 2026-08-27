@@ -24,6 +24,7 @@ enum class CharacterPawnError : uint8_t {
     AuthorityRejected,
     SceneApplyRejected,
     AnimationRejected,
+    AlreadyAttached,
 };
 
 enum class CharacterRootMotionMode : uint8_t { Kinematic, SkeletalRoot };

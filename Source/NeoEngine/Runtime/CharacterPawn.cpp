@@ -228,8 +228,7 @@ bool CharacterAnimationGraph::Snapshot(CharacterAnimationGraphSnapshot& snapshot
         lastError_ = AnimationStateMachineError::Capacity;
         return false;
     }
-}
-CharacterPawn::CharacterPawn(CharacterPawnConfig config) : config_(config) {}
+} CharacterPawn::CharacterPawn(CharacterPawnConfig config) : config_(config) {}
 bool CharacterPawn::Fail(CharacterPawnError error) { lastError_ = error; return false; }
 bool CharacterPawn::ValidateInput(const CharacterPawnInput& input) const {
     if (!Finite(input.moveX) || !Finite(input.moveZ)) return false;
@@ -237,6 +236,7 @@ bool CharacterPawn::ValidateInput(const CharacterPawnInput& input) const {
     return Finite(magnitudeSquared) && magnitudeSquared <= config_.maxPlanarInput * config_.maxPlanarInput;
 }
 bool CharacterPawn::OnAttach(SceneWorld& world, SceneEntity actor) {
+    if (attached_) return Fail(CharacterPawnError::AlreadyAttached);
     if (!ValidConfig(config_) || world.GetTransform(actor) == nullptr) return Fail(CharacterPawnError::InvalidConfig);
     actor_ = actor;
     pendingInput_ = {};
