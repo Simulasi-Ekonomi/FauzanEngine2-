@@ -36,7 +36,7 @@ public:
         if (it == handlers_.end()) return {false, RpcDispatchResult::Reason::UnknownRpc};
         if (it->second.direction != rpc.direction) return {false, RpcDispatchResult::Reason::DirectionDenied};
         if (rpc.payloadBytes > MaxPayloadBytes) return {false, RpcDispatchResult::Reason::PayloadTooLarge};
-        const uint64_t key = (rpc.peerId * 0x9E3779B97F4A7C15ULL) ^ rpc.rpcId;
+        const SequenceKey key{rpc.peerId, rpc.rpcId};
         const auto last = lastSequences_.find(key);
         if (last != lastSequences_.end() && rpc.sequence <= last->second)
             return {false, RpcDispatchResult::Reason::DuplicateSequence};
@@ -47,15 +47,16 @@ public:
 
     void clearPeer(uint64_t peerId) {
         for (auto it = lastSequences_.begin(); it != lastSequences_.end();) {
-            (void)peerId;
-            it = lastSequences_.erase(it);
+            if (it->first.peerId == peerId) it = lastSequences_.erase(it); else ++it;
         }
     }
 
 private:
     struct Entry { RpcDirection direction; Handler handler; };
+    struct SequenceKey { uint64_t peerId; uint32_t rpcId; bool operator==(const SequenceKey& other) const { return peerId == other.peerId && rpcId == other.rpcId; } };
+    struct SequenceKeyHash { std::size_t operator()(const SequenceKey& key) const { return static_cast<std::size_t>((key.peerId * 0x9E3779B97F4A7C15ULL) ^ key.rpcId); } };
     std::unordered_map<uint32_t, Entry> handlers_;
-    std::unordered_map<uint64_t, uint64_t> lastSequences_;
+    std::unordered_map<SequenceKey, uint64_t, SequenceKeyHash> lastSequences_;
 };
 
 } // namespace NeoEngine::Networking

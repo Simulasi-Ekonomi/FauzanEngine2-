@@ -28,6 +28,7 @@ class NetworkPredictionBuffer {
 public:
     static constexpr uint16_t MaxFrames=256;
     bool record(const NetworkInputCommand& in,float x,float y,float z){ if(!in.sequence||count_>=MaxFrames)return false; frames_[(head_+count_)%MaxFrames]={in,x,y,z};++count_;return true; }
+    bool full() const { return count_ >= MaxFrames; }
     template<class Sim> uint32_t replay(uint64_t acknowledged,float& x,float& y,float& z,Sim&& simulate){ uint32_t n=0; while(count_&&frames_[head_].input.sequence<=acknowledged){head_=(head_+1)%MaxFrames;--count_;} for(uint16_t i=0;i<count_;++i){auto const& f=frames_[(head_+i)%MaxFrames];simulate(f.input,x,y,z);++n;} return n; }
 private:
     struct Frame{NetworkInputCommand input{};float x{},y{},z{};}; std::array<Frame,MaxFrames> frames_{}; uint16_t head_{}; uint16_t count_{};
@@ -40,7 +41,7 @@ public:
     bool registerPeer(uint32_t peer){ if(!peer||peer==peerId_)return false; for(auto p:peers_)if(p==peer)return true;for(auto& p:peers_)if(!p){p=peer;return true;}return false; }
     bool assignOwnership(uint32_t id,uint32_t owner){if(role_!=NetworkRole::Server||!id||!owner)return false;for(auto&e:entities_)if(e.networkId==id||!e.networkId){if(!e.networkId)e.networkId=id;e.ownerId=owner;return true;}return false;}
     bool serverConsume(const NetworkInputCommand& in,NetworkTransformState& out){if(role_!=NetworkRole::Server||!accept(in))return false;for(auto&e:entities_)if(e.networkId==in.networkId){if(e.ownerId!=in.clientId)return false;e.x+=in.moveX;e.z+=in.moveZ;++e.revision;out=e;return true;}return false;}
-    bool predict(const NetworkInputCommand& in){if(role_!=NetworkRole::Client||in.clientId!=peerId_||!accept(in))return false;predictedX_+=in.moveX;predictedZ_+=in.moveZ;return prediction_.record(in,predictedX_,predictedY_,predictedZ_);}
+    bool predict(const NetworkInputCommand& in){if(role_!=NetworkRole::Client||in.clientId!=peerId_||prediction_.full()||!accept(in))return false;const float nextX=predictedX_+in.moveX,nextZ=predictedZ_+in.moveZ;if(!prediction_.record(in,nextX,predictedY_,nextZ))return false;predictedX_=nextX;predictedZ_=nextZ;return true;}
     bool reconcile(const NetworkTransformState& authoritative,uint64_t acknowledged,NetworkReconciliationReceipt& r){if(role_!=NetworkRole::Client||authoritative.ownerId!=peerId_||authoritative.revision<revision_)return false;revision_=authoritative.revision;float dx=predictedX_-authoritative.x,dy=predictedY_-authoritative.y,dz=predictedZ_-authoritative.z;r={true,0,acknowledged,revision_,dx*dx+dy*dy+dz*dz};predictedX_=authoritative.x;predictedY_=authoritative.y;predictedZ_=authoritative.z;r.replayedInputs=prediction_.replay(acknowledged,predictedX_,predictedY_,predictedZ_,[](auto const&i,float&x,float&,float&z){x+=i.moveX;z+=i.moveZ;});return true;}
     NetworkSnapshot snapshot(uint64_t tick)const{NetworkSnapshot s; s.sequence=++snapshotSequence_;s.serverTick=tick;for(auto const&e:entities_)if(e.networkId)s.states.push_back(e);s.checksum=checksum(s);return s;}
     bool acceptSnapshot(NetworkSnapshot const&s){if(role_!=NetworkRole::Client||s.sequence<=lastSnapshot_)return false;if(checksum(s)!=s.checksum)return false;lastSnapshot_=s.sequence;return true;}

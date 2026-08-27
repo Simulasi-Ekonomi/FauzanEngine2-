@@ -17,19 +17,21 @@ public:
     void setObserver(uint64_t observerId) { observerId_ = observerId; clear(); }
 
     bool rebuild(const ReplicationInterest* candidates, std::size_t count) {
-        clear();
         if (!observerId_ || (!candidates && count != 0) || count > kMaxActors) return false;
+        std::size_t candidateSize = 0;
         for (std::size_t i = 0; i < count; ++i) {
             ReplicationInterest interest = candidates[i];
             interest.observerId = observerId_;
             if (!NetworkReplicationPriorityPolicy::relevant(interest)) continue;
-            if (contains(interest.actorId)) continue;
-            actors_[size_++] = interest;
+            bool duplicate = false;
+            for (std::size_t j = 0; j < candidateSize; ++j) if (actors_[j].actorId == interest.actorId) { duplicate = true; break; }
+            if (!duplicate) actors_[candidateSize++] = interest;
         }
-        std::sort(actors_.begin(), actors_.begin() + static_cast<std::ptrdiff_t>(size_),
+        std::sort(actors_.begin(), actors_.begin() + static_cast<std::ptrdiff_t>(candidateSize),
                   [](const ReplicationInterest& a, const ReplicationInterest& b) {
                       return a.actorId < b.actorId;
                   });
+        size_ = candidateSize;
         return true;
     }
 

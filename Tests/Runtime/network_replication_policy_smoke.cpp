@@ -1,3 +1,4 @@
+#include "Networking/NetworkInterestSet.h"
 #include "Networking/NetworkReplicationPolicy.h"
 
 #include <cstdio>
@@ -29,6 +30,16 @@ int main() {
     if (!Require(prioritizedCount == 3U, "priority_count") || !Require(prioritized[0].networkId == 1U && prioritized[1].networkId == 2U && prioritized[2].networkId == 3U, "priority_order") ||
         !Require(ReplicationPolicy::prioritize(viewer, nullptr, 3U, prioritized, 3U) == 0U, "null_reject")) return 1;
 
-    std::printf("NETWORK_POLICY_SMOKE_OK interest=2 prioritized=3 null_reject=1\n");
+    const ReplicationInterest candidates[] = {
+        {11U, 0U, 4U, 10U, ReplicationPriority::High, false},
+        {12U, 0U, 9U, 10U, ReplicationPriority::Normal, false},
+    };
+    NetworkInterestSet interestSet(42U);
+    if (!Require(interestSet.rebuild(candidates, 2U), "interest_set_build") ||
+        !Require(interestSet.size() == 2U && interestSet[0].actorId == 11U && interestSet[1].actorId == 12U, "interest_set_order") ||
+        !Require(!interestSet.rebuild(nullptr, 1U), "interest_set_invalid_reject") ||
+        !Require(interestSet.size() == 2U && interestSet[0].actorId == 11U && interestSet[1].actorId == 12U, "interest_set_atomic")) return 1;
+
+    std::printf("NETWORK_POLICY_SMOKE_OK interest=2 prioritized=3 null_reject=1 interest_set_atomic=1\n");
     return 0;
 }

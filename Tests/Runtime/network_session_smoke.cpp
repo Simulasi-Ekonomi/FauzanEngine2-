@@ -41,6 +41,19 @@ int main() {
     if (!Require(snapshot.sequence == 1U && snapshot.states.size() == 1U, "snapshot") ||
         !Require(client.acceptSnapshot(snapshot), "snapshot_accept") || !Require(!client.acceptSnapshot(snapshot), "snapshot_replay_reject")) return 1;
 
-    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1\n");
+    NetworkSession saturated(NetworkRole::Client, 42U);
+    if (!Require(saturated.initialize(), "saturated_init")) return 1;
+    NetworkInputCommand saturatedInput{42U, 7U, 0U, 0U, 1.0F, 0.0F};
+    for (uint64_t sequence = 1U; sequence <= NetworkPredictionBuffer::MaxFrames; ++sequence) {
+        saturatedInput.sequence = sequence;
+        if (!Require(saturated.predict(saturatedInput), "prediction_capacity_fill")) return 1;
+    }
+    saturatedInput.sequence = NetworkPredictionBuffer::MaxFrames + 1U;
+    if (!Require(!saturated.predict(saturatedInput), "prediction_capacity_reject")) return 1;
+    NetworkReconciliationReceipt saturatedReceipt{};
+    if (!Require(saturated.reconcile({7U, 42U, 0U, 0.0F, 0.0F, 0.0F}, 0U, saturatedReceipt), "prediction_capacity_reconcile") ||
+        !Require(std::fabs(saturatedReceipt.correctionDistance - 256.0F * 256.0F) < 0.01F, "prediction_capacity_atomic")) return 1;
+
+    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1 capacity_atomic=1\n");
     return 0;
 }
