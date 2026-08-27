@@ -66,6 +66,10 @@ int main() {
     CharacterAnimationGraphSnapshot invalidGraph = savedSnapshot.animation;
     invalidGraph.overlay.activeStateId = "missing";
     if (graph.Restore(invalidGraph) || graph.LastError() != AnimationStateMachineError::InvalidSnapshot || graph.ActiveBaseState() != savedSnapshot.animation.base.activeStateId || graph.ActiveOverlayState() != savedSnapshot.animation.overlay.activeStateId) return 12;
+    CharacterAnimationGraphSnapshot noOverlaySnapshot = savedSnapshot.animation;
+    noOverlaySnapshot.hasOverlay = false;
+    noOverlaySnapshot.overlay = {};
+    if (!graph.Restore(noOverlaySnapshot) || !graph.HasOverlay() || !graph.ActiveOverlayState().empty() || !graph.StartOverlay("none") || graph.ActiveOverlayState() != "none" || !graph.Restore(savedSnapshot.animation)) return 12;
     CharacterPawnSnapshot invalidSnapshot = savedSnapshot;
     invalidSnapshot.actor.generation += 1U;
     if (characterView->Restore(invalidSnapshot) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->Snapshot(snapshot) || snapshot.animation.overlay.activeStateId != savedSnapshot.animation.overlay.activeStateId) return 12;

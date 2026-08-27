@@ -435,7 +435,6 @@ bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& sna
             candidate.overlayState_ = candidate.overlay_.ActiveStateId();
         } else {
             if (!candidate.overlay_.Reset()) return false;
-            candidate.hasOverlay_ = false;
             candidate.overlayStarted_ = false;
             candidate.overlayState_.clear();
         }
