@@ -51,7 +51,7 @@ int main() {
     const AssetResourceHandle preservedAcquireHandle{123U, 456U};
     materialHandle = preservedAcquireHandle;
     if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency || materialHandle != preservedAcquireHandle) return 16;
-    if (!registry.Declare("declared.asset", AssetKind::Audio, {})) return 16;
+    if (!registry.Declare("declared.asset", AssetKind::Audio, {}) || resources.ReloadIfSafe("declared.asset") || resources.LastError() != AssetResourceError::NotReady) return 16;
     const uint16_t resourcesBeforeNotReady = resources.ActiveResourceCount();
     materialHandle = preservedAcquireHandle;
     if (resources.Acquire("declared.asset", materialHandle) || resources.LastError() != AssetResourceError::NotReady || resources.ActiveResourceCount() != resourcesBeforeNotReady || resources.ActiveLeaseCount() != 0U || materialHandle != preservedAcquireHandle) return 16;

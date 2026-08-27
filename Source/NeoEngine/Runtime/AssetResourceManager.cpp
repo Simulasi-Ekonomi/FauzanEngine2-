@@ -163,7 +163,12 @@ bool AssetResourceManager::Release(AssetResourceHandle handle) {
 bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
     if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
     const uint16_t rootSlot = FindSlot(assetId);
-    if (rootSlot == 0xFFFFU) { lastError_ = AssetResourceError::None; return true; }
+    if (rootSlot == 0xFFFFU) {
+        const AssetDefinition* definition = registry_.Find(assetId);
+        if (definition != nullptr && definition->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
+        lastError_ = AssetResourceError::None;
+        return true;
+    }
     if (slots_[rootSlot].refCount != 0U) return Fail(AssetResourceError::StaleInUse);
     std::array<std::string, kMaxDependencyClosure> closureIds{};
     std::array<std::string_view, kMaxDependencyDepth> path{};
