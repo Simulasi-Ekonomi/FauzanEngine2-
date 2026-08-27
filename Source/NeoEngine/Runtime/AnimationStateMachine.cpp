@@ -48,7 +48,10 @@ bool AnimationStateMachine::Sample(const AnimationTimeline& timeline, float& val
     if (transitionIndex_ < 0) { value = sourceValue; lastError_ = AnimationStateMachineError::None; return true; }
     const Transition& transition = transitions_[static_cast<size_t>(transitionIndex_)]; const State& target = states_[blendTargetIndex_]; float targetValue = 0.0F;
     if (!timeline.Sample(target.spec.trackId, targetTime_, target.spec.playback, targetValue)) { lastError_ = AnimationStateMachineError::SampleFailed; return false; }
-    value = sourceValue + ((targetValue - sourceValue) * std::clamp(blendElapsed_ / transition.spec.durationSeconds, 0.0F, 1.0F)); lastError_ = AnimationStateMachineError::None; return true;
+    const double blend = std::clamp(static_cast<double>(blendElapsed_) / static_cast<double>(transition.spec.durationSeconds), 0.0, 1.0);
+    const float candidate = static_cast<float>(static_cast<double>(sourceValue) + (static_cast<double>(targetValue) - static_cast<double>(sourceValue)) * blend);
+    if (!std::isfinite(candidate)) { lastError_ = AnimationStateMachineError::SampleFailed; return false; }
+    value = candidate; lastError_ = AnimationStateMachineError::None; return true;
 }
 bool AnimationStateMachine::CollectEvents(const AnimationTimeline& timeline, float fromTime, float toTime, std::vector<std::string>& output) const {
     if (activeStateIndex_ < 0) { lastError_ = AnimationStateMachineError::NotStarted; return false; }
