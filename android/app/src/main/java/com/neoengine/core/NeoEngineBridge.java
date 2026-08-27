@@ -5,8 +5,6 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.os.Build;
 import android.util.Log;
-import kotlinx.coroutines.BuildersKt;
-import kotlinx.coroutines.Dispatchers;
 
 public class NeoEngineBridge {
 
@@ -41,38 +39,19 @@ public class NeoEngineBridge {
     @JavascriptInterface
     public boolean isAndroid() { return true; }
 
-    // ========== LiteRT Integration ==========
-    private static LiteRTManager liteRTManager;
+    // ========== LiteRT availability gate ==========
     public static Context appContext;
 
     public static void initLiteRT(String modelPath) {
-        if (liteRTManager == null && appContext != null) {
-            liteRTManager = new LiteRTManager(appContext);
-        }
-        if (liteRTManager != null) {
-            new Thread(() -> {
-                boolean success = BuildersKt.runBlocking(
-                    Dispatchers.getIO(),
-                    (scope, cont) -> liteRTManager.initialize(modelPath, cont)
-                );
-                nativeOnLiteRTInitialized(success);
-            }).start();
-        }
+        Log.w(TAG, "LiteRT is unavailable in this debug artifact; local prompt execution is disabled.");
     }
 
     public static String sendPrompt(String prompt) {
-        if (liteRTManager == null) return "";
-        return BuildersKt.runBlocking(
-            Dispatchers.getIO(),
-            (scope, cont) -> liteRTManager.sendMessageSync(prompt, cont)
-        );
+        return "LITERT_UNAVAILABLE";
     }
 
     public static void shutdownLiteRT() {
-        if (liteRTManager != null) {
-            liteRTManager.shutdown();
-            liteRTManager = null;
-        }
+        Log.d(TAG, "LiteRT remains unavailable in this debug artifact.");
     }
 
     // ========== Massive World Streaming ==========
