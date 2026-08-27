@@ -18,7 +18,7 @@ int main() {
     if (resources.Acquire("bad id", malformedHandle) || resources.LastError() != AssetResourceError::InvalidIdentifier || malformedHandle != AssetResourceHandle{321U, 654U} || resources.ReloadIfSafe("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier || resources.SyncHotReload("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier) return 2;
     AssetResourceReceipt missingReceipt{};
     missingReceipt.assetId = "missing-preserved";
-    if (resources.Query("missing.asset", missingReceipt) || resources.LastError() != AssetResourceError::MissingAsset || missingReceipt.assetId != "missing-preserved") return 2;
+    if (resources.Query("missing.asset", missingReceipt) || resources.LastError() != AssetResourceError::MissingAsset || missingReceipt.assetId != "missing-preserved" || resources.SyncHotReload("missing.asset") || resources.LastError() != AssetResourceError::MissingAsset) return 2;
 
     AssetResourceHandle materialHandle{};
     if (!resources.Acquire("material.crop", materialHandle) || materialHandle.generation == 0U || resources.ActiveResourceCount() != 3U || resources.TotalLeaseCount() != 3U || resources.ActiveLeaseCount() != 1U) return 2;

@@ -187,7 +187,8 @@ bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
 bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
     if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
     const AssetDefinition* definition = registry_.Find(assetId);
-    if (definition == nullptr || definition->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
+    if (definition == nullptr) return Fail(AssetResourceError::MissingAsset);
+    if (definition->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
     const uint16_t rootSlot = FindSlot(assetId);
     if (rootSlot == 0xFFFFU) { lastError_ = AssetResourceError::None; return true; }
     std::array<bool, kMaxResources> affected{};
