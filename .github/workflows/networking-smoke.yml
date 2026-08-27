@@ -1,0 +1,38 @@
+name: Networking Smoke Test
+
+on:
+  push:
+    paths:
+      - 'Source/NeoEngine/Networking/**'
+      - '.github/workflows/networking-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Locate smoke test
+        run: |
+          test -f Source/NeoEngine/Networking/NetworkSmokeTests.h
+          grep -q 'namespace NeoEngine::Networking::SmokeTests' Source/NeoEngine/Networking/NetworkSmokeTests.h
+          echo 'Networking smoke-test source found.'
+
+      - name: Compile and execute smoke test
+        run: |
+          cat > /tmp/network_smoke.cpp <<'EOF'
+          #include <iostream>
+          #include "NetworkSmokeTests.h"
+          int main() {
+              NeoEngine::Networking::SmokeTests::run();
+              std::cout << "NETWORKING_SMOKE_TEST_PASS" << std::endl;
+              return 0;
+          }
+          EOF
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -ISource/NeoEngine/Networking \
+            -ISource/NeoEngine \
+            /tmp/network_smoke.cpp -o /tmp/network_smoke
+          /tmp/network_smoke
