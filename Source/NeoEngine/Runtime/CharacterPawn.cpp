@@ -193,10 +193,12 @@ bool CharacterAnimationGraph::Sample(const AnimationTimeline& timeline, float& v
     if (!overlayStarted_ || overlayWeightPermille_ == 0U) { value = baseValue; lastError_ = AnimationStateMachineError::None; return true; }
     float overlayValue = 0.0F;
     if (!overlay_.Sample(timeline, overlayValue)) { lastError_ = overlay_.LastError(); return false; }
-    const float weight = static_cast<float>(overlayWeightPermille_) / 1000.0F;
-    value = baseValue + (overlayValue - baseValue) * weight;
-    lastError_ = std::isfinite(value) ? AnimationStateMachineError::None : AnimationStateMachineError::SampleFailed;
-    return lastError_ == AnimationStateMachineError::None;
+    const double weight = static_cast<double>(overlayWeightPermille_) / 1000.0;
+    const float candidate = static_cast<float>(static_cast<double>(baseValue) + (static_cast<double>(overlayValue) - static_cast<double>(baseValue)) * weight);
+    if (!std::isfinite(candidate)) { lastError_ = AnimationStateMachineError::SampleFailed; return false; }
+    value = candidate;
+    lastError_ = AnimationStateMachineError::None;
+    return true;
 }
 bool CharacterAnimationGraph::CollectAnimationEvents(const AnimationTimeline& timeline, float fromTime, float toTime, std::vector<std::string>& output) const {
     if (!baseStarted_) { lastError_ = AnimationStateMachineError::NotStarted; return false; }

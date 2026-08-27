@@ -3,11 +3,17 @@
 
 #include <cmath>
 #include <memory>
+#include <limits>
 #include <string>
 #include <vector>
 
 int main() {
     using namespace NeoEngine;
+    AnimationTimeline extremeTimeline;
+    const float extreme = std::numeric_limits<float>::max();
+    CharacterAnimationGraph extremeGraph;
+    float extremeValue = 77.0F;
+    if (!extremeTimeline.AddTrack("extreme-base", {{0.0F, -extreme}, {1.0F, -extreme}}) || !extremeTimeline.AddTrack("extreme-overlay", {{0.0F, extreme}, {1.0F, extreme}}) || !extremeGraph.AddBaseState({"base", "extreme-base", AnimationPlayback::Clamp}) || !extremeGraph.AddOverlayState({"overlay", "extreme-overlay", AnimationPlayback::Clamp}) || !extremeGraph.StartBase("base") || !extremeGraph.StartOverlay("overlay") || !extremeGraph.SetOverlayWeightPermille(500U) || !extremeGraph.Sample(extremeTimeline, extremeValue) || !std::isfinite(extremeValue) || std::abs(extremeValue) > 1.0F) return 1;
     SceneWorld scene;
     ActorComponentWorld actors(scene);
     SceneEntity player{};
