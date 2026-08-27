@@ -72,6 +72,7 @@ export function Properties() {
   const updateActorTransform = useEditorStore((s) => s.updateActorTransform);
   const renameActor = useEditorStore((s) => s.renameActor);
   const addComponent = useEditorStore((s) => s.addComponent);
+  const reparentActor = useEditorStore((s) => s.reparentActor);
 
   const actor = selectedActorId ? actors[selectedActorId] : null;
 
@@ -115,6 +116,17 @@ export function Properties() {
                 <span className="property-label">ID</span>
                 <div className="property-value">
                   <input type="text" value={actor.id} readOnly style={{ width: '100%', color: '#555', fontSize: 9 }} />
+                </div>
+              </div>
+              <div className="property-row">
+                <span className="property-label">Parent</span>
+                <div className="property-value">
+                  <select value={actor.parentId || ''} onChange={(e) => reparentActor(actor.id, e.target.value || null)} style={{ width: '100%', height: 21, fontSize: 11 }}>
+                    <option value="">None (Root)</option>
+                    {Object.values(actors).filter((candidate) => candidate.id !== actor.id).map((candidate) => (
+                      <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

@@ -19,6 +19,10 @@ The editor surface now provides:
 
 Scene mutations are recorded through the same Zustand scene store, use bounded undo snapshots, update dirty state, and preserve parent-child references when reparenting. Invalid hierarchy cycles are rejected. The canonical C++ editor session remains the authoritative validation boundary for scene open, selection, inspector, transform mutation, viewport rendering, save/load, undo/redo, deletion, and failure-preserving rollback.
 
+## Browser acceptance evidence
+
+`EDITOR_TOOLING_V1_BROWSER_EVIDENCE.md` records a live preview verification of the rendered Unreal-like surface, toolbar actor creation, dirty-state propagation, inspector transform editing, component addition, and parent reparenting in the World Outliner.
+
 ## Acceptance test
 
 The canonical smoke target is `editor_tooling_smoke`. It proves hierarchy ordering, selection, inspector data, viewport rendering, transform mutation, undo, redo, save/load byte handoff, invalid-transform rollback, and deletion. The frontend acceptance gate is the strict TypeScript/Vite production build.
