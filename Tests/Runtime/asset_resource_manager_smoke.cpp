@@ -8,6 +8,7 @@ int main() {
     using namespace NeoEngine;
     AssetRegistry registry;
     if (registry.Declare(std::string("nul\0asset", 9U), AssetKind::Texture, {}) || registry.LastError() != AssetRegistryError::InvalidIdentifier || !registry.All().empty()) return 1;
+    if (registry.Declare("bad-dependency-owner", AssetKind::Texture, {"bad id"}) || registry.LastError() != AssetRegistryError::InvalidIdentifier || !registry.All().empty()) return 1;
     if (!registry.ImportBytes("texture.wheat", AssetKind::Texture, {}, {1U, 2U, 3U}) || !registry.ImportBytes("mesh.crop", AssetKind::Mesh, {"texture.wheat"}, {4U, 5U}) || !registry.ImportBytes("material.crop", AssetKind::Material, {"mesh.crop"}, {6U, 7U, 8U}) || !registry.MarkReady("texture.wheat") || !registry.MarkReady("mesh.crop") || !registry.MarkReady("material.crop")) return 1;
     AssetResourceManager resources(registry);
 
