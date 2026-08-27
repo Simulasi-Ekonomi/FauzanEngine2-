@@ -85,5 +85,18 @@ int main() {
     if (resources.EvictToBudget(0U, budgetResidentBytes, budgetEvictedResources) || resources.LastError() != AssetResourceError::BudgetExceeded || budgetResidentBytes != 999U || budgetEvictedResources != 99U || resources.ActiveResourceCount() != 3U) return 20;
     if (!resources.Release(rehydratedHandle) || resources.ActiveLeaseCount() != 0U || !resources.EvictToBudget(2U, budgetResidentBytes, budgetEvictedResources) || budgetResidentBytes != 2U || resources.ResidentBytes() != budgetResidentBytes || resources.ActiveResourceCount() != 1U || budgetEvictedResources != 2U) return 21;
     if (!resources.EvictToBudget(0U, budgetResidentBytes, budgetEvictedResources) || budgetResidentBytes != 0U || resources.ResidentBytes() != 0U || resources.ActiveResourceCount() != 0U || budgetEvictedResources != 1U) return 22;
+    AssetResourceManager plannedResources(registry);
+    AssetResourceHandle plannedHandle{};
+    if (!plannedResources.Acquire("material.crop", plannedHandle) || !plannedResources.Release(plannedHandle) || plannedResources.ResidentBytes() != 7U) return 23;
+    AssetEvictionPlan plan{};
+    if (!plannedResources.PlanEviction(2U, plan) || plan.residentBytesBefore != 7U || plan.residentBytesAfter != 2U || plan.victimCount != 2U || plan.victims[0].byteSize != 3U || plan.victims[1].byteSize != 2U) return 24;
+    AssetEvictionPlan malformedPlan = plan;
+    malformedPlan.victimCount = 0U;
+    if (plannedResources.CommitEviction(malformedPlan) || plannedResources.LastError() != AssetResourceError::InvalidEvictionPlan || plannedResources.ResidentBytes() != 7U || plannedResources.ActiveResourceCount() != 3U) return 25;
+    if (!plannedResources.Acquire("texture.wheat", plannedHandle) || plannedResources.CommitEviction(plan) || plannedResources.LastError() != AssetResourceError::StaleEvictionPlan || plannedResources.ResidentBytes() != 7U || plannedResources.ActiveResourceCount() != 3U) return 26;
+    AssetEvictionPlan preservedPlan{};
+    preservedPlan.maxResidentBytes = 123U;
+    if (plannedResources.PlanEviction(0U, preservedPlan) || plannedResources.LastError() != AssetResourceError::BudgetExceeded || preservedPlan.maxResidentBytes != 123U || plannedResources.ActiveResourceCount() != 3U) return 27;
+    if (!plannedResources.Release(plannedHandle) || !plannedResources.PlanEviction(2U, plan) || !plannedResources.CommitEviction(plan) || plannedResources.ResidentBytes() != 2U || plannedResources.ActiveResourceCount() != 1U) return 28;
     return 0;
 }

@@ -99,6 +99,7 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
     uint16_t leaseIndex = 0xFFFFU;
     for (uint16_t candidate = 0U; candidate < kMaxLeases; ++candidate) if (!leases_[candidate].occupied && leases_[candidate].generation < std::numeric_limits<uint32_t>::max() - 1U) { leaseIndex = candidate; break; }
     if (leaseIndex == 0xFFFFU) return Fail(AssetResourceError::Capacity);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
 
     for (uint16_t index = 0U; index < closureCount; ++index) {
         Slot& slot = slots_[targetSlots[index]];
@@ -134,6 +135,7 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
     totalLeaseCount_ += closureCount;
     ++activeLeaseCount_;
     handle = {leaseIndex, lease.generation};
+    ++managerRevision_;
     lastError_ = AssetResourceError::None;
     return true;
 }
@@ -142,6 +144,7 @@ bool AssetResourceManager::Release(AssetResourceHandle handle) {
     if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
     LeaseSlot& lease = leases_[handle.slot];
     if (lease.generation >= std::numeric_limits<uint32_t>::max() - 1U) return Fail(AssetResourceError::Capacity);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     const uint16_t targetCount = static_cast<uint16_t>(lease.dependencyCount + 1U);
     if (totalLeaseCount_ < targetCount || activeLeaseCount_ == 0U) return Fail(AssetResourceError::RefcountUnderflow);
     std::array<uint16_t, kMaxDependencyClosure> targets{};
@@ -156,6 +159,7 @@ bool AssetResourceManager::Release(AssetResourceHandle handle) {
     lease.dependencyCount = 0U;
     lease.dependencySlots.fill(0xFFFFU);
     ++lease.generation;
+    ++managerRevision_;
     lastError_ = AssetResourceError::None;
     return true;
 }
@@ -181,10 +185,12 @@ bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
         if (targetSlots[index] == 0xFFFFU || slots_[targetSlots[index]].refCount != 0U) return Fail(AssetResourceError::StaleInUse);
         if (slots_[targetSlots[index]].generation >= std::numeric_limits<uint32_t>::max() - 2U || slots_[targetSlots[index]].hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     }
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     for (uint16_t index = 0U; index < closureCount; ++index) {
         const AssetDefinition* definition = registry_.Find(closureIds[index]);
         if (definition == nullptr || definition->state != AssetState::Ready || !RefreshUnleasedSlot(slots_[targetSlots[index]], *definition)) return Fail(AssetResourceError::HotReloadRejected);
     }
+    ++managerRevision_;
     lastError_ = AssetResourceError::None;
     return true;
 }
@@ -217,11 +223,13 @@ bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
         const AssetDefinition* current = registry_.Find(slots_[index].assetId);
         if (current == nullptr || current->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
     }
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) slots_[index].state = AssetResourceState::Stale;
     for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) {
         const AssetDefinition* current = registry_.Find(slots_[index].assetId);
         if (!RefreshUnleasedSlot(slots_[index], *current)) return Fail(AssetResourceError::HotReloadRejected);
     }
+    ++managerRevision_;
     lastError_ = AssetResourceError::None;
     return true;
 }
@@ -235,7 +243,7 @@ uint32_t AssetResourceManager::ResidentBytes() const {
     return total > std::numeric_limits<uint32_t>::max() ? std::numeric_limits<uint32_t>::max() : static_cast<uint32_t>(total);
 }
 
-bool AssetResourceManager::EvictToBudget(uint32_t maxResidentBytes, uint32_t& residentBytes, uint16_t& evictedResources) {
+bool AssetResourceManager::PlanEviction(uint32_t maxResidentBytes, AssetEvictionPlan& plan) const {
     uint64_t total = 0U;
     uint64_t reclaimable = 0U;
     for (const Slot& slot : slots_) if (slot.occupied) {
@@ -245,31 +253,60 @@ bool AssetResourceManager::EvictToBudget(uint32_t maxResidentBytes, uint32_t& re
         if (slot.refCount == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U) reclaimable += definition->byteSize;
     }
     if (total > std::numeric_limits<uint32_t>::max() || (total > maxResidentBytes && total - reclaimable > maxResidentBytes)) return Fail(AssetResourceError::BudgetExceeded);
+    AssetEvictionPlan candidate{};
+    candidate.managerRevision = managerRevision_;
+    candidate.maxResidentBytes = maxResidentBytes;
+    candidate.residentBytesBefore = static_cast<uint32_t>(total);
+    candidate.activeResourcesBefore = activeResourceCount_;
     uint64_t candidateTotal = total;
-    uint16_t candidateEvicted = 0U;
-    for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U && candidateTotal > maxResidentBytes) {
+    for (uint16_t index = 0U; index < kMaxResources && candidateTotal > maxResidentBytes; ++index) {
+        const Slot& slot = slots_[index];
+        if (!slot.occupied || slot.refCount != 0U || slot.generation >= std::numeric_limits<uint32_t>::max() - 2U) continue;
         const AssetDefinition* definition = registry_.Find(slot.assetId);
+        if (definition == nullptr || definition->byteSize > candidateTotal || candidate.victimCount >= candidate.victims.size()) return Fail(AssetResourceError::HotReloadRejected);
+        candidate.victims[candidate.victimCount++] = {index, slot.generation, definition->byteSize};
         candidateTotal -= definition->byteSize;
-        ++candidateEvicted;
     }
-    uint16_t committedEvicted = 0U;
-    for (Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U && committedEvicted < candidateEvicted) {
-        const AssetDefinition* definition = registry_.Find(slot.assetId);
-        total -= definition->byteSize;
+    if (candidateTotal > maxResidentBytes) return Fail(AssetResourceError::BudgetExceeded);
+    candidate.residentBytesAfter = static_cast<uint32_t>(candidateTotal);
+    plan = candidate;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
+bool AssetResourceManager::CommitEviction(const AssetEvictionPlan& plan) {
+    if (plan.managerRevision != managerRevision_) return Fail(AssetResourceError::StaleEvictionPlan);
+    AssetEvictionPlan expected{};
+    if (!PlanEviction(plan.maxResidentBytes, expected)) return false;
+    if (expected != plan) return Fail(AssetResourceError::InvalidEvictionPlan);
+    if (plan.victimCount != 0U && managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    for (uint16_t index = 0U; index < plan.victimCount; ++index) {
+        const AssetEvictionTarget& target = plan.victims[index];
+        if (target.slot >= kMaxResources || !slots_[target.slot].occupied || slots_[target.slot].generation != target.generation || slots_[target.slot].refCount != 0U) return Fail(AssetResourceError::InvalidEvictionPlan);
+        Slot& slot = slots_[target.slot];
         const uint32_t nextGeneration = slot.generation + 1U;
         slot = {};
-        slot.generation = nextGeneration;
+        slot.generation = nextGeneration == 0U ? 1U : nextGeneration;
         --activeResourceCount_;
-        ++committedEvicted;
     }
-    residentBytes = static_cast<uint32_t>(total);
-    evictedResources = committedEvicted;
+    if (plan.victimCount != 0U) ++managerRevision_;
     lastError_ = AssetResourceError::None;
+    return true;
+}
+
+bool AssetResourceManager::EvictToBudget(uint32_t maxResidentBytes, uint32_t& residentBytes, uint16_t& evictedResources) {
+    AssetEvictionPlan plan{};
+    if (!PlanEviction(maxResidentBytes, plan) || !CommitEviction(plan)) return false;
+    residentBytes = plan.residentBytesAfter;
+    evictedResources = plan.victimCount;
     return true;
 }
 
 bool AssetResourceManager::EvictUnleased(uint16_t& evictedResources) {
     for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation >= std::numeric_limits<uint32_t>::max() - 2U) return Fail(AssetResourceError::Capacity);
+    bool willEvict = false;
+    for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U) { willEvict = true; break; }
+    if (willEvict && managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     uint16_t candidateEvicted = 0U;
     for (Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U) {
         const uint32_t nextGeneration = slot.generation + 1U;
@@ -279,6 +316,7 @@ bool AssetResourceManager::EvictUnleased(uint16_t& evictedResources) {
         ++candidateEvicted;
     }
     evictedResources = candidateEvicted;
+    if (candidateEvicted != 0U) ++managerRevision_;
     lastError_ = AssetResourceError::None;
     return true;
 }
