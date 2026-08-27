@@ -36,11 +36,11 @@ jobs:
           ./build/r1-release/farm_canonical_game_tool_smoke
 
       - name: Configure AddressSanitizer
-        run: >-
-          cmake -S Source/NeoEngine -B build/r1-asan -G Ninja
-          -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer
-          -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address
+        run: |
+          cmake -S Source/NeoEngine -B build/r1-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
 
       - name: Build and run ASAN smoke
         env:
