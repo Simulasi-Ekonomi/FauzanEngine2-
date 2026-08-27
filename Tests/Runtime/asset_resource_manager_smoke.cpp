@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <cstddef>
 #include <vector>
 
 int main() {
@@ -55,6 +56,12 @@ int main() {
         const std::string dependency = "depth" + std::to_string(static_cast<uint8_t>(depth - 1U));
         if (!depthRegistry.ImportBytes(id, AssetKind::Prefab, {dependency}, {1U}) || !depthRegistry.MarkReady(id)) return 16;
     }
+    AssetRegistry budgetRegistry;
+    const std::vector<uint8_t> budgetAsset(AssetRegistry::kMaxAssetBytes, 0x5AU);
+    for (size_t index = 0U; index < AssetRegistry::kMaxStoredBytes / AssetRegistry::kMaxAssetBytes; ++index) {
+        if (!budgetRegistry.ImportBytes("budget" + std::to_string(index), AssetKind::Prefab, {}, budgetAsset)) return 16;
+    }
+    if (budgetRegistry.ImportBytes("budget-overflow", AssetKind::Prefab, {}, budgetAsset) || budgetRegistry.LastError() != AssetRegistryError::ByteLimitExceeded || budgetRegistry.All().size() != 4U) return 16;
     AssetResourceManager depthResources(depthRegistry);
     const uint16_t depthResourcesBefore = depthResources.ActiveResourceCount();
     if (depthResources.Acquire("depth16", materialHandle) || depthResources.LastError() != AssetResourceError::Capacity || depthResources.ActiveResourceCount() != depthResourcesBefore || depthResources.ActiveLeaseCount() != 0U) return 16;
