@@ -150,6 +150,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/CurriculumSystem.cpp
     Systems/AgricultureCurriculum.cpp
     Systems/FarmWorldTool.cpp
+    Systems/FarmCanonicalGameTool.cpp
     Systems/FarmAuthoritativeService.cpp
     Systems/FarmAuthoritativeSessionHost.cpp
     Systems/FarmAuthoritativeSessionLoopback.cpp
@@ -221,6 +222,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_trust_smoke.cpp")
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_world_tool_smoke.cpp")
     add_xpbd_executable(farm_world_tool_smoke ../../Tests/Farm/farm_world_tool_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_canonical_game_tool_smoke.cpp")
+    add_xpbd_executable(farm_canonical_game_tool_smoke ../../Tests/Farm/farm_canonical_game_tool_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_scene_sync_smoke.cpp")
     add_xpbd_executable(farm_scene_sync_smoke ../../Tests/Farm/farm_scene_sync_smoke.cpp)
