@@ -27,6 +27,8 @@ enum class AssetResourceError : uint8_t {
     MissingAsset,
     InvalidEvictionPlan,
     StaleEvictionPlan,
+    InvalidHotReloadPlan,
+    StaleHotReloadPlan,
 };
 
 struct AssetResourceHandle {
@@ -64,6 +66,25 @@ struct AssetEvictionPlan {
     bool operator==(const AssetEvictionPlan&) const = default;
 };
 
+struct AssetHotReloadTarget {
+    uint16_t slot = 0xFFFFU;
+    uint32_t resourceGeneration = 0U;
+    uint64_t contentHashBefore = 0U;
+    uint64_t contentHashAfter = 0U;
+    uint64_t hotReloadGeneration = 0U;
+    bool operator==(const AssetHotReloadTarget&) const = default;
+};
+
+struct AssetHotReloadPlan {
+    static constexpr uint16_t kMaxTargets = 64U;
+    uint64_t managerRevision = 0U;
+    uint16_t rootSlot = 0xFFFFU;
+    uint32_t rootGeneration = 0U;
+    uint16_t targetCount = 0U;
+    std::array<AssetHotReloadTarget, kMaxTargets> targets{};
+    bool operator==(const AssetHotReloadPlan&) const = default;
+};
+
 class AssetResourceManager {
 public:
     static constexpr uint16_t kMaxResources = static_cast<uint16_t>(AssetRegistry::kMaxAssets);
@@ -83,6 +104,8 @@ public:
     bool EvictToBudget(uint32_t maxResidentBytes, uint32_t& residentBytes, uint16_t& evictedResources);
     bool PlanEviction(uint32_t maxResidentBytes, AssetEvictionPlan& plan) const;
     bool CommitEviction(const AssetEvictionPlan& plan);
+    bool PlanHotReload(std::string_view assetId, AssetHotReloadPlan& plan) const;
+    bool CommitHotReload(const AssetHotReloadPlan& plan);
     bool Query(AssetResourceHandle handle, AssetResourceReceipt& receipt) const;
     bool Query(std::string_view assetId, AssetResourceReceipt& receipt) const;
     const std::vector<uint8_t>* Data(AssetResourceHandle handle) const;

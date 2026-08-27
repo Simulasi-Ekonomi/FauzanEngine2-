@@ -234,6 +234,77 @@ bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
     return true;
 }
 
+bool AssetResourceManager::PlanHotReload(std::string_view assetId, AssetHotReloadPlan& plan) const {
+    if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
+    const AssetDefinition* rootDefinition = registry_.Find(assetId);
+    if (rootDefinition == nullptr) return Fail(AssetResourceError::MissingAsset);
+    if (rootDefinition->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
+    const uint16_t rootSlot = FindSlot(assetId);
+    if (rootSlot == 0xFFFFU) return Fail(AssetResourceError::MissingAsset);
+    const Slot& root = slots_[rootSlot];
+    if (!root.occupied || root.generation >= std::numeric_limits<uint32_t>::max() - 2U) return Fail(AssetResourceError::InvalidHotReloadPlan);
+
+    std::array<bool, kMaxResources> affected{};
+    affected[rootSlot] = true;
+    for (uint16_t pass = 0U; pass < kMaxResources; ++pass) {
+        bool changed = false;
+        for (uint16_t candidate = 0U; candidate < kMaxResources; ++candidate) {
+            const Slot& dependent = slots_[candidate];
+            if (!dependent.occupied || affected[candidate]) continue;
+            for (uint16_t dependency = 0U; dependency < dependent.dependencyCount; ++dependency) if (dependent.dependencySlots[dependency] < kMaxResources && affected[dependent.dependencySlots[dependency]]) {
+                affected[candidate] = true;
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) break;
+    }
+
+    AssetHotReloadPlan candidate{};
+    candidate.managerRevision = managerRevision_;
+    candidate.rootSlot = rootSlot;
+    candidate.rootGeneration = root.generation;
+    for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) {
+        const Slot& slot = slots_[index];
+        if (!slot.occupied || slot.refCount != 0U) return Fail(AssetResourceError::StaleInUse);
+        if (slot.generation >= std::numeric_limits<uint32_t>::max() - 2U || slot.hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+        const AssetDefinition* definition = registry_.Find(slot.assetId);
+        if (definition == nullptr) return Fail(AssetResourceError::MissingAsset);
+        if (definition->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
+        if (candidate.targetCount >= candidate.targets.size()) return Fail(AssetResourceError::Capacity);
+        candidate.targets[candidate.targetCount++] = {index, slot.generation, slot.contentHash, definition->contentHash, slot.hotReloadGeneration};
+    }
+    if (candidate.targetCount == 0U) return Fail(AssetResourceError::InvalidHotReloadPlan);
+    plan = candidate;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
+bool AssetResourceManager::CommitHotReload(const AssetHotReloadPlan& plan) {
+    if (plan.managerRevision != managerRevision_) return Fail(AssetResourceError::StaleHotReloadPlan);
+    if (plan.rootSlot >= kMaxResources || !slots_[plan.rootSlot].occupied || plan.rootGeneration != slots_[plan.rootSlot].generation || plan.targetCount == 0U || plan.targetCount > plan.targets.size()) return Fail(AssetResourceError::InvalidHotReloadPlan);
+    AssetHotReloadPlan expected{};
+    if (!PlanHotReload(slots_[plan.rootSlot].assetId, expected)) return false;
+    if (expected != plan) return Fail(AssetResourceError::InvalidHotReloadPlan);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+
+    for (uint16_t index = 0U; index < plan.targetCount; ++index) {
+        const AssetHotReloadTarget& target = plan.targets[index];
+        if (target.slot >= kMaxResources || !slots_[target.slot].occupied || slots_[target.slot].generation != target.resourceGeneration || slots_[target.slot].refCount != 0U || slots_[target.slot].hotReloadGeneration != target.hotReloadGeneration) return Fail(AssetResourceError::InvalidHotReloadPlan);
+    }
+    for (uint16_t index = 0U; index < plan.targetCount; ++index) {
+        const AssetHotReloadTarget& target = plan.targets[index];
+        Slot& slot = slots_[target.slot];
+        slot.state = AssetResourceState::Ready;
+        slot.contentHash = target.contentHashAfter;
+        ++slot.generation;
+        ++slot.hotReloadGeneration;
+    }
+    ++managerRevision_;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
 uint32_t AssetResourceManager::ResidentBytes() const {
     uint64_t total = 0U;
     for (const Slot& slot : slots_) if (slot.occupied) {

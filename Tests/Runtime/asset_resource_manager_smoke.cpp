@@ -98,5 +98,19 @@ int main() {
     preservedPlan.maxResidentBytes = 123U;
     if (plannedResources.PlanEviction(0U, preservedPlan) || plannedResources.LastError() != AssetResourceError::BudgetExceeded || preservedPlan.maxResidentBytes != 123U || plannedResources.ActiveResourceCount() != 3U) return 27;
     if (!plannedResources.Release(plannedHandle) || !plannedResources.PlanEviction(2U, plan) || !plannedResources.CommitEviction(plan) || plannedResources.ResidentBytes() != 2U || plannedResources.ActiveResourceCount() != 1U) return 28;
+    AssetResourceHandle plannedReloadHandle{};
+    if (!plannedResources.Acquire("material.crop", plannedReloadHandle) || !plannedResources.Release(plannedReloadHandle)) return 29;
+    AssetResourceReceipt reloadBefore{};
+    if (!plannedResources.Query("texture.wheat", reloadBefore) || !registry.ReplaceBytes("texture.wheat", {42U, 43U, 44U, 45U})) return 30;
+    AssetHotReloadPlan reloadPlan{};
+    if (!plannedResources.PlanHotReload("texture.wheat", reloadPlan) || reloadPlan.targetCount != 2U || reloadPlan.rootSlot >= AssetResourceManager::kMaxResources || reloadPlan.targets[0].slot != 0U || reloadPlan.targets[1].slot != 2U || reloadPlan.targets[1].contentHashAfter == reloadPlan.targets[1].contentHashBefore) return 31;
+    AssetHotReloadPlan forgedReloadPlan = reloadPlan;
+    ++forgedReloadPlan.targets[0].contentHashAfter;
+    if (plannedResources.CommitHotReload(forgedReloadPlan) || plannedResources.LastError() != AssetResourceError::InvalidHotReloadPlan || !plannedResources.Query("texture.wheat", textureReceipt) || textureReceipt.contentHash != reloadBefore.contentHash || textureReceipt.resourceGeneration != reloadBefore.resourceGeneration) return 32;
+    if (!plannedResources.Acquire("texture.wheat", plannedReloadHandle) || plannedResources.CommitHotReload(reloadPlan) || plannedResources.LastError() != AssetResourceError::StaleHotReloadPlan || !plannedResources.Release(plannedReloadHandle)) return 33;
+    if (!plannedResources.PlanHotReload("texture.wheat", reloadPlan) || !plannedResources.CommitHotReload(reloadPlan) || !plannedResources.Query("texture.wheat", textureReceipt) || textureReceipt.contentHash == reloadBefore.contentHash || textureReceipt.resourceGeneration <= reloadBefore.resourceGeneration) return 34;
+    AssetHotReloadPlan preservedReloadPlan{};
+    preservedReloadPlan.rootSlot = 123U;
+    if (plannedResources.PlanHotReload("bad id", preservedReloadPlan) || plannedResources.LastError() != AssetResourceError::InvalidIdentifier || preservedReloadPlan.rootSlot != 123U) return 35;
     return 0;
 }
