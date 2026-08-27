@@ -12,6 +12,7 @@ bool AnimationLocomotionBridge::Initialize(AnimationLocomotionBridgeConfig confi
 bool AnimationLocomotionBridge::Apply(KinematicPlanarInput input, AnimationStateMachine& machine) {
     if (!initialized_) { lastError_ = AnimationLocomotionBridgeError::InvalidConfiguration; return false; }
     if (!std::isfinite(input.x) || !std::isfinite(input.z)) { lastError_ = AnimationLocomotionBridgeError::InvalidInput; return false; }
+    bool observedLocomoting = locomoting_;
     if (config_.idleStateId.empty()) {
         if (machine.ActiveStateId().empty()) { lastError_ = AnimationLocomotionBridgeError::StateMachineNotStarted; return false; }
     } else {
@@ -19,12 +20,12 @@ bool AnimationLocomotionBridge::Apply(KinematicPlanarInput input, AnimationState
         if (!machine.Snapshot(machineSnapshot)) { lastError_ = machine.LastError() == AnimationStateMachineError::NotStarted ? AnimationLocomotionBridgeError::StateMachineNotStarted : AnimationLocomotionBridgeError::StateTriggerFailed; return false; }
         const std::string& observedState = machineSnapshot.blending ? machineSnapshot.targetStateId : machineSnapshot.activeStateId;
         if (observedState != config_.idleStateId && observedState != config_.locomotionStateId) { lastError_ = AnimationLocomotionBridgeError::StateMismatch; return false; }
-        locomoting_ = observedState == config_.locomotionStateId;
+        observedLocomoting = observedState == config_.locomotionStateId;
     }
     const double inputMagnitudeSquared = (static_cast<double>(input.x) * static_cast<double>(input.x)) + (static_cast<double>(input.z) * static_cast<double>(input.z));
     const double thresholdSquared = static_cast<double>(config_.movementThreshold) * static_cast<double>(config_.movementThreshold);
     const bool desiredLocomotion = inputMagnitudeSquared > thresholdSquared;
-    if (desiredLocomotion == locomoting_) { lastError_ = AnimationLocomotionBridgeError::None; return true; }
+    if (desiredLocomotion == observedLocomoting) { locomoting_ = observedLocomoting; lastError_ = AnimationLocomotionBridgeError::None; return true; }
     if (!machine.Trigger(desiredLocomotion ? config_.idleToLocomotionTransitionId : config_.locomotionToIdleTransitionId)) { lastError_ = AnimationLocomotionBridgeError::StateTriggerFailed; return false; }
     locomoting_ = desiredLocomotion; lastError_ = AnimationLocomotionBridgeError::None; return true;
 }

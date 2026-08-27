@@ -11,16 +11,18 @@ int main() {
     AnimationStateMachine machine;
     if (!machine.AddState({"idle", "idle", AnimationPlayback::Clamp}) || !machine.AddState({"move", "move", AnimationPlayback::Clamp}) || !machine.AddTransition({"to-move", "idle", "move", 0.0F}) || !machine.AddTransition({"to-idle", "move", "idle", 0.0F}) || !machine.Start("idle")) return 1;
     AnimationLocomotionBridge locomotion;
-    if (!locomotion.Initialize({"to-move", "to-idle", 0.1F})) return 1;
+    if (!locomotion.Initialize({"to-move", "to-idle", 0.1F, "idle", "move"})) return 1;
     PhysicsAnimationLocomotionBridge bridge;
     const uint64_t initialRevision = entities.GetPhysicsRevision();
     if (!bridge.Apply(entities, dynamic, bodies, locomotion, machine) || bridge.LastError() != PhysicsAnimationLocomotionBridgeError::None || machine.ActiveStateId() != "move" || !locomotion.IsLocomoting() || entities.GetPhysicsRevision() != initialRevision) return 1;
     if (!bodies.SetDynamicPlanarVelocity(entities, dynamic, 0.0F, 0.0F) || !bridge.Apply(entities, dynamic, bodies, locomotion, machine) || machine.ActiveStateId() != "idle" || locomotion.IsLocomoting()) return 1;
     if (!bodies.SetDynamicPlanarVelocity(entities, dynamic, 1.0F, 0.0F) || !bridge.Apply(entities, dynamic, bodies, locomotion, machine) || machine.ActiveStateId() != "move" || !locomotion.IsLocomoting()) return 1;
-    const std::string preservedState = machine.ActiveStateId(); const bool preservedLocomotion = locomotion.IsLocomoting(); const uint64_t preservedRevision = entities.GetPhysicsRevision();
-    if (bridge.Apply(entities, 99999U, bodies, locomotion, machine) || bridge.LastError() != PhysicsAnimationLocomotionBridgeError::SnapshotFailed || machine.ActiveStateId() != preservedState || locomotion.IsLocomoting() != preservedLocomotion || entities.GetPhysicsRevision() != preservedRevision) return 1;
+    const std::string preservedState = machine.ActiveStateId(); const bool preservedLocomotion = locomotion.IsLocomoting();
+    if (bridge.Apply(entities, 99999U, bodies, locomotion, machine) || bridge.LastError() != PhysicsAnimationLocomotionBridgeError::SnapshotFailed || machine.ActiveStateId() != preservedState || locomotion.IsLocomoting() != preservedLocomotion) return 1;
     AnimationLocomotionBridge rejectedLocomotion;
-    if (!rejectedLocomotion.Initialize({"missing-transition", "missing-back", 0.1F}) || bridge.Apply(entities, dynamic, bodies, rejectedLocomotion, machine) || bridge.LastError() != PhysicsAnimationLocomotionBridgeError::LocomotionRejected || machine.ActiveStateId() != preservedState || rejectedLocomotion.IsLocomoting() || entities.GetPhysicsRevision() != preservedRevision) return 1;
+    if (!rejectedLocomotion.Initialize({"missing-transition", "missing-back", 0.1F, "idle", "move"}) || !bodies.SetDynamicPlanarVelocity(entities, dynamic, 0.0F, 0.0F)) return 1;
+    const uint64_t preservedRevision = entities.GetPhysicsRevision();
+    if (bridge.Apply(entities, dynamic, bodies, rejectedLocomotion, machine) || bridge.LastError() != PhysicsAnimationLocomotionBridgeError::LocomotionRejected || machine.ActiveStateId() != preservedState || rejectedLocomotion.IsLocomoting() || entities.GetPhysicsRevision() != preservedRevision) return 1;
     std::printf("PHYSICS_ANIMATION_LOCOMOTION_BRIDGE_SMOKE_OK move=1 idle=1 atomic=1 readOnly=1\n");
     return 0;
 }
