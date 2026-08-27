@@ -4,7 +4,7 @@
 
 namespace NeoEngine {
 bool FlipbookPlayback::Initialize(FlipbookPlaybackConfig config) {
-    if (!std::isfinite(config.durationSeconds) || config.durationSeconds <= 0.0F || config.durationSeconds > 60.0F) { initialized_ = false; lastError_ = FlipbookPlaybackError::InvalidConfiguration; return false; }
+    if (!std::isfinite(config.durationSeconds) || config.durationSeconds <= 0.0F || config.durationSeconds > 60.0F) { lastError_ = FlipbookPlaybackError::InvalidConfiguration; return false; }
     config_ = config; timeSeconds_ = 0.0F; paused_ = false; initialized_ = true; lastError_ = FlipbookPlaybackError::None; return true;
 }
 bool FlipbookPlayback::Advance(float deltaSeconds, float& normalizedSample) {

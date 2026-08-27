@@ -9,6 +9,8 @@ int main() {
     FlipbookPlayback playback; float sample = 77.0F;
     if (playback.Initialize({0.0F,true}) || playback.LastError() != FlipbookPlaybackError::InvalidConfiguration) return 1;
     if (!playback.Initialize({1.0F,true}) || !playback.Advance(0.25F,sample) || std::fabs(sample-0.25F)>0.0001F || std::fabs(playback.TimeSeconds()-0.25F)>0.0001F) return 1;
+    const float preservedSample = sample;
+    if (playback.Initialize({0.0F,false}) || playback.LastError()!=FlipbookPlaybackError::InvalidConfiguration || !playback.Advance(0.0F,sample) || std::fabs(sample-preservedSample)>0.0001F || std::fabs(playback.TimeSeconds()-0.25F)>0.0001F) return 1;
     FlipbookFrameSelector selector; SpriteSourceRect rect{};
     if (!selector.Initialize({4U,1U,1U,1U,4U}) || !selector.Select(sample,rect) || rect.x != 1U) return 1;
     playback.SetPaused(true); if (!playback.Advance(0.25F,sample) || !playback.IsPaused() || std::fabs(sample-0.25F)>0.0001F || std::fabs(playback.TimeSeconds()-0.25F)>0.0001F || !selector.Select(sample,rect) || rect.x != 1U) return 1;
