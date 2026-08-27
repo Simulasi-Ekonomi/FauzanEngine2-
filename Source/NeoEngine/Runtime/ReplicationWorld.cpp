@@ -315,7 +315,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             resolvedSlots[index] = slotIndex;
             presentSlots[slotIndex] = true;
             if (state.stateRevision < slot->stateRevision) return Fail(ReplicationError::StaleSnapshot);
-            if (state.ownerId == localClientId_ && sceneWorld_.GetTransform(slot->entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
+            if (sceneWorld_.GetTransform(slot->entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
         }
     }
     std::unique_ptr<SceneWorld> candidateScene;

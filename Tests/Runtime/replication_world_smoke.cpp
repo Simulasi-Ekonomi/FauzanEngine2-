@@ -2,7 +2,25 @@
 
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <vector>
+
+namespace {
+bool RunStaleRemoteEntityRegression() {
+    using namespace NeoEngine;
+    auto scene = std::make_unique<SceneWorld>();
+    auto client = std::make_unique<ReplicationWorld>(*scene, ReplicationRole::Client, 7U);
+    SceneEntity entity{};
+    if (!scene->Create(entity) || !scene->SetTransform(entity, {4.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !client->RegisterEntity(entity, 501U, 8U) || !scene->Destroy(entity)) return false;
+    ReplicationSnapshot snapshot{};
+    snapshot.sequence = 1U; snapshot.serverTick = 1U; snapshot.count = 1U;
+    snapshot.states[0] = {501U, 8U, 1U, {5.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
+    std::vector<uint8_t> bytes; ReplicationError error = ReplicationError::None; ReplicationSnapshot decoded{};
+    if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error) || !ReplicationSnapshotCodec::Deserialize(bytes, decoded, error)) return false;
+    ReplicationApplyReceipt receipt{91U, 92U, 93U, 94U, 95U, 96U, 97U, true};
+    return !client->ApplyServerSnapshot(decoded, receipt) && client->LastError() == ReplicationError::InvalidEntity && receipt.sequence == 91U && receipt.serverTick == 92U && receipt.appliedEntities == 93U && receipt.spawnedEntities == 94U && receipt.despawnedEntities == 95U && receipt.interpolatedEntities == 96U && receipt.reconciledPredictions == 97U && receipt.accepted && client->SnapshotSequence() == 0U && client->RegisteredCount() == 1U;
+}
+}
 
 int main() {
     using namespace NeoEngine;
@@ -144,5 +162,6 @@ int main() {
     despawnSnapshot.serverTick = 11U;
     std::vector<uint8_t> despawnBytes;
     if (!ReplicationSnapshotCodec::Serialize(despawnSnapshot, despawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(despawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.despawnedEntities != 1U || dynamicClient.RegisteredCount() != 0U || dynamicClient.IsRegistered(300U)) return 30;
+    if (!RunStaleRemoteEntityRegression()) return 31;
     return 0;
 }
