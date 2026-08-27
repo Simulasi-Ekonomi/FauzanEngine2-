@@ -26,7 +26,7 @@ int main() {
     FarmSpriteAssetSet set{ids[0], ids[1], ids[2], ids[3], ids[4], ids[5], ids[6], ids[7], ids[8], ids[9], ids[10], ids[11], ids[12], ids[13], ids[14], ids[15]};
     TextureStagingStore textures; SoftwareRenderer renderer; InputState input; FarmRuntimeSession session; FarmRuntimeHud hud;
     if (!renderer.Initialize(96U, 96U) || !BindInput(input) || !session.Initialize(farm, world, set, assets, textures, renderer)) return 1;
-    FarmRuntimeHudReceipt preserved{99U, 88U, 77U, {66U, 55U, 44U, 33, 2U, 1U, 0U, 0U, 0U, false, FarmError::None}}; const uint64_t blankHash = renderer.FrameHash();
+    FarmRuntimeHudReceipt preserved{}; preserved.frame = 99U; preserved.worldFramebufferHash = 88U; preserved.hudFramebufferHash = 77U; preserved.telemetry.simulationTick = 66U; preserved.telemetry.stateRevision = 55U; preserved.telemetry.eventSequence = 44U; preserved.telemetry.coins = 33; preserved.telemetry.tilledTiles = 2U; preserved.telemetry.growingTiles = 1U; preserved.telemetry.lastError = FarmError::None; const uint64_t blankHash = renderer.FrameHash();
     if (session.DrawHud(hud, preserved) || session.LastError() != FarmRuntimeSessionError::HudRejected || preserved.frame != 99U || preserved.worldFramebufferHash != 88U || preserved.hudFramebufferHash != 77U || renderer.FrameHash() != blankHash || session.FrameCount() != 0U) return 1;
     if (!session.Frame(input) || session.FrameCount() != 1U) return 1;
     const FarmRuntimeFrameReceipt worldReceipt = session.LastFrameReceipt(); const uint64_t worldHash = renderer.FrameHash(); FarmRuntimeHudReceipt overlay{};

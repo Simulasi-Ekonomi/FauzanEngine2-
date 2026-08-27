@@ -124,6 +124,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Scene = std::move(scene);
     m_Renderer = std::move(renderer);
     m_FarmRuntimeHud = config.enableFarmRuntimeHud ? std::make_unique<FarmRuntimeHud>() : nullptr;
+    m_LastFrameReceipt = {};
+    m_HasFrameReceipt = false;
     m_RenderedFarmFrames = 0U;
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
@@ -147,7 +149,14 @@ bool NeoRuntime::Tick() {
         const RuntimeEventKind kind = event.kind == RuntimeTimeEventKind::TimeChanged ? RuntimeEventKind::GameTimeChanged : event.kind == RuntimeTimeEventKind::DayChanged ? RuntimeEventKind::GameDayChanged : RuntimeEventKind::GamePhaseChanged;
         if (!m_Events->Queue({kind, 0U, static_cast<int32_t>(event.snapshot.minuteOfDay), event.snapshot.hostFixedStepCount})) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     }
-    if (m_Clock->Snapshot().paused || simulatedTicks == 0U) return m_Events->Dispatch();
+    if (m_Clock->Snapshot().paused || simulatedTicks == 0U) {
+        const uint32_t eventCount = m_Events->PendingCount();
+        if (!m_Events->Dispatch()) { m_LastError = RuntimeError::InvalidState; return false; }
+        m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), {}, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
+        m_HasFrameReceipt = true;
+        m_LastError = RuntimeError::None;
+        return true;
+    }
     if (m_MotionAuthority != nullptr) m_MotionAuthority->BeginFrame();
     if (m_InputMotion != nullptr && (m_Input == nullptr || m_KinematicMotion == nullptr || !m_InputMotion->Step(*m_Input, *m_KinematicMotion, *m_Scene, m_InputMotionEntity_, m_Clock->Snapshot().scaledDeltaSeconds))) { m_LastError = RuntimeError::InputMotionFailed; m_State = RuntimeState::Failed; return false; }
     if (m_RouteFollower != nullptr && !m_RouteFollower->ReachedGoal()) {
@@ -159,7 +168,12 @@ bool NeoRuntime::Tick() {
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
-    return m_Events->Dispatch();
+    const uint32_t eventCount = m_Events->PendingCount();
+    if (!m_Events->Dispatch()) { m_LastError = RuntimeError::InvalidState; return false; }
+    m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), actorReceipt, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
+    m_HasFrameReceipt = true;
+    m_LastError = RuntimeError::None;
+    return true;
 }
 
 bool NeoRuntime::ReplanRouteMotion() {
@@ -177,7 +191,7 @@ bool NeoRuntime::RenderFarm() {
     const uint64_t worldHash = candidate.FrameHash(); const FarmTelemetrySnapshot telemetry = m_Farm->Snapshot(); uint64_t hudHash = 0U;
     if (m_FarmRuntimeHud != nullptr) { const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry}; if (!m_FarmRuntimeHud->Draw(receipt, candidate)) { m_LastError = RuntimeError::HudFailed; return false; } hudHash = candidate.FrameHash(); }
     if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(candidate))) { m_LastError = RuntimeError::PresentationFailed; return false; }
-    const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, m_SurfacePresenter == nullptr ? 0U : m_SurfacePresenter->PresentedFrameCount(), telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; m_LastError = RuntimeError::None;
+    const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, m_SurfacePresenter == nullptr ? 0U : m_SurfacePresenter->PresentedFrameCount(), telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; if (m_HasFrameReceipt) { NeoRuntimeFrameReceipt candidateReceipt = m_LastFrameReceipt; candidateReceipt.farmRender = receipt; candidateReceipt.hasFarmRenderReceipt = true; m_LastFrameReceipt = candidateReceipt; } m_LastError = RuntimeError::None;
     return true;
 }
 
@@ -205,6 +219,8 @@ bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
     m_FarmRuntimeHud.reset();
+    m_LastFrameReceipt = {};
+    m_HasFrameReceipt = false;
     m_RenderedFarmFrames = 0U;
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
