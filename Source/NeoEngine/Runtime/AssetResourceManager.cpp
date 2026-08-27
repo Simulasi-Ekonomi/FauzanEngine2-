@@ -304,8 +304,13 @@ const std::vector<uint8_t>* AssetResourceManager::Data(AssetResourceHandle handl
     if (!ValidHandle(handle)) return nullptr;
     const LeaseSlot& lease = leases_[handle.slot];
     const Slot& resource = slots_[lease.rootResourceSlot];
-    if (resource.state != AssetResourceState::Ready) return nullptr;
-    return registry_.Data(resource.assetId);
+    const AssetDefinition* definition = registry_.Find(resource.assetId);
+    if (resource.state != AssetResourceState::Ready || definition == nullptr || definition->state != AssetState::Ready) { lastError_ = definition == nullptr ? AssetResourceError::MissingAsset : AssetResourceError::NotReady; return nullptr; }
+    if (definition->contentHash != resource.contentHash) { lastError_ = AssetResourceError::StaleInUse; return nullptr; }
+    const std::vector<uint8_t>* data = registry_.Data(resource.assetId);
+    if (data == nullptr) { lastError_ = AssetResourceError::MissingAsset; return nullptr; }
+    lastError_ = AssetResourceError::None;
+    return data;
 }
 
 } // namespace NeoEngine

@@ -52,6 +52,10 @@ int main() {
     materialHandle = preservedAcquireHandle;
     if (resources.Acquire("missing.asset", materialHandle) || resources.LastError() != AssetResourceError::MissingDependency || materialHandle != preservedAcquireHandle) return 16;
     if (!registry.Declare("declared.asset", AssetKind::Audio, {}) || resources.ReloadIfSafe("declared.asset") || resources.LastError() != AssetResourceError::NotReady) return 16;
+    AssetRegistry staleRegistry;
+    AssetResourceManager staleResources(staleRegistry);
+    AssetResourceHandle staleHandle{};
+    if (!staleRegistry.ImportBytes("stale.texture", AssetKind::Texture, {}, {1U, 2U}) || !staleRegistry.MarkReady("stale.texture") || !staleResources.Acquire("stale.texture", staleHandle) || staleResources.Data(staleHandle) == nullptr || !staleRegistry.ReplaceBytes("stale.texture", {3U, 4U, 5U}) || staleResources.Data(staleHandle) != nullptr || staleResources.LastError() != AssetResourceError::StaleInUse || staleResources.SyncHotReload("stale.texture") || staleResources.LastError() != AssetResourceError::StaleInUse || !staleResources.Release(staleHandle) || !staleResources.SyncHotReload("stale.texture")) return 16;
     const uint16_t resourcesBeforeNotReady = resources.ActiveResourceCount();
     materialHandle = preservedAcquireHandle;
     if (resources.Acquire("declared.asset", materialHandle) || resources.LastError() != AssetResourceError::NotReady || resources.ActiveResourceCount() != resourcesBeforeNotReady || resources.ActiveLeaseCount() != 0U || materialHandle != preservedAcquireHandle) return 16;
