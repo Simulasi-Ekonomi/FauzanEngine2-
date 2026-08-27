@@ -1,5 +1,6 @@
 #include "Runtime/NetworkTransport.h"
 
+#include <array>
 #include <cstdio>
 
 using namespace NeoEngine;
@@ -15,6 +16,11 @@ int main() {
     NetworkTransportQueue queue;
     const uint8_t payloadA[] = {1U, 2U, 3U};
     const uint8_t payloadB[] = {4U, 5U};
+    std::array<uint8_t, NetworkTransportQueue::kMaxPayloadBytes + 1U> oversized{};
+
+    if (!Require(!queue.Enqueue(0U, NetworkDelivery::Unreliable, payloadA), "invalid_peer_reject") ||
+        !Require(!queue.Enqueue(42U, NetworkDelivery::Unreliable, oversized), "oversized_payload_reject") ||
+        !Require(queue.Size() == 0U && queue.Stats().rejected == 2U, "rejection_atomic")) return 1;
 
     if (!Require(queue.Enqueue(42U, NetworkDelivery::ReliableOrdered, payloadA), "enqueue_a") ||
         !Require(queue.Enqueue(42U, NetworkDelivery::Unreliable, payloadB), "enqueue_b") ||
@@ -33,6 +39,6 @@ int main() {
     if (!Require(NetworkInterestFilter::IsRelevant(volume, 3.0F, 4.0F, 0.0F), "interest_inside") ||
         !Require(!NetworkInterestFilter::IsRelevant(volume, 11.0F, 0.0F, 0.0F), "interest_outside")) return 1;
 
-    std::printf("NETWORK_TRANSPORT_SMOKE_OK queue=1 reorder=1 duplicate=1 drop=1 interest=1\n");
+    std::printf("NETWORK_TRANSPORT_SMOKE_OK queue=1 reorder=1 duplicate=1 drop=1 interest=1 bounded_payload=1 rejection_stats=1\n");
     return 0;
 }
