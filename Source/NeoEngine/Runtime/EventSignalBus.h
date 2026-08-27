@@ -9,6 +9,7 @@ namespace NeoEngine {
 
 enum class RuntimeEventKind : uint8_t { RuntimePaused, RuntimeResumed, TimerFired, InputAction, WorldMutation, AuthoringMutation, GameTimeChanged, GameDayChanged, GamePhaseChanged };
 struct RuntimeEvent { RuntimeEventKind kind = RuntimeEventKind::RuntimePaused; uint32_t subjectId = 0; int32_t value = 0; uint64_t tick = 0; };
+struct EventSignalDispatchReceipt { uint16_t listenerCount = 0U; uint16_t eventCount = 0U; uint64_t eventDigest = 0U; };
 enum class EventSignalError : uint8_t { None, DuplicateListener, MissingListener, Capacity, QueueFull };
 
 class RuntimeEventListener { public: virtual ~RuntimeEventListener() = default; virtual void OnRuntimeEvent(const RuntimeEvent& event) = 0; };
@@ -19,7 +20,7 @@ public:
     bool Subscribe(RuntimeEventListener& listener);
     bool Unsubscribe(RuntimeEventListener& listener);
     bool Queue(RuntimeEvent event);
-    bool Dispatch();
+    bool Dispatch(EventSignalDispatchReceipt* receipt = nullptr);
     [[nodiscard]] uint16_t ListenerCount() const { return static_cast<uint16_t>(listeners_.size()); }
     [[nodiscard]] uint16_t PendingCount() const { return static_cast<uint16_t>(pending_.size()); }
     [[nodiscard]] EventSignalError LastError() const { return lastError_; }
