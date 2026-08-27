@@ -193,6 +193,7 @@ bool ReplicationWorld::RegisterEntity(SceneEntity entity, uint32_t networkId, ui
 
 bool ReplicationWorld::UnregisterEntity(uint32_t networkId) {
     if (role_ != ReplicationRole::Server && role_ != ReplicationRole::Client) return Fail(ReplicationError::InvalidInput);
+    if (networkId == 0U) return Fail(ReplicationError::InvalidNetworkId);
     Slot* slot = FindSlot(networkId);
     if (slot == nullptr) return Fail(ReplicationError::UnknownEntity);
     *slot = {};
