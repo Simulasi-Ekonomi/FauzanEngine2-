@@ -1,0 +1,50 @@
+name: R3 Farm renderer path
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
+      - '.github/workflows/r3-farm-render.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
+      - '.github/workflows/r3-farm-render.yml'
+  workflow_dispatch:
+
+jobs:
+  farm-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build xvfb
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run Release smoke under Xvfb
+        run: |
+          cmake --build build/r3-release --target farm_vulkan_textured_present_smoke -j2
+          xvfb-run -a -s '-screen 0 1024x768x24' ./build/r3-release/farm_vulkan_textured_present_smoke
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r3-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run ASAN smoke under Xvfb
+        env:
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
+        run: |
+          cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke -j2
+          xvfb-run -a -s '-screen 0 1024x768x24' ./build/r3-asan/farm_vulkan_textured_present_smoke

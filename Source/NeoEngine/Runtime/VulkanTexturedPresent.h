@@ -3,10 +3,12 @@
 #include "PpmTexture.h"
 
 #include <cstdint>
+#include <span>
 
 namespace NeoEngine {
 
 struct CpuTextureResource;
+class SoftwareRenderer;
 
 enum class VulkanPresentStatus : uint8_t { None, InvalidInput, Unavailable, DeviceLost, SurfaceOutOfDate, Timeout, DriverRejected, Presented };
 
@@ -38,6 +40,7 @@ public:
     static VulkanPresentStatus ClassifyDriverResult(int32_t result);
     static VulkanTexturedPresentResult Present(const RgbaTexture& texture, uint32_t width = 64, uint32_t height = 64);
     static VulkanTexturedPresentResult Present(const CpuTextureResource& texture, uint32_t width = 64, uint32_t height = 64);
+    static VulkanTexturedPresentResult Present(std::span<const uint32_t> pixels, uint32_t width, uint32_t height);
 };
 
 } // namespace NeoEngine

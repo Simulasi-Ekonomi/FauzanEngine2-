@@ -1,6 +1,7 @@
 #include "VulkanTexturedPresent.h"
 
 #include "TextureStaging.h"
+#include "SoftwareRenderer.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -220,6 +221,27 @@ VulkanPresentStatus VulkanTexturedPresentProbe::ClassifyDriverResult(int32_t res
     if (result == static_cast<int32_t>(VK_ERROR_OUT_OF_DATE_KHR)) return VulkanPresentStatus::SurfaceOutOfDate;
     if (result == static_cast<int32_t>(VK_TIMEOUT)) return VulkanPresentStatus::Timeout;
     return VulkanPresentStatus::DriverRejected;
+}
+
+VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(std::span<const uint32_t> pixels, uint32_t width, uint32_t height) {
+    VulkanTexturedPresentResult result{};
+    const uint64_t expectedPixels = static_cast<uint64_t>(width) * height;
+    if (width == 0U || height == 0U || width > 2048U || height > 2048U || expectedPixels == 0U || pixels.size() != expectedPixels) {
+        result.status = VulkanPresentStatus::InvalidInput;
+        return result;
+    }
+    RgbaTexture texture{};
+    texture.width = static_cast<uint16_t>(width);
+    texture.height = static_cast<uint16_t>(height);
+    texture.rgba.resize(static_cast<size_t>(expectedPixels) * 4U);
+    for (size_t index = 0U; index < pixels.size(); ++index) {
+        const uint32_t pixel = pixels[index];
+        texture.rgba[index * 4U + 0U] = static_cast<uint8_t>((pixel >> 24U) & 0xFFU);
+        texture.rgba[index * 4U + 1U] = static_cast<uint8_t>((pixel >> 16U) & 0xFFU);
+        texture.rgba[index * 4U + 2U] = static_cast<uint8_t>((pixel >> 8U) & 0xFFU);
+        texture.rgba[index * 4U + 3U] = static_cast<uint8_t>(pixel & 0xFFU);
+    }
+    return Present(texture, width, height);
 }
 
 VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const CpuTextureResource& texture, uint32_t width, uint32_t height) {
