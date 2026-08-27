@@ -170,7 +170,7 @@ private:
     AssetResourceHandle animationResource_{};
     bool grounded_ = true;
     bool attached_ = false;
-    CharacterPawnError lastError_ = CharacterPawnError::NotInitialized;
+    mutable CharacterPawnError lastError_ = CharacterPawnError::NotInitialized;
 };
 
 } // namespace NeoEngine

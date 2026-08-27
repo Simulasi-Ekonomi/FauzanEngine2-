@@ -385,24 +385,30 @@ bool CharacterPawn::OnFixedTick(SceneWorld& world, SceneEntity actor, uint32_t f
     return true;
 }
 bool CharacterPawn::CaptureSnapshot(std::span<uint8_t> bytes) const {
-    if (bytes.size() != kComponentSnapshotBytes) return false;
+    if (!attached_) { lastError_ = CharacterPawnError::NotInitialized; return false; }
+    if (bytes.size() != kComponentSnapshotBytes) { lastError_ = CharacterPawnError::AnimationRejected; return false; }
     CharacterPawnSnapshot snapshot{}; std::array<uint8_t, kComponentSnapshotBytes> candidate{};
-    if (!Snapshot(snapshot) || !EncodeCharacterSnapshot(snapshot, candidate)) return false;
-    std::copy(candidate.begin(), candidate.end(), bytes.begin()); return true;
+    if (!Snapshot(snapshot) || !EncodeCharacterSnapshot(snapshot, candidate)) { lastError_ = CharacterPawnError::AnimationRejected; return false; }
+    std::copy(candidate.begin(), candidate.end(), bytes.begin()); lastError_ = CharacterPawnError::None; return true;
 }
 bool CharacterPawn::ValidateSnapshot(std::span<const uint8_t> bytes) const {
-    if (!attached_ || bytes.size() != kComponentSnapshotBytes) return false;
-    CharacterPawnSnapshot snapshot{}; return DecodeCharacterSnapshot(bytes, snapshot) && ValidCharacterSnapshot(snapshot, actor_, config_, animation_);
+    if (!attached_) { lastError_ = CharacterPawnError::NotInitialized; return false; }
+    if (bytes.size() != kComponentSnapshotBytes) { lastError_ = CharacterPawnError::AnimationRejected; return false; }
+    CharacterPawnSnapshot snapshot{};
+    if (!DecodeCharacterSnapshot(bytes, snapshot) || !ValidCharacterSnapshot(snapshot, actor_, config_, animation_)) { lastError_ = CharacterPawnError::AnimationRejected; return false; }
+    lastError_ = CharacterPawnError::None; return true;
 }
 bool CharacterPawn::RestoreSnapshot(std::span<const uint8_t> bytes) {
-    if (!attached_ || bytes.size() != kComponentSnapshotBytes) return false;
+    if (!attached_) return Fail(CharacterPawnError::NotInitialized);
+    if (bytes.size() != kComponentSnapshotBytes) return Fail(CharacterPawnError::AnimationRejected);
     CharacterPawnSnapshot snapshot{};
-    if (!DecodeCharacterSnapshot(bytes, snapshot) || !ValidCharacterSnapshot(snapshot, actor_, config_, animation_)) return false;
+    if (!DecodeCharacterSnapshot(bytes, snapshot) || !ValidCharacterSnapshot(snapshot, actor_, config_, animation_)) return Fail(CharacterPawnError::AnimationRejected);
     return Restore(snapshot);
 }
 bool CharacterPawn::CollectAnimationEvents(const AnimationTimeline& timeline, float fromTime, float toTime, std::vector<std::string>& output) const {
-    if (!attached_) return false;
-    return animation_.CollectAnimationEvents(timeline, fromTime, toTime, output);
+    if (!attached_) { lastError_ = CharacterPawnError::NotInitialized; return false; }
+    if (!animation_.CollectAnimationEvents(timeline, fromTime, toTime, output)) { lastError_ = CharacterPawnError::AnimationRejected; return false; }
+    lastError_ = CharacterPawnError::None; return true;
 }
 bool CharacterPawn::TriggerOverlay(std::string_view transitionId) {
     if (!attached_) return Fail(CharacterPawnError::NotInitialized);
@@ -452,7 +458,7 @@ bool CharacterAnimationGraph::Restore(const CharacterAnimationGraphSnapshot& sna
     }
 }
 bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
-    if (!attached_) return false;
+    if (!attached_) { lastError_ = CharacterPawnError::NotInitialized; return false; }
     try {
         CharacterPawnSnapshot candidate{};
         candidate.actor = actor_;
@@ -462,10 +468,12 @@ bool CharacterPawn::Snapshot(CharacterPawnSnapshot& snapshot) const {
         candidate.grounded = grounded_;
         candidate.pendingInput = pendingInput_;
         candidate.pendingRootMotion = pendingRootMotion_;
-        if (!animation_.Snapshot(candidate.animation)) return false;
+        if (!animation_.Snapshot(candidate.animation)) { lastError_ = CharacterPawnError::AnimationRejected; return false; }
         snapshot = std::move(candidate);
+        lastError_ = CharacterPawnError::None;
         return true;
     } catch (const std::bad_alloc&) {
+        lastError_ = CharacterPawnError::AnimationRejected;
         return false;
     }
 }

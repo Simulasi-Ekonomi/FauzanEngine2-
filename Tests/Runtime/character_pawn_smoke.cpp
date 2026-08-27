@@ -1,6 +1,7 @@
 #include "Runtime/ActorComponentWorld.h"
 #include "Runtime/CharacterPawn.h"
 
+#include <array>
 #include <cmath>
 #include <memory>
 #include <limits>
@@ -23,6 +24,8 @@ int main() {
     invalidConfig.runSpeed = 101.0F;
     CharacterPawn invalidCharacter(invalidConfig);
     if (invalidCharacter.OnAttach(scene, player) || invalidCharacter.LastError() != CharacterPawnError::InvalidConfig || invalidCharacter.IsAttached()) return 1;
+    CharacterPawnSnapshot unattachedSnapshot{};
+    if (invalidCharacter.Snapshot(unattachedSnapshot) || invalidCharacter.LastError() != CharacterPawnError::NotInitialized) return 1;
 
     auto character = std::make_unique<CharacterPawn>();
     CharacterPawn* characterView = character.get();
@@ -32,6 +35,11 @@ int main() {
     AnimationTimeline timeline;
     if (!timeline.AddTrack("idle", {{0.0F, 1.0F}, {1.0F, 1.0F}}) || !timeline.AddTrack("walk", {{0.0F, 2.0F}, {1.0F, 2.0F}}) || !timeline.AddTrack("run", {{0.0F, 3.0F}, {1.0F, 3.0F}}) || !timeline.AddTrack("none", {{0.0F, 0.0F}, {1.0F, 0.0F}}) || !timeline.AddTrack("aim", {{0.0F, 10.0F}, {1.0F, 10.0F}}) || !timeline.AddEventMarker("idle", {"idle_notify", 0.01F}) || !timeline.AddEventMarker("walk", {"walk_notify", 0.20F}) || !timeline.AddEventMarker("aim", {"aim_notify", 0.20F})) return 4;
     if (!actors.AttachComponent(player, std::move(character)) || !characterView->IsAttached()) return 5;
+    std::array<uint8_t, CharacterPawn::kComponentSnapshotBytes - 1U> shortSnapshotBytes{};
+    shortSnapshotBytes.fill(0xA5U);
+    if (characterView->CaptureSnapshot(shortSnapshotBytes) || characterView->LastError() != CharacterPawnError::AnimationRejected || shortSnapshotBytes[0] != 0xA5U) return 5;
+    if (characterView->ValidateSnapshot(shortSnapshotBytes) || characterView->LastError() != CharacterPawnError::AnimationRejected) return 5;
+    if (characterView->RestoreSnapshot(shortSnapshotBytes) || characterView->LastError() != CharacterPawnError::AnimationRejected) return 5;
     if (!characterView->SetTransitionBinding({"idle", "walk", "idle_walk"}) || !characterView->SetTransitionBinding({"walk", "idle", "walk_idle"}) || !characterView->SetTransitionBinding({"walk", "run", "walk_run"}) || !characterView->SetTransitionBinding({"run", "idle", "run_idle"})) return 6;
     if (characterView->SetTransitionBinding({std::string("idle\0bad", 8U), "walk", "idle_walk"}) || characterView->LastError() != CharacterPawnError::AnimationRejected || !characterView->SetTransitionBinding({"idle", "walk", "idle_walk"})) return 6;
     if (characterView->OnFixedTick(scene, player, ActorComponentWorld::kMaxFixedTicks + 1U) || characterView->LastError() != CharacterPawnError::InvalidTickCount) return 6;
@@ -42,6 +50,9 @@ int main() {
     if (!characterView->CollectAnimationEvents(timeline, 0.0F, 0.02F, animationEvents) || animationEvents.size() != 1U || animationEvents[0] != "idle_notify") return 7;
     animationEvents = {"preserved"};
     if (graph.CollectAnimationEvents(timeline, 1.0F, 0.0F, animationEvents) || animationEvents.size() != 1U || animationEvents[0] != "preserved") return 7;
+    animationEvents = {"wrapper-preserved"};
+    if (characterView->CollectAnimationEvents(timeline, 1.0F, 0.0F, animationEvents) || characterView->LastError() != CharacterPawnError::AnimationRejected || animationEvents.size() != 1U || animationEvents[0] != "wrapper-preserved") return 7;
+    if (!characterView->CollectAnimationEvents(timeline, 0.0F, 0.02F, animationEvents) || characterView->LastError() != CharacterPawnError::None) return 7;
     CharacterPawnSnapshot snapshot{};
     if (!characterView->Snapshot(snapshot) || snapshot.actor != player || snapshot.authority != CharacterMovementAuthority::KinematicRoute || !snapshot.grounded || snapshot.animation.base.activeStateId != "idle" || snapshot.animation.overlayWeightPermille != 500U) return 8;
 
