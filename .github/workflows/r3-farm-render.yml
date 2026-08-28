@@ -34,7 +34,7 @@ jobs:
         run: |
           cmake --build build/r3-release --target farm_vulkan_textured_present_smoke -j2
           ls -R /usr/share/vulkan/icd.d/ || true
-          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json ./build/r3-release/farm_vulkan_textured_present_smoke
+          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json ./build/r3-release/farm_vulkan_textured_present_smoke
 
       - name: Configure AddressSanitizer
         run: |
@@ -48,4 +48,4 @@ jobs:
           ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
         run: |
           cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke -j2
-          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json ./build/r3-asan/farm_vulkan_textured_present_smoke
+          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json ./build/r3-asan/farm_vulkan_textured_present_smoke
