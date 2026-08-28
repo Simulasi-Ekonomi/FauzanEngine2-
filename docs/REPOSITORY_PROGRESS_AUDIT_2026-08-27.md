@@ -6,12 +6,12 @@
 
 | Ukuran | Hasil | Cara membaca |
 |---|---:|---|
-| Checklist historis `todo.md` pada `main` | **458/558 = 82,1%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
+| Checklist historis `todo.md` pada `main` | **460/560 = 82,1%** | Banyak pekerjaan fondasi dan eksperimen sudah ditandai selesai; angka ini tidak sama dengan kesiapan produk. |
 | Mandatory release gates | **1/12 = 8,3% lulus pada scope Farm R1** | R1 lulus hanya untuk canonical Farm tool scope; R2–R12 tetap Not passed dan template lain memerlukan evidence independen. |
-| Indeks kemajuan menuju release, estimasi berbobot | **38,3%** | Estimasi analitis setelah R7 memperoleh bounded commerce audit-export evidence tambahan; bukan status resmi proyek dan tidak berarti release-ready. |
+| Indeks kemajuan menuju release, estimasi berbobot | **39,0%** | Estimasi analitis setelah R8 memperoleh bounded backup/restore evidence tambahan; bukan status resmi proyek dan tidak berarti release-ready. |
 | Editor/Tooling pada `main` | **Satu slice authoring fungsional** | Workflow Unreal-like V1 sudah terintegrasi ke `main`, tetapi belum setara Unreal Editor penuh. |
 
-> **Kesimpulan paling jujur:** repo sudah sekitar **82% menyelesaikan backlog engineering yang tercatat**, tetapi baru sekitar **38% menuju standar release end-to-end** menurut estimasi evidence parsial, dan baru **1 dari 12 gate** lulus pada scope Farm canonical tool. R2, R3, R5, R6, dan R7 mendapat evidence tambahan tetapi tetap Not passed; ini tetap bukan release readiness.
+> **Kesimpulan paling jujur:** repo sudah sekitar **82% menyelesaikan backlog engineering yang tercatat**, tetapi baru sekitar **39% menuju standar release end-to-end** menurut estimasi evidence parsial, dan baru **1 dari 12 gate** lulus pada scope Farm canonical tool. R2, R3, R5, R6, R7, dan R8 mendapat evidence tambahan tetapi tetap Not passed; ini tetap bukan release readiness.
 
 ## Basis repository dan bukti implementasi
 
@@ -21,7 +21,7 @@ Fondasi yang benar-benar terbukti mencakup `NeoRuntime`, `SceneWorld`, FarmSyste
 
 ## Skor per mandatory release gate
 
-Skor berikut adalah estimasi konservatif 0–100 untuk **kemajuan evidence terhadap gate**, bukan klaim bahwa gate tersebut lulus. Setiap gate memiliki bobot sama; indeks 33,8% adalah estimasi analitis dan bukan status release resmi.
+Skor berikut adalah estimasi konservatif 0–100 untuk **kemajuan evidence terhadap gate**, bukan klaim bahwa gate tersebut lulus. Setiap gate memiliki bobot sama; indeks 39,0% adalah estimasi analitis dan bukan status release resmi.
 
 | Gate | Estimasi evidence | Status resmi | Alasan |
 |---|---:|---|---|
@@ -32,7 +32,7 @@ Skor berikut adalah estimasi konservatif 0–100 untuk **kemajuan evidence terha
 | R5 Authoritative multiplayer | 35% | Not passed | Farm authoritative host kini memiliki bounded TCP localhost reconnect dengan subject/session binding dan replay-stable snapshot, di atas prediction/transport/replication primitives; TLS, durable session, public transport, multi-client/load, dan multiplayer runtime belum ada. |
 | R6 Anti-cheat and fraud | 40% | Not passed | Commerce duplicate receipt dan reconciliation mismatch kini dipromosikan ke TrustSafety/ban gate canonical dengan Release/ASAN smoke; provider-backed detection, rate-limit operations, tamper-resistant storage, appeal governance, identity controls, dan adversarial load belum ada. |
 | R7 Economy and commerce | 45% | Not passed | Commodity catalog, local ledger, verified receipt/idempotency/reversal/reconciliation, caller-owned audit export, checkpoint file, dan fraud-linked trust receipts ada; provider/payment, durable ledger, refund operations, access policy, dan operational review belum ada. |
-| R8 Persistence and recovery | 30% | Not passed | Versioned local codec, atomic save primitive, telemetry outbox ada; durable authority, backup/restore, migration service, privacy lifecycle belum ada. |
+| R8 Persistence and recovery | 40% | Not passed | Versioned/checksummed local codecs, atomic slot write, bounded backup/restore, and failed-restore preservation now have Release/ASAN evidence; authoritative durable store, locking/fsync, migration service, retention/privacy lifecycle, rotation, and disaster recovery remain open. |
 | R9 Live operations | 20% | Not passed | Trusted forwarder contract dan telemetry outbox ada; alerting, SLO, incident runbook, rollback, dan consented production ingest belum ada. |
 | R10 Security and privacy | 20% | Not passed | Credential exclusion dan bounded contracts ada; threat model execution, SBOM/vulnerability response, access/consent, penetration evidence belum ada. |
 | R11 Android delivery | 25% | Not passed | Debug APK/package evidence dan native subset ada; release signing, AAB, device test, crash/ANR, dan Play evidence belum ada. |
@@ -60,8 +60,8 @@ Persentase domain adalah estimasi internal berbasis kedalaman integration/eviden
 
 ## Perkembangan terbaru yang penting
 
-`main` kini juga memuat `FarmCanonicalGameTool` dan smoke R1 untuk typed world/rules/content, v1→v2 migration, invalid-input rejection, dan deterministic replay, serta integrasi `AgricultureCurriculum` ke NeoRuntime/HUD/checkpoint untuk R2, ditambah koneksi framebuffer Farm canonical ke Vulkan textured-present untuk R3. Ini berjalan di samping smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, Farm localhost session loopback/reconnect, commerce checkpoint, commerce fraud-to-trust evidence, dan caller-owned commerce audit export.
-Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, localhost, atau in-memory evidence dan belum menyelesaikan R2–R12 [5] [7] [8] [9] [10] [11] [12] [13] [14].
+`main` kini juga memuat `FarmCanonicalGameTool` dan smoke R1 untuk typed world/rules/content, v1→v2 migration, invalid-input rejection, dan deterministic replay, serta integrasi `AgricultureCurriculum` ke NeoRuntime/HUD/checkpoint untuk R2, ditambah koneksi framebuffer Farm canonical ke Vulkan textured-present untuk R3. Ini berjalan di samping smoke local Farm vertical slice, bukti Vulkan textured-present berbasis swapchain, hardening provenance texture, backend import smoke, canonical runtime scope manifest, bounded network primitives, Farm localhost session loopback/reconnect, commerce checkpoint, commerce fraud-to-trust evidence, caller-owned commerce audit export, dan bounded persistence backup/restore evidence.
+Ini merupakan kemajuan nyata pada proof boundary, tetapi tetap terbatas pada smoke/local/headless/CPU, virtual-surface, localhost, atau in-memory/local-file evidence dan belum menyelesaikan R2–R12 [5] [7] [8] [9] [10] [11] [12] [13] [14] [15].
 
 Editor Tooling V1, Runtime SceneBridge, automated bridge/browser smoke, multi-selection, reflection inspector, asset-to-scene drop, Play-in-Editor profiler, autosave/recovery, dan bundle splitting kini sudah di-merge ke `main`. Smoke lokal lulus: bridge `200/409/422`, browser authoring flow, C++ Editor V1 Release, dan AddressSanitizer. Branch tambahan sudah dihapus; `main` adalah satu-satunya branch kerja.
 
@@ -95,3 +95,4 @@ CI GitHub pada `main` terbaru **sebagian sudah sehat**: lint/type-check dan back
 [12]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_AUTHORITY_RECONNECT_EVIDENCE_V1.md "Farm authority reconnect evidence"
 [13]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_COMMERCE_FRAUD_TRUST_EVIDENCE_V1.md "Farm commerce fraud trust evidence"
 [14]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/FARM_COMMERCE_AUDIT_EXPORT_EVIDENCE_V1.md "Farm commerce audit export evidence"
+[15]: https://github.com/Simulasi-Ekonomi/FauzanEngine2-/blob/main/docs/R8_PERSISTENCE_RECOVERY_EVIDENCE_V1.md "R8 persistence and recovery evidence"

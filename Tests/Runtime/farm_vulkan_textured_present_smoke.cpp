@@ -1,6 +1,8 @@
 #include "Runtime/NeoRuntime.h"
 #include "Runtime/VulkanTexturedPresent.h"
 
+#include <SDL.h>
+
 #include <cstdint>
 #include <cstdio>
 #include <vector>
@@ -42,6 +44,7 @@ int main() {
             presented.swapchainCreated, presented.textureUploaded, presented.pipelineCreated, presented.acquireAttempted,
             presented.submitAttempted, presented.fenceWaitAttempted, presented.presentAttempted, presented.acquireDriverResult,
             presented.submitDriverResult, presented.fenceWaitDriverResult, presented.presentDriverResult);
+        std::fprintf(stderr, "SDL_ERROR=%s\n", SDL_GetError());
         return 3;
     }
 

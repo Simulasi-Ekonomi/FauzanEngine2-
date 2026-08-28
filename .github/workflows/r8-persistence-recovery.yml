@@ -1,0 +1,68 @@
+name: R8 persistence and recovery
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
+      - 'Source/NeoEngine/Runtime/NeoRuntimeCheckpoint.*'
+      - 'Source/NeoEngine/Systems/FarmCommerceCheckpoint*'
+      - 'Tests/Runtime/atomic_save_file_smoke.cpp'
+      - 'Tests/Runtime/runtime_persistence_smoke.cpp'
+      - 'Tests/Runtime/neo_runtime_checkpoint_smoke.cpp'
+      - 'Tests/Runtime/farm_commerce_checkpoint_file_smoke.cpp'
+      - '.github/workflows/r8-persistence-recovery.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
+      - 'Source/NeoEngine/Runtime/NeoRuntimeCheckpoint.*'
+      - 'Source/NeoEngine/Systems/FarmCommerceCheckpoint*'
+      - 'Tests/Runtime/atomic_save_file_smoke.cpp'
+      - 'Tests/Runtime/runtime_persistence_smoke.cpp'
+      - 'Tests/Runtime/neo_runtime_checkpoint_smoke.cpp'
+      - 'Tests/Runtime/farm_commerce_checkpoint_file_smoke.cpp'
+      - '.github/workflows/r8-persistence-recovery.yml'
+  workflow_dispatch:
+
+jobs:
+  persistence-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r8-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run Release smokes
+        run: |
+          cmake --build build/r8-release --target atomic_save_file_smoke runtime_persistence_smoke neo_runtime_checkpoint_smoke farm_commerce_checkpoint_file_smoke -j2
+          ./build/r8-release/atomic_save_file_smoke
+          ./build/r8-release/runtime_persistence_smoke
+          ./build/r8-release/neo_runtime_checkpoint_smoke
+          ./build/r8-release/farm_commerce_checkpoint_file_smoke
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r8-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run ASAN smokes
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          cmake --build build/r8-asan --target atomic_save_file_smoke runtime_persistence_smoke neo_runtime_checkpoint_smoke farm_commerce_checkpoint_file_smoke -j2
+          ./build/r8-asan/atomic_save_file_smoke
+          ./build/r8-asan/runtime_persistence_smoke
+          ./build/r8-asan/neo_runtime_checkpoint_smoke
+          ./build/r8-asan/farm_commerce_checkpoint_file_smoke
