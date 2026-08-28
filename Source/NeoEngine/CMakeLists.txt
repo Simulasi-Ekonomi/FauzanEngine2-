@@ -157,6 +157,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
     Systems/FarmCommerceCheckpointFile.cpp
+    Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmAuthorityCheckpoint.cpp
     Systems/FarmAuthorityCheckpointFile.cpp
     Systems/FarmTelemetryAdapter.cpp
@@ -217,6 +218,9 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_telemetry_smoke.cpp")
     add_xpbd_executable(farm_telemetry_smoke ../../Tests/Farm/farm_telemetry_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_balance_profile_smoke.cpp")
+    add_xpbd_executable(farm_balance_profile_smoke ../../Tests/Farm/farm_balance_profile_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_trust_smoke.cpp")
     add_xpbd_executable(farm_trust_smoke ../../Tests/Farm/farm_trust_smoke.cpp)
@@ -650,6 +654,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_checkpoin
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp")
     add_xpbd_executable(neo_runtime_farm_vertical_slice_smoke ../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp")
+    add_xpbd_executable(neo_runtime_farm_progress_file_smoke ../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp")
     add_xpbd_executable(farm_runtime_save_codec_smoke ../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp)

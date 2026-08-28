@@ -19,6 +19,7 @@ enum class FarmError : uint8_t {
     InvalidAction,
     InventoryFull,
     InsufficientInventory,
+    InsufficientEnergy,
     DuplicateTransaction,
     AuthorityRejected,
     Banned,
@@ -45,11 +46,29 @@ struct FarmEvent {
     int64_t value = 0;
 };
 
+struct FarmBalanceProfile {
+    static constexpr uint16_t kVersion = 1;
+    uint16_t version = kVersion;
+    uint32_t maxEnergy = 100;
+    uint32_t energyRegenPerTick = 1;
+    uint32_t tillEnergyCost = 1;
+    uint32_t plantEnergyCost = 2;
+    uint32_t waterEnergyCost = 1;
+    uint32_t harvestEnergyCost = 3;
+    std::array<uint32_t, 3> growthTicks{24, 36, 48};
+    std::array<uint32_t, 3> harvestYield{2, 2, 2};
+    std::array<int64_t, 3> sellPrice{5, 8, 12};
+
+    [[nodiscard]] bool IsValid() const;
+};
+
 struct FarmTelemetrySnapshot {
     uint64_t simulationTick = 0;
     uint64_t stateRevision = 0;
     uint64_t eventSequence = 0;
     int64_t coins = 0;
+    uint32_t energy = 0;
+    uint32_t maxEnergy = 0;
     uint32_t tilledTiles = 0;
     uint32_t growingTiles = 0;
     uint32_t harvestableTiles = 0;
@@ -69,13 +88,16 @@ public:
 
     using ReceiptVerifier = std::function<bool(const VerifiedTopUpReceipt&)>;
 
-    FarmSystem(uint16_t width, uint16_t height, int64_t initialCoins = 100);
+    FarmSystem(uint16_t width, uint16_t height, int64_t initialCoins = 100, FarmBalanceProfile balance = {});
 
     bool IsReady() const { return m_Ready; }
     FarmError LastError() const { return m_LastError; }
     uint16_t Width() const { return m_Width; }
     uint16_t Height() const { return m_Height; }
     int64_t Coins() const { return m_Coins; }
+    uint32_t Energy() const { return m_Energy; }
+    uint32_t MaxEnergy() const { return m_Balance.maxEnergy; }
+    const FarmBalanceProfile& Balance() const { return m_Balance; }
     uint64_t SimulationTick() const { return m_SimulationTick; }
     FarmTileState TileStateAt(uint16_t x, uint16_t z) const;
     bool IsWateredAt(uint16_t x, uint16_t z) const;
@@ -90,6 +112,7 @@ public:
 
     bool AddAnimal(FarmAnimal animal);
     bool Sell(uint64_t saleId, FarmItem item, uint32_t units, int64_t pricePerUnit);
+    bool SellCrop(uint64_t saleId, FarmCrop crop, uint32_t units);
     bool ApplyVerifiedTopUp(const VerifiedTopUpReceipt& receipt);
     void SetReceiptVerifier(ReceiptVerifier verifier) { m_ReceiptVerifier = std::move(verifier); }
     void SetTrustSafety(TrustSafetySystem* trustSafety, std::string playerId);
@@ -120,7 +143,11 @@ private:
     const Tile& TileAt(uint16_t x, uint16_t z) const;
     static FarmItem SeedFor(FarmCrop crop);
     static FarmItem ProduceFor(FarmCrop crop);
-    static uint32_t GrowthRequirement(FarmCrop crop);
+    uint32_t GrowthRequirement(FarmCrop crop) const;
+    uint32_t HarvestYield(FarmCrop crop) const;
+    int64_t SellPrice(FarmCrop crop) const;
+    bool HasEnergy(uint32_t cost) const;
+    bool SpendEnergy(uint32_t cost);
     bool AddItem(FarmItem item, uint32_t units);
     bool RemoveItem(FarmItem item, uint32_t units);
     void Emit(FarmEventType type, int64_t value = 0);
@@ -131,6 +158,8 @@ private:
     bool m_Ready = false;
     FarmError m_LastError = FarmError::None;
     int64_t m_Coins = 0;
+    FarmBalanceProfile m_Balance{};
+    uint32_t m_Energy = 0;
     uint64_t m_SimulationTick = 0;
     uint64_t m_StateRevision = 0;
     uint64_t m_EventSequence = 0;

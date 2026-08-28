@@ -20,7 +20,9 @@ class FarmRuntimeHud;
 
 enum class FarmRuntimeSessionError : uint8_t { None, NotInitialized, InvalidFrameTicks, InputRejected, WorldTickRejected, RenderRejected, CheckpointEncodeFailed, CheckpointDecodeFailed, WorldCheckpointEncodeFailed, WorldCheckpointDecodeFailed, HudRejected, HudInputRejected, TimeRejected, CurriculumRejected };
 struct FarmRuntimeInventorySnapshot { uint32_t wheatSeeds = 0U; uint32_t wheatProduce = 0U; };
-struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; FarmPlayerInputReceipt input{}; FarmActionAvailability availability{}; RuntimeTimeSnapshot time{}; CurriculumProgressReceipt curriculum{}; };
+enum class FarmOnboardingStep : uint8_t { Till, Plant, Water, Harvest, Complete };
+struct FarmOnboardingReceipt { FarmOnboardingStep nextStep = FarmOnboardingStep::Till; bool complete = false; FarmError lastError = FarmError::None; };
+struct FarmRuntimeFrameReceipt { uint64_t frame = 0U; uint64_t framebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; FarmPlayerInputReceipt input{}; FarmActionAvailability availability{}; RuntimeTimeSnapshot time{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; };
 struct FarmRuntimeHudReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; FarmTelemetrySnapshot telemetry{}; FarmRuntimeInventorySnapshot inventory{}; FarmPlayerInputReceipt input{}; FarmActionAvailability availability{}; };
 
 // Explicit host-side lifecycle only. It owns neither simulation authority nor

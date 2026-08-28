@@ -10,7 +10,15 @@
 namespace NeoEngine {
 namespace {
 uint32_t ActionColor(FarmPlayerAction selected, FarmPlayerAction action, const FarmActionAvailability& availability) { return !availability.Allows(action) ? 0xFF343434U : (selected == action ? 0xFF2E8B57U : 0xFF304050U); }
-const char* InputStatus(const FarmPlayerInputReceipt& input) {
+const char* InputStatus(const FarmPlayerInputReceipt& input, FarmError farmError, FarmOnboardingStep nextStep, bool complete) {
+    if (farmError == FarmError::InsufficientEnergy) return "NO ENERGY";
+    if (farmError == FarmError::InsufficientInventory) return "NO ITEMS";
+    if (farmError == FarmError::InvalidAction) return "INVALID";
+    if (farmError == FarmError::AuthorityRejected) return "DENIED";
+    if (input.kind == FarmPlayerInputKind::None) {
+        if (complete) return "DONE";
+        switch (nextStep) { case FarmOnboardingStep::Till: return "NEXT TIL"; case FarmOnboardingStep::Plant: return "NEXT PLN"; case FarmOnboardingStep::Water: return "NEXT WAT"; case FarmOnboardingStep::Harvest: return "NEXT HAR"; case FarmOnboardingStep::Complete: return "DONE"; }
+    }
     if (input.kind == FarmPlayerInputKind::Movement) return "MOVE";
     if (input.kind != FarmPlayerInputKind::Action) return "READY";
     switch (input.action) { case FarmPlayerAction::Till: return "ACT TILL"; case FarmPlayerAction::PlantWheat: return "ACT PLANT"; case FarmPlayerAction::Water: return "ACT WATER"; case FarmPlayerAction::Harvest: return "ACT HARV"; }
@@ -34,7 +42,7 @@ bool FarmRuntimeHud::EnsureLayout(SoftwareRenderer& renderer) {
 bool FarmRuntimeHud::ConfigureCanvas(const FarmRuntimeFrameReceipt& receipt, FarmPlayerAction selectedAction, const AssetRegistry* registry, const CpuTextureResource* panelIcon, UiCanvasRenderer& canvas) const {
     if (!interactive_) return canvas.SetStyle({1U,0xD0202020U}) && canvas.SetLabel({1U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU}) && canvas.SetStyle({2U,0xD0202020U}) && canvas.SetLabel({2U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU}) && canvas.SetStyle({3U,0xD0202020U}) && canvas.SetLabel({3U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU});
     const std::string lessonLabel = "L"+std::to_string(receipt.curriculum.completedLessons);
-    const bool labels=canvas.SetLabel({2U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({3U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({4U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({5U,"GROW "+std::to_string(receipt.telemetry.growingTiles),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({6U,InputStatus(receipt.input),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({7U,"WHEAT "+std::to_string(receipt.inventory.wheatProduce),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({8U,"S"+std::to_string(receipt.inventory.wheatSeeds)+" "+lessonLabel,2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({11U,"TILL",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({12U,"PLANT",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({13U,"WATER",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({14U,"HARVEST",2U,2U,1U,0xFFFFFFFFU});
+    const bool labels=canvas.SetLabel({2U,"FRAME "+std::to_string(receipt.frame),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({3U,"COINS "+std::to_string(receipt.telemetry.coins),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({4U,"TICK "+std::to_string(receipt.telemetry.simulationTick),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({5U,"GROW "+std::to_string(receipt.telemetry.growingTiles),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({6U,InputStatus(receipt.input,receipt.telemetry.lastError,receipt.onboarding.nextStep,receipt.onboarding.complete),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({7U,"W"+std::to_string(receipt.inventory.wheatProduce)+" E"+std::to_string(receipt.telemetry.energy)+" "+std::to_string(receipt.telemetry.maxEnergy),2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({8U,"S"+std::to_string(receipt.inventory.wheatSeeds)+" "+lessonLabel,2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({11U,"TILL",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({12U,"PLANT",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({13U,"WATER",2U,2U,1U,0xFFFFFFFFU})&&canvas.SetLabel({14U,"HARVEST",2U,2U,1U,0xFFFFFFFFU});
     const bool image=registry==nullptr&&panelIcon==nullptr ? true : (registry!=nullptr&&panelIcon!=nullptr&&canvas.SetImage(*registry,{10U,nullptr,panelIcon}));
     return labels&&image&&canvas.SetStyle({1U,0xD0202020U})&&canvas.SetStyle({2U,0xC0202020U})&&canvas.SetStyle({3U,0xC0202020U})&&canvas.SetStyle({4U,0xC0202020U})&&canvas.SetStyle({5U,0xC0202020U})&&canvas.SetStyle({6U,0xC0202020U})&&canvas.SetStyle({7U,0xC0202020U})&&canvas.SetStyle({8U,0xC0202020U})&&canvas.SetStyle({10U,0xD0202020U})&&canvas.SetStyle({11U,ActionColor(selectedAction,FarmPlayerAction::Till,availability_)})&&canvas.SetStyle({12U,ActionColor(selectedAction,FarmPlayerAction::PlantWheat,availability_)})&&canvas.SetStyle({13U,ActionColor(selectedAction,FarmPlayerAction::Water,availability_)})&&canvas.SetStyle({14U,ActionColor(selectedAction,FarmPlayerAction::Harvest,availability_)});
 }

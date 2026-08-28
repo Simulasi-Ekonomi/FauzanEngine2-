@@ -46,7 +46,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
         m_State = RuntimeState::Failed;
         return false;
     }
-    auto farm = std::make_unique<FarmSystem>(config.farmWidth, config.farmHeight, config.initialCoins);
+    auto farm = std::make_unique<FarmSystem>(config.farmWidth, config.farmHeight, config.initialCoins, config.farmBalance);
     if (!farm->IsReady()) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto trustSafety = std::make_unique<TrustSafetySystem>();
     farm->SetTrustSafety(trustSafety.get(), "runtime-farm-player");
@@ -269,20 +269,30 @@ bool NeoRuntime::RenderFarm() {
     SoftwareRenderer candidate = *m_Renderer;
     if ((m_FarmRenderAssets != nullptr && (m_FarmSpriteRenderer == nullptr || m_FarmSpriteTextures == nullptr || !m_FarmRenderAssets->Validate(*m_Assets, *m_Resources) || !m_FarmSpriteRenderer->RenderWorld(*m_Farm, *m_FarmWorld, m_FarmRenderAssets->AssetSet(), *m_Assets, *m_FarmSpriteTextures, candidate))) || (m_FarmRenderAssets == nullptr && !FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate))) { m_LastError = RuntimeError::RenderFailed; return false; }
     const uint64_t worldHash = candidate.FrameHash(); const FarmTelemetrySnapshot telemetry = m_Farm->Snapshot(); uint64_t hudHash = 0U;
+    FarmOnboardingReceipt onboarding{};
     if (m_FarmRuntimeHud != nullptr) {
         const FarmCharacterState player = m_FarmWorld->Character(); const FarmTileState tile = m_Farm->TileStateAt(player.x, player.z);
         const FarmActionAvailability availability{tile == FarmTileState::Empty, tile == FarmTileState::Tilled && m_Farm->ItemCount(FarmItem::WheatSeed) != 0U, tile == FarmTileState::Growing && !m_Farm->IsWateredAt(player.x, player.z), tile == FarmTileState::Harvestable};
         const FarmPlayerInputReceipt inputReceipt = m_FarmPlayerInput == nullptr ? FarmPlayerInputReceipt{} : m_FarmPlayerInput->LastReceipt();
         const FarmPlayerAction selectedAction = m_FarmPlayerInput == nullptr ? FarmPlayerAction::Till : m_FarmPlayerInput->SelectedAction();
+        onboarding.lastError = telemetry.lastError;
+        if (telemetry.questCompleted) { onboarding.nextStep = FarmOnboardingStep::Complete; onboarding.complete = true; }
+        else if (tile == FarmTileState::Empty) onboarding.nextStep = FarmOnboardingStep::Till;
+        else if (tile == FarmTileState::Tilled) onboarding.nextStep = FarmOnboardingStep::Plant;
+        else if (tile == FarmTileState::Growing && !m_Farm->IsWateredAt(player.x, player.z)) onboarding.nextStep = FarmOnboardingStep::Water;
+        else if (tile == FarmTileState::Harvestable) onboarding.nextStep = FarmOnboardingStep::Harvest;
+        else onboarding.nextStep = FarmOnboardingStep::Water;
         CurriculumProgressReceipt curriculumReceipt{};
         if (m_Curriculum != nullptr && !m_Curriculum->Snapshot(curriculumReceipt)) { m_LastError = RuntimeError::CurriculumFailed; return false; }
-        const FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry, {m_Farm->ItemCount(FarmItem::WheatSeed), m_Farm->ItemCount(FarmItem::WheatProduce)}, inputReceipt, availability, m_Time == nullptr ? RuntimeTimeSnapshot{} : m_Time->Snapshot(), curriculumReceipt};
+        FarmRuntimeFrameReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, telemetry, {m_Farm->ItemCount(FarmItem::WheatSeed), m_Farm->ItemCount(FarmItem::WheatProduce)}, inputReceipt, availability, m_Time == nullptr ? RuntimeTimeSnapshot{} : m_Time->Snapshot(), curriculumReceipt};
+        receipt.onboarding = onboarding;
         m_FarmRuntimeHud->SetActionAvailability(availability);
         if (!m_FarmRuntimeHud->Draw(receipt, selectedAction, candidate)) { m_LastError = RuntimeError::HudFailed; return false; }
         hudHash = candidate.FrameHash();
     }
     if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(candidate))) { m_LastError = RuntimeError::PresentationFailed; return false; }
-    const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, m_SurfacePresenter == nullptr ? 0U : m_SurfacePresenter->PresentedFrameCount(), telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; if (m_HasFrameReceipt) { NeoRuntimeFrameReceipt candidateReceipt = m_LastFrameReceipt; candidateReceipt.farmRender = receipt; candidateReceipt.hasFarmRenderReceipt = true; if (m_FarmRenderAssets != nullptr) { candidateReceipt.farmSpriteAssets = m_FarmRenderAssets->Receipt(); candidateReceipt.hasFarmSpriteAssets = true; } m_LastFrameReceipt = candidateReceipt; } m_LastError = RuntimeError::None;
+    const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, m_SurfacePresenter == nullptr ? 0U : m_SurfacePresenter->PresentedFrameCount(), telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; if (m_HasFrameReceipt) { NeoRuntimeFrameReceipt candidateReceipt = m_LastFrameReceipt; candidateReceipt.farmRender = receipt; candidateReceipt.onboarding = onboarding; candidateReceipt.hasFarmRenderReceipt = true;             if (m_FarmRenderAssets != nullptr) { candidateReceipt.farmSpriteAssets = m_FarmRenderAssets->Receipt(); candidateReceipt.hasFarmSpriteAssets = true; } m_LastFrameReceipt = candidateReceipt; } m_LastError = RuntimeError::None;
+
     return true;
 }
 

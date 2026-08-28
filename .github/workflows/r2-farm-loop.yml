@@ -1,0 +1,70 @@
+name: R2 canonical Farm loop
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/NeoRuntime.*'
+      - 'Source/NeoEngine/Runtime/FarmRuntimeHud.*'
+      - 'Source/NeoEngine/Runtime/FarmRuntimeSession.*'
+      - 'Source/NeoEngine/Systems/FarmSystem.*'
+      - 'Source/NeoEngine/Systems/FarmProgressCheckpointFile.*'
+      - 'Source/NeoEngine/Systems/CurriculumSystem.*'
+      - 'Source/NeoEngine/Systems/AgricultureCurriculum.*'
+      - 'Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp'
+      - 'Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp'
+      - 'Tests/Farm/farm_balance_profile_smoke.cpp'
+      - '.github/workflows/r2-farm-loop.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/NeoRuntime.*'
+      - 'Source/NeoEngine/Runtime/FarmRuntimeHud.*'
+      - 'Source/NeoEngine/Runtime/FarmRuntimeSession.*'
+      - 'Source/NeoEngine/Systems/FarmSystem.*'
+      - 'Source/NeoEngine/Systems/FarmProgressCheckpointFile.*'
+      - 'Source/NeoEngine/Systems/CurriculumSystem.*'
+      - 'Source/NeoEngine/Systems/AgricultureCurriculum.*'
+      - 'Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp'
+      - 'Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp'
+      - 'Tests/Farm/farm_balance_profile_smoke.cpp'
+      - '.github/workflows/r2-farm-loop.yml'
+  workflow_dispatch:
+
+jobs:
+  farm-loop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r2-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build and run Release R2 smokes
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          cmake --build build/r2-release --target neo_runtime_farm_vertical_slice_smoke neo_runtime_farm_progress_file_smoke farm_balance_profile_smoke -j2
+          ./build/r2-release/neo_runtime_farm_vertical_slice_smoke
+          ./build/r2-release/neo_runtime_farm_progress_file_smoke
+          ./build/r2-release/farm_balance_profile_smoke
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r2-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+      - name: Build and run ASAN R2 smokes
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          cmake --build build/r2-asan --target neo_runtime_farm_vertical_slice_smoke neo_runtime_farm_progress_file_smoke farm_balance_profile_smoke -j2
+          ./build/r2-asan/neo_runtime_farm_vertical_slice_smoke
+          ./build/r2-asan/neo_runtime_farm_progress_file_smoke
+          ./build/r2-asan/farm_balance_profile_smoke
