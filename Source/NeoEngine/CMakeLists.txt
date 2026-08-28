@@ -157,7 +157,6 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
     Systems/FarmCommerceCheckpointFile.cpp
-    Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmAuthorityCheckpoint.cpp
     Systems/FarmAuthorityCheckpointFile.cpp
     Systems/FarmTelemetryAdapter.cpp
@@ -218,9 +217,6 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_telemetry_smoke.cpp")
     add_xpbd_executable(farm_telemetry_smoke ../../Tests/Farm/farm_telemetry_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_balance_profile_smoke.cpp")
-    add_xpbd_executable(farm_balance_profile_smoke ../../Tests/Farm/farm_balance_profile_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_trust_smoke.cpp")
     add_xpbd_executable(farm_trust_smoke ../../Tests/Farm/farm_trust_smoke.cpp)
@@ -319,60 +315,8 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/replication_world_smoke.cpp")
     add_xpbd_executable(replication_world_smoke ../../Tests/Runtime/replication_world_smoke.cpp)
 endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_transport_smoke.cpp")
-    add_xpbd_executable(network_transport_smoke ../../Tests/Runtime/network_transport_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_session_smoke.cpp")
-    add_xpbd_executable(network_session_smoke ../../Tests/Runtime/network_session_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_replication_policy_smoke.cpp")
-    add_xpbd_executable(network_replication_policy_smoke ../../Tests/Runtime/network_replication_policy_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_extended_smoke.cpp")
-    add_xpbd_executable(network_extended_smoke ../../Tests/Runtime/network_extended_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_legacy_smoke.cpp")
-    add_xpbd_executable(network_legacy_smoke ../../Tests/Runtime/network_legacy_smoke.cpp)
-    target_sources(network_legacy_smoke PRIVATE
-        Networking/Cloud/CloudServerManager.cpp
-        Networking/Server/ServerAuthoritativeNetwork.cpp)
-endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manager_smoke.cpp")
     add_xpbd_executable(asset_resource_manager_smoke ../../Tests/Runtime/asset_resource_manager_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/frame_graph_smoke.cpp")
-    add_xpbd_executable(frame_graph_smoke ../../Tests/Rendering/frame_graph_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/render_graph_smoke.cpp")
-    add_xpbd_executable(render_graph_smoke ../../Tests/Rendering/render_graph_smoke.cpp)
-    target_sources(render_graph_smoke PRIVATE Rendering/Rendering/RenderGraph/RenderGraph.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/gpu_3d_extended_smoke.cpp")
-    add_xpbd_executable(gpu_3d_extended_smoke ../../Tests/Rendering/gpu_3d_extended_smoke.cpp)
-    target_sources(gpu_3d_extended_smoke PRIVATE
-        Renderer/GPUDrivenRenderer.cpp
-        Renderer/GPUFrustumCulling.cpp
-        Renderer/Resources/BindlessResourceManager.cpp
-        Renderer/VirtualGeometry/VirtualGeometrySystem.cpp
-        Rendering/Rendering/Renderer/Frustum.cpp
-        Rendering/Rendering/Renderer/FrustumCulling.cpp
-        Rendering/Rendering/Renderer/HiZBuffer.cpp
-        Rendering/Rendering/Renderer/OcclusionBuffer.cpp
-        Rendering/Rendering/Renderer/OcclusionCulling.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/meshlet_renderer_smoke.cpp")
-    add_xpbd_executable(meshlet_renderer_smoke ../../Tests/Rendering/meshlet_renderer_smoke.cpp)
-    target_sources(meshlet_renderer_smoke PRIVATE Renderer/MeshletRenderer.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/vulkan_rhi_smoke.cpp")
-    add_xpbd_executable(vulkan_rhi_smoke ../../Tests/Rendering/vulkan_rhi_smoke.cpp)
-    target_sources(vulkan_rhi_smoke PRIVATE Rendering/RHI/Vulkan/VulkanRHI.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/legacy_vulkan_rhi_smoke.cpp")
-    add_xpbd_executable(legacy_vulkan_rhi_smoke ../../Tests/Rendering/legacy_vulkan_rhi_smoke.cpp)
-    target_sources(legacy_vulkan_rhi_smoke PRIVATE
-        Rendering/Rendering/RHI/RHI.cpp
-        Rendering/Rendering/RHI/Vulkan/VulkanRHI.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_foundation_integration_smoke.cpp")
     add_xpbd_executable(runtime_foundation_integration_smoke ../../Tests/Runtime/runtime_foundation_integration_smoke.cpp)
@@ -638,6 +582,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_input_bridge_smoke.cpp")
     add_xpbd_executable(sdl_input_bridge_smoke ../../Tests/Runtime/sdl_input_bridge_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_input_metadata_smoke.cpp")
+    add_xpbd_executable(sdl_input_metadata_smoke ../../Tests/Runtime/sdl_input_metadata_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_audio_bridge_smoke.cpp")
     add_xpbd_executable(sdl_audio_bridge_smoke ../../Tests/Runtime/sdl_audio_bridge_smoke.cpp)
 endif()
@@ -706,9 +653,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_checkpoin
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp")
     add_xpbd_executable(neo_runtime_farm_vertical_slice_smoke ../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp")
-    add_xpbd_executable(neo_runtime_farm_progress_file_smoke ../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp")
     add_xpbd_executable(farm_runtime_save_codec_smoke ../../Tests/Runtime/farm_runtime_save_codec_smoke.cpp)
@@ -816,6 +760,15 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_route_root_mo
     add_xpbd_executable(runtime_route_root_motion_smoke ../../Tests/Runtime/runtime_route_root_motion_smoke.cpp)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_replication_policy_smoke.cpp")
+    add_xpbd_executable(network_replication_policy_smoke ../../Tests/Runtime/network_replication_policy_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_session_smoke.cpp")
+    add_xpbd_executable(network_session_smoke ../../Tests/Runtime/network_session_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_transport_smoke.cpp")
+    add_xpbd_executable(network_transport_smoke ../../Tests/Runtime/network_transport_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_rpc_dispatcher_smoke.cpp")
     add_xpbd_executable(network_rpc_dispatcher_smoke ../../Tests/Runtime/network_rpc_dispatcher_smoke.cpp)
 endif()

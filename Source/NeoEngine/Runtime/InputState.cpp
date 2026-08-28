@@ -1,2 +1,141 @@
 #include "InputState.h"
-namespace NeoEngine {bool InputState::Bind(std::string id,int32_t code){if(id.empty()||id.size()>64){m_Error=InputError::InvalidAction;return false;}for(const auto&a:m_Actions)if(a.id==id){m_Error=InputError::DuplicateAction;return false;}if(m_Actions.size()==kMaxActions){m_Error=InputError::Capacity;return false;}m_Actions.push_back({std::move(id),code,{}});m_Error=InputError::None;return true;}bool InputState::Rebind(const std::string&id,int32_t code){for(auto&a:m_Actions)if(a.id==id){a.code=code;a.state={};m_Error=InputError::None;return true;}m_Error=InputError::MissingAction;return false;}bool InputState::Push(int32_t code,bool pressed){if(m_Events.size()==kMaxEvents){m_Error=InputError::QueueFull;return false;}m_Events.push_back({code,pressed});m_Error=InputError::None;return true;}void InputState::BeginFrame(){for(auto&a:m_Actions)a.state.justPressed=a.state.justReleased=false;for(auto e:m_Events)for(auto&a:m_Actions)if(a.code==e.code){if(e.pressed&&!a.state.pressed)a.state.justPressed=true;if(!e.pressed&&a.state.pressed)a.state.justReleased=true;a.state.pressed=e.pressed;}m_Events.clear();}InputSnapshot InputState::Query(const std::string&id)const{for(const auto&a:m_Actions)if(a.id==id)return a.state;return {};}bool InputState::HasAction(const std::string&id)const{for(const auto&a:m_Actions)if(a.id==id)return true;return false;}InputStateSummary InputState::Summary()const{InputStateSummary summary{};summary.boundActions=static_cast<uint16_t>(m_Actions.size());summary.pendingEvents=static_cast<uint16_t>(m_Events.size());for(const auto&action:m_Actions){summary.pressedActions+=action.state.pressed?1U:0U;summary.justPressedActions+=action.state.justPressed?1U:0U;summary.justReleasedActions+=action.state.justReleased?1U:0U;}return summary;}}
+
+#include <cmath>
+#include <utility>
+
+namespace NeoEngine {
+
+bool InputState::Bind(std::string id, int32_t code) {
+    if (id.empty() || id.size() > 64U) {
+        error_ = InputError::InvalidAction;
+        return false;
+    }
+    for (const auto& action : actions_) {
+        if (action.id == id) {
+            error_ = InputError::DuplicateAction;
+            return false;
+        }
+    }
+    if (actions_.size() >= kMaxActions) {
+        error_ = InputError::Capacity;
+        return false;
+    }
+    actions_.push_back({std::move(id), code, {}});
+    error_ = InputError::None;
+    return true;
+}
+
+bool InputState::Rebind(const std::string& id, int32_t code) {
+    for (auto& action : actions_) {
+        if (action.id == id) {
+            action.code = code;
+            action.state = {};
+            error_ = InputError::None;
+            return true;
+        }
+    }
+    error_ = InputError::MissingAction;
+    return false;
+}
+
+bool InputState::Push(int32_t code, bool pressed) {
+    if (events_.size() >= kMaxEvents) {
+        error_ = InputError::QueueFull;
+        return false;
+    }
+    events_.push_back({code, pressed});
+    error_ = InputError::None;
+    return true;
+}
+
+void InputState::BeginFrame() {
+    for (auto& action : actions_) {
+        action.state.justPressed = false;
+        action.state.justReleased = action.releasePending;
+        action.releasePending = false;
+    }
+    for (const auto& event : events_) {
+        for (auto& action : actions_) {
+            if (action.code != event.code) continue;
+            if (event.pressed && !action.state.pressed) action.state.justPressed = true;
+            if (!event.pressed && action.state.pressed) action.state.justReleased = true;
+            action.state.pressed = event.pressed;
+        }
+    }
+    events_.clear();
+    error_ = InputError::None;
+}
+
+void InputState::ReleaseAll() {
+    for (auto& action : actions_) {
+        if (action.state.pressed) action.releasePending = true;
+        action.state.pressed = false;
+    }
+    events_.clear();
+    error_ = InputError::None;
+}
+
+void InputState::ClearFrameMetadata() {
+    metadata_ = {};
+    error_ = InputError::None;
+}
+
+bool InputState::SetTouchPointer(uint32_t pointerId, float normalizedX, float normalizedY, bool active) {
+    if (!std::isfinite(normalizedX) || !std::isfinite(normalizedY) || normalizedX < 0.0F || normalizedX > 1.0F || normalizedY < 0.0F || normalizedY > 1.0F) {
+        error_ = InputError::InvalidMetadata;
+        return false;
+    }
+    metadata_.pointer = {active, pointerId, normalizedX, normalizedY};
+    error_ = InputError::None;
+    return true;
+}
+
+bool InputState::SetControllerConnected(bool connected) {
+    metadata_.controller.connected = connected;
+    if (!connected) {
+        metadata_.controller.leftAxisX = 0.0F;
+        metadata_.controller.leftAxisY = 0.0F;
+    }
+    error_ = InputError::None;
+    return true;
+}
+
+bool InputState::SetControllerAxis(uint8_t axis, float value) {
+    if ((axis != 0U && axis != 1U) || !std::isfinite(value) || value < -1.0F || value > 1.0F) {
+        error_ = InputError::InvalidMetadata;
+        return false;
+    }
+    metadata_.controller.connected = true;
+    if (axis == 0U) metadata_.controller.leftAxisX = value;
+    else metadata_.controller.leftAxisY = value;
+    error_ = InputError::None;
+    return true;
+}
+
+InputSnapshot InputState::Query(const std::string& id) const {
+    for (const auto& action : actions_) {
+        if (action.id == id) return action.state;
+    }
+    return {};
+}
+
+bool InputState::HasAction(const std::string& id) const {
+    for (const auto& action : actions_) {
+        if (action.id == id) return true;
+    }
+    return false;
+}
+
+InputStateSummary InputState::Summary() const {
+    InputStateSummary summary{};
+    summary.boundActions = static_cast<uint16_t>(actions_.size());
+    summary.pendingEvents = static_cast<uint16_t>(events_.size());
+    for (const auto& action : actions_) {
+        if (action.state.pressed) ++summary.pressedActions;
+        if (action.state.justPressed) ++summary.justPressedActions;
+        if (action.state.justReleased) ++summary.justReleasedActions;
+    }
+    return summary;
+}
+
+} // namespace NeoEngine
