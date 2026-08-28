@@ -28,8 +28,8 @@ bool GameplayPhysicsBodyBuilder::SetDynamicPlanarVelocity(ArchetypeManager& enti
     for (ArchetypeChunk* chunk : entities.GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
         for (size_t index = 0; index < chunk->count; ++index) {
             if (chunk->entities[index] != entity) continue;
-            const float inverseMass = chunk->invMass[index], radius = chunk->radius[index];
-            if (!std::isfinite(inverseMass) || !std::isfinite(radius) || inverseMass < 0.0F || radius <= 0.0F) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
+            const float inverseMass = chunk->invMass[index], radius = chunk->radius[index], currentVelocityX = chunk->velX[index], currentVelocityZ = chunk->velZ[index];
+            if (!std::isfinite(inverseMass) || !std::isfinite(radius) || !std::isfinite(currentVelocityX) || !std::isfinite(currentVelocityZ) || inverseMass < 0.0F || radius <= 0.0F) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
             if (inverseMass == 0.0F) { lastError_ = GameplayPhysicsBodyError::StaticBody; return false; }
             chunk->velX[index] = velocityX; chunk->velZ[index] = velocityZ; entities.MarkPhysicsDirty(); lastError_ = GameplayPhysicsBodyError::None; return true;
         }
@@ -51,8 +51,8 @@ bool GameplayPhysicsBodyBuilder::SetDynamicPlanarVelocitySet(ArchetypeManager& e
             if (foundChunk != nullptr) break;
         }
         if (foundChunk == nullptr) { lastError_ = GameplayPhysicsBodyError::UnknownBody; return false; }
-        const float inverseMass = foundChunk->invMass[foundIndex], radius = foundChunk->radius[foundIndex];
-        if (!std::isfinite(inverseMass) || !std::isfinite(radius) || inverseMass < 0.0F || radius <= 0.0F) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
+        const float inverseMass = foundChunk->invMass[foundIndex], radius = foundChunk->radius[foundIndex], currentVelocityX = foundChunk->velX[foundIndex], currentVelocityZ = foundChunk->velZ[foundIndex];
+        if (!std::isfinite(inverseMass) || !std::isfinite(radius) || !std::isfinite(currentVelocityX) || !std::isfinite(currentVelocityZ) || inverseMass < 0.0F || radius <= 0.0F) { lastError_ = GameplayPhysicsBodyError::InvalidBodyState; return false; }
         if (inverseMass == 0.0F) { lastError_ = GameplayPhysicsBodyError::StaticBody; return false; }
         pending.push_back({foundChunk, foundIndex, command.velocityX, command.velocityZ});
     }
