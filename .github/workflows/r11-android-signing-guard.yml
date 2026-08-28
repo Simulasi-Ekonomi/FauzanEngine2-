@@ -1,0 +1,25 @@
+name: R11 Android signing guard
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'android/app/build.gradle'
+      - 'tools/android_release_signing_guard_smoke.sh'
+      - '.github/workflows/r11-android-signing-guard.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'android/app/build.gradle'
+      - 'tools/android_release_signing_guard_smoke.sh'
+      - '.github/workflows/r11-android-signing-guard.yml'
+  workflow_dispatch:
+
+jobs:
+  signing-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify release signing guard
+        run: ./tools/android_release_signing_guard_smoke.sh
