@@ -262,7 +262,7 @@ VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTextur
     result.textureHash = Hash(texture.rgba);
     result.status = VulkanPresentStatus::Unavailable;
     Resources resources{};
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) return result;
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) return result;
     resources.window = SDL_CreateWindow("NeoEngine Textured Present Probe", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                         static_cast<int>(width), static_cast<int>(height), SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
     if (resources.window == nullptr) return result;
