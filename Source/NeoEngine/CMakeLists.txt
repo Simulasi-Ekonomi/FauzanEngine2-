@@ -319,8 +319,60 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/replication_world_smoke.cpp")
     add_xpbd_executable(replication_world_smoke ../../Tests/Runtime/replication_world_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_transport_smoke.cpp")
+    add_xpbd_executable(network_transport_smoke ../../Tests/Runtime/network_transport_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_session_smoke.cpp")
+    add_xpbd_executable(network_session_smoke ../../Tests/Runtime/network_session_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_replication_policy_smoke.cpp")
+    add_xpbd_executable(network_replication_policy_smoke ../../Tests/Runtime/network_replication_policy_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_extended_smoke.cpp")
+    add_xpbd_executable(network_extended_smoke ../../Tests/Runtime/network_extended_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_legacy_smoke.cpp")
+    add_xpbd_executable(network_legacy_smoke ../../Tests/Runtime/network_legacy_smoke.cpp)
+    target_sources(network_legacy_smoke PRIVATE
+        Networking/Cloud/CloudServerManager.cpp
+        Networking/Server/ServerAuthoritativeNetwork.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manager_smoke.cpp")
     add_xpbd_executable(asset_resource_manager_smoke ../../Tests/Runtime/asset_resource_manager_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/frame_graph_smoke.cpp")
+    add_xpbd_executable(frame_graph_smoke ../../Tests/Rendering/frame_graph_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/render_graph_smoke.cpp")
+    add_xpbd_executable(render_graph_smoke ../../Tests/Rendering/render_graph_smoke.cpp)
+    target_sources(render_graph_smoke PRIVATE Rendering/Rendering/RenderGraph/RenderGraph.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/gpu_3d_extended_smoke.cpp")
+    add_xpbd_executable(gpu_3d_extended_smoke ../../Tests/Rendering/gpu_3d_extended_smoke.cpp)
+    target_sources(gpu_3d_extended_smoke PRIVATE
+        Renderer/GPUDrivenRenderer.cpp
+        Renderer/GPUFrustumCulling.cpp
+        Renderer/Resources/BindlessResourceManager.cpp
+        Renderer/VirtualGeometry/VirtualGeometrySystem.cpp
+        Rendering/Rendering/Renderer/Frustum.cpp
+        Rendering/Rendering/Renderer/FrustumCulling.cpp
+        Rendering/Rendering/Renderer/HiZBuffer.cpp
+        Rendering/Rendering/Renderer/OcclusionBuffer.cpp
+        Rendering/Rendering/Renderer/OcclusionCulling.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/meshlet_renderer_smoke.cpp")
+    add_xpbd_executable(meshlet_renderer_smoke ../../Tests/Rendering/meshlet_renderer_smoke.cpp)
+    target_sources(meshlet_renderer_smoke PRIVATE Renderer/MeshletRenderer.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/vulkan_rhi_smoke.cpp")
+    add_xpbd_executable(vulkan_rhi_smoke ../../Tests/Rendering/vulkan_rhi_smoke.cpp)
+    target_sources(vulkan_rhi_smoke PRIVATE Rendering/RHI/Vulkan/VulkanRHI.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/legacy_vulkan_rhi_smoke.cpp")
+    add_xpbd_executable(legacy_vulkan_rhi_smoke ../../Tests/Rendering/legacy_vulkan_rhi_smoke.cpp)
+    target_sources(legacy_vulkan_rhi_smoke PRIVATE
+        Rendering/Rendering/RHI/RHI.cpp
+        Rendering/Rendering/RHI/Vulkan/VulkanRHI.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_foundation_integration_smoke.cpp")
     add_xpbd_executable(runtime_foundation_integration_smoke ../../Tests/Runtime/runtime_foundation_integration_smoke.cpp)

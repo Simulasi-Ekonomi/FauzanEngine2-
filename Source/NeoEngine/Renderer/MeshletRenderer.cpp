@@ -3,7 +3,7 @@
 
 void MeshletRenderer::AddMeshlet(const Meshlet& meshlet)
 {
-    meshlets.push_back(meshlet);
+    (void)TryAddMeshlet(meshlet);
 }
 
 void MeshletRenderer::Render()
