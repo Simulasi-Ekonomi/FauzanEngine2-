@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -30,15 +31,17 @@ struct NetworkTransportStats {
 class NetworkTransportQueue {
 public:
     static constexpr uint16_t kCapacity = 1024;
+    static constexpr std::size_t kMaxPayloadBytes = 64U * 1024U;
 
     bool Enqueue(uint32_t peerId, NetworkDelivery delivery, std::span<const uint8_t> payload) {
-        if (peerId == 0U || payload.empty() || count_ >= kCapacity) return false;
+        if (peerId == 0U || payload.empty() || payload.size() > kMaxPayloadBytes || count_ >= kCapacity) { ++stats_.rejected; return false; }
         NetworkDatagram& packet = packets_[(head_ + count_) % kCapacity];
         packet = {};
         packet.peerId = peerId;
         packet.sequence = ++sequence_;
         packet.delivery = delivery;
-        packet.payload.assign(payload.begin(), payload.end());
+        try { packet.payload.assign(payload.begin(), payload.end()); }
+        catch (...) { packet = {}; ++stats_.rejected; return false; }
         ++count_;
         ++stats_.sent;
         return true;
