@@ -1,0 +1,70 @@
+name: R4 input and audio lifecycle
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/SdlAudioBridge.*'
+      - 'Source/NeoEngine/Runtime/SdlInputBridge.*'
+      - 'Source/NeoEngine/Runtime/InputState.*'
+      - 'Source/NeoEngine/Runtime/UiInputRouter.*'
+      - 'Source/NeoEngine/Runtime/AudioMixer.*'
+      - 'Tests/Runtime/sdl_audio_bridge_smoke.cpp'
+      - 'Tests/Runtime/sdl_input_bridge_smoke.cpp'
+      - 'Tests/Runtime/input_state_smoke.cpp'
+      - 'Tests/Runtime/ui_input_router_smoke.cpp'
+      - '.github/workflows/r4-input-audio.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/SdlAudioBridge.*'
+      - 'Source/NeoEngine/Runtime/SdlInputBridge.*'
+      - 'Source/NeoEngine/Runtime/InputState.*'
+      - 'Source/NeoEngine/Runtime/UiInputRouter.*'
+      - 'Source/NeoEngine/Runtime/AudioMixer.*'
+      - 'Tests/Runtime/sdl_audio_bridge_smoke.cpp'
+      - 'Tests/Runtime/sdl_input_bridge_smoke.cpp'
+      - 'Tests/Runtime/input_state_smoke.cpp'
+      - 'Tests/Runtime/ui_input_router_smoke.cpp'
+      - '.github/workflows/r4-input-audio.yml'
+  workflow_dispatch:
+
+jobs:
+  input-audio:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build xvfb
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r4-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build and run Release smokes
+        env:
+          SDL_AUDIODRIVER: dummy
+          SDL_VIDEODRIVER: dummy
+        run: |
+          cmake --build build/r4-release --target sdl_audio_bridge_smoke sdl_input_bridge_smoke input_state_smoke ui_input_router_smoke -j2
+          ./build/r4-release/sdl_audio_bridge_smoke
+          ./build/r4-release/sdl_input_bridge_smoke
+          ./build/r4-release/input_state_smoke
+          ./build/r4-release/ui_input_router_smoke
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r4-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+      - name: Build and run ASAN smokes
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          SDL_AUDIODRIVER: dummy
+          SDL_VIDEODRIVER: dummy
+        run: |
+          cmake --build build/r4-asan --target sdl_audio_bridge_smoke sdl_input_bridge_smoke input_state_smoke ui_input_router_smoke -j2
+          ./build/r4-asan/sdl_audio_bridge_smoke
+          ./build/r4-asan/sdl_input_bridge_smoke
+          ./build/r4-asan/input_state_smoke
+          ./build/r4-asan/ui_input_router_smoke
