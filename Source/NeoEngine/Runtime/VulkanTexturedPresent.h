@@ -14,6 +14,7 @@ enum class VulkanPresentStatus : uint8_t { None, InvalidInput, Unavailable, Devi
 
 struct VulkanTexturedPresentResult {
     VulkanPresentStatus status = VulkanPresentStatus::None;
+    bool sdlInitialized = false;
     bool windowCreated = false;
     bool surfaceCreated = false;
     bool deviceCreated = false;
