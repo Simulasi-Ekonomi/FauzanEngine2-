@@ -6,7 +6,7 @@ namespace NeoEngine {
 
 class InputState;
 
-enum class SdlInputBridgeError : uint8_t { None, InvalidConfiguration, VideoInitializationFailed, WindowCreationFailed, NotInitialized, InputQueueRejected };
+enum class SdlInputBridgeError : uint8_t { None, InvalidConfiguration, VideoInitializationFailed, WindowCreationFailed, NotInitialized, InputQueueRejected, MetadataRejected };
 
 class SdlInputBridge {
 public:

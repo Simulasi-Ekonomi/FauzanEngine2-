@@ -4,7 +4,18 @@
 
 #include <SDL.h>
 
+#include <algorithm>
+
 namespace NeoEngine {
+
+namespace {
+
+float NormalizeAxis(Sint16 value) {
+    const float normalized = static_cast<float>(value) / 32767.0F;
+    return std::clamp(normalized, -1.0F, 1.0F);
+}
+
+} // namespace
 
 SdlInputBridge::~SdlInputBridge() {
     Reset();
@@ -38,6 +49,7 @@ bool SdlInputBridge::PumpFrame(InputState& input) {
         lastError_ = SdlInputBridgeError::NotInitialized;
         return false;
     }
+    input.ClearFrameMetadata();
     SDL_Event event{};
     while (SDL_PollEvent(&event) != 0) {
         if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
@@ -51,9 +63,10 @@ bool SdlInputBridge::PumpFrame(InputState& input) {
                 lastError_ = SdlInputBridgeError::InputQueueRejected;
                 return false;
             }
-        } else if (event.type == SDL_FINGERDOWN || event.type == SDL_FINGERUP) {
-            if (!input.Push(MakeInputCode(InputDeviceType::Touch, 1), event.type == SDL_FINGERDOWN)) {
-                lastError_ = SdlInputBridgeError::InputQueueRejected;
+        } else if (event.type == SDL_FINGERDOWN || event.type == SDL_FINGERUP || event.type == SDL_FINGERMOTION) {
+            const bool active = event.type != SDL_FINGERUP;
+            if (!input.Push(MakeInputCode(InputDeviceType::Touch, 1), active) || !input.SetTouchPointer(static_cast<uint32_t>(event.tfinger.fingerId), event.tfinger.x, event.tfinger.y, active)) {
+                lastError_ = input.LastError() == InputError::InvalidMetadata ? SdlInputBridgeError::MetadataRejected : SdlInputBridgeError::InputQueueRejected;
                 return false;
             }
         } else if (event.type == SDL_CONTROLLERBUTTONDOWN || event.type == SDL_CONTROLLERBUTTONUP) {
@@ -61,8 +74,33 @@ bool SdlInputBridge::PumpFrame(InputState& input) {
                 lastError_ = SdlInputBridgeError::InputQueueRejected;
                 return false;
             }
+            if (!input.SetControllerConnected(true)) {
+                lastError_ = SdlInputBridgeError::MetadataRejected;
+                return false;
+            }
+        } else if (event.type == SDL_CONTROLLERAXISMOTION) {
+            if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX || event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY) {
+                if (!input.SetControllerAxis(static_cast<uint8_t>(event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX ? 0U : 1U), NormalizeAxis(event.caxis.value))) {
+                    lastError_ = SdlInputBridgeError::MetadataRejected;
+                    return false;
+                }
+            }
+        } else if (event.type == SDL_CONTROLLERDEVICEADDED) {
+            if (!input.SetControllerConnected(true)) {
+                lastError_ = SdlInputBridgeError::MetadataRejected;
+                return false;
+            }
+        } else if (event.type == SDL_CONTROLLERDEVICEREMOVED) {
+            if (!input.SetControllerConnected(false)) {
+                lastError_ = SdlInputBridgeError::MetadataRejected;
+                return false;
+            }
+        } else if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+            input.ReleaseAll();
+            input.MarkFocusLost();
         } else if (event.type == SDL_QUIT || (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)) {
             quitRequested_ = true;
+            input.MarkQuitRequested();
         }
     }
     input.BeginFrame();
