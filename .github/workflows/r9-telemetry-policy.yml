@@ -1,0 +1,56 @@
+name: R9 telemetry privacy policy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
+      - 'Source/NeoEngine/Systems/TelemetryOutbox.*'
+      - 'Tests/Farm/farm_telemetry_smoke.cpp'
+      - 'Tests/Systems/telemetry_outbox_smoke.cpp'
+      - '.github/workflows/r9-telemetry-policy.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
+      - 'Source/NeoEngine/Systems/TelemetryOutbox.*'
+      - 'Tests/Farm/farm_telemetry_smoke.cpp'
+      - 'Tests/Systems/telemetry_outbox_smoke.cpp'
+      - '.github/workflows/r9-telemetry-policy.yml'
+  workflow_dispatch:
+
+jobs:
+  telemetry-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r9-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run Release smokes
+        run: |
+          cmake --build build/r9-release --target farm_telemetry_smoke telemetry_outbox_smoke -j2
+          ./build/r9-release/farm_telemetry_smoke
+          ./build/r9-release/telemetry_outbox_smoke
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r9-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run ASAN smokes
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          cmake --build build/r9-asan --target farm_telemetry_smoke telemetry_outbox_smoke -j2
+          ./build/r9-asan/farm_telemetry_smoke
+          ./build/r9-asan/telemetry_outbox_smoke
