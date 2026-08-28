@@ -40,6 +40,39 @@ bool PromptToolGraph::ApproveAndIssue(const PromptToolPlan& plan, AgentCommandGa
     return true;
 }
 
+bool PromptToolGraph::ExecuteIssued(const PromptToolPlan& plan, const AgentCommandGateway& gateway, const std::vector<PromptToolNodeReceipt>& receipts, PromptToolExecutionReceipt& execution) {
+    if (!Validate(plan, false)) return false;
+    if (consumedPlans_.contains(plan.promptId)) {
+        lastError_ = PromptToolGraphError::PlanAlreadyConsumed;
+        return false;
+    }
+    if (consumedPlans_.size() >= kMaxConsumedPlans) {
+        lastError_ = PromptToolGraphError::ExecutionCapacity;
+        return false;
+    }
+    if (receipts.size() != plan.nodes.size()) {
+        lastError_ = PromptToolGraphError::ReceiptMismatch;
+        return false;
+    }
+    for (size_t index = 0; index < plan.nodes.size(); ++index) {
+        const PromptToolNode& node = plan.nodes[index];
+        const PromptToolNodeReceipt& nodeReceipt = receipts[index];
+        if (nodeReceipt.nodeId != node.nodeId || nodeReceipt.receipt.decision != AgentDecision::PlanIssued) {
+            lastError_ = PromptToolGraphError::ReceiptMismatch;
+            return false;
+        }
+        if (!gateway.IsPlanIssued(node.command, nodeReceipt.receipt.planRef)) {
+            lastError_ = PromptToolGraphError::PlanNotIssued;
+            return false;
+        }
+    }
+    const PromptToolExecutionReceipt candidate{plan.promptId, static_cast<uint16_t>(plan.nodes.size()), false};
+    consumedPlans_.insert(plan.promptId);
+    execution = candidate;
+    lastError_ = PromptToolGraphError::None;
+    return true;
+}
+
 bool PromptToolGraph::Validate(const PromptToolPlan& plan, bool requireDryRun) {
     lastError_ = PromptToolGraphError::InvalidPlan;
     if (!IsSafeIdentifier(plan.promptId, 8, 96) || plan.summary.empty() || plan.summary.size() > kMaxSummaryLength || plan.nodes.empty() || plan.nodes.size() > kMaxNodes || plan.documentDigests.size() > kMaxDocumentDigests || plan.dryRun != requireDryRun) return false;
