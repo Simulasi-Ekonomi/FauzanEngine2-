@@ -27,4 +27,8 @@ AgentReceipt AgentCommandGateway::ApproveAndIssue(const AgentCommand& command, c
     if (!m_IssuedRequests.insert(command.requestId).second) return {AgentDecision::Rejected, "request_already_issued", {}};
     return {AgentDecision::PlanIssued, "issued_for_external_supervised_executor", evaluation.planRef};
 }
+
+bool AgentCommandGateway::IsPlanIssued(const AgentCommand& command, std::string_view planRef) const {
+    return !command.dryRun && IsSafeIdentifier(command.requestId, 8, 96) && planRef == "plan-" + command.requestId && m_IssuedRequests.contains(command.requestId);
+}
 } // namespace NeoEngine

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 
 namespace NeoEngine {
@@ -34,6 +35,7 @@ class AgentCommandGateway {
 public:
     AgentReceipt Evaluate(const AgentCommand& command) const;
     AgentReceipt ApproveAndIssue(const AgentCommand& command, const ApprovalEvidence& evidence);
+    [[nodiscard]] bool IsPlanIssued(const AgentCommand& command, std::string_view planRef) const;
 
 private:
     static bool IsSafeIdentifier(const std::string& value, size_t minLength, size_t maxLength);

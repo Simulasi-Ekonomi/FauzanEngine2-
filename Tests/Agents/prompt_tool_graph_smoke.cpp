@@ -28,6 +28,22 @@ int main() {
     const std::vector<ApprovalEvidence> evidence{{true, true, "evidence-audit-001"}, {true, true, "evidence-template-001"}, {true, true, "evidence-test-001"}};
     AgentCommandGateway issuer;
     if (!graph.ApproveAndIssue(issue, issuer, evidence, receipts) || receipts.size() != 3 || graph.LastError() != PromptToolGraphError::None) return 1;
-    std::printf("PROMPT_TOOL_GRAPH_SMOKE_OK nodes=3 dryRun=1 approval=typed authority=denied\n");
+
+    PromptToolExecutionReceipt preserved{"untouched", 77U, true};
+    std::vector<PromptToolNodeReceipt> tampered = receipts;
+    tampered[1].nodeId = "tampered-node";
+    if (graph.ExecuteIssued(issue, issuer, tampered, preserved) || graph.LastError() != PromptToolGraphError::ReceiptMismatch || preserved.promptId != "untouched" || preserved.executedNodeCount != 77U || !preserved.externalSideEffectsApplied) return 1;
+
+    AgentCommandGateway notIssued;
+    PromptToolGraph directGraph;
+    PromptToolExecutionReceipt directExecution{};
+    if (directGraph.ExecuteIssued(issue, notIssued, receipts, directExecution) || directGraph.LastError() != PromptToolGraphError::PlanNotIssued) return 1;
+
+    PromptToolExecutionReceipt execution{};
+    if (!graph.ExecuteIssued(issue, issuer, receipts, execution) || graph.LastError() != PromptToolGraphError::None || execution.promptId != issue.promptId || execution.executedNodeCount != 3U || execution.externalSideEffectsApplied) return 1;
+    PromptToolExecutionReceipt duplicateExecution{"preserved", 88U, true};
+    if (graph.ExecuteIssued(issue, issuer, receipts, duplicateExecution) || graph.LastError() != PromptToolGraphError::PlanAlreadyConsumed || duplicateExecution.promptId != "preserved" || duplicateExecution.executedNodeCount != 88U || !duplicateExecution.externalSideEffectsApplied) return 1;
+
+    std::printf("PROMPT_TOOL_GRAPH_SMOKE_OK nodes=3 dryRun=1 approval=typed execution=once authority=denied side_effects=0\n");
     return 0;
 }
