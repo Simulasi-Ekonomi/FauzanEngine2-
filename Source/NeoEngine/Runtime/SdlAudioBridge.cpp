@@ -1,7 +1,5 @@
 #include "SdlAudioBridge.h"
 
-#include <SDL.h>
-
 #include <cstring>
 
 namespace NeoEngine {
@@ -16,35 +14,30 @@ bool SdlAudioBridge::Initialize(uint16_t framesPerCallback) {
         lastError_ = SdlAudioBridgeError::InvalidConfiguration;
         return false;
     }
-    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+    if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
         lastError_ = SdlAudioBridgeError::AudioInitializationFailed;
         return false;
     }
     audioInitialized_ = true;
-    SDL_AudioSpec desired{};
-    desired.freq = 48000;
-    desired.format = AUDIO_S16SYS;
-    desired.channels = 2;
-    desired.samples = framesPerCallback;
-    desired.callback = &SdlAudioBridge::AudioCallback;
-    desired.userdata = this;
-    SDL_AudioSpec obtained{};
-    const SDL_AudioDeviceID device = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
-    if (device == 0 || obtained.freq != desired.freq || obtained.format != desired.format || obtained.channels != desired.channels) {
-        if (device != 0) SDL_CloseAudioDevice(device);
+    const SDL_AudioSpec desired{SDL_AUDIO_S16, 2, 48000};
+    stream_ = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &desired, &SdlAudioBridge::AudioCallback, this);
+    if (stream_ == nullptr) {
         lastError_ = SdlAudioBridgeError::DeviceOpenFailed;
         Reset();
         return false;
     }
-    deviceId_ = device;
     framesMixed_.store(0);
-    SDL_PauseAudioDevice(deviceId_, 0);
+    if (!SDL_ResumeAudioStreamDevice(stream_)) {
+        lastError_ = SdlAudioBridgeError::DeviceOpenFailed;
+        Reset();
+        return false;
+    }
     lastError_ = SdlAudioBridgeError::None;
     return true;
 }
 
 bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8) {
-    if (deviceId_ == 0) {
+    if (stream_ == nullptr) {
         lastError_ = SdlAudioBridgeError::NotInitialized;
         return false;
     }
@@ -63,37 +56,40 @@ uint16_t SdlAudioBridge::QueuedVoiceCount() const {
 }
 
 void SdlAudioBridge::Reset() {
-    if (deviceId_ != 0) {
-        SDL_PauseAudioDevice(deviceId_, 1);
-        SDL_LockAudioDevice(deviceId_);
+    if (stream_ != nullptr) {
+        SDL_LockAudioStream(stream_);
         {
             std::lock_guard<std::mutex> lock(mixerMutex_);
             mixer_.Clear();
         }
-        SDL_UnlockAudioDevice(deviceId_);
-        SDL_CloseAudioDevice(deviceId_);
+        SDL_UnlockAudioStream(stream_);
+        SDL_DestroyAudioStream(stream_);
     } else {
         std::lock_guard<std::mutex> lock(mixerMutex_);
         mixer_.Clear();
     }
-    deviceId_ = 0;
+    stream_ = nullptr;
     if (audioInitialized_) SDL_QuitSubSystem(SDL_INIT_AUDIO);
     audioInitialized_ = false;
     framesMixed_.store(0);
 }
 
-void SdlAudioBridge::AudioCallback(void* userdata, uint8_t* stream, int length) {
+void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int /*totalAmount*/) {
     auto* bridge = static_cast<SdlAudioBridge*>(userdata);
-    if (bridge == nullptr || stream == nullptr || length <= 0) return;
-    const size_t frames = static_cast<size_t>(length) / (sizeof(int16_t) * 2U);
+    if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
+    const size_t frames = static_cast<size_t>(additionalAmount) / (sizeof(int16_t) * 2U);
+    if (frames == 0) return;
     std::vector<int16_t> mixed;
     {
         std::lock_guard<std::mutex> lock(bridge->mixerMutex_);
         bridge->mixer_.Mix(frames, mixed);
     }
-    const size_t byteCount = std::min(static_cast<size_t>(length), mixed.size() * sizeof(int16_t));
-    if (byteCount > 0) std::memcpy(stream, mixed.data(), byteCount);
-    if (byteCount < static_cast<size_t>(length)) std::memset(stream + byteCount, 0, static_cast<size_t>(length) - byteCount);
+    const size_t byteCount = std::min(static_cast<size_t>(additionalAmount), mixed.size() * sizeof(int16_t));
+    if (byteCount > 0) SDL_PutAudioStreamData(stream, mixed.data(), static_cast<int>(byteCount));
+    if (byteCount < static_cast<size_t>(additionalAmount)) {
+        std::vector<uint8_t> silence(static_cast<size_t>(additionalAmount) - byteCount, 0);
+        SDL_PutAudioStreamData(stream, silence.data(), static_cast<int>(silence.size()));
+    }
     bridge->framesMixed_.fetch_add(frames);
 }
 
