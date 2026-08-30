@@ -2,7 +2,7 @@
 
 #include "InputState.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <algorithm>
 
@@ -27,12 +27,12 @@ bool SdlInputBridge::InitializeHidden(uint16_t width, uint16_t height) {
         lastError_ = SdlInputBridgeError::InvalidConfiguration;
         return false;
     }
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
+    if (!SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         lastError_ = SdlInputBridgeError::VideoInitializationFailed;
         return false;
     }
     videoInitialized_ = true;
-    SDL_Window* window = SDL_CreateWindow("NeoEngine Input Probe", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, static_cast<int>(width), static_cast<int>(height), SDL_WINDOW_HIDDEN);
+    SDL_Window* window = SDL_CreateWindow("NeoEngine Input Probe", static_cast<int>(width), static_cast<int>(height), SDL_WINDOW_HIDDEN);
     if (window == nullptr) {
         lastError_ = SdlInputBridgeError::WindowCreationFailed;
         Reset();
@@ -51,26 +51,26 @@ bool SdlInputBridge::PumpFrame(InputState& input) {
     }
     input.ClearFrameMetadata();
     SDL_Event event{};
-    while (SDL_PollEvent(&event) != 0) {
-        if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
-            if (event.type == SDL_KEYDOWN && event.key.repeat != 0) continue;
-            if (!input.Push(MakeInputCode(InputDeviceType::Keyboard, static_cast<uint16_t>(event.key.keysym.scancode)), event.type == SDL_KEYDOWN)) {
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.repeat) continue;
+            if (!input.Push(MakeInputCode(InputDeviceType::Keyboard, static_cast<uint16_t>(event.key.scancode)), event.type == SDL_EVENT_KEY_DOWN)) {
                 lastError_ = SdlInputBridgeError::InputQueueRejected;
                 return false;
             }
-        } else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
-            if (!input.Push(MakeInputCode(InputDeviceType::Mouse, event.button.button), event.type == SDL_MOUSEBUTTONDOWN)) {
+        } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+            if (!input.Push(MakeInputCode(InputDeviceType::Mouse, event.button.button), event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)) {
                 lastError_ = SdlInputBridgeError::InputQueueRejected;
                 return false;
             }
-        } else if (event.type == SDL_FINGERDOWN || event.type == SDL_FINGERUP || event.type == SDL_FINGERMOTION) {
-            const bool active = event.type != SDL_FINGERUP;
-            if (!input.Push(MakeInputCode(InputDeviceType::Touch, 1), active) || !input.SetTouchPointer(static_cast<uint32_t>(event.tfinger.fingerId), event.tfinger.x, event.tfinger.y, active)) {
+        } else if (event.type == SDL_EVENT_FINGER_DOWN || event.type == SDL_EVENT_FINGER_UP || event.type == SDL_EVENT_FINGER_MOTION) {
+            const bool active = event.type != SDL_EVENT_FINGER_UP;
+            if (!input.Push(MakeInputCode(InputDeviceType::Touch, 1), active) || !input.SetTouchPointer(static_cast<uint32_t>(event.tfinger.fingerID), event.tfinger.x, event.tfinger.y, active)) {
                 lastError_ = input.LastError() == InputError::InvalidMetadata ? SdlInputBridgeError::MetadataRejected : SdlInputBridgeError::InputQueueRejected;
                 return false;
             }
-        } else if (event.type == SDL_CONTROLLERBUTTONDOWN || event.type == SDL_CONTROLLERBUTTONUP) {
-            if (!input.Push(MakeInputCode(InputDeviceType::Gamepad, event.cbutton.button), event.type == SDL_CONTROLLERBUTTONDOWN)) {
+        } else if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || event.type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
+            if (!input.Push(MakeInputCode(InputDeviceType::Gamepad, event.gbutton.button), event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) {
                 lastError_ = SdlInputBridgeError::InputQueueRejected;
                 return false;
             }
@@ -78,27 +78,27 @@ bool SdlInputBridge::PumpFrame(InputState& input) {
                 lastError_ = SdlInputBridgeError::MetadataRejected;
                 return false;
             }
-        } else if (event.type == SDL_CONTROLLERAXISMOTION) {
-            if (event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX || event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY) {
-                if (!input.SetControllerAxis(static_cast<uint8_t>(event.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX ? 0U : 1U), NormalizeAxis(event.caxis.value))) {
+        } else if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION) {
+            if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX || event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY) {
+                if (!input.SetControllerAxis(static_cast<uint8_t>(event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX ? 0U : 1U), NormalizeAxis(event.gaxis.value))) {
                     lastError_ = SdlInputBridgeError::MetadataRejected;
                     return false;
                 }
             }
-        } else if (event.type == SDL_CONTROLLERDEVICEADDED) {
+        } else if (event.type == SDL_EVENT_GAMEPAD_ADDED) {
             if (!input.SetControllerConnected(true)) {
                 lastError_ = SdlInputBridgeError::MetadataRejected;
                 return false;
             }
-        } else if (event.type == SDL_CONTROLLERDEVICEREMOVED) {
+        } else if (event.type == SDL_EVENT_GAMEPAD_REMOVED) {
             if (!input.SetControllerConnected(false)) {
                 lastError_ = SdlInputBridgeError::MetadataRejected;
                 return false;
             }
-        } else if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+        } else if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
             input.ReleaseAll();
             input.MarkFocusLost();
-        } else if (event.type == SDL_QUIT || (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)) {
+        } else if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
             quitRequested_ = true;
             input.MarkQuitRequested();
         }
@@ -111,7 +111,7 @@ bool SdlInputBridge::PumpFrame(InputState& input) {
 void SdlInputBridge::Reset() {
     if (window_ != nullptr) SDL_DestroyWindow(static_cast<SDL_Window*>(window_));
     window_ = nullptr;
-    if (videoInitialized_) SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
+    if (videoInitialized_) SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
     videoInitialized_ = false;
     quitRequested_ = false;
 }
