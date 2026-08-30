@@ -2,6 +2,8 @@
 
 #include "AudioMixer.h"
 
+#include <SDL3/SDL.h>
+
 #include <atomic>
 #include <cstdint>
 #include <mutex>
@@ -23,15 +25,15 @@ public:
     bool Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8 = 256);
     void Reset();
 
-    [[nodiscard]] bool IsReady() const { return deviceId_ != 0; }
+    [[nodiscard]] bool IsReady() const { return stream_ != nullptr; }
     [[nodiscard]] uint64_t FramesMixed() const { return framesMixed_.load(); }
     [[nodiscard]] uint16_t QueuedVoiceCount() const;
     [[nodiscard]] SdlAudioBridgeError LastError() const { return lastError_; }
 
 private:
-    static void AudioCallback(void* userdata, uint8_t* stream, int length);
+    static void AudioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount);
 
-    uint32_t deviceId_ = 0;
+    SDL_AudioStream* stream_ = nullptr;
     bool audioInitialized_ = false;
     AudioMixer mixer_;
     mutable std::mutex mixerMutex_;
