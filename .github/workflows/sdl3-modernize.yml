@@ -1,0 +1,306 @@
+name: SDL3 Modernize
+
+on:
+  push:
+    branches: [upgrade/sdl3-modern]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: upgrade/sdl3-modern
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libvulkan-dev glslang-tools python3
+
+      - name: Build and install SDL 3.4.14
+        run: |
+          curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz
+          tar -xzf /tmp/SDL3.tar.gz -C /tmp
+          cmake -S /tmp/SDL3-3.4.14 -B /tmp/sdl3-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL_TESTS=OFF
+          cmake --build /tmp/sdl3-build --parallel 2
+          sudo cmake --install /tmp/sdl3-build
+
+      - name: Apply official SDL2 to SDL3 symbol/header migration
+        run: |
+          git clone --depth 1 --branch release-3.4.14 https://github.com/libsdl-org/SDL.git /tmp/SDL-source
+          python3 /tmp/SDL-source/build-scripts/rename_headers.py Source Tests
+          python3 /tmp/SDL-source/build-scripts/rename_symbols.py --all-symbols Source Tests
+          python3 /tmp/SDL-source/build-scripts/rename_macros.py Source Tests
+
+      - name: Apply SDL3 semantic API migration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          roots = [Path('Source'), Path('Tests')]
+          files = [p for root in roots for p in root.rglob('*') if p.suffix in {'.cpp', '.h', '.hpp', '.cc', '.c'}]
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              original = text
+
+              # SDL3 headers.
+              text = text.replace('#include <SDL.h>', '#include <SDL3/SDL.h>')
+              text = text.replace('#include <SDL_vulkan.h>', '#include <SDL3/SDL_vulkan.h>')
+              text = text.replace('#include <SDL_gamecontroller.h>', '#include <SDL3/SDL_gamepad.h>')
+
+              # SDL3 event model: window sub-events are top-level event types.
+              text = text.replace('SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE', 'event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED')
+              text = text.replace('SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_FOCUS_LOST', 'event.type == SDL_EVENT_WINDOW_FOCUS_LOST')
+              text = text.replace('SDL_WINDOWEVENT && (event.window.event == SDL_WINDOWEVENT_RESIZED || event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)', '(event.type == SDL_EVENT_WINDOW_RESIZED || event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)')
+              text = text.replace('SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED', 'event.type == SDL_EVENT_WINDOW_RESIZED')
+              text = text.replace('SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED', 'event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED')
+              text = text.replace('event.window.event == SDL_WINDOWEVENT_CLOSE', 'event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED')
+              text = text.replace('event.window.event == SDL_WINDOWEVENT_FOCUS_LOST', 'event.type == SDL_EVENT_WINDOW_FOCUS_LOST')
+              text = text.replace('event.window.event == SDL_WINDOWEVENT_RESIZED', 'event.type == SDL_EVENT_WINDOW_RESIZED')
+              text = text.replace('event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED', 'event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED')
+              text = text.replace('event.window.event == SDL_EVENT_WINDOW_RESIZED', 'event.type == SDL_EVENT_WINDOW_RESIZED')
+              text = text.replace('event.window.event == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED', 'event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED')
+              text = text.replace('event.window.event == SDL_EVENT_WINDOW_CLOSE_REQUESTED', 'event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED')
+              text = text.replace('event.window.event == SDL_EVENT_WINDOW_FOCUS_LOST', 'event.type == SDL_EVENT_WINDOW_FOCUS_LOST')
+
+              # SDL3 event union member renames and field renames.
+              text = text.replace('event.cbutton.', 'event.gbutton.')
+              text = text.replace('event.caxis.', 'event.gaxis.')
+              text = text.replace('event.cdevice.', 'event.gdevice.')
+              text = text.replace('event.tfinger.fingerId', 'event.tfinger.fingerID')
+              text = text.replace('event.tfinger.touchId', 'event.tfinger.touchID')
+              text = text.replace('event.key.keysym.scancode', 'event.key.scancode')
+
+              # SDL3 boolean-return convention.
+              text = re.sub(r'SDL_InitSubSystem\(([^\n;]+)\) != 0', r'!SDL_InitSubSystem(\1)', text)
+              text = re.sub(r'SDL_Init\(([^\n;]+)\) != 0', r'!SDL_Init(\1)', text)
+              text = text.replace('SDL_TRUE', 'true').replace('SDL_FALSE', 'false')
+              text = text.replace('SDL_PushEvent(&', '!SDL_PushEvent(&') if 'SDL_PushEvent(&' in text and '< 0' in text else text
+              text = text.replace('SDL_PushEvent(&touchDown) < 0', '!SDL_PushEvent(&touchDown)')
+              text = text.replace('SDL_PushEvent(&touchMotion) < 0', '!SDL_PushEvent(&touchMotion)')
+              text = text.replace('SDL_PushEvent(&axis) < 0', '!SDL_PushEvent(&axis)')
+              text = text.replace('SDL_PushEvent(&deviceRemoved) < 0', '!SDL_PushEvent(&deviceRemoved)')
+              text = text.replace('SDL_PushEvent(&keyDown) < 0', '!SDL_PushEvent(&keyDown)')
+              text = text.replace('SDL_PushEvent(&focusLost) < 0', '!SDL_PushEvent(&focusLost)')
+              text = text.replace('SDL_PushEvent(&quit) < 0', '!SDL_PushEvent(&quit)')
+
+              # SDL3 renderer API.
+              text = text.replace('SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE)', 'SDL_CreateRenderer(window, SDL_SOFTWARE_RENDERER)')
+              text = text.replace('SDL_RenderCopy(', 'SDL_RenderTexture(')
+              text = text.replace('SDL_RENDERER_SOFTWARE', 'SDL_SOFTWARE_RENDERER')
+              text = re.sub(r'SDL_CreateRenderer\(([^,]+),\s*-1,\s*([^\)]+)\)', r'SDL_CreateRenderer(\1, \2)', text)
+
+              # SDL3 window creation drops x/y position arguments.
+              text = re.sub(r'SDL_CreateWindow\(([^,\n]+),\s*SDL_WINDOWPOS_UNDEFINED,\s*SDL_WINDOWPOS_UNDEFINED,\s*([^,\n]+),\s*([^,\n]+),\s*([^\)]+)\)', r'SDL_CreateWindow(\1, \2, \3, \4)', text)
+
+              # SDL3 Vulkan API no longer passes a window to GetInstanceExtensions and
+              # CreateSurface gains an allocator parameter.
+              text = re.sub(r'SDL_Vulkan_GetInstanceExtensions\([^\)]*,\s*&extensionCount,\s*nullptr\)', r'SDL_Vulkan_GetInstanceExtensions(&extensionCount)', text)
+              text = re.sub(r'SDL_Vulkan_GetInstanceExtensions\([^\)]*,\s*&extensionCount,\s*extensions\.data\(\)\)', r'(extensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount))', text)
+              text = re.sub(r'SDL_Vulkan_CreateSurface\(([^,]+),\s*([^,]+),\s*&([^\)]+)\)', r'SDL_Vulkan_CreateSurface(\1, \2, nullptr, &\3)', text)
+
+              # SDL3 audio format names.
+              text = text.replace('AUDIO_S16SYS', 'SDL_AUDIO_S16')
+
+              if text != original:
+                  path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Replace SDL2 audio bridge with SDL3 AudioStream implementation
+        run: |
+          cat > Source/NeoEngine/Runtime/SdlAudioBridge.cpp <<'CPP'
+          #include "SdlAudioBridge.h"
+
+          #include <SDL3/SDL.h>
+
+          #include <algorithm>
+          #include <cstddef>
+          #include <cstdint>
+          #include <vector>
+
+          namespace NeoEngine {
+
+          SdlAudioBridge::~SdlAudioBridge() { Reset(); }
+
+          bool SdlAudioBridge::Initialize(uint16_t framesPerCallback) {
+              Reset();
+              if (framesPerCallback == 0) {
+                  lastError_ = SdlAudioBridgeError::InvalidConfiguration;
+                  return false;
+              }
+              if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+                  lastError_ = SdlAudioBridgeError::AudioInitializationFailed;
+                  return false;
+              }
+              audioInitialized_ = true;
+
+              SDL_AudioSpec spec{};
+              spec.freq = 48000;
+              spec.format = SDL_AUDIO_S16;
+              spec.channels = 2;
+
+              auto* stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, &SdlAudioBridge::AudioCallback, this);
+              if (stream == nullptr) {
+                  lastError_ = SdlAudioBridgeError::DeviceOpenFailed;
+                  Reset();
+                  return false;
+              }
+              stream_ = stream;
+              callbackFrames_ = framesPerCallback;
+              framesMixed_.store(0);
+              if (!SDL_ResumeAudioStreamDevice(stream)) {
+                  lastError_ = SdlAudioBridgeError::DeviceOpenFailed;
+                  Reset();
+                  return false;
+              }
+              lastError_ = SdlAudioBridgeError::None;
+              return true;
+          }
+
+          bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8) {
+              if (stream_ == nullptr) {
+                  lastError_ = SdlAudioBridgeError::NotInitialized;
+                  return false;
+              }
+              std::lock_guard<std::mutex> lock(mixerMutex_);
+              if (!mixer_.Play(id, std::move(mono), gainQ8)) {
+                  lastError_ = SdlAudioBridgeError::MixerRejected;
+                  return false;
+              }
+              lastError_ = SdlAudioBridgeError::None;
+              return true;
+          }
+
+          uint16_t SdlAudioBridge::QueuedVoiceCount() const {
+              std::lock_guard<std::mutex> lock(mixerMutex_);
+              return static_cast<uint16_t>(mixer_.ActiveVoices());
+          }
+
+          void SdlAudioBridge::Reset() {
+              if (stream_ != nullptr) {
+                  auto* stream = static_cast<SDL_AudioStream*>(stream_);
+                  SDL_PauseAudioStreamDevice(stream);
+                  SDL_ClearAudioStream(stream);
+                  SDL_DestroyAudioStream(stream);
+              }
+              stream_ = nullptr;
+              {
+                  std::lock_guard<std::mutex> lock(mixerMutex_);
+                  mixer_.Clear();
+              }
+              if (audioInitialized_) SDL_QuitSubSystem(SDL_INIT_AUDIO);
+              audioInitialized_ = false;
+              framesMixed_.store(0);
+          }
+
+          void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int /*totalAmount*/) {
+              auto* bridge = static_cast<SdlAudioBridge*>(userdata);
+              if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
+              const size_t frames = static_cast<size_t>(additionalAmount) / (sizeof(int16_t) * 2U);
+              if (frames == 0) return;
+              std::vector<int16_t> mixed;
+              {
+                  std::lock_guard<std::mutex> lock(bridge->mixerMutex_);
+                  bridge->mixer_.Mix(frames, mixed);
+              }
+              const size_t bytes = mixed.size() * sizeof(int16_t);
+              if (bytes > 0 && SDL_PutAudioStreamData(stream, mixed.data(), static_cast<int>(bytes))) {
+                  bridge->framesMixed_.fetch_add(frames);
+              }
+          }
+
+          } // namespace NeoEngine
+          CPP
+
+          cat > Source/NeoEngine/Runtime/SdlAudioBridge.h <<'CPP'
+          #pragma once
+
+          #include "AudioMixer.h"
+
+          #include <atomic>
+          #include <cstdint>
+          #include <mutex>
+          #include <vector>
+
+          struct SDL_AudioStream;
+
+          namespace NeoEngine {
+
+          enum class SdlAudioBridgeError : uint8_t { None, InvalidConfiguration, AudioInitializationFailed, DeviceOpenFailed, NotInitialized, MixerRejected };
+
+          class SdlAudioBridge {
+          public:
+              SdlAudioBridge() = default;
+              ~SdlAudioBridge();
+
+              SdlAudioBridge(const SdlAudioBridge&) = delete;
+              SdlAudioBridge& operator=(const SdlAudioBridge&) = delete;
+
+              bool Initialize(uint16_t framesPerCallback = 256);
+              bool Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8 = 256);
+              void Reset();
+              [[nodiscard]] bool IsReady() const { return stream_ != nullptr; }
+              [[nodiscard]] uint64_t FramesMixed() const { return framesMixed_.load(); }
+              [[nodiscard]] uint16_t QueuedVoiceCount() const;
+              [[nodiscard]] SdlAudioBridgeError LastError() const { return lastError_; }
+
+          private:
+              static void AudioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount);
+
+              void* stream_ = nullptr;
+              bool audioInitialized_ = false;
+              uint16_t callbackFrames_ = 0;
+              AudioMixer mixer_;
+              mutable std::mutex mixerMutex_;
+              std::atomic<uint64_t> framesMixed_{0};
+              SdlAudioBridgeError lastError_ = SdlAudioBridgeError::None;
+          };
+
+          } // namespace NeoEngine
+          CPP
+
+      - name: Switch NeoEngine CMake to SDL3
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('Source/NeoEngine/CMakeLists.txt')
+          s = p.read_text()
+          s = s.replace('find_package(SDL2 REQUIRED)', 'find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)')
+          s = s.replace('SDL2::SDL2', 'SDL3::SDL3')
+          p.write_text(s)
+          PY
+
+      - name: Build SDL3 targets
+        run: |
+          cmake -S Source/NeoEngine -B build-sdl3 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local
+          cmake --build build-sdl3 --parallel 2 --target \
+            bench_100k \
+            sdl_input_bridge_smoke \
+            sdl_input_metadata_smoke \
+            sdl_audio_bridge_smoke \
+            software_surface_presenter_smoke \
+            vulkan_rhi_smoke \
+            farm_vulkan_textured_present_smoke
+
+      - name: Audit for stale SDL2 API
+        run: |
+          if grep -RInE '#include <SDL\.h>|#include <SDL_vulkan\.h>|SDL2::|find_package\(SDL2|SDL_WINDOWPOS_|SDL_WINDOWEVENT|SDL_CONTROLLER|SDL_RenderCopy\(|SDL_RENDERER_SOFTWARE|AUDIO_S16SYS' Source Tests --include='*.cpp' --include='*.h'; then
+            echo 'Stale SDL2 API detected.'
+            exit 1
+          fi
+
+      - name: Commit verified SDL3 migration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Source Tests
+          git diff --cached --quiet && { echo 'No migration changes detected'; exit 1; }
+          git commit -m 'feat: upgrade NeoEngine runtime from SDL2 to SDL3.4.14'
+          git push origin upgrade/sdl3-modern
