@@ -1,11 +1,10 @@
 #include "Rendering/RHI/Vulkan/VulkanRHI.h"
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <cstdio>
 
 int main() {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
-    SDL_Window* window = SDL_CreateWindow("NeoEngine Vulkan RHI Smoke", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                          64, 64, SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
+    if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
+    SDL_Window* window = SDL_CreateWindow("NeoEngine Vulkan RHI Smoke", 64, 64, SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
     if (window == nullptr) { SDL_Quit(); return 2; }
 
     using NeoEngine::VulkanRHI;
