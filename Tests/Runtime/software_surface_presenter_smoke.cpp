@@ -2,7 +2,7 @@
 #include "Runtime/SoftwareRenderer.h"
 #include "Runtime/SoftwareSurfacePresenter.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <cstdio>
 
 int main() {
@@ -17,15 +17,14 @@ int main() {
     if (!require(wrongSize.Initialize(8, 8) && !presenter.Present(wrongSize) && presenter.LastError() == SoftwareSurfacePresenterError::DimensionMismatch && presenter.PresentedFrameCount() == 1U && presenter.LastPresentedHash() == firstHash, "dimension-rejection")) return 1;
     if (!require(source.Clear(0xFFE53935U) && presenter.Present(source) && presenter.PresentedFrameCount() == 2U && presenter.LastPresentedHash() != firstHash, "direct-second-present")) return 1;
     SDL_Event resizeEvent{};
-    resizeEvent.type = SDL_WINDOWEVENT;
-    resizeEvent.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+    resizeEvent.type = SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED;
     resizeEvent.window.data1 = 24;
     resizeEvent.window.data2 = 20;
-    if (!require(SDL_PushEvent(&resizeEvent) == 1 && presenter.PumpEvents() && presenter.WindowWidth() == 24U && presenter.WindowHeight() == 20U && presenter.Present(source) && presenter.PresentedFrameCount() == 3U, "resize-observation")) return 1;
+    if (!require(SDL_PushEvent(&resizeEvent) && presenter.PumpEvents() && presenter.WindowWidth() == 24U && presenter.WindowHeight() == 20U && presenter.Present(source) && presenter.PresentedFrameCount() == 3U, "resize-observation")) return 1;
     const uint64_t closeFrames = presenter.PresentedFrameCount(), closeHash = presenter.LastPresentedHash();
     SDL_Event closeEvent{};
-    closeEvent.type = SDL_QUIT;
-    if (!require(SDL_PushEvent(&closeEvent) == 1 && presenter.PumpEvents() && presenter.CloseRequested() && !presenter.Present(source) && presenter.LastError() == SoftwareSurfacePresenterError::CloseRequested && presenter.PresentedFrameCount() == closeFrames && presenter.LastPresentedHash() == closeHash, "close-request")) return 1;
+    closeEvent.type = SDL_EVENT_QUIT;
+    if (!require(SDL_PushEvent(&closeEvent) && presenter.PumpEvents() && presenter.CloseRequested() && !presenter.Present(source) && presenter.LastError() == SoftwareSurfacePresenterError::CloseRequested && presenter.PresentedFrameCount() == closeFrames && presenter.LastPresentedHash() == closeHash, "close-request")) return 1;
     presenter.Reset();
     if (!require(!presenter.IsReady() && !presenter.CloseRequested() && presenter.WindowWidth() == 0U && presenter.WindowHeight() == 0U && !presenter.PumpEvents() && presenter.LastError() == SoftwareSurfacePresenterError::NotInitialized, "reset")) return 1;
 
