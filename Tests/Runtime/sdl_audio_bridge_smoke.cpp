@@ -1,6 +1,6 @@
 #include "Runtime/SdlAudioBridge.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <cstdio>
 #include <vector>
 
