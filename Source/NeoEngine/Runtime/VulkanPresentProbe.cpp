@@ -1,7 +1,7 @@
 #include "VulkanPresentProbe.h"
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 
 #include <algorithm>
@@ -107,14 +107,14 @@ VulkanPresentProbeResult VulkanPresentProbe::PresentHiddenFrame(uint32_t width, 
     VulkanPresentProbeResult result{};
     if (width == 0 || height == 0 || width > 2048 || height > 2048) return result;
     Resources resources{};
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) return result;
-    resources.window = SDL_CreateWindow("NeoEngine Present Probe", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, static_cast<int>(width), static_cast<int>(height), SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
+    if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) return result;
+    resources.window = SDL_CreateWindow("NeoEngine Present Probe", static_cast<int>(width), static_cast<int>(height), SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
     if (resources.window == nullptr) return result;
     result.windowCreated = true;
     unsigned extensionCount = 0;
-    if (SDL_Vulkan_GetInstanceExtensions(resources.window, &extensionCount, nullptr) != SDL_TRUE || extensionCount == 0) return result;
-    std::vector<const char*> extensions(extensionCount);
-    if (SDL_Vulkan_GetInstanceExtensions(resources.window, &extensionCount, extensions.data()) != SDL_TRUE) return result;
+    const char* const* sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+    if (sdlExtensions == nullptr || extensionCount == 0) return result;
+    std::vector<const char*> extensions(sdlExtensions, sdlExtensions + extensionCount);
     VkApplicationInfo applicationInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     applicationInfo.pApplicationName = "NeoEnginePresentProbe";
     applicationInfo.apiVersion = VK_API_VERSION_1_0;
@@ -122,7 +122,7 @@ VulkanPresentProbeResult VulkanPresentProbe::PresentHiddenFrame(uint32_t width, 
     instanceInfo.pApplicationInfo = &applicationInfo;
     instanceInfo.enabledExtensionCount = extensionCount;
     instanceInfo.ppEnabledExtensionNames = extensions.data();
-    if (vkCreateInstance(&instanceInfo, nullptr, &resources.instance) != VK_SUCCESS || SDL_Vulkan_CreateSurface(resources.window, resources.instance, &resources.surface) != SDL_TRUE) return result;
+    if (vkCreateInstance(&instanceInfo, nullptr, &resources.instance) != VK_SUCCESS || !SDL_Vulkan_CreateSurface(resources.window, resources.instance, nullptr, &resources.surface)) return result;
     result.surfaceCreated = true;
     if (!ChooseDevice(resources)) return result;
     result.deviceCreated = true;
