@@ -1,7 +1,7 @@
 #include "Runtime/NeoRuntime.h"
 #include "Runtime/VulkanTexturedPresent.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <cstdint>
 #include <cstdio>
