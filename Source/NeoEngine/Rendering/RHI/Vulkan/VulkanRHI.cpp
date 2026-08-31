@@ -1,6 +1,6 @@
 #include "VulkanRHI.h"
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 #include <algorithm>
 #include <cstring>
 #include <limits>
@@ -27,15 +27,15 @@ bool VulkanRHI::Init(void* nativeWindow, int w, int h, const char* appName) {
     if (m_Initialized) return true;
     if (nativeWindow == nullptr || w <= 0 || h <= 0 || appName == nullptr || std::strlen(appName) == 0) return false;
     auto* window = static_cast<SDL_Window*>(nativeWindow);
-    if (SDL_WasInit(SDL_INIT_VIDEO) == 0 && SDL_Init(SDL_INIT_VIDEO) != 0) return false;
+    if (SDL_WasInit(SDL_INIT_VIDEO) == 0 && !SDL_Init(SDL_INIT_VIDEO)) return false;
     unsigned extensionCount = 0;
-    if (SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, nullptr) != SDL_TRUE || extensionCount == 0) return false;
-    std::vector<const char*> extensions(extensionCount);
-    if (SDL_Vulkan_GetInstanceExtensions(window, &extensionCount, extensions.data()) != SDL_TRUE) return false;
+    const char* const* sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+    if (sdlExtensions == nullptr || extensionCount == 0) return false;
+    std::vector<const char*> extensions(sdlExtensions, sdlExtensions + extensionCount);
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO}; app.pApplicationName = appName; app.applicationVersion = VK_MAKE_VERSION(1, 0, 0); app.pEngineName = "FauzanEngine"; app.engineVersion = VK_MAKE_VERSION(1, 0, 0); app.apiVersion = VK_API_VERSION_1_0;
     VkInstanceCreateInfo instanceInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO}; instanceInfo.pApplicationInfo = &app; instanceInfo.enabledExtensionCount = extensionCount; instanceInfo.ppEnabledExtensionNames = extensions.data();
     if (vkCreateInstance(&instanceInfo, nullptr, &m_Instance) != VK_SUCCESS) { Shutdown(); return false; }
-    if (SDL_Vulkan_CreateSurface(window, m_Instance, &m_Surface) != SDL_TRUE) { Shutdown(); return false; }
+    if (!SDL_Vulkan_CreateSurface(window, m_Instance, nullptr, &m_Surface)) { Shutdown(); return false; }
     uint32_t deviceCount = 0;
     if (vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr) != VK_SUCCESS || deviceCount == 0) { Shutdown(); return false; }
     std::vector<VkPhysicalDevice> devices(deviceCount); if (vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data()) != VK_SUCCESS) { Shutdown(); return false; }
