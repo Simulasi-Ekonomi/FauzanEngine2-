@@ -1,4 +1,5 @@
 #include "Runtime/FlipbookFrameSelector.h"
+#include <algorithm>
 #include <cmath>
 namespace NeoEngine {
 bool FlipbookFrameSelector::Initialize(FlipbookFrameSelectorConfig config){if(config.textureWidth==0U||config.textureHeight==0U||config.frameWidth==0U||config.frameHeight==0U||config.frameCount==0U||config.frameCount>256U||config.textureWidth%config.frameWidth!=0U||config.textureHeight%config.frameHeight!=0U){initialized_=false;lastError_=FlipbookFrameSelectorError::InvalidConfiguration;return false;}const uint32_t columns=config.textureWidth/config.frameWidth,rows=config.textureHeight/config.frameHeight;if(columns==0U||static_cast<uint32_t>(config.frameCount)>columns*rows){initialized_=false;lastError_=FlipbookFrameSelectorError::InvalidConfiguration;return false;}config_=config;columns_=static_cast<uint16_t>(columns);initialized_=true;lastError_=FlipbookFrameSelectorError::None;return true;}
