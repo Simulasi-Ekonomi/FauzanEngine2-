@@ -33,8 +33,12 @@ inline bool NeoEngine_SDL3Compat_VulkanCreateSurface(SDL_Window* window,
 #define SDL_Vulkan_CreateSurface(window, instance, surface) \
     NeoEngine_SDL3Compat_VulkanCreateSurface(window, instance, surface)
 
-#ifndef SDL_TRUE
-#define SDL_TRUE true
+// SDL3's compatibility header may define SDL_TRUE as an intentionally
+// undefined legacy token. The local Vulkan compatibility layer returns bool,
+// so provide the legacy spelling expected by VulkanTexturedPresent.cpp.
+#ifdef SDL_TRUE
+#undef SDL_TRUE
 #endif
+#define SDL_TRUE true
 
 #endif
