@@ -27,6 +27,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y g++ cmake pkg-config libsdl3-dev libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb
+          pkg-config --modversion sdl3
+          test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
 
       - name: Compile mesh shaders
         working-directory: Source/NeoEngine
