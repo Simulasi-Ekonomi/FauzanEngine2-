@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 project(NeoEngine LANGUAGES CXX)
 find_package(Vulkan REQUIRED)
-find_package(SDL2 REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 find_program(GLSLANG_VALIDATOR glslangValidator REQUIRED)
 
 add_custom_command(
@@ -181,7 +181,7 @@ set(XPBD_RUNTIME_SOURCES
 
 add_library(neo_core SHARED ${XPBD_RUNTIME_SOURCES})
 add_dependencies(neo_core neo_shaders)
-target_link_libraries(neo_core PRIVATE Vulkan::Vulkan SDL2::SDL2)
+target_link_libraries(neo_core PRIVATE Vulkan::Vulkan SDL3::SDL3)
 target_compile_definitions(neo_core PRIVATE NEO_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Shaders")
 target_include_directories(neo_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -201,7 +201,7 @@ function(add_xpbd_executable target test_source)
         ${CMAKE_CURRENT_SOURCE_DIR}/Physics
         ${CMAKE_CURRENT_SOURCE_DIR}/Threading
     )
-    target_link_libraries(${target} PRIVATE Vulkan::Vulkan SDL2::SDL2)
+    target_link_libraries(${target} PRIVATE Vulkan::Vulkan SDL3::SDL3)
     target_compile_definitions(${target} PRIVATE NEO_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Shaders")
 endfunction()
 
