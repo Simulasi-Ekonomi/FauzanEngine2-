@@ -25,7 +25,11 @@ int main() {
     std::vector<NeoEngine::Vulkan3DVertex> bulkVertices(bulkVertexCount);
     std::vector<uint32_t> bulkIndices(bulkIndexCount);
     for (size_t i = 0; i < bulkVertexCount; ++i) {
-        bulkVertices[i] = {{0.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F}, {0.0F, 0.0F}};
+        bulkVertices[i] = NeoEngine::Vulkan3DVertex{
+            0.0F, 0.0F, 0.0F,
+            0.0F, 0.0F, 1.0F,
+            0.0F, 0.0F
+        };
     }
     for (size_t i = 0; i < bulkIndexCount; i += 3) {
         bulkIndices[i + 0] = static_cast<uint32_t>(i + 0);
@@ -34,9 +38,9 @@ int main() {
     }
 
     constexpr std::array<NeoEngine::Vulkan3DVertex, 3> triangle{{
-        {{-0.7F, -0.6F, 0.0F}, {0.0F, 0.0F, 1.0F}, {0.0F, 0.0F}},
-        {{ 0.7F, -0.6F, 0.0F}, {0.0F, 0.0F, 1.0F}, {1.0F, 0.0F}},
-        {{ 0.0F,  0.7F, 0.0F}, {0.0F, 0.0F, 1.0F}, {0.5F, 1.0F}},
+        NeoEngine::Vulkan3DVertex{-0.7F, -0.6F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F},
+        NeoEngine::Vulkan3DVertex{ 0.7F, -0.6F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 0.0F},
+        NeoEngine::Vulkan3DVertex{ 0.0F,  0.7F, 0.0F, 0.0F, 0.0F, 1.0F, 0.5F, 1.0F},
     }};
     constexpr std::array<uint32_t, 3> triangleIndices{{0, 1, 2}};
 
