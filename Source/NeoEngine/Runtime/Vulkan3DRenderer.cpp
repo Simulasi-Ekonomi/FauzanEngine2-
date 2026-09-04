@@ -25,6 +25,10 @@ struct GpuVertex {
     float uv[2];
 };
 
+struct GpuInstance {
+    float transform[16];
+};
+
 struct Buffer {
     VkBuffer handle = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
@@ -44,6 +48,7 @@ struct Frame {
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
     BufferArena vertexArena{};
     BufferArena indexArena{};
+    BufferArena instanceArena{};
 };
 
 uint32_t FindMemoryType(VkPhysicalDevice physical, uint32_t bits, VkMemoryPropertyFlags flags) {
@@ -63,7 +68,6 @@ bool CreateBuffer(VkPhysicalDevice physical, VkDevice device, VkDeviceSize size,
                   Buffer& out) {
     out = {};
     if (size == 0) return false;
-
     VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     info.size = size;
     info.usage = usage;
@@ -72,7 +76,6 @@ bool CreateBuffer(VkPhysicalDevice physical, VkDevice device, VkDeviceSize size,
         out = {};
         return false;
     }
-
     VkMemoryRequirements req{};
     vkGetBufferMemoryRequirements(device, out.handle, &req);
     const uint32_t type = FindMemoryType(physical, req.memoryTypeBits, memoryFlags);
@@ -81,7 +84,6 @@ bool CreateBuffer(VkPhysicalDevice physical, VkDevice device, VkDeviceSize size,
         out = {};
         return false;
     }
-
     VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocation.allocationSize = req.size;
     allocation.memoryTypeIndex = type;
@@ -90,7 +92,6 @@ bool CreateBuffer(VkPhysicalDevice physical, VkDevice device, VkDeviceSize size,
         out = {};
         return false;
     }
-
     if (vkBindBufferMemory(device, out.handle, out.memory, 0) != VK_SUCCESS) {
         vkFreeMemory(device, out.memory, nullptr);
         vkDestroyBuffer(device, out.handle, nullptr);
@@ -107,9 +108,7 @@ void DestroyBuffer(VkDevice device, Buffer& buffer) {
 }
 
 void DestroyArena(VkDevice device, BufferArena& arena) {
-    if (arena.mapped && arena.buffer.memory) {
-        vkUnmapMemory(device, arena.buffer.memory);
-    }
+    if (arena.mapped && arena.buffer.memory) vkUnmapMemory(device, arena.buffer.memory);
     arena.mapped = nullptr;
     DestroyBuffer(device, arena.buffer);
     arena.capacity = 0;
@@ -159,8 +158,7 @@ bool HasExtension(VkPhysicalDevice physical, const char* name) {
     if (vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, nullptr) != VK_SUCCESS)
         return false;
     std::vector<VkExtensionProperties> extensions(count);
-    if (count &&
-        vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, extensions.data()) != VK_SUCCESS)
+    if (count && vkEnumerateDeviceExtensionProperties(physical, nullptr, &count, extensions.data()) != VK_SUCCESS)
         return false;
     return std::any_of(extensions.begin(), extensions.end(),
                        [name](const auto& e) { return std::strcmp(e.extensionName, name) == 0; });
@@ -182,6 +180,13 @@ bool EnsureArena(VkPhysicalDevice physical, VkDevice device, BufferArena& arena,
     return CreateArena(physical, device, GrowCapacity(arena.capacity, required), usage, arena);
 }
 
+constexpr std::array<float, 16> kIdentityMatrix{
+    1.0F, 0.0F, 0.0F, 0.0F,
+    0.0F, 1.0F, 0.0F, 0.0F,
+    0.0F, 0.0F, 1.0F, 0.0F,
+    0.0F, 0.0F, 0.0F, 1.0F
+};
+
 } // namespace
 
 struct Vulkan3DRenderer::Impl {
@@ -194,14 +199,12 @@ struct Vulkan3DRenderer::Impl {
     uint32_t graphicsFamily = UINT32_MAX;
     VkQueue presentQueue = VK_NULL_HANDLE;
     uint32_t presentFamily = UINT32_MAX;
-
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     VkFormat swapchainFormat = VK_FORMAT_UNDEFINED;
     VkExtent2D extent{};
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainViews;
     std::vector<VkFramebuffer> framebuffers;
-
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     VkPipeline pipeline = VK_NULL_HANDLE;
@@ -210,7 +213,6 @@ struct Vulkan3DRenderer::Impl {
     VkDeviceMemory depthMemory = VK_NULL_HANDLE;
     VkImageView depthView = VK_NULL_HANDLE;
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
-
     std::array<Frame, 2> frames{};
     uint32_t frameSlot = 0;
     uint32_t acquiredImageIndex = 0;
@@ -245,6 +247,7 @@ struct Vulkan3DRenderer::Impl {
         for (auto& frame : frames) {
             DestroyArena(device, frame.vertexArena);
             DestroyArena(device, frame.indexArena);
+            DestroyArena(device, frame.instanceArena);
         }
         DestroySwapchainResources();
         for (auto& f : frames) {
@@ -275,7 +278,6 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         lastError_ = Vulkan3DRendererError::SdlFailure;
         return false;
     }
-
     auto impl = std::make_unique<Impl>();
     impl->window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                     static_cast<int>(width), static_cast<int>(height),
@@ -285,10 +287,8 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         SDL_Quit();
         return false;
     }
-
     unsigned extensionCount = 0;
-    if (SDL_Vulkan_GetInstanceExtensions(impl->window, &extensionCount, nullptr) != SDL_TRUE ||
-        extensionCount == 0) {
+    if (SDL_Vulkan_GetInstanceExtensions(impl->window, &extensionCount, nullptr) != SDL_TRUE || extensionCount == 0) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         impl->Destroy();
         return false;
@@ -299,14 +299,12 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         impl->Destroy();
         return false;
     }
-
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = title;
     app.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app.pEngineName = "FauzanEngine2";
     app.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app.apiVersion = VK_API_VERSION_1_0;
-
     VkInstanceCreateInfo instanceInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     instanceInfo.pApplicationInfo = &app;
     instanceInfo.enabledExtensionCount = extensionCount;
@@ -321,10 +319,8 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         impl->Destroy();
         return false;
     }
-
     uint32_t deviceCount = 0;
-    if (vkEnumeratePhysicalDevices(impl->instance, &deviceCount, nullptr) != VK_SUCCESS ||
-        deviceCount == 0) {
+    if (vkEnumeratePhysicalDevices(impl->instance, &deviceCount, nullptr) != VK_SUCCESS || deviceCount == 0) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         impl->Destroy();
         return false;
@@ -335,7 +331,6 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         impl->Destroy();
         return false;
     }
-
     for (VkPhysicalDevice device : devices) {
         if (!HasExtension(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) continue;
         uint32_t familyCount = 0;
@@ -346,10 +341,8 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         uint32_t present = UINT32_MAX;
         for (uint32_t i = 0; i < familyCount; ++i) {
             VkBool32 supportsPresent = VK_FALSE;
-            if (vkGetPhysicalDeviceSurfaceSupportKHR(device, i, impl->surface, &supportsPresent) != VK_SUCCESS)
-                continue;
-            if ((families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && graphics == UINT32_MAX)
-                graphics = i;
+            if (vkGetPhysicalDeviceSurfaceSupportKHR(device, i, impl->surface, &supportsPresent) != VK_SUCCESS) continue;
+            if ((families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && graphics == UINT32_MAX) graphics = i;
             if (supportsPresent && present == UINT32_MAX) present = i;
         }
         if (graphics != UINT32_MAX && present != UINT32_MAX) {
@@ -359,13 +352,11 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
             break;
         }
     }
-
     if (!impl->physical) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         impl->Destroy();
         return false;
     }
-
     std::vector<VkDeviceQueueCreateInfo> queues;
     const float priority = 1.0F;
     VkDeviceQueueCreateInfo graphicsQueue{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -380,7 +371,6 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         presentQueue.pQueuePriorities = &priority;
         queues.push_back(presentQueue);
     }
-
     const char* deviceExtension = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     VkPhysicalDeviceFeatures features{};
     VkDeviceCreateInfo deviceInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
@@ -396,7 +386,6 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
     }
     vkGetDeviceQueue(impl->device, impl->graphicsFamily, 0, &impl->graphicsQueue);
     vkGetDeviceQueue(impl->device, impl->presentFamily, 0, &impl->presentQueue);
-
     VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     pool.queueFamilyIndex = impl->graphicsFamily;
     pool.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -405,7 +394,6 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
         impl->Destroy();
         return false;
     }
-
     for (auto& frame : impl->frames) {
         VkSemaphoreCreateInfo semaphore{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         VkFenceCreateInfo fence{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
@@ -427,7 +415,6 @@ bool Vulkan3DRenderer::Initialize(uint32_t width, uint32_t height, const char* t
             return false;
         }
     }
-
     impl_ = impl.release();
     if (!Resize(width, height)) {
         Reset();
@@ -443,13 +430,11 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::InvalidConfiguration;
         return false;
     }
-
     VkSurfaceCapabilitiesKHR capabilities{};
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(impl_->physical, impl_->surface, &capabilities) != VK_SUCCESS) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
     }
-
     uint32_t formatCount = 0;
     uint32_t modeCount = 0;
     if (vkGetPhysicalDeviceSurfaceFormatsKHR(impl_->physical, impl_->surface, &formatCount, nullptr) != VK_SUCCESS ||
@@ -458,7 +443,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
     }
-
     std::vector<VkSurfaceFormatKHR> formats(formatCount);
     if (vkGetPhysicalDeviceSurfaceFormatsKHR(impl_->physical, impl_->surface, &formatCount, formats.data()) != VK_SUCCESS) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
@@ -466,29 +450,21 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
     }
     auto format = formats.front();
     for (const auto& candidate : formats) {
-        if (candidate.format == VK_FORMAT_B8G8R8A8_SRGB &&
-            candidate.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+        if (candidate.format == VK_FORMAT_B8G8R8A8_SRGB && candidate.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             format = candidate;
             break;
         }
     }
-
     VkExtent2D extent{};
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         extent = capabilities.currentExtent;
     } else {
-        extent = {
-            std::clamp(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-            std::clamp(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
-        };
+        extent = {std::clamp(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+                  std::clamp(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)};
     }
-
     impl_->DestroySwapchainResources();
-
     uint32_t imageCount = capabilities.minImageCount + 1;
-    if (capabilities.maxImageCount && imageCount > capabilities.maxImageCount)
-        imageCount = capabilities.maxImageCount;
-
+    if (capabilities.maxImageCount && imageCount > capabilities.maxImageCount) imageCount = capabilities.maxImageCount;
     VkSwapchainCreateInfoKHR swap{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     swap.surface = impl_->surface;
     swap.minImageCount = imageCount;
@@ -515,10 +491,8 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
     }
     impl_->swapchainFormat = format.format;
     impl_->extent = extent;
-
     uint32_t actualCount = 0;
-    if (vkGetSwapchainImagesKHR(impl_->device, impl_->swapchain, &actualCount, nullptr) != VK_SUCCESS ||
-        actualCount == 0) {
+    if (vkGetSwapchainImagesKHR(impl_->device, impl_->swapchain, &actualCount, nullptr) != VK_SUCCESS || actualCount == 0) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
     }
@@ -541,7 +515,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
             return false;
         }
     }
-
     VkImageCreateInfo depth{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     depth.imageType = VK_IMAGE_TYPE_2D;
     depth.format = impl_->depthFormat;
@@ -556,11 +529,9 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
     }
-
     VkMemoryRequirements depthReq{};
     vkGetImageMemoryRequirements(impl_->device, impl_->depthImage, &depthReq);
-    const uint32_t depthType = FindMemoryType(
-        impl_->physical, depthReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    const uint32_t depthType = FindMemoryType(impl_->physical, depthReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (depthType == UINT32_MAX) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
@@ -573,7 +544,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
     }
-
     VkImageViewCreateInfo depthView{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     depthView.image = impl_->depthImage;
     depthView.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -585,7 +555,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
     }
-
     VkAttachmentDescription attachments[2]{};
     attachments[0].format = impl_->swapchainFormat;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -599,7 +568,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
     attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
     VkAttachmentReference colorRef{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
     VkAttachmentReference depthRef{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
     VkSubpassDescription subpass{};
@@ -607,17 +575,12 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorRef;
     subpass.pDepthStencilAttachment = &depthRef;
-
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                              VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                              VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-                               VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     VkRenderPassCreateInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
     pass.attachmentCount = 2;
     pass.pAttachments = attachments;
@@ -629,7 +592,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::VulkanFailure;
         return false;
     }
-
     auto vertCode = ReadSpirv(NEO_SHADER_DIR "/neo_mesh.vert.spv");
     auto fragCode = ReadSpirv(NEO_SHADER_DIR "/neo_mesh.frag.spv");
     VkShaderModule vert = CreateShader(impl_->device, vertCode);
@@ -640,7 +602,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::ShaderUnavailable;
         return false;
     }
-
     VkPipelineShaderStageCreateInfo stages[2]{};
     stages[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -650,55 +611,52 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
     stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     stages[1].module = frag;
     stages[1].pName = "main";
-
-    VkVertexInputBindingDescription binding{};
-    binding.binding = 0;
-    binding.stride = sizeof(GpuVertex);
-    binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    VkVertexInputAttributeDescription attributes[3]{
+    VkVertexInputBindingDescription bindings[2]{};
+    bindings[0].binding = 0;
+    bindings[0].stride = sizeof(GpuVertex);
+    bindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    bindings[1].binding = 1;
+    bindings[1].stride = sizeof(GpuInstance);
+    bindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+    VkVertexInputAttributeDescription attributes[7]{
         {0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0},
         {1, 0, VK_FORMAT_R32G32B32_SFLOAT, 12},
-        {2, 0, VK_FORMAT_R32G32_SFLOAT, 24}
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, 24},
+        {3, 1, VK_FORMAT_R32G32B32A32_SFLOAT, 0},
+        {4, 1, VK_FORMAT_R32G32B32A32_SFLOAT, 16},
+        {5, 1, VK_FORMAT_R32G32B32A32_SFLOAT, 32},
+        {6, 1, VK_FORMAT_R32G32B32A32_SFLOAT, 48}
     };
-
     VkPipelineVertexInputStateCreateInfo input{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-    input.vertexBindingDescriptionCount = 1;
-    input.pVertexBindingDescriptions = &binding;
-    input.vertexAttributeDescriptionCount = 3;
+    input.vertexBindingDescriptionCount = 2;
+    input.pVertexBindingDescriptions = bindings;
+    input.vertexAttributeDescriptionCount = 7;
     input.pVertexAttributeDescriptions = attributes;
-
     VkPipelineInputAssemblyStateCreateInfo assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
     assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
     VkPipelineViewportStateCreateInfo viewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
     viewport.viewportCount = 1;
     viewport.scissorCount = 1;
-
     VkPipelineRasterizationStateCreateInfo raster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
     raster.polygonMode = VK_POLYGON_MODE_FILL;
     raster.cullMode = VK_CULL_MODE_BACK_BIT;
     raster.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     raster.lineWidth = 1.0F;
-
     VkPipelineMultisampleStateCreateInfo multisample{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
     multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
     VkPipelineDepthStencilStateCreateInfo depthState{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
     depthState.depthTestEnable = VK_TRUE;
     depthState.depthWriteEnable = VK_TRUE;
     depthState.depthCompareOp = VK_COMPARE_OP_LESS;
-
     VkPipelineColorBlendAttachmentState blendAttachment{};
     blendAttachment.colorWriteMask = 0xF;
     VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
     blend.attachmentCount = 1;
     blend.pAttachments = &blendAttachment;
-
     VkDynamicState dynamicStates[2]{VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
     VkPipelineDynamicStateCreateInfo dynamic{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
     dynamic.dynamicStateCount = 2;
     dynamic.pDynamicStates = dynamicStates;
-
     VkPushConstantRange push{};
     push.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     push.offset = 0;
@@ -712,7 +670,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
         lastError_ = Vulkan3DRendererError::PipelineFailure;
         return false;
     }
-
     VkGraphicsPipelineCreateInfo pipeline{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     pipeline.stageCount = 2;
     pipeline.pStages = stages;
@@ -735,7 +692,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
     }
     vkDestroyShaderModule(impl_->device, vert, nullptr);
     vkDestroyShaderModule(impl_->device, frag, nullptr);
-
     impl_->framebuffers.resize(impl_->swapchainViews.size());
     for (size_t i = 0; i < impl_->swapchainViews.size(); ++i) {
         VkImageView attachmentsForFrame[2]{impl_->swapchainViews[i], impl_->depthView};
@@ -751,7 +707,6 @@ bool Vulkan3DRenderer::Resize(uint32_t width, uint32_t height) {
             return false;
         }
     }
-
     stats_.width = extent.width;
     stats_.height = extent.height;
     return true;
@@ -765,11 +720,9 @@ bool Vulkan3DRenderer::BeginFrame(float clearR, float clearG, float clearB, floa
     Frame& frame = impl_->frames[impl_->frameSlot];
     const VkResult wait = vkWaitForFences(impl_->device, 1, &frame.fence, VK_TRUE, UINT64_MAX);
     if (wait != VK_SUCCESS) {
-        lastError_ = wait == VK_ERROR_DEVICE_LOST ? Vulkan3DRendererError::DeviceLost
-                                                   : Vulkan3DRendererError::FrameFailure;
+        lastError_ = wait == VK_ERROR_DEVICE_LOST ? Vulkan3DRendererError::DeviceLost : Vulkan3DRendererError::FrameFailure;
         return false;
     }
-
     const VkResult acquire = vkAcquireNextImageKHR(impl_->device, impl_->swapchain, UINT64_MAX,
                                                     frame.imageAvailable, VK_NULL_HANDLE,
                                                     &impl_->acquiredImageIndex);
@@ -778,22 +731,19 @@ bool Vulkan3DRenderer::BeginFrame(float clearR, float clearG, float clearB, floa
         return false;
     }
     if (acquire != VK_SUCCESS && acquire != VK_SUBOPTIMAL_KHR) {
-        lastError_ = acquire == VK_ERROR_DEVICE_LOST ? Vulkan3DRendererError::DeviceLost
-                                                      : Vulkan3DRendererError::FrameFailure;
+        lastError_ = acquire == VK_ERROR_DEVICE_LOST ? Vulkan3DRendererError::DeviceLost : Vulkan3DRendererError::FrameFailure;
         return false;
     }
-
     vkResetFences(impl_->device, 1, &frame.fence);
     vkResetCommandBuffer(frame.commandBuffer, 0);
     frame.vertexArena.used = 0;
     frame.indexArena.used = 0;
-
+    frame.instanceArena.used = 0;
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     if (vkBeginCommandBuffer(frame.commandBuffer, &begin) != VK_SUCCESS) {
         lastError_ = Vulkan3DRendererError::FrameFailure;
         return false;
     }
-
     VkClearValue clear[2]{};
     clear[0].color = {{clearR, clearG, clearB, clearA}};
     clear[1].depthStencil = {1.0F, 0};
@@ -804,16 +754,11 @@ bool Vulkan3DRenderer::BeginFrame(float clearR, float clearG, float clearB, floa
     pass.clearValueCount = 2;
     pass.pClearValues = clear;
     vkCmdBeginRenderPass(frame.commandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE);
-
-    VkViewport viewport{
-        0, 0, static_cast<float>(impl_->extent.width),
-        static_cast<float>(impl_->extent.height), 0, 1
-    };
+    VkViewport viewport{0, 0, static_cast<float>(impl_->extent.width), static_cast<float>(impl_->extent.height), 0, 1};
     VkRect2D scissor{{0, 0}, impl_->extent};
     vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
     vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
     vkCmdBindPipeline(frame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipeline);
-
     stats_.vertexCount = 0;
     stats_.indexCount = 0;
     impl_->frameBegun = true;
@@ -823,8 +768,7 @@ bool Vulkan3DRenderer::BeginFrame(float clearR, float clearG, float clearB, floa
 bool Vulkan3DRenderer::DrawIndexed(std::span<const Vulkan3DVertex> vertices,
                                    std::span<const uint32_t> indices,
                                    const float* mvp) {
-    if (!impl_ || !impl_->frameBegun || vertices.empty() || indices.empty() || !mvp ||
-        indices.size() % 3U != 0U) {
+    if (!impl_ || !impl_->frameBegun || vertices.empty() || indices.empty() || !mvp || indices.size() % 3U != 0U) {
         lastError_ = Vulkan3DRendererError::FrameFailure;
         return false;
     }
@@ -832,62 +776,115 @@ bool Vulkan3DRenderer::DrawIndexed(std::span<const Vulkan3DVertex> vertices,
         lastError_ = Vulkan3DRendererError::BufferFailure;
         return false;
     }
-
+    Frame& frame = impl_->frames[impl_->frameSlot];
     const VkDeviceSize vertexBytes = vertices.size() * sizeof(GpuVertex);
     const VkDeviceSize indexBytes = indices.size() * sizeof(uint32_t);
-    Frame& frame = impl_->frames[impl_->frameSlot];
-
-    // Each frame owns a persistent mapped arena. Because the frame fence has completed
-    // before BeginFrame resets it, the arena can be reused without per-draw allocation.
+    const VkDeviceSize instanceBytes = sizeof(GpuInstance);
     const VkDeviceSize vertexRequired = frame.vertexArena.used + vertexBytes;
     const VkDeviceSize indexRequired = frame.indexArena.used + indexBytes;
-
-    // Capacity growth is only legal before the first draw in a frame. Growing after
-    // commands have already referenced the old VkBuffer would invalidate those commands.
-    if (vertexRequired > frame.vertexArena.capacity) {
-        if (frame.vertexArena.used != 0 ||
-            !EnsureArena(impl_->physical, impl_->device, frame.vertexArena,
-                         vertexRequired, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)) {
-            lastError_ = Vulkan3DRendererError::BufferFailure;
-            return false;
-        }
+    const VkDeviceSize instanceRequired = frame.instanceArena.used + instanceBytes;
+    if (vertexRequired > frame.vertexArena.capacity &&
+        (frame.vertexArena.used != 0 || !EnsureArena(impl_->physical, impl_->device, frame.vertexArena, vertexRequired, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
     }
-    if (indexRequired > frame.indexArena.capacity) {
-        if (frame.indexArena.used != 0 ||
-            !EnsureArena(impl_->physical, impl_->device, frame.indexArena,
-                         indexRequired, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)) {
-            lastError_ = Vulkan3DRendererError::BufferFailure;
-            return false;
-        }
+    if (indexRequired > frame.indexArena.capacity &&
+        (frame.indexArena.used != 0 || !EnsureArena(impl_->physical, impl_->device, frame.indexArena, indexRequired, VK_BUFFER_USAGE_INDEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
     }
-
+    if (instanceRequired > frame.instanceArena.capacity &&
+        (frame.instanceArena.used != 0 || !EnsureArena(impl_->physical, impl_->device, frame.instanceArena, instanceRequired, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
     const VkDeviceSize vertexOffset = frame.vertexArena.used;
     const VkDeviceSize indexOffset = frame.indexArena.used;
-    auto* dstVertices = static_cast<GpuVertex*>(
-        static_cast<std::byte*>(frame.vertexArena.mapped) + vertexOffset);
+    const VkDeviceSize instanceOffset = frame.instanceArena.used;
+    auto* dstVertices = static_cast<GpuVertex*>(static_cast<std::byte*>(frame.vertexArena.mapped) + vertexOffset);
     for (size_t i = 0; i < vertices.size(); ++i) {
-        dstVertices[i] = {
-            {vertices[i].px, vertices[i].py, vertices[i].pz},
-            {vertices[i].nx, vertices[i].ny, vertices[i].nz},
-            {vertices[i].u, vertices[i].v}
-        };
+        dstVertices[i] = {{vertices[i].px, vertices[i].py, vertices[i].pz},
+                          {vertices[i].nx, vertices[i].ny, vertices[i].nz},
+                          {vertices[i].u, vertices[i].v}};
     }
-    std::memcpy(static_cast<std::byte*>(frame.indexArena.mapped) + indexOffset,
-                indices.data(), static_cast<size_t>(indexBytes));
-
-    // Indices remain local to this draw. The vertex-buffer binding offset selects the
-    // corresponding vertex range, so no CPU-side index rewrite is needed.
-    vkCmdPushConstants(frame.commandBuffer, impl_->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
-                       0, sizeof(float) * 16U, mvp);
-    VkDeviceSize boundVertexOffset = vertexOffset;
-    vkCmdBindVertexBuffers(frame.commandBuffer, 0, 1, &frame.vertexArena.buffer.handle,
-                           &boundVertexOffset);
-    vkCmdBindIndexBuffer(frame.commandBuffer, frame.indexArena.buffer.handle,
-                         indexOffset, VK_INDEX_TYPE_UINT32);
+    std::memcpy(static_cast<std::byte*>(frame.indexArena.mapped) + indexOffset, indices.data(), static_cast<size_t>(indexBytes));
+    auto* dstInstance = static_cast<GpuInstance*>(static_cast<std::byte*>(frame.instanceArena.mapped) + instanceOffset);
+    std::memcpy(dstInstance->transform, kIdentityMatrix.data(), sizeof(dstInstance->transform));
+    vkCmdPushConstants(frame.commandBuffer, impl_->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16U, mvp);
+    VkBuffer buffers[2] = {frame.vertexArena.buffer.handle, frame.instanceArena.buffer.handle};
+    VkDeviceSize offsets[2] = {vertexOffset, instanceOffset};
+    vkCmdBindVertexBuffers(frame.commandBuffer, 0, 2, buffers, offsets);
+    vkCmdBindIndexBuffer(frame.commandBuffer, frame.indexArena.buffer.handle, indexOffset, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(frame.commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    frame.vertexArena.used = vertexRequired;
+    frame.indexArena.used = instanceRequired;
+    frame.instanceArena.used = instanceRequired;
+    stats_.vertexCount += static_cast<uint32_t>(vertices.size());
+    stats_.indexCount += static_cast<uint32_t>(indices.size());
+    return true;
+}
 
+bool Vulkan3DRenderer::DrawIndexedInstanced(std::span<const Vulkan3DVertex> vertices,
+                                            std::span<const uint32_t> indices,
+                                            std::span<const float> modelViewProjections4x4) {
+    if (!impl_ || !impl_->frameBegun || vertices.empty() || indices.empty() ||
+        modelViewProjections4x4.empty() || (modelViewProjections4x4.size() % 16U) != 0U || indices.size() % 3U != 0U) {
+        lastError_ = Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
+    if (vertices.size() > 1000000U || indices.size() > 3000000U) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    const size_t instanceCount = modelViewProjections4x4.size() / 16U;
+    if (instanceCount == 0 || instanceCount > 1000000U || instanceCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    Frame& frame = impl_->frames[impl_->frameSlot];
+    const VkDeviceSize vertexBytes = vertices.size() * sizeof(GpuVertex);
+    const VkDeviceSize indexBytes = indices.size() * sizeof(uint32_t);
+    const VkDeviceSize instanceBytes = instanceCount * sizeof(GpuInstance);
+    const VkDeviceSize vertexRequired = frame.vertexArena.used + vertexBytes;
+    const VkDeviceSize indexRequired = frame.indexArena.used + indexBytes;
+    const VkDeviceSize instanceRequired = frame.instanceArena.used + instanceBytes;
+    if (vertexRequired > frame.vertexArena.capacity &&
+        (frame.vertexArena.used != 0 || !EnsureArena(impl_->physical, impl_->device, frame.vertexArena, vertexRequired, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    if (indexRequired > frame.indexArena.capacity &&
+        (frame.indexArena.used != 0 || !EnsureArena(impl_->physical, impl_->device, frame.indexArena, indexRequired, VK_BUFFER_USAGE_INDEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    if (instanceRequired > frame.instanceArena.capacity &&
+        (frame.instanceArena.used != 0 || !EnsureArena(impl_->physical, impl_->device, frame.instanceArena, instanceRequired, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    const VkDeviceSize vertexOffset = frame.vertexArena.used;
+    const VkDeviceSize indexOffset = frame.indexArena.used;
+    const VkDeviceSize instanceOffset = frame.instanceArena.used;
+    auto* dstVertices = static_cast<GpuVertex*>(static_cast<std::byte*>(frame.vertexArena.mapped) + vertexOffset);
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        dstVertices[i] = {{vertices[i].px, vertices[i].py, vertices[i].pz},
+                          {vertices[i].nx, vertices[i].ny, vertices[i].nz},
+                          {vertices[i].u, vertices[i].v}};
+    }
+    std::memcpy(static_cast<std::byte*>(frame.indexArena.mapped) + indexOffset, indices.data(), static_cast<size_t>(indexBytes));
+    auto* dstInstances = static_cast<GpuInstance*>(static_cast<std::byte*>(frame.instanceArena.mapped) + instanceOffset);
+    std::memcpy(dstInstances, modelViewProjections4x4.data(), static_cast<size_t>(instanceBytes));
+    vkCmdPushConstants(frame.commandBuffer, impl_->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
+                       0, sizeof(float) * 16U, kIdentityMatrix.data());
+    VkBuffer buffers[2] = {frame.vertexArena.buffer.handle, frame.instanceArena.buffer.handle};
+    VkDeviceSize offsets[2] = {vertexOffset, instanceOffset};
+    vkCmdBindVertexBuffers(frame.commandBuffer, 0, 2, buffers, offsets);
+    vkCmdBindIndexBuffer(frame.commandBuffer, frame.indexArena.buffer.handle, indexOffset, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(frame.commandBuffer, static_cast<uint32_t>(indices.size()), static_cast<uint32_t>(instanceCount), 0, 0, 0);
     frame.vertexArena.used = vertexRequired;
     frame.indexArena.used = indexRequired;
+    frame.instanceArena.used = instanceRequired;
     stats_.vertexCount += static_cast<uint32_t>(vertices.size());
     stats_.indexCount += static_cast<uint32_t>(indices.size());
     return true;
@@ -898,7 +895,6 @@ bool Vulkan3DRenderer::EndFrame() {
         lastError_ = Vulkan3DRendererError::FrameFailure;
         return false;
     }
-
     Frame& frame = impl_->frames[impl_->frameSlot];
     vkCmdEndRenderPass(frame.commandBuffer);
     if (vkEndCommandBuffer(frame.commandBuffer) != VK_SUCCESS) {
@@ -906,7 +902,6 @@ bool Vulkan3DRenderer::EndFrame() {
         impl_->frameBegun = false;
         return false;
     }
-
     VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submit.waitSemaphoreCount = 1;
@@ -916,15 +911,12 @@ bool Vulkan3DRenderer::EndFrame() {
     submit.pCommandBuffers = &frame.commandBuffer;
     submit.signalSemaphoreCount = 1;
     submit.pSignalSemaphores = &frame.renderFinished;
-
     const VkResult submitted = vkQueueSubmit(impl_->graphicsQueue, 1, &submit, frame.fence);
     if (submitted != VK_SUCCESS) {
-        lastError_ = submitted == VK_ERROR_DEVICE_LOST ? Vulkan3DRendererError::DeviceLost
-                                                        : Vulkan3DRendererError::FrameFailure;
+        lastError_ = submitted == VK_ERROR_DEVICE_LOST ? Vulkan3DRendererError::DeviceLost : Vulkan3DRendererError::FrameFailure;
         impl_->frameBegun = false;
         return false;
     }
-
     VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present.waitSemaphoreCount = 1;
     present.pWaitSemaphores = &frame.renderFinished;
@@ -932,11 +924,9 @@ bool Vulkan3DRenderer::EndFrame() {
     present.pSwapchains = &impl_->swapchain;
     present.pImageIndices = &impl_->acquiredImageIndex;
     const VkResult presented = vkQueuePresentKHR(impl_->presentQueue, &present);
-
     impl_->frameBegun = false;
     impl_->frameSlot = (impl_->frameSlot + 1U) % static_cast<uint32_t>(impl_->frames.size());
     stats_.frameIndex++;
-
     if (presented == VK_ERROR_OUT_OF_DATE_KHR || presented == VK_SUBOPTIMAL_KHR) {
         lastError_ = Vulkan3DRendererError::SwapchainOutOfDate;
         return false;
@@ -949,7 +939,6 @@ bool Vulkan3DRenderer::EndFrame() {
         lastError_ = Vulkan3DRendererError::FrameFailure;
         return false;
     }
-
     lastError_ = Vulkan3DRendererError::None;
     return true;
 }
