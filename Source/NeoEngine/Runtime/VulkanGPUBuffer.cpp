@@ -1,4 +1,4 @@
-#include "VulkanGPUBuffer.h"
+#include "Runtime/VulkanGPUBuffer.h"
 #include <cstring>
 #include <utility>
 
@@ -14,11 +14,13 @@ VulkanGPUBuffer::VulkanGPUBuffer(VulkanGPUBuffer&& other) noexcept {
     memory_ = other.memory_;
     size_ = other.size_;
     type_ = other.type_;
+    memoryProperties_ = other.memoryProperties_;
 
     other.device_ = VK_NULL_HANDLE;
     other.buffer_ = VK_NULL_HANDLE;
     other.memory_ = VK_NULL_HANDLE;
     other.size_ = 0;
+    other.memoryProperties_ = 0;
 }
 
 VulkanGPUBuffer& VulkanGPUBuffer::operator=(VulkanGPUBuffer&& other) noexcept {
@@ -30,11 +32,13 @@ VulkanGPUBuffer& VulkanGPUBuffer::operator=(VulkanGPUBuffer&& other) noexcept {
         memory_ = other.memory_;
         size_ = other.size_;
         type_ = other.type_;
+        memoryProperties_ = other.memoryProperties_;
 
         other.device_ = VK_NULL_HANDLE;
         other.buffer_ = VK_NULL_HANDLE;
         other.memory_ = VK_NULL_HANDLE;
         other.size_ = 0;
+        other.memoryProperties_ = 0;
     }
     return *this;
 }
@@ -44,7 +48,7 @@ uint32_t VulkanGPUBuffer::FindMemoryType(VkPhysicalDevice physicalDevice, uint32
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+        if ((typeFilter & (1u << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
             return i;
         }
     }
@@ -65,6 +69,7 @@ bool VulkanGPUBuffer::Initialize(VkDevice device,
     device_ = device;
     size_ = size;
     type_ = type;
+    memoryProperties_ = memoryProperties;
 
     VkBufferUsageFlags usageFlags = 0;
     switch (type) {
@@ -131,6 +136,16 @@ bool VulkanGPUBuffer::UploadData(const void* data, VkDeviceSize dataSize) {
     }
 
     std::memcpy(mappedMemory, data, static_cast<size_t>(dataSize));
+
+    if ((memoryProperties_ & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0) {
+        VkMappedMemoryRange flushRange{};
+        flushRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        flushRange.memory = memory_;
+        flushRange.offset = 0;
+        flushRange.size = dataSize;
+        vkFlushMappedMemoryRanges(device_, 1, &flushRange);
+    }
+
     vkUnmapMemory(device_, memory_);
 
     return true;
@@ -144,6 +159,15 @@ bool VulkanGPUBuffer::ReadData(void* outData, VkDeviceSize dataSize) const {
     void* mappedMemory = nullptr;
     if (vkMapMemory(device_, memory_, 0, dataSize, 0, &mappedMemory) != VK_SUCCESS) {
         return false;
+    }
+
+    if ((memoryProperties_ & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0) {
+        VkMappedMemoryRange invalidateRange{};
+        invalidateRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        invalidateRange.memory = memory_;
+        invalidateRange.offset = 0;
+        invalidateRange.size = dataSize;
+        vkInvalidateMappedMemoryRanges(device_, 1, &invalidateRange);
     }
 
     std::memcpy(outData, mappedMemory, static_cast<size_t>(dataSize));
@@ -165,6 +189,7 @@ void VulkanGPUBuffer::Destroy() {
         device_ = VK_NULL_HANDLE;
     }
     size_ = 0;
+    memoryProperties_ = 0;
 }
 
 } // namespace NeoEngine

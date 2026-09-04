@@ -3,7 +3,6 @@
 #include <vulkan/vulkan.h>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 
 namespace NeoEngine {
 
@@ -40,6 +39,7 @@ public:
     [[nodiscard]] VkDeviceMemory GetMemory() const { return memory_; }
     [[nodiscard]] VkDeviceSize GetSize() const { return size_; }
     [[nodiscard]] VulkanBufferType GetType() const { return type_; }
+    [[nodiscard]] VkMemoryPropertyFlags GetMemoryProperties() const { return memoryProperties_; }
     [[nodiscard]] bool IsValid() const { return buffer_ != VK_NULL_HANDLE && memory_ != VK_NULL_HANDLE; }
 
 private:
@@ -50,6 +50,7 @@ private:
     VkDeviceMemory memory_ = VK_NULL_HANDLE;
     VkDeviceSize size_ = 0;
     VulkanBufferType type_ = VulkanBufferType::VertexBuffer;
+    VkMemoryPropertyFlags memoryProperties_ = 0;
 };
 
 } // namespace NeoEngine
