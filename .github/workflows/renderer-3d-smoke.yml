@@ -27,12 +27,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Vulkan, SDL3, shader compiler and Xvfb
+      - name: Install Vulkan, build tools, shader compiler and Xvfb
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++ cmake pkg-config libsdl3-dev libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb
-          pkg-config --modversion sdl3
+          sudo apt-get install -y g++ cmake pkg-config libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb ninja-build libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libdrm-dev libgbm-dev libudev-dev
           test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+
+      - name: Build and install SDL3
+        run: |
+          SDL_VERSION=3.4.14
+          SDL_SHA256=30d4aa2b3037718142b32dffd4e72f917ebb6cc5227150e7bb9c45efb2153aeb
+          curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" -o /tmp/SDL3.tar.gz
+          echo "${SDL_SHA256}  /tmp/SDL3.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/SDL3.tar.gz -C /tmp
+          cmake -S "/tmp/SDL-release-${SDL_VERSION}" -B /tmp/SDL-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
+          cmake --build /tmp/SDL-build --parallel
+          sudo cmake --install /tmp/SDL-build
+          sudo ldconfig
+          pkg-config --modversion sdl3
 
       - name: Compile mesh shaders
         working-directory: Source/NeoEngine
@@ -65,5 +80,6 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
           VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          LD_LIBRARY_PATH: /usr/local/lib:${LD_LIBRARY_PATH}
         run: |
           xvfb-run -a -s '-screen 0 1024x768x24' ./vulkan_3d_renderer_smoke
