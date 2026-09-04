@@ -2,7 +2,7 @@
 
 #include "Runtime/SoftwareRenderer.h"
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 namespace NeoEngine {
 bool SoftwareSurfacePresenter::Fail(SoftwareSurfacePresenterError error) { lastError_ = error; return false; }
