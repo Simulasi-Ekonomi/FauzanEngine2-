@@ -31,7 +31,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y g++ cmake pkg-config libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb ninja-build libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libdrm-dev libgbm-dev libudev-dev
-          test -f /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VULKAN_ICD="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name '*.json' -print | grep -E '/(lvp|lavapipe|swrast).*\.json$' | head -n 1)"
+          test -n "${VULKAN_ICD}"
+          echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
+          echo "Using software Vulkan ICD: ${VULKAN_ICD}"
 
       - name: Build and install SDL3
         run: |
@@ -79,7 +82,7 @@ jobs:
         working-directory: Source/NeoEngine
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
-          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
           LD_LIBRARY_PATH: /usr/local/lib:${LD_LIBRARY_PATH}
         run: |
           xvfb-run -a -s '-screen 0 1024x768x24' ./vulkan_3d_renderer_smoke
