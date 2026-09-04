@@ -43,7 +43,10 @@ jobs:
           curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" -o /tmp/SDL3.tar.gz
           echo "${SDL_SHA256}  /tmp/SDL3.tar.gz" | sha256sum -c -
           tar -xzf /tmp/SDL3.tar.gz -C /tmp
-          cmake -S "/tmp/SDL-release-${SDL_VERSION}" -B /tmp/SDL-build -G Ninja \
+          SDL_SOURCE_DIR="$(tar -tzf /tmp/SDL3.tar.gz | head -n 1 | cut -d/ -f1)"
+          test -n "${SDL_SOURCE_DIR}"
+          test -f "/tmp/${SDL_SOURCE_DIR}/CMakeLists.txt"
+          cmake -S "/tmp/${SDL_SOURCE_DIR}" -B /tmp/SDL-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/usr/local \
             -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
