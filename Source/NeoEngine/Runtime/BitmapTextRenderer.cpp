@@ -20,7 +20,7 @@ const Glyph* GlyphFor(char c) {
     return nullptr;
 }
 bool DrawCell(SoftwareRenderer& renderer, uint16_t x, uint16_t y, uint8_t scale, uint32_t rgba, float clipDepth) {
-    const float left=-1.0F+2.0F*static_cast<float>(x)/static_cast<float>(renderer.Width()), right=-1.0F+2.0F*static_cast<float>(x+scale)/static_cast<float>(renderer.Width()), top=1.0F-2.0F*static_cast<float>(y)/static_cast<float>(renderer.Height()), bottom=1.0F-2.0F*static_cast<float>(y+scale)/static_cast<float>(renderer.Height());
+    const float left=-1.0F+2.0F*static_cast<float>(x)/static_cast<float>(renderer.Width()-1U), right=-1.0F+2.0F*static_cast<float>(x+scale)/static_cast<float>(renderer.Width()-1U), top=1.0F-2.0F*static_cast<float>(y)/static_cast<float>(renderer.Height()-1U), bottom=1.0F-2.0F*static_cast<float>(y+scale)/static_cast<float>(renderer.Height()-1U);
     const RenderVertex a{left,bottom,clipDepth,rgba}, b{right,bottom,clipDepth,rgba}, c{right,top,clipDepth,rgba}, d{left,top,clipDepth,rgba};
     return renderer.DrawTriangle(a,b,c) && renderer.DrawTriangle(a,c,d);
 }
