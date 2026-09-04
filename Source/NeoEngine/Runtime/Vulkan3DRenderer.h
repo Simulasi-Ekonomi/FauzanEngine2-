@@ -46,10 +46,30 @@ public:
     bool BeginFrame(float clearR = 0.05F, float clearG = 0.05F, float clearB = 0.07F, float clearA = 1.0F);
     bool DrawIndexed(std::span<const Vulkan3DVertex> vertices, std::span<const uint32_t> indices,
                      const float* modelViewProjection4x4);
+
     // R3 instance entry point. Matrices are contiguous 4x4 transforms (16 floats each).
+    // This preserves the original DrawIndexed path and provides a single batch-level API.
     bool DrawIndexedInstanced(std::span<const Vulkan3DVertex> vertices,
                               std::span<const uint32_t> indices,
-                              std::span<const float> modelViewProjections4x4);
+                              std::span<const float> modelViewProjections4x4) {
+        if (modelViewProjections4x4.empty() || (modelViewProjections4x4.size() % 16U) != 0U) {
+            lastError_ = Vulkan3DRendererError::FrameFailure;
+            return false;
+        }
+        const size_t instanceCount = modelViewProjections4x4.size() / 16U;
+        if (instanceCount > 1000000U) {
+            lastError_ = Vulkan3DRendererError::BufferFailure;
+            return false;
+        }
+        for (size_t instance = 0; instance < instanceCount; ++instance) {
+            if (!DrawIndexed(vertices, indices,
+                             modelViewProjections4x4.data() + instance * 16U)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     bool EndFrame();
     void Reset();
 
