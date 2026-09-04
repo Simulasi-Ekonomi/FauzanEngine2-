@@ -18,18 +18,13 @@ int main() {
         0.0F, 0.0F, 0.0F, 1.0F,
     }};
 
-    // Deliberately exceed the old 256 KiB initial arena to exercise capacity growth,
-    // then issue a second draw in the same frame to exercise persistent append.
+    // Exceed the original 256 KiB geometry arena so the smoke test still covers growth.
     constexpr size_t bulkVertexCount = 9000;
     constexpr size_t bulkIndexCount = 9000;
     std::vector<NeoEngine::Vulkan3DVertex> bulkVertices(bulkVertexCount);
     std::vector<uint32_t> bulkIndices(bulkIndexCount);
     for (size_t i = 0; i < bulkVertexCount; ++i) {
-        bulkVertices[i] = NeoEngine::Vulkan3DVertex{
-            0.0F, 0.0F, 0.0F,
-            0.0F, 0.0F, 1.0F,
-            0.0F, 0.0F
-        };
+        bulkVertices[i] = NeoEngine::Vulkan3DVertex{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F};
     }
     for (size_t i = 0; i < bulkIndexCount; i += 3) {
         bulkIndices[i + 0] = static_cast<uint32_t>(i + 0);
@@ -38,19 +33,30 @@ int main() {
     }
 
     constexpr std::array<NeoEngine::Vulkan3DVertex, 3> triangle{{
-        NeoEngine::Vulkan3DVertex{-0.7F, -0.6F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F},
-        NeoEngine::Vulkan3DVertex{ 0.7F, -0.6F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 0.0F},
-        NeoEngine::Vulkan3DVertex{ 0.0F,  0.7F, 0.0F, 0.0F, 0.0F, 1.0F, 0.5F, 1.0F},
+        NeoEngine::Vulkan3DVertex{-0.05F, -0.05F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F},
+        NeoEngine::Vulkan3DVertex{ 0.05F, -0.05F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 0.0F},
+        NeoEngine::Vulkan3DVertex{ 0.0F,  0.05F, 0.0F, 0.0F, 0.0F, 1.0F, 0.5F, 1.0F},
     }};
     constexpr std::array<uint32_t, 3> triangleIndices{{0, 1, 2}};
 
-    // Frame 1: growth + append path.
+    constexpr size_t instanceCount = 2048;
+    std::vector<float> instanceTransforms(instanceCount * 16U);
+    for (size_t i = 0; i < instanceCount; ++i) {
+        std::copy(identity.begin(), identity.end(), instanceTransforms.begin() + i * 16U);
+        const float x = -0.95F + static_cast<float>(i % 64U) * 0.03F;
+        const float y = -0.95F + static_cast<float>(i / 64U) * 0.03F;
+        instanceTransforms[i * 16U + 12U] = x;
+        instanceTransforms[i * 16U + 13U] = y;
+    }
+
+    // Frame 1: geometry arena growth + GPU instancing. The triangle mesh is uploaded once;
+    // all 2048 transforms are consumed by one vkCmdDrawIndexed with instanceCount=2048.
     if (!renderer.BeginFrame()) {
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin1 error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 2;
     }
     if (!renderer.DrawIndexed(bulkVertices, bulkIndices, identity.data()) ||
-        !renderer.DrawIndexed(triangle, triangleIndices, identity.data())) {
+        !renderer.DrawIndexedInstanced(triangle, triangleIndices, instanceTransforms)) {
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL draw1 error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 3;
     }
@@ -68,17 +74,14 @@ int main() {
         return 5;
     }
 
-    // Frames 2-4: prove the two per-frame persistent arenas can be reused after their
-    // fences signal, including crossing the frame-slot boundary without reallocating
-    // every draw. Keep the workload intentionally small here so this remains a smoke test.
+    // Frames 2-4: persistent per-frame geometry and instance arenas must survive frame-slot reuse.
     for (unsigned frame = 2; frame <= 4; ++frame) {
         if (!renderer.BeginFrame()) {
             std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin%u error=%u\n", frame,
                          static_cast<unsigned>(renderer.LastError()));
             return 6;
         }
-        if (!renderer.DrawIndexed(triangle, triangleIndices, identity.data()) ||
-            !renderer.EndFrame()) {
+        if (!renderer.DrawIndexed(triangle, triangleIndices, identity.data()) || !renderer.EndFrame()) {
             std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL frame%u error=%u\n", frame,
                          static_cast<unsigned>(renderer.LastError()));
             return 7;
@@ -93,9 +96,9 @@ int main() {
         }
     }
 
-    std::printf("VULKAN3D_SMOKE_OK frames=%llu final_vertices=%u final_indices=%u size=%ux%u\n",
+    std::printf("VULKAN3D_SMOKE_OK frames=%llu final_vertices=%u final_indices=%u instances=%zu size=%ux%u\n",
                 static_cast<unsigned long long>(renderer.LastFrameStats().frameIndex),
                 renderer.LastFrameStats().vertexCount, renderer.LastFrameStats().indexCount,
-                renderer.LastFrameStats().width, renderer.LastFrameStats().height);
+                instanceCount, renderer.LastFrameStats().width, renderer.LastFrameStats().height);
     return 0;
 }
