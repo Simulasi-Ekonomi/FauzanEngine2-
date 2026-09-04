@@ -35,8 +35,8 @@ bool UiCanvasRenderer::SetImage(const AssetRegistry& registry, UiCanvasImage ima
 bool UiCanvasRenderer::Draw(const UiInputRouter& router, SoftwareRenderer& renderer) {
     if (renderer.Width() == 0U || renderer.Height() == 0U) { lastError_ = UiCanvasError::OutsideSurface; return false; }
     RenderCamera camera; const float width = static_cast<float>(renderer.Width()), height = static_cast<float>(renderer.Height());
-    if (!camera.Initialize({RenderCameraMode::Orthographic, {width * 0.5F, height * 0.5F, 0.0F}, height * 0.5F + 1e-3F, 60.0F, width / height, 0.1F, 10.0F})) { lastError_ = UiCanvasError::DrawFailed; return false; }
-    RenderPoint3 panelDepth{}; if (!camera.Project({0.0F, 0.0F, 0.5F}, panelDepth)) { lastError_ = UiCanvasError::DrawFailed; return false; }
+    if (!camera.Initialize({RenderCameraMode::Orthographic, {width * 0.5F, height * 0.5F, 0.0F}, height * 0.5F, 60.0F, width / height, 0.1F, 10.0F})) { lastError_ = UiCanvasError::DrawFailed; return false; }
+    RenderPoint3 panelDepth{}; if (!camera.Project({0.0F, 0.0F, 1.0F}, panelDepth)) { lastError_ = UiCanvasError::DrawFailed; return false; }
     const std::vector<UiWidgetSpec> widgets = router.RenderableWidgets();
     for (const UiCanvasImage& image : images_) {
         const bool widgetExists = std::any_of(widgets.begin(), widgets.end(), [&image](const UiWidgetSpec& widget) { return widget.id == image.widgetId; });
