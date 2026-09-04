@@ -1,0 +1,54 @@
+name: Renderer 3D Vulkan Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
+      - '.github/workflows/renderer-3d-smoke.yml'
+  push:
+    branches:
+      - 'feature/renderer-3d-100'
+    paths:
+      - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
+      - '.github/workflows/renderer-3d-smoke.yml'
+
+jobs:
+  vulkan-3d-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Vulkan, SDL2, shader compiler and Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake pkg-config libsdl2-dev libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb
+
+      - name: Compile mesh shaders
+        working-directory: Source/NeoEngine
+        run: |
+          glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
+          glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
+
+      - name: Build smoke executable
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Runtime/Vulkan3DRenderer.cpp \
+            Tests/vulkan_3d_renderer_smoke.cpp \
+            -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
+            $(pkg-config --cflags --libs sdl2) -lvulkan \
+            -o vulkan_3d_renderer_smoke
+
+      - name: Run smoke under software Vulkan + Xvfb
+        working-directory: Source/NeoEngine
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+        run: |
+          xvfb-run -a -s '-screen 0 1024x768x24' ./vulkan_3d_renderer_smoke
