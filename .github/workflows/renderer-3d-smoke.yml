@@ -4,16 +4,20 @@ on:
   pull_request:
     paths:
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
       - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
+      - 'Source/NeoEngine/Tests/vulkan_3d_batch_smoke.cpp'
       - '.github/workflows/renderer-3d-smoke.yml'
   push:
     branches:
       - 'feature/renderer-3d-100'
     paths:
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
       - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
+      - 'Source/NeoEngine/Tests/vulkan_3d_batch_smoke.cpp'
       - '.github/workflows/renderer-3d-smoke.yml'
 
 jobs:
@@ -36,7 +40,7 @@ jobs:
           glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
           glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
 
-      - name: Build smoke executable
+      - name: Build smoke executables
         working-directory: Source/NeoEngine
         run: |
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
@@ -46,8 +50,17 @@ jobs:
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
             $(pkg-config --cflags --libs sdl3) -lvulkan \
             -o vulkan_3d_renderer_smoke
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Runtime/Vulkan3DBatch.cpp \
+            Tests/vulkan_3d_batch_smoke.cpp \
+            -o vulkan_3d_batch_smoke
 
-      - name: Run smoke under software Vulkan + Xvfb
+      - name: Run batch smoke
+        working-directory: Source/NeoEngine
+        run: ./vulkan_3d_batch_smoke
+
+      - name: Run renderer smoke under software Vulkan + Xvfb
         working-directory: Source/NeoEngine
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
