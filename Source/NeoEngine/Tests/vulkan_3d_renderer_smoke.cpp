@@ -1,5 +1,6 @@
 #include "../Runtime/Vulkan3DRenderer.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <vector>
@@ -18,14 +19,12 @@ int main() {
         0.0F, 0.0F, 0.0F, 1.0F,
     }};
 
-    // Exceed the original 256 KiB geometry arena so the smoke test still covers growth.
     constexpr size_t bulkVertexCount = 9000;
     constexpr size_t bulkIndexCount = 9000;
     std::vector<NeoEngine::Vulkan3DVertex> bulkVertices(bulkVertexCount);
     std::vector<uint32_t> bulkIndices(bulkIndexCount);
-    for (size_t i = 0; i < bulkVertexCount; ++i) {
+    for (size_t i = 0; i < bulkVertexCount; ++i)
         bulkVertices[i] = NeoEngine::Vulkan3DVertex{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F};
-    }
     for (size_t i = 0; i < bulkIndexCount; i += 3) {
         bulkIndices[i + 0] = static_cast<uint32_t>(i + 0);
         bulkIndices[i + 1] = static_cast<uint32_t>(i + 1);
@@ -43,14 +42,10 @@ int main() {
     std::vector<float> instanceTransforms(instanceCount * 16U);
     for (size_t i = 0; i < instanceCount; ++i) {
         std::copy(identity.begin(), identity.end(), instanceTransforms.begin() + i * 16U);
-        const float x = -0.95F + static_cast<float>(i % 64U) * 0.03F;
-        const float y = -0.95F + static_cast<float>(i / 64U) * 0.03F;
-        instanceTransforms[i * 16U + 12U] = x;
-        instanceTransforms[i * 16U + 13U] = y;
+        instanceTransforms[i * 16U + 12U] = -0.95F + static_cast<float>(i % 64U) * 0.03F;
+        instanceTransforms[i * 16U + 13U] = -0.95F + static_cast<float>(i / 64U) * 0.03F;
     }
 
-    // Frame 1: geometry arena growth + GPU instancing. The triangle mesh is uploaded once;
-    // all 2048 transforms are consumed by one vkCmdDrawIndexed with instanceCount=2048.
     if (!renderer.BeginFrame()) {
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin1 error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 2;
@@ -74,7 +69,6 @@ int main() {
         return 5;
     }
 
-    // Frames 2-4: persistent per-frame geometry and instance arenas must survive frame-slot reuse.
     for (unsigned frame = 2; frame <= 4; ++frame) {
         if (!renderer.BeginFrame()) {
             std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin%u error=%u\n", frame,
