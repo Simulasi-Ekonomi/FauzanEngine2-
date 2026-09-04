@@ -117,6 +117,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SdlAudioBridge.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanBootstrap.cpp
+    Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanOffscreen.cpp
     Runtime/VulkanTextureUpload.cpp
@@ -593,6 +594,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_mixer_smoke.cpp
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_bootstrap_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_gpu_buffer_smoke.cpp")
+    add_xpbd_executable(vulkan_gpu_buffer_smoke ../../Tests/Runtime/vulkan_gpu_buffer_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_shader_smoke.cpp")
     add_xpbd_executable(vulkan_shader_smoke ../../Tests/Runtime/vulkan_shader_smoke.cpp)
