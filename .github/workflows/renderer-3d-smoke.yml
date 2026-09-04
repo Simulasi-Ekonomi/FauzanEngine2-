@@ -23,10 +23,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Vulkan, SDL2, shader compiler and Xvfb
+      - name: Install Vulkan, SDL3, shader compiler and Xvfb
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++ cmake pkg-config libsdl2-dev libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb
+          sudo apt-get install -y g++ cmake pkg-config libsdl3-dev libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb
 
       - name: Compile mesh shaders
         working-directory: Source/NeoEngine
@@ -42,7 +42,7 @@ jobs:
             Runtime/Vulkan3DRenderer.cpp \
             Tests/vulkan_3d_renderer_smoke.cpp \
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
-            $(pkg-config --cflags --libs sdl2) -lvulkan \
+            $(pkg-config --cflags --libs sdl3) -lvulkan \
             -o vulkan_3d_renderer_smoke
 
       - name: Run smoke under software Vulkan + Xvfb
