@@ -18,8 +18,8 @@ int main() {
         0.0F, 0.0F, 0.0F, 1.0F,
     }};
 
-    // Deliberately exceed the old 256 KiB initial arena to exercise one-time capacity
-    // growth, then issue a second draw in the same frame to exercise persistent append.
+    // Deliberately exceed the old 256 KiB initial arena to exercise capacity growth,
+    // then issue a second draw in the same frame to exercise persistent append.
     constexpr size_t bulkVertexCount = 9000;
     constexpr size_t bulkIndexCount = 9000;
     std::vector<NeoEngine::Vulkan3DVertex> bulkVertices(bulkVertexCount);
@@ -44,33 +44,58 @@ int main() {
     }};
     constexpr std::array<uint32_t, 3> triangleIndices{{0, 1, 2}};
 
+    // Frame 1: growth + append path.
     if (!renderer.BeginFrame()) {
-        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin error=%u\n", static_cast<unsigned>(renderer.LastError()));
+        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin1 error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 2;
     }
-    if (!renderer.DrawIndexed(bulkVertices, bulkIndices, identity.data())) {
-        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL bulk_draw error=%u\n", static_cast<unsigned>(renderer.LastError()));
+    if (!renderer.DrawIndexed(bulkVertices, bulkIndices, identity.data()) ||
+        !renderer.DrawIndexed(triangle, triangleIndices, identity.data())) {
+        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL draw1 error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 3;
     }
-    if (!renderer.DrawIndexed(triangle, triangleIndices, identity.data())) {
-        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL append_draw error=%u\n", static_cast<unsigned>(renderer.LastError()));
+    if (!renderer.EndFrame()) {
+        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL end1 error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 4;
     }
-    if (!renderer.EndFrame()) {
-        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL end error=%u\n", static_cast<unsigned>(renderer.LastError()));
+
+    const auto& firstStats = renderer.LastFrameStats();
+    if (firstStats.frameIndex != 1 || firstStats.vertexCount != bulkVertexCount + 3 ||
+        firstStats.indexCount != bulkIndexCount + 3 || firstStats.width != 640 || firstStats.height != 480) {
+        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL stats1 frame=%llu vertices=%u indices=%u size=%ux%u\n",
+                     static_cast<unsigned long long>(firstStats.frameIndex), firstStats.vertexCount,
+                     firstStats.indexCount, firstStats.width, firstStats.height);
         return 5;
     }
 
-    const auto& stats = renderer.LastFrameStats();
-    if (stats.frameIndex != 1 || stats.vertexCount != bulkVertexCount + 3 ||
-        stats.indexCount != bulkIndexCount + 3) {
-        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL stats frame=%llu vertices=%u indices=%u\n",
-                     static_cast<unsigned long long>(stats.frameIndex), stats.vertexCount, stats.indexCount);
-        return 6;
+    // Frames 2-4: prove the two per-frame persistent arenas can be reused after their
+    // fences signal, including crossing the frame-slot boundary without reallocating
+    // every draw. Keep the workload intentionally small here so this remains a smoke test.
+    for (unsigned frame = 2; frame <= 4; ++frame) {
+        if (!renderer.BeginFrame()) {
+            std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin%u error=%u\n", frame,
+                         static_cast<unsigned>(renderer.LastError()));
+            return 6;
+        }
+        if (!renderer.DrawIndexed(triangle, triangleIndices, identity.data()) ||
+            !renderer.EndFrame()) {
+            std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL frame%u error=%u\n", frame,
+                         static_cast<unsigned>(renderer.LastError()));
+            return 7;
+        }
+        const auto& stats = renderer.LastFrameStats();
+        if (stats.frameIndex != frame || stats.vertexCount != 3 || stats.indexCount != 3 ||
+            stats.width != 640 || stats.height != 480) {
+            std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL stats%u frame=%llu vertices=%u indices=%u size=%ux%u\n",
+                         frame, static_cast<unsigned long long>(stats.frameIndex), stats.vertexCount,
+                         stats.indexCount, stats.width, stats.height);
+            return 8;
+        }
     }
 
-    std::printf("VULKAN3D_SMOKE_OK frame=%llu vertices=%u indices=%u size=%ux%u\n",
-                static_cast<unsigned long long>(stats.frameIndex), stats.vertexCount, stats.indexCount,
-                stats.width, stats.height);
+    std::printf("VULKAN3D_SMOKE_OK frames=%llu final_vertices=%u final_indices=%u size=%ux%u\n",
+                static_cast<unsigned long long>(renderer.LastFrameStats().frameIndex),
+                renderer.LastFrameStats().vertexCount, renderer.LastFrameStats().indexCount,
+                renderer.LastFrameStats().width, renderer.LastFrameStats().height);
     return 0;
 }
