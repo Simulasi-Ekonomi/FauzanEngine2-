@@ -14,6 +14,7 @@ VulkanRenderer3D::VulkanRenderer3D(VulkanRenderer3D&& other) noexcept {
     graphicsPipeline_ = std::move(other.graphicsPipeline_);
     descriptorManager_ = std::move(other.descriptorManager_);
     commandRecorder_ = std::move(other.commandRecorder_);
+    indirectRenderer_ = std::move(other.indirectRenderer_);
     cameraBuffer_ = std::move(other.cameraBuffer_);
     modelBuffer_ = std::move(other.modelBuffer_);
     currentDescriptorSet_ = other.currentDescriptorSet_;
@@ -41,6 +42,7 @@ VulkanRenderer3D& VulkanRenderer3D::operator=(VulkanRenderer3D&& other) noexcept
         graphicsPipeline_ = std::move(other.graphicsPipeline_);
         descriptorManager_ = std::move(other.descriptorManager_);
         commandRecorder_ = std::move(other.commandRecorder_);
+        indirectRenderer_ = std::move(other.indirectRenderer_);
         cameraBuffer_ = std::move(other.cameraBuffer_);
         modelBuffer_ = std::move(other.modelBuffer_);
         currentDescriptorSet_ = other.currentDescriptorSet_;
@@ -74,10 +76,9 @@ bool VulkanRenderer3D::Initialize(VulkanContext* context, uint32_t width, uint32
     VkDevice device = context_->Device();
     VkPhysicalDevice physicalDevice = context_->PhysicalDevice();
 
-    // 1. Create RenderPass
     RenderPassConfig rpConfig{};
     rpConfig.colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
-    rpConfig.enableDepth = false; // Simplified offscreen color rendering
+    rpConfig.enableDepth = false;
     rpConfig.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     rpConfig.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
@@ -86,7 +87,6 @@ bool VulkanRenderer3D::Initialize(VulkanContext* context, uint32_t width, uint32
         return false;
     }
 
-    // 2. Create Descriptor Manager (Camera UBO: binding 0, Model UBO: binding 1)
     std::vector<DescriptorLayoutBindingInfo> bindings = {
         {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
         {1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1}
@@ -97,7 +97,6 @@ bool VulkanRenderer3D::Initialize(VulkanContext* context, uint32_t width, uint32
         return false;
     }
 
-    // 3. Create Camera & Model UBO Buffers
     if (!cameraBuffer_.Initialize(device, physicalDevice, sizeof(CameraUBO), VulkanBufferType::UniformBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) ||
         !modelBuffer_.Initialize(device, physicalDevice, sizeof(ModelUBO), VulkanBufferType::UniformBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
         Destroy();
@@ -110,7 +109,6 @@ bool VulkanRenderer3D::Initialize(VulkanContext* context, uint32_t width, uint32
         descriptorManager_.UpdateBufferBinding(currentDescriptorSet_, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, modelBuffer_.GetBuffer(), 0, sizeof(ModelUBO));
     }
 
-    // 4. Create Command Pool & Command Recorder
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = context_->GraphicsQueueFamily();
@@ -121,7 +119,8 @@ bool VulkanRenderer3D::Initialize(VulkanContext* context, uint32_t width, uint32
         return false;
     }
 
-    if (!commandRecorder_.Initialize(device, commandPool_)) {
+    if (!commandRecorder_.Initialize(device, commandPool_) ||
+        !indirectRenderer_.Initialize(device, physicalDevice)) {
         Destroy();
         return false;
     }
@@ -161,12 +160,36 @@ void VulkanRenderer3D::DrawMesh(const VulkanMeshBufferBuilder& mesh, const Model
     commandRecorder_.DrawIndexed(mesh.GetIndexCount());
 }
 
+bool VulkanRenderer3D::DrawMeshBatch(const VulkanMeshBatchBuffer& batch) {
+    if (!inFrame_ || !batch.IsValid() || batch.MeshCount() > indirectRenderer_.Capacity()) {
+        return false;
+    }
+
+    commandRecorder_.BindVertexBuffer(batch.GetVertexBuffer().GetBuffer());
+    commandRecorder_.BindIndexBuffer(batch.GetIndexBuffer().GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+    for (std::size_t i = 0; i < batch.MeshCount(); ++i) {
+        const VulkanMeshBatchRange& range = batch.GetRange(i);
+        if (!indirectRenderer_.TrySubmitDraw({range.indexCount, 1, range.firstIndex,
+                                               static_cast<int32_t>(range.vertexOffset),
+                                               static_cast<uint32_t>(i)})) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool VulkanRenderer3D::EndFrame() {
     if (!inFrame_) {
         return false;
     }
 
-    bool ok = commandRecorder_.EndRecording();
+    bool ok = true;
+    if (indirectRenderer_.PendingDrawCount() > 0) {
+        ok = indirectRenderer_.Execute(commandRecorder_.GetCommandBuffer());
+    }
+    ok = commandRecorder_.EndRecording() && ok;
     inFrame_ = false;
     return ok;
 }
@@ -181,6 +204,7 @@ void VulkanRenderer3D::Destroy() {
             commandPool_ = VK_NULL_HANDLE;
         }
 
+        indirectRenderer_.Destroy();
         cameraBuffer_.Destroy();
         modelBuffer_.Destroy();
         descriptorManager_.Destroy();
