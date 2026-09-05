@@ -118,6 +118,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanGPUTexture.cpp
+    Runtime/VulkanGraphicsPipeline.cpp
     Runtime/VulkanBootstrap.cpp
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanOffscreen.cpp
@@ -601,6 +602,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_gpu_buffer_smo
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_gpu_texture_smoke.cpp")
     add_xpbd_executable(vulkan_gpu_texture_smoke ../../Tests/Runtime/vulkan_gpu_texture_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_graphics_pipeline_smoke.cpp")
+    add_xpbd_executable(vulkan_graphics_pipeline_smoke ../../Tests/Runtime/vulkan_graphics_pipeline_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_shader_smoke.cpp")
     add_xpbd_executable(vulkan_shader_smoke ../../Tests/Runtime/vulkan_shader_smoke.cpp)
