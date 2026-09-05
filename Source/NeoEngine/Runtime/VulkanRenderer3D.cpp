@@ -99,9 +99,9 @@ bool VulkanRenderer3D::DrawMeshBatch(const VulkanMeshBatchBuffer& batch) {
     for (auto& instance : instances) IdentityMatrix(instance.model);
     if (!instances.empty() && !batchInstanceBuffer_.UploadData(instances.data(), sizeof(VulkanMeshInstanceData) * instances.size())) return false;
 
-    commandRecorder_.BindVertexBuffers(0, 2,
-        (const VkBuffer[]){batch.GetVertexBuffer().GetBuffer(), batchInstanceBuffer_.GetBuffer()},
-        (const VkDeviceSize[]){0, 0});
+    const VkBuffer vertexBuffers[2] = {batch.GetVertexBuffer().GetBuffer(), batchInstanceBuffer_.GetBuffer()};
+    const VkDeviceSize offsets[2] = {0, 0};
+    commandRecorder_.BindVertexBuffers(0, 2, vertexBuffers, offsets);
     commandRecorder_.BindIndexBuffer(batch.GetIndexBuffer().GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
     for (std::size_t i = 0; i < batch.MeshCount(); ++i) {
