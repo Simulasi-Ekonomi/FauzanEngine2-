@@ -17,22 +17,19 @@ class GPUDrivenRenderer {
 public:
     static constexpr std::size_t MaxCommands = 10000;
 
-    // Compatibility initializer: preserves the original API. It enables CPU-side
-    // command collection but cannot create a GPU indirect buffer without a
-    // physical device. Use the overload below for actual GPU execution.
-    void Initialize(VkDevice device);
+    GPUDrivenRenderer() = default;
+    ~GPUDrivenRenderer() { Destroy(); }
+    GPUDrivenRenderer(const GPUDrivenRenderer&) = delete;
+    GPUDrivenRenderer& operator=(const GPUDrivenRenderer&) = delete;
+    GPUDrivenRenderer(GPUDrivenRenderer&& other) noexcept;
+    GPUDrivenRenderer& operator=(GPUDrivenRenderer&& other) noexcept;
 
-    // R3 production path: creates a host-visible/coherent indirect command
-    // buffer sized for the device's supported draw-indirect limit.
+    void Initialize(VkDevice device);
     bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice,
                     std::size_t maxCommands = MaxCommands);
-
     void Destroy();
-
     void SubmitDraw(const GPUIndirectCommand& cmd);
     bool TrySubmitDraw(const GPUIndirectCommand& cmd);
-
-    // Uploads the pending command list and records one vkCmdDrawIndexedIndirect.
     bool Execute(VkCommandBuffer cmdBuffer);
 
     [[nodiscard]] std::size_t PendingDrawCount() const { return commands.size(); }
