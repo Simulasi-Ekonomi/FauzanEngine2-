@@ -20,13 +20,14 @@
 
 namespace NeoEngine {
 
-struct CameraUBO {
-    float viewProjection[16];
-};
+struct CameraUBO { float viewProjection[16]; };
+struct ModelUBO { float model[16]; };
 
-struct ModelUBO {
+// R3 instance stream matches neo_mesh.vert locations 3..6.
+struct VulkanMeshInstanceData {
     float model[16];
 };
+static_assert(sizeof(VulkanMeshInstanceData) == sizeof(float) * 16);
 
 class VulkanRenderer3D {
 public:
@@ -45,12 +46,11 @@ public:
     void SetCamera(const CameraUBO& camera);
     void DrawMesh(const VulkanMeshBufferBuilder& mesh, const ModelUBO& model, const VulkanGPUTexture* texture = nullptr);
 
-    // R3 path: bind one shared geometry arena and record all mesh ranges through
-    // one vkCmdDrawIndexedIndirect call. Existing DrawMesh remains unchanged.
+    // R3 path: one shared geometry arena, one instance stream, and one indirect draw.
+    // Existing DrawMesh remains unchanged. Each batch entry defaults to identity.
     bool DrawMeshBatch(const VulkanMeshBatchBuffer& batch);
 
     bool EndFrame();
-
     void Destroy();
 
     [[nodiscard]] bool IsInitialized() const { return isInitialized_; }
@@ -58,6 +58,8 @@ public:
     [[nodiscard]] uint32_t GetHeight() const { return height_; }
 
 private:
+    static constexpr std::size_t MaxBatchInstances = GPUDrivenRenderer::MaxCommands;
+
     VulkanContext* context_ = nullptr;
     VulkanRenderPassManager renderPassManager_;
     VulkanGraphicsPipeline graphicsPipeline_;
@@ -67,6 +69,7 @@ private:
 
     VulkanGPUBuffer cameraBuffer_;
     VulkanGPUBuffer modelBuffer_;
+    VulkanGPUBuffer batchInstanceBuffer_;
     VkDescriptorSet currentDescriptorSet_ = VK_NULL_HANDLE;
 
     VkCommandPool commandPool_ = VK_NULL_HANDLE;
