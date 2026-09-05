@@ -5,11 +5,14 @@ on:
     paths:
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
       - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
+      - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
+      - 'Source/NeoEngine/Runtime/VulkanRenderCommandRecorder.*'
       - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
       - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
       - 'Source/NeoEngine/Tests/vulkan_3d_batch_smoke.cpp'
       - 'Source/NeoEngine/Tests/gpu_driven_renderer_smoke.cpp'
+      - 'Source/NeoEngine/Tests/vulkan_mesh_indirect_batch_smoke.cpp'
       - '.github/workflows/renderer-3d-smoke.yml'
   push:
     branches:
@@ -18,11 +21,14 @@ on:
     paths:
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
       - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
+      - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
+      - 'Source/NeoEngine/Runtime/VulkanRenderCommandRecorder.*'
       - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
       - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
       - 'Source/NeoEngine/Tests/vulkan_3d_batch_smoke.cpp'
       - 'Source/NeoEngine/Tests/gpu_driven_renderer_smoke.cpp'
+      - 'Source/NeoEngine/Tests/vulkan_mesh_indirect_batch_smoke.cpp'
       - '.github/workflows/renderer-3d-smoke.yml'
 
 jobs:
@@ -87,10 +93,25 @@ jobs:
             Tests/gpu_driven_renderer_smoke.cpp \
             -lvulkan \
             -o gpu_driven_renderer_smoke
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Runtime/VulkanGPUBuffer.cpp \
+            Runtime/VulkanMeshBufferBuilder.cpp \
+            Runtime/VulkanRenderCommandRecorder.cpp \
+            ../NeoEngine/Renderer/GPUDrivenRenderer.cpp \
+            Tests/vulkan_mesh_indirect_batch_smoke.cpp \
+            -lvulkan \
+            -o vulkan_mesh_indirect_batch_smoke
 
       - name: Run batch smoke
         working-directory: Source/NeoEngine
         run: ./vulkan_3d_batch_smoke
+
+      - name: Run shared mesh + indirect batching smoke under software Vulkan
+        working-directory: Source/NeoEngine
+        env:
+          VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
+        run: ./vulkan_mesh_indirect_batch_smoke
 
       - name: Run GPU indirect smoke under software Vulkan
         working-directory: Source/NeoEngine
