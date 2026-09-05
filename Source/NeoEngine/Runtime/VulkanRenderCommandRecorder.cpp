@@ -142,6 +142,16 @@ void VulkanRenderCommandRecorder::BindVertexBuffer(VkBuffer vertexBuffer, VkDevi
     vkCmdBindVertexBuffers(commandBuffer_, 0, 1, buffers, offsets);
 }
 
+void VulkanRenderCommandRecorder::BindVertexBuffers(uint32_t firstBinding,
+                                                    uint32_t bindingCount,
+                                                    const VkBuffer* vertexBuffers,
+                                                    const VkDeviceSize* offsets) {
+    if (!isRecording_ || bindingCount == 0 || vertexBuffers == nullptr || offsets == nullptr) {
+        return;
+    }
+    vkCmdBindVertexBuffers(commandBuffer_, firstBinding, bindingCount, vertexBuffers, offsets);
+}
+
 void VulkanRenderCommandRecorder::BindIndexBuffer(VkBuffer indexBuffer, VkDeviceSize offset, VkIndexType indexType) {
     if (!isRecording_ || indexBuffer == VK_NULL_HANDLE) {
         return;
