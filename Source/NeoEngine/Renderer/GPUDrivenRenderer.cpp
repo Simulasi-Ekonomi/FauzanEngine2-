@@ -151,7 +151,8 @@ bool GPUDrivenRenderer::Execute(VkCommandBuffer cmdBuffer) {
     std::memcpy(mapped, commands.data(), static_cast<std::size_t>(byteCount));
     vkUnmapMemory(device_, indirectMemory);
 
-    vkCmdBindIndexBuffer(cmdBuffer, VK_NULL_HANDLE, 0, VK_INDEX_TYPE_UINT32);
+    // Mesh vertex/index bindings and the pipeline remain the caller's
+    // responsibility. This component only owns the indirect command stream.
     vkCmdDrawIndexedIndirect(cmdBuffer, indirectBuffer, 0,
                              static_cast<uint32_t>(commands.size()),
                              sizeof(GPUIndirectCommand));
