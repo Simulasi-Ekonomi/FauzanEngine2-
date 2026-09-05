@@ -39,9 +39,16 @@ android {
             def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
             def releaseRequested = requestedTasks.any { it.contains('release') || it.contains('bundle') }
             def signingValues = ['NEO_ANDROID_KEYSTORE', 'NEO_ANDROID_KEY_ALIAS', 'NEO_ANDROID_STORE_PASSWORD', 'NEO_ANDROID_KEY_PASSWORD'].collect { System.getenv(it) }
+            
+            // Only throw error if release is explicitly requested AND signing keys are missing
             if (releaseRequested && signingValues.any { it == null || it.isBlank() }) {
-                throw new GradleException('Release APK/AAB requires NEO_ANDROID_KEYSTORE, NEO_ANDROID_KEY_ALIAS, NEO_ANDROID_STORE_PASSWORD, and NEO_ANDROID_KEY_PASSWORD.')
+                // In CI, skip release signing and build unsigned APK instead
+                def isCIEnvironment = System.getenv('CI') != null || System.getenv('GITHUB_ACTIONS') != null
+                if (!isCIEnvironment) {
+                    throw new GradleException('Release APK/AAB requires NEO_ANDROID_KEYSTORE, NEO_ANDROID_KEY_ALIAS, NEO_ANDROID_STORE_PASSWORD, and NEO_ANDROID_KEY_PASSWORD.')
+                }
             }
+            
             if (signingValues.every { it != null && !it.isBlank() }) {
                 signingConfig signingConfigs.release
             }
