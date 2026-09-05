@@ -6,10 +6,12 @@
 #include "Runtime/VulkanGraphicsPipeline.h"
 #include "Runtime/VulkanDescriptorManager.h"
 #include "Runtime/VulkanMeshBufferBuilder.h"
+#include "Runtime/VulkanMeshBatchBuffer.h"
 #include "Runtime/VulkanRenderPassManager.h"
 #include "Runtime/VulkanRenderCommandRecorder.h"
 #include "Runtime/VulkanSwapchainManager.h"
 #include "Runtime/VulkanSyncPrimitives.h"
+#include "Renderer/GPUDrivenRenderer.h"
 
 #include <vulkan/vulkan.h>
 #include <cstdint>
@@ -42,6 +44,11 @@ public:
     bool BeginFrame();
     void SetCamera(const CameraUBO& camera);
     void DrawMesh(const VulkanMeshBufferBuilder& mesh, const ModelUBO& model, const VulkanGPUTexture* texture = nullptr);
+
+    // R3 path: bind one shared geometry arena and record all mesh ranges through
+    // one vkCmdDrawIndexedIndirect call. Existing DrawMesh remains unchanged.
+    bool DrawMeshBatch(const VulkanMeshBatchBuffer& batch);
+
     bool EndFrame();
 
     void Destroy();
@@ -56,6 +63,7 @@ private:
     VulkanGraphicsPipeline graphicsPipeline_;
     VulkanDescriptorManager descriptorManager_;
     VulkanRenderCommandRecorder commandRecorder_;
+    GPUDrivenRenderer indirectRenderer_;
 
     VulkanGPUBuffer cameraBuffer_;
     VulkanGPUBuffer modelBuffer_;
