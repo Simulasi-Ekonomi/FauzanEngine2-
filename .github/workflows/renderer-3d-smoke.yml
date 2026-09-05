@@ -1,0 +1,91 @@
+name: Renderer 3D Vulkan Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
+      - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
+      - 'Source/NeoEngine/Tests/vulkan_3d_batch_smoke.cpp'
+      - '.github/workflows/renderer-3d-smoke.yml'
+  push:
+    branches:
+      - 'feature/renderer-3d-100'
+    paths:
+      - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
+      - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
+      - 'Source/NeoEngine/Tests/vulkan_3d_batch_smoke.cpp'
+      - '.github/workflows/renderer-3d-smoke.yml'
+
+jobs:
+  vulkan-3d-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Vulkan, build tools, shader compiler and Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake pkg-config libvulkan-dev mesa-vulkan-drivers glslang-tools xvfb ninja-build libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libxtst-dev libdrm-dev libgbm-dev libudev-dev
+          VULKAN_ICD="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name '*.json' -print | grep -E '/(lvp|lavapipe|swrast).*\.json$' | head -n 1)"
+          test -n "${VULKAN_ICD}"
+          echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
+          echo "Using software Vulkan ICD: ${VULKAN_ICD}"
+
+      - name: Build and install SDL3
+        run: |
+          SDL_VERSION=3.4.14
+          SDL_SHA256=30d4aa2b3037718142b32dffd4e72f917ebb6cc5227150e7bb9c45efb2153aeb
+          curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" -o /tmp/SDL3.tar.gz
+          echo "${SDL_SHA256}  /tmp/SDL3.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/SDL3.tar.gz -C /tmp
+          SDL_SOURCE_DIR="$(tar -tzf /tmp/SDL3.tar.gz | awk -F/ 'NF > 1 {print $1; exit}')"
+          test -n "${SDL_SOURCE_DIR}"
+          test -f "/tmp/${SDL_SOURCE_DIR}/CMakeLists.txt"
+          cmake -S "/tmp/${SDL_SOURCE_DIR}" -B /tmp/SDL-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
+          cmake --build /tmp/SDL-build --parallel
+          sudo cmake --install /tmp/SDL-build
+          sudo ldconfig
+          pkg-config --modversion sdl3
+
+      - name: Compile mesh shaders
+        working-directory: Source/NeoEngine
+        run: |
+          glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
+          glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
+
+      - name: Build smoke executables
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Runtime/Vulkan3DRenderer.cpp \
+            Tests/vulkan_3d_renderer_smoke.cpp \
+            -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
+            $(pkg-config --cflags --libs sdl3) -lvulkan \
+            -o vulkan_3d_renderer_smoke
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Runtime/Vulkan3DBatch.cpp \
+            Tests/vulkan_3d_batch_smoke.cpp \
+            -o vulkan_3d_batch_smoke
+
+      - name: Run batch smoke
+        working-directory: Source/NeoEngine
+        run: ./vulkan_3d_batch_smoke
+
+      - name: Run renderer smoke under software Vulkan + Xvfb
+        working-directory: Source/NeoEngine
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
+          LD_LIBRARY_PATH: /usr/local/lib:${LD_LIBRARY_PATH}
+        run: |
+          xvfb-run -a -s '-screen 0 1024x768x24' ./vulkan_3d_renderer_smoke
