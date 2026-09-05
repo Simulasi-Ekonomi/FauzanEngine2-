@@ -123,6 +123,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/VulkanRenderPassManager.cpp
     Runtime/VulkanRenderCommandRecorder.cpp
+    Runtime/VulkanSwapchainManager.cpp
     Runtime/VulkanBootstrap.cpp
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanOffscreen.cpp
@@ -621,6 +622,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_render_pass_ma
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_render_command_recorder_smoke.cpp")
     add_xpbd_executable(vulkan_render_command_recorder_smoke ../../Tests/Runtime/vulkan_render_command_recorder_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_swapchain_manager_smoke.cpp")
+    add_xpbd_executable(vulkan_swapchain_manager_smoke ../../Tests/Runtime/vulkan_swapchain_manager_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_shader_smoke.cpp")
     add_xpbd_executable(vulkan_shader_smoke ../../Tests/Runtime/vulkan_shader_smoke.cpp)
