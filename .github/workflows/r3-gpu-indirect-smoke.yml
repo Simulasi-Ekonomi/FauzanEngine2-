@@ -1,3 +1,4 @@
+# R3 current-head validation
 name: R3 GPU Indirect Batch Smoke
 
 on:
@@ -29,7 +30,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Vulkan and shader compiler
         run: |
           sudo apt-get update
@@ -37,13 +37,11 @@ jobs:
           VULKAN_ICD="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name '*.json' -print | grep -E '/(lvp|lavapipe|swrast).*\.json$' | head -n 1)"
           test -n "${VULKAN_ICD}"
           echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
-
       - name: Compile mesh shaders
         working-directory: Source/NeoEngine
         run: |
           glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
           glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
-
       - name: Build real GPU smoke
         working-directory: Source/NeoEngine
         run: |
@@ -57,7 +55,6 @@ jobs:
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
             -lvulkan \
             -o vulkan_mesh_indirect_batch_gpu_smoke
-
       - name: Execute real indirect draw under software Vulkan
         working-directory: Source/NeoEngine
         env:
