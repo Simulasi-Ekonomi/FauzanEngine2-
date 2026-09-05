@@ -52,7 +52,7 @@ int main() {
     VkDevice device = VK_NULL_HANDLE;
     assert(vkCreateDevice(physical, &deviceInfo, nullptr, &device) == VK_SUCCESS);
 
-    NeoEngine::GPUDrivenRenderer indirect;
+    GPUDrivenRenderer indirect;
     assert(indirect.Initialize(device, physical, 128));
     assert(indirect.IsInitialized());
     assert(indirect.HasGpuBuffer());
