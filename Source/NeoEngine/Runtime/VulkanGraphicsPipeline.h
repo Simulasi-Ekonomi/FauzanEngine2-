@@ -15,9 +15,13 @@ struct VulkanPipelineConfig {
     std::vector<uint32_t> vertexSpv;
     std::vector<uint32_t> fragmentSpv;
 
-    // Vertex Layout
+    // Vertex Layout. Binding 0 remains the legacy mesh stream.
     VkVertexInputBindingDescription vertexBinding{};
     std::vector<VkVertexInputAttributeDescription> vertexAttributes;
+
+    // Optional additional bindings for instancing/R3. Existing callers that
+    // leave this empty get the original single-binding pipeline unchanged.
+    std::vector<VkVertexInputBindingDescription> additionalVertexBindings;
 
     // Fixed Function States
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
