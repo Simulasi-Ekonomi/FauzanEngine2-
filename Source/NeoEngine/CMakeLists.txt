@@ -1,3 +1,4 @@
+# R3 additions are intentionally kept in the existing runtime target.
 cmake_minimum_required(VERSION 3.28)
 
 project(NeoEngine LANGUAGES CXX)
@@ -20,9 +21,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ============================================================================
-# PHASE 1: Core Runtime Sources (Jules RHI + SDK)
-# ============================================================================
 set(XPBD_RUNTIME_SOURCES
     Agents/AgentCommandGateway.cpp
     Agents/AgentAutonomyPolicy.cpp
@@ -119,8 +117,6 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AudioMixer.cpp
     Runtime/SdlAudioBridge.cpp
     Runtime/VulkanContext.cpp
-    
-    # ===== Jules RHI 10 Modules (R1-R3 Complete) =====
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanGPUTexture.cpp
     Runtime/VulkanGraphicsPipeline.cpp
@@ -131,8 +127,6 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanSwapchainManager.cpp
     Runtime/VulkanSyncPrimitives.cpp
     Runtime/VulkanRenderer3D.cpp
-    # ===== End Jules Modules =====
-    
     Runtime/VulkanBootstrap.cpp
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanOffscreen.cpp
@@ -194,6 +188,7 @@ set(XPBD_RUNTIME_SOURCES
     Templates/RpgSandboxGame.cpp
     Templates/GameTemplateRegistry.cpp
     Threading/JobSystem.cpp
+    Renderer/GPUDrivenRenderer.cpp
 )
 
 add_library(neo_core SHARED ${XPBD_RUNTIME_SOURCES})
@@ -208,9 +203,6 @@ target_include_directories(neo_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/Threading
 )
 
-# ============================================================================
-# Smoke Tests & Executables
-# ============================================================================
 function(add_xpbd_executable target test_source)
     add_executable(${target} ${test_source} ${XPBD_RUNTIME_SOURCES})
     add_dependencies(${target} neo_shaders)
@@ -227,7 +219,6 @@ endfunction()
 
 add_xpbd_executable(bench_100k ../../Tests/Physics/bench_100k.cpp)
 
-# ===== Jules RHI Smoke Tests (10 modules) =====
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_gpu_buffer_smoke.cpp")
     add_xpbd_executable(vulkan_gpu_buffer_smoke ../../Tests/Runtime/vulkan_gpu_buffer_smoke.cpp)
 endif()
@@ -258,12 +249,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_renderer_3d_smoke.cpp")
     add_xpbd_executable(vulkan_renderer_3d_smoke ../../Tests/Runtime/vulkan_renderer_3d_smoke.cpp)
 endif()
-# ===== End Jules Tests =====
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_smoke.cpp")
     add_xpbd_executable(farm_smoke ../../Tests/Farm/farm_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_bootstrap_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
 endif()
@@ -277,5 +265,4 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
 endif()
 
-message(STATUS "✅ NeoEngine CMake configured: Jules RHI (R1-R3) + Core Runtime")
-message(STATUS "   Sources: ${XPBD_RUNTIME_SOURCES}")
+message(STATUS "NeoEngine CMake configured: Jules RHI + R3 indirect batching")

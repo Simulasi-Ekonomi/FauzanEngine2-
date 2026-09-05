@@ -1,0 +1,78 @@
+# R3 current-head validation
+name: R3 GPU Indirect Batch Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
+      - 'Source/NeoEngine/Runtime/VulkanGPUBuffer.*'
+      - 'Source/NeoEngine/Runtime/VulkanMeshBufferBuilder.*'
+      - 'Source/NeoEngine/Runtime/VulkanGraphicsPipeline.*'
+      - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
+      - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp'
+      - 'Source/NeoEngine/Tests/r3_gpu_indirect_capacity_smoke.cpp'
+      - '.github/workflows/r3-gpu-indirect-smoke.yml'
+  push:
+    branches:
+      - 'feature/r3-gpu-indirect'
+    paths:
+      - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
+      - 'Source/NeoEngine/Runtime/VulkanGPUBuffer.*'
+      - 'Source/NeoEngine/Runtime/VulkanMeshBufferBuilder.*'
+      - 'Source/NeoEngine/Runtime/VulkanGraphicsPipeline.*'
+      - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
+      - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp'
+      - 'Source/NeoEngine/Tests/r3_gpu_indirect_capacity_smoke.cpp'
+      - '.github/workflows/r3-gpu-indirect-smoke.yml'
+
+jobs:
+  r3-gpu-indirect-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vulkan and shader compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ libvulkan-dev mesa-vulkan-drivers glslang-tools
+          VULKAN_ICD="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name '*.json' -print | grep -E '/(lvp|lavapipe|swrast).*\.json$' | head -n 1)"
+          test -n "${VULKAN_ICD}"
+          echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
+      - name: Compile mesh shaders
+        working-directory: Source/NeoEngine
+        run: |
+          glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
+          glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
+      - name: Build real GPU smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Runtime/VulkanGPUBuffer.cpp \
+            Runtime/VulkanMeshBufferBuilder.cpp \
+            Runtime/VulkanGraphicsPipeline.cpp \
+            ../NeoEngine/Renderer/GPUDrivenRenderer.cpp \
+            Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp \
+            -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
+            -lvulkan \
+            -o vulkan_mesh_indirect_batch_gpu_smoke
+      - name: Execute real indirect draw under software Vulkan
+        working-directory: Source/NeoEngine
+        env:
+          VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
+        run: ./vulkan_mesh_indirect_batch_gpu_smoke
+      - name: Build 10k indirect capacity smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            ../NeoEngine/Renderer/GPUDrivenRenderer.cpp \
+            Tests/r3_gpu_indirect_capacity_smoke.cpp \
+            -lvulkan \
+            -o r3_gpu_indirect_capacity_smoke
+      - name: Execute 10k indirect capacity smoke under software Vulkan
+        working-directory: Source/NeoEngine
+        env:
+          VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
+        run: ./r3_gpu_indirect_capacity_smoke
