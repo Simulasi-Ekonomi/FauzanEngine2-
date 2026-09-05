@@ -11,6 +11,7 @@ on:
       - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
       - 'Source/NeoEngine/Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp'
+      - 'Source/NeoEngine/Tests/r3_gpu_indirect_capacity_smoke.cpp'
       - '.github/workflows/r3-gpu-indirect-smoke.yml'
   push:
     branches:
@@ -23,6 +24,7 @@ on:
       - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
       - 'Source/NeoEngine/Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp'
+      - 'Source/NeoEngine/Tests/r3_gpu_indirect_capacity_smoke.cpp'
       - '.github/workflows/r3-gpu-indirect-smoke.yml'
 
 jobs:
@@ -60,3 +62,17 @@ jobs:
         env:
           VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
         run: ./vulkan_mesh_indirect_batch_gpu_smoke
+      - name: Build 10k indirect capacity smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            ../NeoEngine/Renderer/GPUDrivenRenderer.cpp \
+            Tests/r3_gpu_indirect_capacity_smoke.cpp \
+            -lvulkan \
+            -o r3_gpu_indirect_capacity_smoke
+      - name: Execute 10k indirect capacity smoke under software Vulkan
+        working-directory: Source/NeoEngine
+        env:
+          VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
+        run: ./r3_gpu_indirect_capacity_smoke
