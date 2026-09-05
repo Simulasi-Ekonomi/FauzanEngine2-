@@ -122,7 +122,6 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanGraphicsPipeline.cpp
     Runtime/VulkanDescriptorManager.cpp
     Runtime/VulkanMeshBufferBuilder.cpp
-    Runtime/VulkanMeshBatchBuffer.cpp
     Runtime/VulkanRenderPassManager.cpp
     Runtime/VulkanRenderCommandRecorder.cpp
     Runtime/VulkanSwapchainManager.cpp
@@ -189,6 +188,7 @@ set(XPBD_RUNTIME_SOURCES
     Templates/RpgSandboxGame.cpp
     Templates/GameTemplateRegistry.cpp
     Threading/JobSystem.cpp
+    Renderer/GPUDrivenRenderer.cpp
 )
 
 add_library(neo_core SHARED ${XPBD_RUNTIME_SOURCES})
