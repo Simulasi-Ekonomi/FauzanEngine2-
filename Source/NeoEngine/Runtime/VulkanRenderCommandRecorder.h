@@ -28,6 +28,7 @@ public:
     void BindVertexBuffer(VkBuffer vertexBuffer, VkDeviceSize offset = 0);
     void BindIndexBuffer(VkBuffer indexBuffer, VkDeviceSize offset = 0, VkIndexType indexType = VK_INDEX_TYPE_UINT32);
     void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0);
+    void DrawIndexedIndirect(VkBuffer indirectBuffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride = sizeof(VkDrawIndexedIndirectCommand));
     void EndRenderPass();
     bool EndRecording();
 
