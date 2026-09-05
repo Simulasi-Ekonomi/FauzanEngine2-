@@ -125,6 +125,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanRenderCommandRecorder.cpp
     Runtime/VulkanSwapchainManager.cpp
     Runtime/VulkanSyncPrimitives.cpp
+    Runtime/VulkanRenderer3D.cpp
     Runtime/VulkanBootstrap.cpp
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanOffscreen.cpp
@@ -629,6 +630,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_swapchain_mana
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_sync_primitives_smoke.cpp")
     add_xpbd_executable(vulkan_sync_primitives_smoke ../../Tests/Runtime/vulkan_sync_primitives_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_renderer_3d_smoke.cpp")
+    add_xpbd_executable(vulkan_renderer_3d_smoke ../../Tests/Runtime/vulkan_renderer_3d_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_shader_smoke.cpp")
     add_xpbd_executable(vulkan_shader_smoke ../../Tests/Runtime/vulkan_shader_smoke.cpp)
