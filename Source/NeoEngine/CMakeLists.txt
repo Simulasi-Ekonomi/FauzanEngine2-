@@ -1,3 +1,14 @@
+
+find_package(CURL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
+
+link_libraries(
+    ${CURL_LIBRARIES}
+    ${JSONCPP_LIBRARIES}
+    log
+)
+
 cmake_minimum_required(VERSION 3.28)
 
 project(NeoEngine LANGUAGES CXX)
@@ -187,6 +198,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/AuthorityWireProtocol.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/TrustSafetySystem.cpp
+    Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Templates/SudokuGame.cpp
     Templates/TowerDefenseGame.cpp
@@ -279,3 +291,21 @@ endif()
 
 message(STATUS "✅ NeoEngine CMake configured: Jules RHI (R1-R3) + Core Runtime")
 message(STATUS "   Sources: ${XPBD_RUNTIME_SOURCES}")
+
+
+
+
+
+
+
+# Jules Release Gates R6-R10
+
+
+
+# Jules Test Gates
+add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
+add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
+add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence_recovery_100_smoke.cpp)
+add_xpbd_executable(r9_live_ops_telemetry_100_smoke ../../Tests/r9_live_ops_telemetry_100_smoke.cpp)
+add_xpbd_executable(r10_security_privacy_100_smoke ../../Tests/r10_security_privacy_100_smoke.cpp)
+add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehensive_engine_verification_smoke.cpp)
