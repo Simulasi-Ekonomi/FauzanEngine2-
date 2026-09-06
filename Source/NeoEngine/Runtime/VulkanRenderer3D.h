@@ -12,6 +12,7 @@
 #include "Runtime/VulkanSwapchainManager.h"
 #include "Runtime/VulkanSyncPrimitives.h"
 #include "Renderer/GPUDrivenRenderer.h"
+#include "Renderer/GPUFrustumCulling.h"
 
 #include <vulkan/vulkan.h>
 #include <cstdint>
@@ -50,6 +51,12 @@ public:
     // Existing DrawMesh remains unchanged. Each batch entry defaults to identity.
     bool DrawMeshBatch(const VulkanMeshBatchBuffer& batch);
 
+    // R4 path: scene-wide conservative sphere culling against the current camera.
+    // Bounds are world-space and correspond one-to-one with batch meshes. The existing
+    // DrawMeshBatch API remains unchanged and continues to draw every batch entry.
+    bool DrawMeshBatch(const VulkanMeshBatchBuffer& batch,
+                       const std::vector<BoundingSphere>& worldBounds);
+
     bool EndFrame();
     void Destroy();
 
@@ -66,6 +73,7 @@ private:
     VulkanDescriptorManager descriptorManager_;
     VulkanRenderCommandRecorder commandRecorder_;
     GPUDrivenRenderer indirectRenderer_;
+    GPUFrustumCulling frustumCulling_;
 
     VulkanGPUBuffer cameraBuffer_;
     VulkanGPUBuffer modelBuffer_;
