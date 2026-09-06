@@ -95,3 +95,21 @@ jobs:
         env:
           VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
         run: ./r3_gpu_indirect_10k_execution_smoke
+      - name: Build ASAN+UBSAN real GPU 10k execution smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+            -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Runtime/VulkanGPUBuffer.cpp \
+            Runtime/VulkanGraphicsPipeline.cpp \
+            ../NeoEngine/Renderer/GPUDrivenRenderer.cpp \
+            Tests/r3_gpu_indirect_10k_execution_smoke.cpp \
+            -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
+            -lvulkan \
+            -o r3_gpu_indirect_10k_execution_smoke_asan
+      - name: Execute ASAN+UBSAN real GPU 10k indirect draw under software Vulkan
+        working-directory: Source/NeoEngine
+        env:
+          VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
+        run: ./r3_gpu_indirect_10k_execution_smoke_asan
