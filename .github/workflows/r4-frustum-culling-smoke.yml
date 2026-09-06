@@ -1,0 +1,47 @@
+name: R4 Frustum Culling Smoke
+
+on:
+  push:
+    branches:
+      - 'feature/r4-frustum-culling'
+    paths:
+      - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
+      - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
+      - '.github/workflows/r4-frustum-culling-smoke.yml'
+  pull_request:
+    paths:
+      - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
+      - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
+      - '.github/workflows/r4-frustum-culling-smoke.yml'
+
+jobs:
+  r4-frustum-culling:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Release-like smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Renderer/GPUFrustumCulling.cpp \
+            Tests/r4_frustum_culling_smoke.cpp \
+            -o r4_frustum_culling_smoke
+      - name: Execute Release-like smoke
+        working-directory: Source/NeoEngine
+        run: ./r4_frustum_culling_smoke
+      - name: Build ASAN+UBSAN smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+            -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Renderer/GPUFrustumCulling.cpp \
+            Tests/r4_frustum_culling_smoke.cpp \
+            -o r4_frustum_culling_smoke_asan
+      - name: Execute ASAN+UBSAN smoke
+        working-directory: Source/NeoEngine
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ./r4_frustum_culling_smoke_asan
