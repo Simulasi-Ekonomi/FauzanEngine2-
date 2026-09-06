@@ -1,8 +1,6 @@
-#include "Core/Math/NeoMath.h"
 #pragma once
-// Tidak ada include math.h untuk menghindari polusi
-
-extern "C" float sqrtf(float);
+#include "Core/Math/NeoMath.h"
+#include <cmath>
 
 namespace NeoEngine {
 
@@ -18,13 +16,13 @@ struct Vector3 {
     Vector3 Cross(const Vector3& o) const {
         return { y*o.z - z*o.y, z*o.x - x*o.z, x*o.y - y*o.x };
     }
-    float Length() const { return sqrtf(x*x + y*y + z*z); }
+    float Length() const { return std::sqrt(x*x + y*y + z*z); }
     Vector3 Normalized() const {
         float l = Length();
         return (l > 0.0001f) ? Vector3{x/l, y/l, z/l} : Vector3{};
     }
 };
 
-using Vec3 = Vector3;   // alias pendek untuk kompatibilitas
+using Vec3 = Vector3;
 
 } // namespace NeoEngine

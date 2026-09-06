@@ -1,12 +1,5 @@
 #pragma once
-// Tidak ada include math.h untuk menghindari polusi namespace
-
-// Deklarasi fungsi matematika dari C runtime
-extern "C" float sqrtf(float);
-extern "C" float sinf(float);
-extern "C" float cosf(float);
-extern "C" float tanf(float);
-extern "C" float atan2f(float, float);
+#include <cmath>
 
 namespace NeoEngine {
 
@@ -27,9 +20,9 @@ struct Quaternion {
     }
 
     static Quaternion FromEuler(float pitch, float yaw, float roll) {
-        float cy = cosf(yaw * 0.5f), sy = sinf(yaw * 0.5f);
-        float cp = cosf(pitch * 0.5f), sp = sinf(pitch * 0.5f);
-        float cr = cosf(roll * 0.5f), sr = sinf(roll * 0.5f);
+        float cy = std::cos(yaw * 0.5f), sy = std::sin(yaw * 0.5f);
+        float cp = std::cos(pitch * 0.5f), sp = std::sin(pitch * 0.5f);
+        float cr = std::cos(roll * 0.5f), sr = std::sin(roll * 0.5f);
         return Quaternion(
             sr * cp * cy - cr * sp * sy,
             cr * sp * cy + sr * cp * sy,
