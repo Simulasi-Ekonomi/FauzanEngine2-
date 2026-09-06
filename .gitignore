@@ -73,3 +73,9 @@ test_event*.txt
 watcher_test.txt
 __pycache__/
 *.pyc
+*.ppm
+65535mm
+active_code_context.json
+cpp_symbols.json
+build-sdl3-check/
+build_new/
