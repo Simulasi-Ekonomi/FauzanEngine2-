@@ -17,6 +17,7 @@ VulkanRenderer3D::VulkanRenderer3D(VulkanRenderer3D&& other) noexcept {
     context_ = other.context_; renderPassManager_ = std::move(other.renderPassManager_);
     graphicsPipeline_ = std::move(other.graphicsPipeline_); descriptorManager_ = std::move(other.descriptorManager_);
     commandRecorder_ = std::move(other.commandRecorder_); indirectRenderer_ = std::move(other.indirectRenderer_);
+    frustumCulling_ = std::move(other.frustumCulling_);
     cameraBuffer_ = std::move(other.cameraBuffer_); modelBuffer_ = std::move(other.modelBuffer_);
     batchInstanceBuffer_ = std::move(other.batchInstanceBuffer_); currentDescriptorSet_ = other.currentDescriptorSet_;
     commandPool_ = other.commandPool_; width_ = other.width_; height_ = other.height_;
@@ -31,6 +32,7 @@ VulkanRenderer3D& VulkanRenderer3D::operator=(VulkanRenderer3D&& other) noexcept
         context_ = other.context_; renderPassManager_ = std::move(other.renderPassManager_);
         graphicsPipeline_ = std::move(other.graphicsPipeline_); descriptorManager_ = std::move(other.descriptorManager_);
         commandRecorder_ = std::move(other.commandRecorder_); indirectRenderer_ = std::move(other.indirectRenderer_);
+        frustumCulling_ = std::move(other.frustumCulling_);
         cameraBuffer_ = std::move(other.cameraBuffer_); modelBuffer_ = std::move(other.modelBuffer_);
         batchInstanceBuffer_ = std::move(other.batchInstanceBuffer_); currentDescriptorSet_ = other.currentDescriptorSet_;
         commandPool_ = other.commandPool_; width_ = other.width_; height_ = other.height_;
@@ -81,7 +83,11 @@ bool VulkanRenderer3D::BeginFrame() {
     inFrame_ = true; return true;
 }
 
-void VulkanRenderer3D::SetCamera(const CameraUBO& camera) { if (inFrame_) cameraBuffer_.UploadData(&camera, sizeof(CameraUBO)); }
+void VulkanRenderer3D::SetCamera(const CameraUBO& camera) {
+    if (!inFrame_) return;
+    cameraBuffer_.UploadData(&camera, sizeof(CameraUBO));
+    frustumCulling_.SetViewProjectionMatrix(camera.viewProjection);
+}
 
 void VulkanRenderer3D::DrawMesh(const VulkanMeshBufferBuilder& mesh, const ModelUBO& model, const VulkanGPUTexture* /*texture*/) {
     if (!inFrame_ || !mesh.IsValid()) return;
@@ -105,6 +111,33 @@ bool VulkanRenderer3D::DrawMeshBatch(const VulkanMeshBatchBuffer& batch) {
     commandRecorder_.BindIndexBuffer(batch.GetIndexBuffer().GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
     for (std::size_t i = 0; i < batch.MeshCount(); ++i) {
+        const VulkanMeshBatchRange& range = batch.GetRange(i);
+        if (!indirectRenderer_.TrySubmitDraw({range.indexCount, 1, range.firstIndex,
+                                               static_cast<int32_t>(range.vertexOffset), static_cast<uint32_t>(i)})) return false;
+    }
+    return true;
+}
+
+bool VulkanRenderer3D::DrawMeshBatch(const VulkanMeshBatchBuffer& batch,
+                                     const std::vector<BoundingSphere>& worldBounds) {
+    if (!inFrame_ || !batch.IsValid() || worldBounds.size() != batch.MeshCount() ||
+        batch.MeshCount() > indirectRenderer_.Capacity() || batch.MeshCount() > MaxBatchInstances) return false;
+
+    GPUFrustumCulling culling = frustumCulling_;
+    for (const BoundingSphere& bound : worldBounds) culling.AddObject(bound);
+    culling.PerformCulling();
+
+    std::vector<VulkanMeshInstanceData> instances(batch.MeshCount());
+    for (auto& instance : instances) IdentityMatrix(instance.model);
+    if (!instances.empty() && !batchInstanceBuffer_.UploadData(instances.data(), sizeof(VulkanMeshInstanceData) * instances.size())) return false;
+
+    const VkBuffer vertexBuffers[2] = {batch.GetVertexBuffer().GetBuffer(), batchInstanceBuffer_.GetBuffer()};
+    const VkDeviceSize offsets[2] = {0, 0};
+    commandRecorder_.BindVertexBuffers(0, 2, vertexBuffers, offsets);
+    commandRecorder_.BindIndexBuffer(batch.GetIndexBuffer().GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+    for (int objectIndex : culling.VisibleObjects()) {
+        const std::size_t i = static_cast<std::size_t>(objectIndex);
         const VulkanMeshBatchRange& range = batch.GetRange(i);
         if (!indirectRenderer_.TrySubmitDraw({range.indexCount, 1, range.firstIndex,
                                                static_cast<int32_t>(range.vertexOffset), static_cast<uint32_t>(i)})) return false;
