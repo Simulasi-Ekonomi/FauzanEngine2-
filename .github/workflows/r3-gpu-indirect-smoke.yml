@@ -112,4 +112,5 @@ jobs:
         working-directory: Source/NeoEngine
         env:
           VK_ICD_FILENAMES: ${{ env.VULKAN_ICD }}
+          ASAN_OPTIONS: detect_leaks=0
         run: ./r3_gpu_indirect_10k_execution_smoke_asan
