@@ -41,8 +41,13 @@ public:
             const uint64_t firstIndex = indices.size();
             const uint64_t vertexCount = mesh->GetVertexCount();
             const uint64_t indexCount = mesh->GetIndexCount();
-            if (vertexOffset + vertexCount > std::numeric_limits<uint32_t>::max() ||
-                firstIndex + indexCount > std::numeric_limits<uint32_t>::max()) { Destroy(); return false; }
+            // vertexOffset is later passed to VkDrawIndexedIndirectCommand::vertexOffset,
+            // which is signed int32. Reject values that cannot be represented safely.
+            if (vertexOffset > static_cast<uint64_t>(std::numeric_limits<int32_t>::max()) ||
+                firstIndex + indexCount > std::numeric_limits<uint32_t>::max() ||
+                vertexOffset + vertexCount > static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
+                Destroy(); return false;
+            }
 
             std::vector<MeshVertex3D> meshVertices(mesh->GetVertexCount());
             std::vector<uint32_t> meshIndices(mesh->GetIndexCount());
