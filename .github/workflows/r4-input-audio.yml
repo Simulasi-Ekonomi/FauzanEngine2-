@@ -38,7 +38,7 @@ jobs:
       - name: Setup native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build xvfb
+          sudo apt-get install -y libvulkan-dev  glslang-tools ninja-build xvfb
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/r4-release -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build and run Release smokes
