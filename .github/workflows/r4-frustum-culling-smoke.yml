@@ -21,6 +21,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Install Vulkan development headers for renderer compile gate
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev
       - name: Build Release-like smoke
         working-directory: Source/NeoEngine
         run: |
