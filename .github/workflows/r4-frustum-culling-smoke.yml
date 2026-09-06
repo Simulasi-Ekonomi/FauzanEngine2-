@@ -6,11 +6,13 @@ on:
       - 'feature/r4-frustum-culling'
     paths:
       - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
+      - 'Source/NeoEngine/Runtime/VulkanRenderer3D.*'
       - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
       - '.github/workflows/r4-frustum-culling-smoke.yml'
   pull_request:
     paths:
       - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
+      - 'Source/NeoEngine/Runtime/VulkanRenderer3D.*'
       - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
       - '.github/workflows/r4-frustum-culling-smoke.yml'
 
@@ -30,6 +32,12 @@ jobs:
       - name: Execute Release-like smoke
         working-directory: Source/NeoEngine
         run: ./r4_frustum_culling_smoke
+      - name: Compile renderer culling integration
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic -fsyntax-only \
+            -I. -I../../ \
+            Runtime/VulkanRenderer3D.cpp
       - name: Build ASAN+UBSAN smoke
         working-directory: Source/NeoEngine
         run: |
