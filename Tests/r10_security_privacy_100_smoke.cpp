@@ -4,17 +4,15 @@
 #include <string>
 
 int main() {
-    std::cout << "[SMOKE TEST] R10 Security & Privacy 100% Boundary Test..." << std::endl;
+    std::cout << "[SMOKE TEST] R10 Security & Privacy Boundary Test..." << std::endl;
 
-    // 1. Trust Safety Boundary Validation
     NeoEngine::TrustSafetySystem trust;
-    bool invalidReport = trust.Report("Invalid Player!@#$", "evt_001", NeoEngine::FraudSignal::DuplicateReceipt);
+    const bool invalidReport = trust.Report("Invalid Player!@#$", "evt_001", NeoEngine::FraudSignal::DuplicateReceipt);
     if (invalidReport) {
-        std::cerr << "FAIL: Security boundary accepted malicious player ID format!" << std::endl;
+        std::cerr << "FAIL: Security boundary accepted invalid player ID format!" << std::endl;
         return 1;
     }
 
-    // 2. Memory Boundary Sanity
     MemoryManager::Init();
     void* p = MemoryManager::Allocate(256);
     if (!p) {
@@ -22,8 +20,12 @@ int main() {
         return 1;
     }
     MemoryManager::Free(p);
+    if (MemoryManager::HasLeaks()) {
+        std::cerr << "FAIL: Memory manager reports an unexpected leak!" << std::endl;
+        return 1;
+    }
     MemoryManager::Shutdown();
 
-    std::cout << "SUCCESS: R10 Security & Privacy Smoke Test Passed (100%)!" << std::endl;
+    std::cout << "R10 Security & Privacy Smoke Test Passed" << std::endl;
     return 0;
 }
