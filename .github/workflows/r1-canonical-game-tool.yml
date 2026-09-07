@@ -25,7 +25,16 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+          sudo apt-get install -y libvulkan-dev  glslang-tools ninja-build
+
+      - name: Install SDL 3.4.14
+        run: |
+          curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz
+          tar -xzf /tmp/SDL3.tar.gz -C /tmp
+          cmake -S /tmp/SDL3-3.4.14 -B /tmp/sdl3-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL_TESTS=OFF -DSDL_UNIX_CONSOLE_BUILD=ON -DSDL_VIDEO_OFFSCREEN=ON
+          cmake --build /tmp/sdl3-build --parallel 2
+          sudo cmake --install /tmp/sdl3-build
+
 
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/r1-release -G Ninja -DCMAKE_BUILD_TYPE=Release

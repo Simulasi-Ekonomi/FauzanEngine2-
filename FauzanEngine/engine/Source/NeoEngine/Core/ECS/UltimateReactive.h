@@ -45,7 +45,7 @@ public:
     template<typename Func>
     void Each(Registry& registry, Func func) {
         for (auto idx : entities) {
-            func(Entity(idx)).count()?0:0));
+            func(Entity(idx));
         }
     }
 

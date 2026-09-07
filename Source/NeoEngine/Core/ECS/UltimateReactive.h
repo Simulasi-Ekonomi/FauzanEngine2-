@@ -45,7 +45,9 @@ public:
     template<typename Func>
     void Each(Registry& registry, Func func) {
         for (auto idx : entities) {
-            func(Entity(idx)).count()?0:0));
+            // Keep the entity iteration callback direct; this is the canonical
+            // behavior and avoids the malformed placeholder expression.
+            func(Entity(idx));
         }
     }
 
