@@ -17,9 +17,9 @@ int main(int argc, char** argv) {
     constexpr float kSpacingX = 0.50f;
     constexpr float kSpacingZ = 0.4330127f;
     constexpr float kRadius = 0.251f;
+    constexpr float kVelocityX = 0.10f;
     constexpr size_t kMinimumCollisions = 200000;
     constexpr double kTargetMs = 5.0;
-    constexpr int kWarmupFrames = 3;
     constexpr int kMeasuredFrames = 10;
     constexpr int kWorkerCount = 8;
 
@@ -28,10 +28,10 @@ int main(int argc, char** argv) {
     const bool phaseTimingEnabled = argc > 3 ? std::atoi(argv[3]) != 0 : true;
 
     std::printf("=== FAUZANENGINE XPBD 100K / 200K COLLISION PERFORMANCE GATE ===\n");
-    std::printf("Bodies: %d | Required actual contacts: >= %zu | Radius: %.3f | Hex spacing: %.6f / %.6f\n",
-                kEntityCount, kMinimumCollisions, kRadius, kSpacingX, kSpacingZ);
-    std::printf("Workers: %d | Warmup: %d | Measured frames: %d | Target: < %.3f ms/frame\n",
-                workerCount, kWarmupFrames, frameCount, kTargetMs);
+    std::printf("Bodies: %d active dynamic bodies | Required actual contacts: >= %zu | Radius: %.3f\n",
+                kEntityCount, kMinimumCollisions, kRadius);
+    std::printf("Hex spacing: %.6f / %.6f | Workers: %d | Measured frames: %d | Target: < %.3f ms/frame\n",
+                kSpacingX, kSpacingZ, workerCount, frameCount, kTargetMs);
 
     JobSystem::Get().Initialize(workerCount);
     ArchetypeManager entities;
@@ -41,8 +41,10 @@ int main(int argc, char** argv) {
     const uint32_t flags = COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER;
     std::vector<EntityID> ids;
     ids.reserve(kEntityCount);
+    for (int index = 0; index < kEntityCount; ++index)
+        ids.push_back(entities.CreateEntity(flags));
 
-    const auto setCollisionWorkload = [&entities, &ids]() {
+    const auto resetCollisionWorkload = [&entities, &ids]() {
         for (int index = 0; index < kEntityCount; ++index) {
             const EntityID id = ids[static_cast<size_t>(index)];
             const int row = index / kColumns;
@@ -50,26 +52,19 @@ int main(int argc, char** argv) {
             const float stagger = (row & 1) ? 0.5f : 0.0f;
             entities.SetPosX(id, (static_cast<float>(column) + stagger) * kSpacingX);
             entities.SetPosZ(id, static_cast<float>(row) * kSpacingZ);
-            entities.SetVelX(id, 0.0f);
+            entities.SetVelX(id, kVelocityX);
             entities.SetVelZ(id, 0.0f);
             entities.SetRadius(id, kRadius);
             entities.SetInvMass(id, 1.0f);
         }
     };
 
-    for (int index = 0; index < kEntityCount; ++index)
-        ids.push_back(entities.CreateEntity(flags));
-    setCollisionWorkload();
-
-    for (int frame = 0; frame < kWarmupFrames; ++frame)
-        physics->Step(entities, 1.0f / 60.0f);
-
     std::vector<double> times;
     times.reserve(static_cast<size_t>(frameCount));
     size_t totalContacts = 0;
     size_t totalCandidatePairs = 0;
     for (int frame = 0; frame < frameCount; ++frame) {
-        setCollisionWorkload();
+        resetCollisionWorkload();
         const auto started = std::chrono::steady_clock::now();
         physics->Step(entities, 1.0f / 60.0f);
         const auto finished = std::chrono::steady_clock::now();
@@ -91,22 +86,11 @@ int main(int argc, char** argv) {
     std::printf("Contacts/frame: %.1f | Collision candidates/frame: %.1f\n", avgContacts, avgCandidates);
     std::printf("Frame time ms: avg=%.3f p50=%.3f p95=%.3f min=%.3f max=%.3f\n",
                 averageMs, times[p50Index], p95Ms, times.front(), times.back());
-    if (phaseTimingEnabled) {
-        std::printf("XPBD phase ms/frame: flat=%.3f setup=%.3f broadphase=%.3f integrate=%.3f islands_graph=%.3f solve=%.3f merge=%.3f writeback=%.3f\n",
-                    physics->GetStepTimingStats().buildFlatMs,
-                    physics->GetStepTimingStats().setupMs,
-                    physics->GetStepTimingStats().broadphaseMs,
-                    physics->GetStepTimingStats().integrateMs,
-                    physics->GetStepTimingStats().islandsAndGraphMs,
-                    physics->GetStepTimingStats().solveMs,
-                    physics->GetStepTimingStats().mergeMs,
-                    physics->GetStepTimingStats().writeBackMs);
-    }
 
     const bool collisionGate = avgContacts >= static_cast<double>(kMinimumCollisions);
     const bool performanceGate = p95Ms < kTargetMs;
     if (!collisionGate)
-        std::fprintf(stderr, "FAIL: workload produced fewer than %zu actual contacts/frame.\n", kMinimumCollisions);
+        std::fprintf(stderr, "FAIL: fewer than %zu actual contacts/frame.\n", kMinimumCollisions);
     if (!performanceGate)
         std::fprintf(stderr, "FAIL: p95 frame time %.3f ms is not below %.3f ms.\n", p95Ms, kTargetMs);
 
