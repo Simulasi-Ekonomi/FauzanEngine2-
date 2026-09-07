@@ -1,5 +1,5 @@
 #pragma once
-#include "Core/ECS/Registry.h"
+#include "Registry.h"
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
