@@ -20,7 +20,9 @@ int main() {
     assert(std::fabs(hiz.Sample(0, 3, 3) - 0.8F) < 1e-6F);
     assert(std::fabs(hiz.Sample(1, 1, 1) - 0.8F) < 1e-6F);
     assert(std::fabs(hiz.SampleOcclusion(0, 3, 3) - 0.8F) < 1e-6F);
-    assert(std::fabs(hiz.SampleOcclusion(1, 1, 1) - 0.0F) < 1e-6F);
+    // Level 1 cell (1,1) covers source pixels [2..3] x [2..3], all occupied
+    // by the 0.8 reverse-Z blocker, so MIN reduction is also 0.8.
+    assert(std::fabs(hiz.SampleOcclusion(1, 1, 1) - 0.8F) < 1e-6F);
 
     OcclusionCulling occlusion;
 
