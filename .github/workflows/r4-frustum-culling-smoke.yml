@@ -7,13 +7,19 @@ on:
     paths:
       - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
       - 'Source/NeoEngine/Runtime/VulkanRenderer3D.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/HiZBuffer.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/OcclusionCulling.*'
       - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
+      - 'Source/NeoEngine/Tests/r4_occlusion_hiz_smoke.cpp'
       - '.github/workflows/r4-frustum-culling-smoke.yml'
   pull_request:
     paths:
       - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
       - 'Source/NeoEngine/Runtime/VulkanRenderer3D.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/HiZBuffer.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/OcclusionCulling.*'
       - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
+      - 'Source/NeoEngine/Tests/r4_occlusion_hiz_smoke.cpp'
       - '.github/workflows/r4-frustum-culling-smoke.yml'
 
 jobs:
@@ -25,7 +31,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libvulkan-dev
-      - name: Build Release-like smoke
+      - name: Build Release-like frustum smoke
         working-directory: Source/NeoEngine
         run: |
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
@@ -33,16 +39,28 @@ jobs:
             Renderer/GPUFrustumCulling.cpp \
             Tests/r4_frustum_culling_smoke.cpp \
             -o r4_frustum_culling_smoke
-      - name: Execute Release-like smoke
+      - name: Execute Release-like frustum smoke
         working-directory: Source/NeoEngine
         run: ./r4_frustum_culling_smoke
+      - name: Build Release-like HiZ occlusion smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Rendering/Rendering/Renderer/HiZBuffer.cpp \
+            Rendering/Rendering/Renderer/OcclusionCulling.cpp \
+            Tests/r4_occlusion_hiz_smoke.cpp \
+            -o r4_occlusion_hiz_smoke
+      - name: Execute Release-like HiZ occlusion smoke
+        working-directory: Source/NeoEngine
+        run: ./r4_occlusion_hiz_smoke
       - name: Compile renderer culling integration
         working-directory: Source/NeoEngine
         run: |
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic -fsyntax-only \
             -I. -I../../ \
             Runtime/VulkanRenderer3D.cpp
-      - name: Build ASAN+UBSAN smoke
+      - name: Build ASAN+UBSAN frustum smoke
         working-directory: Source/NeoEngine
         run: |
           g++ -std=c++23 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
@@ -51,9 +69,25 @@ jobs:
             Renderer/GPUFrustumCulling.cpp \
             Tests/r4_frustum_culling_smoke.cpp \
             -o r4_frustum_culling_smoke_asan
-      - name: Execute ASAN+UBSAN smoke
+      - name: Execute ASAN+UBSAN frustum smoke
         working-directory: Source/NeoEngine
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: ./r4_frustum_culling_smoke_asan
+      - name: Build ASAN+UBSAN HiZ occlusion smoke
+        working-directory: Source/NeoEngine
+        run: |
+          g++ -std=c++23 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+            -Wall -Wextra -Wpedantic \
+            -I. -I../../ \
+            Rendering/Rendering/Renderer/HiZBuffer.cpp \
+            Rendering/Rendering/Renderer/OcclusionCulling.cpp \
+            Tests/r4_occlusion_hiz_smoke.cpp \
+            -o r4_occlusion_hiz_smoke_asan
+      - name: Execute ASAN+UBSAN HiZ occlusion smoke
+        working-directory: Source/NeoEngine
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ./r4_occlusion_hiz_smoke_asan
