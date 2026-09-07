@@ -17,8 +17,6 @@
 using namespace NeoEngine;
 
 int main(int argc, char** argv) {
-    // Canonical performance gate. The collision workload is fixed: no CLI
-    // option can reduce body count, density, radius, or active-body coverage.
     constexpr int kEntityCount = 100000;
     constexpr int kColumns = 1000;
     constexpr float kSpacingX = 0.50f;
@@ -46,28 +44,12 @@ int main(int argc, char** argv) {
     physics->SetTimingEnabled(phaseTimingEnabled);
     physics->SetProbeMetricsEnabled(phaseTimingEnabled);
     const uint32_t flags = COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER;
+    std::vector<EntityID> ids;
+    ids.reserve(kEntityCount);
 
-    for (int index = 0; index < kEntityCount; ++index) {
-        const EntityID id = entities.CreateEntity(flags);
-        const int row = index / kColumns;
-        const int column = index % kColumns;
-        const float stagger = (row & 1) ? 0.5f : 0.0f;
-        entities.SetPosX(id, (static_cast<float>(column) + stagger) * kSpacingX);
-        entities.SetPosZ(id, static_cast<float>(row) * kSpacingZ);
-        entities.SetVelX(id, 0.0f);
-        entities.SetVelZ(id, 0.0f);
-        entities.SetRadius(id, kRadius);
-        entities.SetInvMass(id, 1.0f);
-    }
-
-    // Warm the executable and allocator paths, then restore the complete
-    // collision configuration so every measured frame has the same workload.
-    for (int frame = 0; frame < kWarmupFrames; ++frame)
-        physics->Step(entities, 1.0f / 60.0f);
-
-    const auto resetCollisionWorkload = [&entities]() {
+    const auto setCollisionWorkload = [&entities, &ids]() {
         for (int index = 0; index < kEntityCount; ++index) {
-            const EntityID id = entities.GetEntityId(static_cast<uint32_t>(index));
+            const EntityID id = ids[static_cast<size_t>(index)];
             const int row = index / kColumns;
             const int column = index % kColumns;
             const float stagger = (row & 1) ? 0.5f : 0.0f;
@@ -80,6 +62,13 @@ int main(int argc, char** argv) {
         }
     };
 
+    for (int index = 0; index < kEntityCount; ++index)
+        ids.push_back(entities.CreateEntity(flags));
+    setCollisionWorkload();
+
+    for (int frame = 0; frame < kWarmupFrames; ++frame)
+        physics->Step(entities, 1.0f / 60.0f);
+
     std::vector<double> times;
     times.reserve(static_cast<size_t>(frameCount));
     size_t totalContacts = 0;
@@ -88,7 +77,9 @@ int main(int argc, char** argv) {
     BroadphaseTimingStats broadphaseTotals{};
 
     for (int frame = 0; frame < frameCount; ++frame) {
-        resetCollisionWorkload();
+        // Reset outside the timer so every measured Step receives the same
+        // full 100k-body collision workload.
+        setCollisionWorkload();
         const auto started = std::chrono::steady_clock::now();
         physics->Step(entities, 1.0f / 60.0f);
         const auto finished = std::chrono::steady_clock::now();
@@ -122,8 +113,8 @@ int main(int argc, char** argv) {
     const size_t p50Index = (times.size() - 1) / 2;
     const size_t p95Index = static_cast<size_t>(std::ceil((times.size() - 1) * 0.95));
     const size_t p99Index = static_cast<size_t>(std::ceil((times.size() - 1) * 0.99));
-    const double avgContacts = static_cast<double>(totalContacts) / frameCount;
-    const double avgCandidates = static_cast<double>(totalCandidatePairs) / frameCount;
+    const double avgContacts = static_cast<double>(totalContacts) / static_cast<double>(frameCount);
+    const double avgCandidates = static_cast<double>(totalCandidatePairs) / static_cast<double>(frameCount);
     const double p95Ms = times[p95Index];
 
     std::printf("Contacts/frame: %.1f | Collision candidates/frame: %.1f\n", avgContacts, avgCandidates);
