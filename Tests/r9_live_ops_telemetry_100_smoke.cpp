@@ -2,7 +2,7 @@
 #include <iostream>
 
 int main() {
-    std::cout << "[SMOKE TEST] R9 Live Operations & Telemetry 100%..." << std::endl;
+    std::cout << "[SMOKE TEST] R9 Live Operations & Telemetry..." << std::endl;
 
     NeoEngine::TelemetryOutbox outbox;
     outbox.Enqueue("evt_001", "{\"playerId\":\"P100\",\"timestamp\":123456789}");
@@ -19,6 +19,6 @@ int main() {
         return 1;
     }
 
-    std::cout << "SUCCESS: R9 Live Operations & Telemetry Smoke Test Passed (100%)!" << std::endl;
+    std::cout << "R9 Live Operations & Telemetry Smoke Test Passed" << std::endl;
     return 0;
 }
