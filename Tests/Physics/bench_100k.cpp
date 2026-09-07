@@ -17,27 +17,25 @@
 using namespace NeoEngine;
 
 int main(int argc, char** argv) {
-    // This is the canonical performance gate: the workload is fixed and may
-    // not be reduced through command-line density/awake parameters.
+    // Canonical performance gate. The collision workload is fixed: no CLI
+    // option can reduce body count, density, radius, or active-body coverage.
     constexpr int kEntityCount = 100000;
     constexpr int kColumns = 1000;
     constexpr float kSpacingX = 0.50f;
-    constexpr float kSpacingZ = 0.4330127f; // sqrt(3)/4, hex-neighbor spacing
-    constexpr float kRadius = 0.251f;       // diameter 0.502 > neighbor distance 0.500
+    constexpr float kSpacingZ = 0.4330127f;
+    constexpr float kRadius = 0.251f;
     constexpr size_t kMinimumCollisions = 200000;
     constexpr double kTargetMs = 5.0;
     constexpr int kWarmupFrames = 3;
     constexpr int kMeasuredFrames = 10;
     constexpr int kWorkerCount = 8;
 
-    // Keep frame/worker/timing controls for diagnostics, but never allow the
-    // workload itself to be simplified.
     const int frameCount = argc > 1 ? std::max(1, std::atoi(argv[1])) : kMeasuredFrames;
     const int workerCount = argc > 2 ? std::max(1, std::atoi(argv[2])) : kWorkerCount;
     const bool phaseTimingEnabled = argc > 3 ? std::atoi(argv[3]) != 0 : true;
 
     std::printf("=== FAUZANENGINE XPBD 100K / 200K COLLISION PERFORMANCE GATE ===\n");
-    std::printf("Bodies: %d | Required collisions: >= %zu | Radius: %.3f | Hex spacing: %.6f / %.6f\n",
+    std::printf("Bodies: %d | Required actual contacts: >= %zu | Radius: %.3f | Hex spacing: %.6f / %.6f\n",
                 kEntityCount, kMinimumCollisions, kRadius, kSpacingX, kSpacingZ);
     std::printf("Workers: %d | Warmup: %d | Measured frames: %d | Target: < %.3f ms/frame\n",
                 workerCount, kWarmupFrames, frameCount, kTargetMs);
@@ -47,8 +45,8 @@ int main(int argc, char** argv) {
     auto physics = std::make_unique<XPBDPhysicsSystem>();
     physics->SetTimingEnabled(phaseTimingEnabled);
     physics->SetProbeMetricsEnabled(phaseTimingEnabled);
-
     const uint32_t flags = COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER;
+
     for (int index = 0; index < kEntityCount; ++index) {
         const EntityID id = entities.CreateEntity(flags);
         const int row = index / kColumns;
@@ -62,8 +60,25 @@ int main(int argc, char** argv) {
         entities.SetInvMass(id, 1.0f);
     }
 
+    // Warm the executable and allocator paths, then restore the complete
+    // collision configuration so every measured frame has the same workload.
     for (int frame = 0; frame < kWarmupFrames; ++frame)
         physics->Step(entities, 1.0f / 60.0f);
+
+    const auto resetCollisionWorkload = [&entities]() {
+        for (int index = 0; index < kEntityCount; ++index) {
+            const EntityID id = entities.GetEntityId(static_cast<uint32_t>(index));
+            const int row = index / kColumns;
+            const int column = index % kColumns;
+            const float stagger = (row & 1) ? 0.5f : 0.0f;
+            entities.SetPosX(id, (static_cast<float>(column) + stagger) * kSpacingX);
+            entities.SetPosZ(id, static_cast<float>(row) * kSpacingZ);
+            entities.SetVelX(id, 0.0f);
+            entities.SetVelZ(id, 0.0f);
+            entities.SetRadius(id, kRadius);
+            entities.SetInvMass(id, 1.0f);
+        }
+    };
 
     std::vector<double> times;
     times.reserve(static_cast<size_t>(frameCount));
@@ -73,14 +88,14 @@ int main(int argc, char** argv) {
     BroadphaseTimingStats broadphaseTotals{};
 
     for (int frame = 0; frame < frameCount; ++frame) {
+        resetCollisionWorkload();
         const auto started = std::chrono::steady_clock::now();
         physics->Step(entities, 1.0f / 60.0f);
         const auto finished = std::chrono::steady_clock::now();
         times.push_back(std::chrono::duration<double, std::milli>(finished - started).count());
 
         totalContacts += physics->GetManifoldCount();
-        const BroadphaseStats& broadphase = physics->GetBroadphaseStats();
-        totalCandidatePairs += broadphase.candidatePairs;
+        totalCandidatePairs += physics->GetBroadphaseStats().candidatePairs;
 
         const StepTimingStats& timing = physics->GetStepTimingStats();
         timingTotals.buildFlatMs += timing.buildFlatMs;
@@ -131,14 +146,12 @@ int main(int argc, char** argv) {
         std::printf("Peak resident memory: %.2f MiB\n", static_cast<double>(usage.ru_maxrss) / 1024.0);
 #endif
 
-    const bool collisionGate = totalContacts / static_cast<size_t>(frameCount) >= kMinimumCollisions;
+    const bool collisionGate = avgContacts >= static_cast<double>(kMinimumCollisions);
     const bool performanceGate = p95Ms < kTargetMs;
-    if (!collisionGate) {
+    if (!collisionGate)
         std::fprintf(stderr, "FAIL: workload produced fewer than %zu actual contacts/frame.\n", kMinimumCollisions);
-    }
-    if (!performanceGate) {
+    if (!performanceGate)
         std::fprintf(stderr, "FAIL: p95 frame time %.3f ms is not below %.3f ms.\n", p95Ms, kTargetMs);
-    }
 
     JobSystem::Get().Shutdown();
     if (!collisionGate || !performanceGate) return 1;
