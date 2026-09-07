@@ -7,25 +7,40 @@
 #include <vector>
 
 int main() {
-    // 8x8 depth: clear/far = 1.0. A nearer blocker occupies the center.
-    std::vector<float> depth(64, 1.0F);
+    // Reverse-Z convention: clear/far = 0, nearer surfaces have larger depth.
+    std::vector<float> depth(64, 0.0F);
     for (int y = 2; y < 6; ++y) {
-        for (int x = 2; x < 6; ++x) depth[static_cast<std::size_t>(y * 8 + x)] = 0.25F;
+        for (int x = 2; x < 6; ++x) depth[static_cast<std::size_t>(y * 8 + x)] = 0.8F;
     }
 
     HiZBuffer hiz(8, 8);
     hiz.Build(depth);
+    hiz.BuildOcclusion(depth);
     assert(hiz.GetLevels() == 4);
-    assert(std::fabs(hiz.Sample(0, 3, 3) - 0.25F) < 1e-6F);
-    assert(std::fabs(hiz.Sample(1, 1, 1) - 0.25F) < 1e-6F);
+    assert(std::fabs(hiz.Sample(0, 3, 3) - 0.8F) < 1e-6F);
+    assert(std::fabs(hiz.Sample(1, 1, 1) - 0.8F) < 1e-6F);
+    assert(std::fabs(hiz.SampleOcclusion(0, 3, 3) - 0.8F) < 1e-6F);
+    assert(std::fabs(hiz.SampleOcclusion(1, 1, 1) - 0.0F) < 1e-6F);
 
     OcclusionCulling occlusion;
 
-    // AABB API is intentionally tested only through the public contract.
-    // ProjectDepth() remains internal; implementation must conservatively
-    // classify invalid/unsupported boxes as visible rather than false-cull.
+    AABB behind{};
+    behind.min[0] = -0.5F; behind.max[0] = 0.5F;
+    behind.min[1] = -0.5F; behind.max[1] = 0.5F;
+    behind.min[2] = 0.2F;  behind.max[2] = 0.3F;
+    assert(occlusion.IsOccludedNDC(behind, hiz));
+
+    AABB inFront = behind;
+    inFront.min[2] = 0.9F; inFront.max[2] = 0.95F;
+    assert(!occlusion.IsOccludedNDC(inFront, hiz));
+
+    AABB partial = behind;
+    partial.min[0] = -1.0F; partial.max[0] = 0.5F;
+    assert(!occlusion.IsOccludedNDC(partial, hiz));
+
     AABB invalid{};
-    assert(!occlusion.IsOccluded(invalid, hiz));
+    invalid.min[0] = 1.0F; invalid.max[0] = -1.0F;
+    assert(!occlusion.IsOccludedNDC(invalid, hiz));
 
     std::cout << "R4_HIZ_OCCLUSION_OK levels=" << hiz.GetLevels() << '\n';
     return 0;
