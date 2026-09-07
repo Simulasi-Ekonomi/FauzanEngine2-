@@ -1,5 +1,5 @@
 #pragma once
-#include "Core/ECS/Registry.h"
+#include "Registry.h"
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,8 +45,6 @@ public:
     template<typename Func>
     void Each(Registry& registry, Func func) {
         for (auto idx : entities) {
-            // Keep the entity iteration callback direct; this is the canonical
-            // behavior and avoids the malformed placeholder expression.
             func(Entity(idx));
         }
     }
