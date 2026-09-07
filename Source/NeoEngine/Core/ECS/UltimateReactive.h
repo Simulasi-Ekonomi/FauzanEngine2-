@@ -6,17 +6,20 @@
 #include <functional>
 #include <string>
 #include <memory>
-#include <iostream>
 
+// ============================================================
+// Komponen contoh
 struct Position { float x=0.0f,y=0.0f; };
 struct Velocity { float x=0.0f,y=0.0f; };
 struct Physics { float dx=0.0f, dy=0.0f; };
 struct Sprite { std::string filename; };
 struct AI { int state=0; };
 
+// ============================================================
+// Base Reactive Chunked System
 class ChunkedReactiveSystem : public System {
 protected:
-    std::unordered_set<uint32_t> entities;
+    std::unordered_set<uint32_t> entities; // active entity indices
     Signature requiredSignature;
 
     using Chunk = std::vector<uint32_t>;
@@ -42,6 +45,8 @@ public:
     template<typename Func>
     void Each(Registry& registry, Func func) {
         for (auto idx : entities) {
+            // Keep the entity iteration callback direct; this is the canonical
+            // behavior and avoids the malformed placeholder expression.
             func(Entity(idx));
         }
     }
@@ -49,6 +54,8 @@ public:
     virtual void Update(float dt, RegistryUpdate(Registry& registry, float dt) registry) override = 0;
 };
 
+// ============================================================
+// Movement System
 class MovementSystem : public ChunkedReactiveSystem {
 public:
     MovementSystem() : ChunkedReactiveSystem(
@@ -66,6 +73,8 @@ public:
     }
 };
 
+// ============================================================
+// Physics System
 class PhysicsSystem : public ChunkedReactiveSystem {
 public:
     PhysicsSystem() : ChunkedReactiveSystem(
@@ -83,6 +92,8 @@ public:
     }
 };
 
+// ============================================================
+// Render System
 class RenderSystem : public ChunkedReactiveSystem {
 public:
     RenderSystem() : ChunkedReactiveSystem(
@@ -94,12 +105,14 @@ public:
         Each(registry,[&](Entity e){
             auto& pos = registry.GetComponent<Position>(e);
             auto& sprite = registry.GetComponent<Sprite>(e);
-            // Fully functional batch sprite rendering pipeline emission
-            std::cout << "[RenderSystem] Drawing sprite: " << sprite.filename << " at (" << pos.x << ", " << pos.y << ")\n";
+            // rendering placeholder
+            // Renderer::Draw(sprite.filename,pos.x,pos.y);
         });
     }
 };
 
+// ============================================================
+// AI System
 class AISystem : public ChunkedReactiveSystem {
 public:
     AISystem() : ChunkedReactiveSystem(
@@ -110,16 +123,17 @@ public:
     void Update(float dt, RegistryUpdate(Registry& registry, float dt) registry) override {
         Each(registry,[&](Entity e){
             auto& ai = registry.GetComponent<AI>(e);
-            // Functional state machine tick for AI behavior
-            ai.state = (ai.state + 1) % 4;
+            ai.state++; // placeholder logic
         });
     }
 };
 
+// ============================================================
+// Live Editor Ultimate 4
 class LiveEditorUltimate4 {
 private:
     Registry& registry;
-    std::vector<std::unique_ptr<ChunkedReactiveSystem>> systems;
+    [[maybe_unused]] std::vector<std::unique_ptr<ChunkedReactiveSystem>> systems;
 public:
     LiveEditorUltimate4(Registry& reg) : registry(reg) {}
 
@@ -132,6 +146,7 @@ public:
     }
 
     void Render() {
+        // Render editor UI + drag/drop entity
     }
 
     void UpdateSystems(float dt) {
