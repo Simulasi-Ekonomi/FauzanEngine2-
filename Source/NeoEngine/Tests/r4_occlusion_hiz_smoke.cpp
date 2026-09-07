@@ -26,9 +26,11 @@ int main() {
 
     OcclusionCulling occlusion;
 
+    // Align the test occludee to the covered 2x2 Hi-Z cell. This verifies a
+    // definite occlusion case without relying on mip-cell boundary overlap.
     AABB behind{};
-    behind.min[0] = -0.5F; behind.max[0] = 0.5F;
-    behind.min[1] = -0.5F; behind.max[1] = 0.5F;
+    behind.min[0] = -0.5F; behind.max[0] = 0.0F;
+    behind.min[1] = -0.5F; behind.max[1] = 0.0F;
     behind.min[2] = 0.2F;  behind.max[2] = 0.3F;
     assert(occlusion.IsOccludedNDC(behind, hiz));
 
@@ -37,7 +39,7 @@ int main() {
     assert(!occlusion.IsOccludedNDC(inFront, hiz));
 
     AABB partial = behind;
-    partial.min[0] = -1.0F; partial.max[0] = 0.5F;
+    partial.min[0] = -1.0F; partial.max[0] = 0.0F;
     assert(!occlusion.IsOccludedNDC(partial, hiz));
 
     AABB invalid{};
