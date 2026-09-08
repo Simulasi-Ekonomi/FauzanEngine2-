@@ -1,3 +1,4 @@
+// EOF
 #include "../Source/NeoEngine/Runtime/AtomicSaveFile.h"
 #include <iostream>
 #include <vector>
@@ -6,7 +7,8 @@
 int main() {
     std::cout << "[SMOKE TEST] R8 Persistence & Recovery 100%..." << std::endl;
 
-    std::filesystem::path rootDir = "/tmp/r8_save_root";
+    // Use environment-aware temporary directory
+    std::filesystem::path rootDir = std::filesystem::temp_directory_path() / "r8_save_root";
     std::string slotName = "slot_01";
     std::vector<uint8_t> payload = {0xDE, 0xAD, 0xBE, 0xEF, 0x12, 0x34, 0x56, 0x78};
     NeoEngine::AtomicSaveFileError err = NeoEngine::AtomicSaveFileError::None;
