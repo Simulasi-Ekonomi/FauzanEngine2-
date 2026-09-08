@@ -1,5 +1,5 @@
 #pragma once
-#include "Registry.h"
+#include "Core/ECS/Registry.h"
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,7 +45,7 @@ public:
     template<typename Func>
     void Each(Registry& registry, Func func) {
         for (auto idx : entities) {
-            func(Entity(idx));
+            func(Entity(idx)).count()?0:0));
         }
     }
 
