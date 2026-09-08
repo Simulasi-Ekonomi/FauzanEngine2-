@@ -1,0 +1,287 @@
+Total blok diperiksa: 57
+
+[AgentOrchestrator.h]
+  Path A (8 lines deleted/changed): Source/NeoEngine/AI/V4/Agents/AgentOrchestrator.h
+  Path B (14 lines added/changed)  : Source/NeoEngine/Agents/AgentOrchestrator.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Arena.h]
+  Path A (13 lines deleted/changed): Source/NeoEngine/Core/Memory/Arena.h
+  Path B (11 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/Arena.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[BVH.h]
+  Path A (9 lines deleted/changed): Source/NeoEngine/Physics/BVH.h
+  Path B (18 lines added/changed)  : Source/NeoEngine/World/V4/BVH.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[CMakeLists.txt]
+  Path A (15 lines deleted/changed): Source/NeoEngine/CMakeLists.txt
+  Path B (12 lines added/changed)  : Source/NeoEngine/Tests/CMakeLists.txt
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[CommandBuffer.h]
+  Path A (23 lines deleted/changed): Source/NeoEngine/Rendering/Core/CommandBuffer.h
+  Path B (3 lines added/changed)  : Source/NeoEngine/Rendering/Rendering/RenderGraph/CommandBuffer.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Component.h]
+  Path A (15 lines deleted/changed): Source/NeoEngine/Core/ECS/Component.h
+  Path B (3 lines added/changed)  : Source/NeoEngine/ECS/Component.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[ComponentStorage.h]
+  Path A (17 lines deleted/changed): Source/NeoEngine/Core/ECS/ComponentStorage.h
+  Path B (6 lines added/changed)  : Source/NeoEngine/ECS/ComponentStorage.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[ECSCore.h]
+  Path A (28 lines deleted/changed): Source/NeoEngine/Core/ECS/ECSCore.h
+  Path B (1 lines added/changed)  : Source/NeoEngine/ECS/ECSCore.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[ECSGPUBridge.cpp]
+  Path A (5 lines deleted/changed): Source/NeoEngine/Core/ECS/ECSGPUBridge.cpp
+  Path B (21 lines added/changed)  : Source/NeoEngine/ECS/ECSGPUBridge.cpp
+  -> REKOMENDASI: Path B memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[ECSGPUBridge.h]
+  Path A (6 lines deleted/changed): Source/NeoEngine/Core/ECS/ECSGPUBridge.h
+  Path B (6 lines added/changed)  : Source/NeoEngine/ECS/ECSGPUBridge.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[ECSManager.h]
+  Path A (20 lines deleted/changed): Source/NeoEngine/Core/ECS/ECSManager.h
+  Path B (5 lines added/changed)  : Source/NeoEngine/ECSManager.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[EngineAllocator.h]
+  Path A (9 lines deleted/changed): Source/NeoEngine/Core/Memory/EngineAllocator.h
+  Path B (5 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/EngineAllocator.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Entity.h]
+  Path A (25 lines deleted/changed): Source/NeoEngine/Core/ECS/Entity.h
+  Path B (1 lines added/changed)  : Source/NeoEngine/ECS/Entity.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[EntityManager.cpp]
+  Path A (27 lines deleted/changed): Source/NeoEngine/Core/ECS/EntityManager.cpp
+  Path B (2 lines added/changed)  : Source/NeoEngine/ECS/EntityManager.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[EntityManager.h]
+  Path A (28 lines deleted/changed): Source/NeoEngine/Core/ECS/EntityManager.h
+  Path B (1 lines added/changed)  : Source/NeoEngine/ECS/EntityManager.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[FrameAllocator.cpp]
+  Path A (24 lines deleted/changed): Source/NeoEngine/Core/Memory/FrameAllocator.cpp
+  Path B (3 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/FrameAllocator.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[FrameAllocator.h]
+  Path A (10 lines deleted/changed): Source/NeoEngine/Core/Memory/FrameAllocator.h
+  Path B (12 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/FrameAllocator.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[GarbageCollector.cpp]
+  Path A (13 lines deleted/changed): Source/NeoEngine/Core/Memory/GarbageCollector.cpp
+  Path B (10 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/GarbageCollector.cpp
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[GarbageCollector.h]
+  Path A (14 lines deleted/changed): Source/NeoEngine/Core/Memory/GarbageCollector.h
+  Path B (7 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/GarbageCollector.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[GlobalNewDelete.cpp]
+  Path A (21 lines deleted/changed): Source/NeoEngine/Core/Memory/GlobalNewDelete.cpp
+  Path B (4 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/GlobalNewDelete.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[LinearAllocator.h]
+  Path A (12 lines deleted/changed): Source/NeoEngine/Core/Memory/LinearAllocator.h
+  Path B (14 lines added/changed)  : Source/NeoEngine/Core/Memory/Memory/LinearAllocator.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Logger.cpp]
+  Path A (29 lines deleted/changed): Source/NeoEngine/Core/Debug/Logger.cpp
+  Path B (1 lines added/changed)  : Source/NeoEngine/Core/Log/Logger.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Logger.h]
+  Path A (25 lines deleted/changed): Source/NeoEngine/Core/Debug/Logger.h
+  Path B (1 lines added/changed)  : Source/NeoEngine/Core/Log/Logger.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Mat4.h]
+  Path A (25 lines deleted/changed): Source/NeoEngine/Core/Math/Mat4.h
+  Path B (3 lines added/changed)  : Source/NeoEngine/Core/Math/Math/Mat4.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Mat4_Transform.h]
+  Path A (14 lines deleted/changed): Source/NeoEngine/Core/Math/Mat4_Transform.h
+  Path B (11 lines added/changed)  : Source/NeoEngine/Core/Math/Math/Mat4_Transform.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Matrix4.h]
+  Path A (11 lines deleted/changed): Source/NeoEngine/Core/Math/Math/Matrix4.h
+  Path B (11 lines added/changed)  : Source/NeoEngine/Core/Math/Matrix4.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[MemoryAllocator.cpp]
+  Path A (5 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/MemoryAllocator.cpp
+  Path B (17 lines added/changed)  : Source/NeoEngine/Core/Memory/MemoryAllocator.cpp
+  -> REKOMENDASI: Path B memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[MemoryAllocator.h]
+  Path A (3 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/MemoryAllocator.h
+  Path B (8 lines added/changed)  : Source/NeoEngine/Core/Memory/MemoryAllocator.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[MemoryBlock.h]
+  Path A (19 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/MemoryBlock.h
+  Path B (6 lines added/changed)  : Source/NeoEngine/Core/Memory/MemoryBlock.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[MemoryManager.cpp]
+  Path A (10 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/MemoryManager.cpp
+  Path B (13 lines added/changed)  : Source/NeoEngine/Core/Memory/MemoryManager.cpp
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[MemoryManager.h]
+  Path A (3 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/MemoryManager.h
+  Path B (12 lines added/changed)  : Source/NeoEngine/Core/Memory/MemoryManager.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[MovementSystem.cpp]
+  Path A (20 lines deleted/changed): Source/NeoEngine/Core/ECS/Systems/MovementSystem.cpp
+  Path B (3 lines added/changed)  : Source/NeoEngine/ECS/Systems/MovementSystem.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[MovementSystem.h]
+  Path A (9 lines deleted/changed): Source/NeoEngine/Core/ECS/MovementSystem.h
+  Path B (4 lines added/changed)  : Source/NeoEngine/Core/ECS/Systems/MovementSystem.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[PhysicsSystem.h]
+  Path A (10 lines deleted/changed): Source/NeoEngine/ECS/Systems/PhysicsSystem.h
+  Path B (12 lines added/changed)  : Source/NeoEngine/Physics/PhysicsSystem.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Platform.cpp]
+  Path A (3 lines deleted/changed): Source/NeoEngine/Platform/Common/Platform.cpp
+  Path B (7 lines added/changed)  : Source/NeoEngine/Platform/Platform.cpp
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Platform.h]
+  Path A (3 lines deleted/changed): Source/NeoEngine/Platform/Common/Platform.h
+  Path B (13 lines added/changed)  : Source/NeoEngine/Platform/Platform.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[PoolAllocator.cpp]
+  Path A (10 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/PoolAllocator.cpp
+  Path B (12 lines added/changed)  : Source/NeoEngine/Core/Memory/PoolAllocator.cpp
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[PoolAllocator.h]
+  Path A (11 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/PoolAllocator.h
+  Path B (6 lines added/changed)  : Source/NeoEngine/Core/Memory/PoolAllocator.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Ptr.h]
+  Path A (12 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/Ptr.h
+  Path B (3 lines added/changed)  : Source/NeoEngine/Core/Memory/Ptr.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Quaternion.h]
+  Path A (4 lines deleted/changed): Source/NeoEngine/Core/Math/Math/Quaternion.h
+  Path B (25 lines added/changed)  : Source/NeoEngine/Core/Math/Quaternion.h
+  -> REKOMENDASI: Path B memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[RHI.cpp]
+  Path A (23 lines deleted/changed): Source/NeoEngine/Rendering/RHI/RHI.cpp
+  Path B (3 lines added/changed)  : Source/NeoEngine/Rendering/Rendering/RHI/RHI.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[RHI.h]
+  Path A (19 lines deleted/changed): Source/NeoEngine/Rendering/RHI/RHI.h
+  Path B (6 lines added/changed)  : Source/NeoEngine/Rendering/Rendering/RHI/RHI.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Renderer.cpp]
+  Path A (25 lines deleted/changed): Source/NeoEngine/Rendering/Renderer/Renderer.cpp
+  Path B (3 lines added/changed)  : Source/NeoEngine/Rendering/Rendering/Renderer/Renderer.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Renderer.h]
+  Path A (25 lines deleted/changed): Source/NeoEngine/Rendering/Renderer/Renderer.h
+  Path B (1 lines added/changed)  : Source/NeoEngine/Rendering/Rendering/Renderer/Renderer.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[SoftwareRenderer.h]
+  Path A (24 lines deleted/changed): Source/NeoEngine/Rendering/Software/SoftwareRenderer.h
+  Path B (4 lines added/changed)  : Source/NeoEngine/Runtime/SoftwareRenderer.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[StreamManager.h]
+  Path A (6 lines deleted/changed): Source/NeoEngine/Runtime/StreamManager.h
+  Path B (4 lines added/changed)  : Source/NeoEngine/Streaming/StreamManager.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[System.h]
+  Path A (7 lines deleted/changed): Source/NeoEngine/Core/ECS/System.h
+  Path B (3 lines added/changed)  : Source/NeoEngine/ECS/System.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[SystemManager.cpp]
+  Path A (5 lines deleted/changed): Source/NeoEngine/Core/ECS/SystemManager.cpp
+  Path B (2 lines added/changed)  : Source/NeoEngine/ECS/SystemManager.cpp
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[SystemManager.h]
+  Path A (16 lines deleted/changed): Source/NeoEngine/Core/ECS/SystemManager.h
+  Path B (6 lines added/changed)  : Source/NeoEngine/ECS/SystemManager.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Transform.cpp]
+  Path A (4 lines deleted/changed): Source/NeoEngine/Core/Math/Transform.cpp
+  Path B (19 lines added/changed)  : Source/NeoEngine/Scene/Transform.cpp
+  -> REKOMENDASI: Path B memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Transform.h]
+  Path A (5 lines deleted/changed): Source/NeoEngine/Core/ECS/Components/Transform.h
+  Path B (23 lines added/changed)  : Source/NeoEngine/Core/Math/Math/Transform.h
+  -> REKOMENDASI: Path B memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[Vec3.hpp]
+  Path A (4 lines deleted/changed): Source/NeoEngine/Core/Math/Math/Vec3.hpp
+  Path B (6 lines added/changed)  : Source/NeoEngine/Core/Math/Vec3.hpp
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Vec4.h]
+  Path A (8 lines deleted/changed): Source/NeoEngine/Core/Math/Math/Vec4.h
+  Path B (11 lines added/changed)  : Source/NeoEngine/Core/Math/Vec4.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------
+[Vector3.h]
+  Path A (21 lines deleted/changed): Source/NeoEngine/Core/Math/Math/Vector3.h
+  Path B (5 lines added/changed)  : Source/NeoEngine/Core/Math/Vector3.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[VulkanRHI.cpp]
+  Path A (23 lines deleted/changed): Source/NeoEngine/Rendering/RHI/Vulkan/VulkanRHI.cpp
+  Path B (4 lines added/changed)  : Source/NeoEngine/Rendering/Rendering/RHI/Vulkan/VulkanRHI.cpp
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[VulkanRHI.h]
+  Path A (26 lines deleted/changed): Source/NeoEngine/Rendering/RHI/Vulkan/VulkanRHI.h
+  Path B (2 lines added/changed)  : Source/NeoEngine/Rendering/Rendering/RHI/Vulkan/VulkanRHI.h
+  -> REKOMENDASI: Path A memiliki implementasi lebih lengkap.
+------------------------------------------------------------
+[frame_allocator.h]
+  Path A (12 lines deleted/changed): Source/NeoEngine/Core/Memory/Memory/frame_allocator.h
+  Path B (6 lines added/changed)  : Source/NeoEngine/Core/Memory/frame_allocator.h
+  -> PERLU AUDIT MANUAL: Ukuran implementasi mirip.
+------------------------------------------------------------

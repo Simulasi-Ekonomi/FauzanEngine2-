@@ -17,9 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
-    Systems/AntiCheatValidationSystem.cpp
     Systems/AuthorityLoopbackServer.cpp
-    Systems/EconomyCommerceEngine.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
@@ -29,10 +27,10 @@ set(XPBD_RUNTIME_SOURCES
     Templates/SudokuGame.cpp
     Templates/TowerDefenseGame.cpp
     Threading/JobSystem.cpp
-    Renderer/GPUDrivenRenderer.cpp
-    Renderer/GPUFrustumCulling.cpp
-    Renderer/HiZBuffer.cpp
-    Renderer/OcclusionCulling.cpp
+    Rendering/Rendering/Renderer/GPUDrivenRenderer.cpp
+    Rendering/Rendering/Renderer/GPUFrustumCulling.cpp
+    Rendering/Rendering/Renderer/HiZBuffer.cpp
+    Rendering/Rendering/Renderer/OcclusionCulling.cpp
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
@@ -75,7 +73,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r4_frustum_culling_smoke.cpp")
     add_xpbd_executable(r4_occlusion_hiz_smoke Tests/r4_occlusion_hiz_smoke.cpp)
 endif()
 
-message(STATUS "✅ NeoEngine CMake configured: Jules RHI (R1-R4) + Core Runtime")
+message(STATUS "✅ NeoEngine CMake configured with native nested source paths")
 
 # Jules Release Gates R6-R10
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
