@@ -30,6 +30,9 @@ set(XPBD_RUNTIME_SOURCES
     Templates/TowerDefenseGame.cpp
     Threading/JobSystem.cpp
     Renderer/GPUDrivenRenderer.cpp
+    Renderer/GPUFrustumCulling.cpp
+    Renderer/HiZBuffer.cpp
+    Renderer/OcclusionCulling.cpp
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
@@ -66,7 +69,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke
     add_xpbd_executable(vulkan_mesh_indirect_batch_gpu_smoke Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp)
 endif()
 
-message(STATUS "✅ NeoEngine CMake configured: Jules RHI (R1-R3) + Core Runtime + R3 indirect batching")
+# R4 Frustum Culling Executables
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r4_frustum_culling_smoke.cpp")
+    add_xpbd_executable(r4_frustum_culling_smoke Tests/r4_frustum_culling_smoke.cpp)
+    add_xpbd_executable(r4_occlusion_hiz_smoke Tests/r4_occlusion_hiz_smoke.cpp)
+endif()
+
+message(STATUS "✅ NeoEngine CMake configured: Jules RHI (R1-R4) + Core Runtime")
 
 # Jules Release Gates R6-R10
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
