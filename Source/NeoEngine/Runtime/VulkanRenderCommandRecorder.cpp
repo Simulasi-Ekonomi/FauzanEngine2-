@@ -142,6 +142,16 @@ void VulkanRenderCommandRecorder::BindVertexBuffer(VkBuffer vertexBuffer, VkDevi
     vkCmdBindVertexBuffers(commandBuffer_, 0, 1, buffers, offsets);
 }
 
+void VulkanRenderCommandRecorder::BindVertexBuffers(uint32_t firstBinding,
+                                                    uint32_t bindingCount,
+                                                    const VkBuffer* vertexBuffers,
+                                                    const VkDeviceSize* offsets) {
+    if (!isRecording_ || bindingCount == 0 || vertexBuffers == nullptr || offsets == nullptr) {
+        return;
+    }
+    vkCmdBindVertexBuffers(commandBuffer_, firstBinding, bindingCount, vertexBuffers, offsets);
+}
+
 void VulkanRenderCommandRecorder::BindIndexBuffer(VkBuffer indexBuffer, VkDeviceSize offset, VkIndexType indexType) {
     if (!isRecording_ || indexBuffer == VK_NULL_HANDLE) {
         return;
@@ -158,6 +168,16 @@ void VulkanRenderCommandRecorder::DrawIndexed(uint32_t indexCount,
         return;
     }
     vkCmdDrawIndexed(commandBuffer_, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void VulkanRenderCommandRecorder::DrawIndexedIndirect(VkBuffer indirectBuffer,
+                                                      VkDeviceSize offset,
+                                                      uint32_t drawCount,
+                                                      uint32_t stride) {
+    if (!isRecording_ || indirectBuffer == VK_NULL_HANDLE || drawCount == 0 || stride < sizeof(VkDrawIndexedIndirectCommand)) {
+        return;
+    }
+    vkCmdDrawIndexedIndirect(commandBuffer_, indirectBuffer, offset, drawCount, stride);
 }
 
 void VulkanRenderCommandRecorder::EndRenderPass() {
