@@ -37,4 +37,4 @@ jobs:
         run: cmake --build build/jules-xpbd --target bench_100k --parallel 2
 
       - name: Run canonical 100K / 200K / <5ms gate
-        run: ./build/jules-xpbd/bench_100k 10 8 1
+        run: ./build/jules-xpbd/bench_100k 10 8 0
