@@ -2,13 +2,12 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <type_traits>
 
 namespace NeoEngine {
 
-ArchetypeManager::ArchetypeManager() : nextEntityID_(0) {
-    chunks_.resize(0);
-}
+ArchetypeManager::ArchetypeManager() : nextEntityID_(0) {}
 
 ArchetypeManager::~ArchetypeManager() {
     for (auto& chunk : chunks_) {
@@ -29,36 +28,75 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
         }
     }
 
+    constexpr size_t capacity = 1024;
     ArchetypeChunk newChunk;
     newChunk.componentMask = componentMask;
     newChunk.count = 0;
-    newChunk.capacity = 1024;
+    newChunk.capacity = capacity;
 
-    newChunk.entities = new EntityID[newChunk.capacity]();
+    auto entities = std::make_unique<EntityID[]>(capacity);
+    std::unique_ptr<float[]> posX;
+    std::unique_ptr<float[]> posY;
+    std::unique_ptr<float[]> posZ;
+    std::unique_ptr<float[]> velX;
+    std::unique_ptr<float[]> velY;
+    std::unique_ptr<float[]> velZ;
+    std::unique_ptr<float[]> radius;
+    std::unique_ptr<float[]> invMass;
+    std::unique_ptr<uint32_t[]> meshID;
+    std::unique_ptr<float[]> rotX;
+    std::unique_ptr<float[]> rotY;
+    std::unique_ptr<float[]> rotZ;
+
     if (componentMask & COMP_POSITION) {
-        newChunk.posX = new float[newChunk.capacity]();
-        newChunk.posY = new float[newChunk.capacity]();
-        newChunk.posZ = new float[newChunk.capacity]();
+        posX = std::make_unique<float[]>(capacity);
+        posY = std::make_unique<float[]>(capacity);
+        posZ = std::make_unique<float[]>(capacity);
     }
     if (componentMask & COMP_VELOCITY) {
-        newChunk.velX = new float[newChunk.capacity]();
-        newChunk.velY = new float[newChunk.capacity]();
-        newChunk.velZ = new float[newChunk.capacity]();
+        velX = std::make_unique<float[]>(capacity);
+        velY = std::make_unique<float[]>(capacity);
+        velZ = std::make_unique<float[]>(capacity);
     }
     if (componentMask & COMP_COLLIDER) {
-        newChunk.radius = new float[newChunk.capacity]();
-        newChunk.invMass = new float[newChunk.capacity]();
+        radius = std::make_unique<float[]>(capacity);
+        invMass = std::make_unique<float[]>(capacity);
     }
     if (componentMask & COMP_MESH) {
-        newChunk.meshID = new uint32_t[newChunk.capacity]();
+        meshID = std::make_unique<uint32_t[]>(capacity);
     }
     if (componentMask & COMP_ROTATION) {
-        newChunk.rotX = new float[newChunk.capacity]();
-        newChunk.rotY = new float[newChunk.capacity]();
-        newChunk.rotZ = new float[newChunk.capacity]();
+        rotX = std::make_unique<float[]>(capacity);
+        rotY = std::make_unique<float[]>(capacity);
+        rotZ = std::make_unique<float[]>(capacity);
     }
 
-    chunks_.push_back(newChunk);
+    newChunk.entities = entities.release();
+    newChunk.posX = posX.release();
+    newChunk.posY = posY.release();
+    newChunk.posZ = posZ.release();
+    newChunk.velX = velX.release();
+    newChunk.velY = velY.release();
+    newChunk.velZ = velZ.release();
+    newChunk.radius = radius.release();
+    newChunk.invMass = invMass.release();
+    newChunk.meshID = meshID.release();
+    newChunk.rotX = rotX.release();
+    newChunk.rotY = rotY.release();
+    newChunk.rotZ = rotZ.release();
+
+    try {
+        chunks_.push_back(newChunk);
+    } catch (...) {
+        delete[] newChunk.entities;
+        delete[] newChunk.posX; delete[] newChunk.posY; delete[] newChunk.posZ;
+        delete[] newChunk.velX; delete[] newChunk.velY; delete[] newChunk.velZ;
+        delete[] newChunk.radius; delete[] newChunk.invMass;
+        delete[] newChunk.meshID;
+        delete[] newChunk.rotX; delete[] newChunk.rotY; delete[] newChunk.rotZ;
+        throw;
+    }
+
     return &chunks_.back();
 }
 
@@ -97,9 +135,21 @@ EntityID ArchetypeManager::CreateEntity(uint32_t componentMask) {
         chunk->rotZ[idx] = 0.0f;
     }
 
+    try {
+        entityToChunk_.emplace(id, chunk);
+        try {
+            entityToIndex_.emplace(id, idx);
+        } catch (...) {
+            entityToChunk_.erase(id);
+            throw;
+        }
+    } catch (...) {
+        --nextEntityID_;
+        chunk->entities[idx] = 0;
+        throw;
+    }
+
     ++chunk->count;
-    entityToChunk_[id] = chunk;
-    entityToIndex_[id] = idx;
     MarkPhysicsDirty();
     return id;
 }
