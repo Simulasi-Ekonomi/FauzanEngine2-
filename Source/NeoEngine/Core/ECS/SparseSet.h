@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstdint>
 #include <cassert>
+#include <limits>
 #include "Entity.h"
 
 namespace NeoEngine {
@@ -11,6 +12,7 @@ class SparseSet {
 
 private:
 
+    static constexpr uint32_t kInvalidIndex = std::numeric_limits<uint32_t>::max();
     std::vector<uint32_t> sparse;
     std::vector<Entity> dense;
     std::vector<T> components;
@@ -19,47 +21,85 @@ public:
 
     void Insert(Entity e, const T& component)
     {
-        uint32_t id = e.index;
+        const uint32_t id = e.index;
+
+        if (Has(e)) {
+            components[sparse[id]] = component;
+            return;
+        }
 
         if (id >= sparse.size())
-            sparse.resize(id + 1, UINT32_MAX);
+            sparse.resize(static_cast<size_t>(id) + 1U, kInvalidIndex);
 
-        sparse[id] = dense.size();
-
+        const uint32_t denseIndex = static_cast<uint32_t>(dense.size());
         dense.push_back(e);
-        components.push_back(component);
+        try {
+            components.push_back(component);
+        } catch (...) {
+            dense.pop_back();
+            throw;
+        }
+        sparse[id] = denseIndex;
     }
 
     bool Has(Entity e) const
     {
-        uint32_t id = e.index;
+        const uint32_t id = e.index;
 
         if (id >= sparse.size())
             return false;
 
-        uint32_t idx = sparse[id];
+        const uint32_t idx = sparse[id];
 
         return idx < dense.size() && dense[idx] == e;
     }
 
+    T* TryGet(Entity e)
+    {
+        if (!Has(e))
+            return nullptr;
+        return &components[sparse[e.index]];
+    }
+
+    const T* TryGet(Entity e) const
+    {
+        if (!Has(e))
+            return nullptr;
+        return &components[sparse[e.index]];
+    }
+
     T& Get(Entity e)
     {
-        uint32_t idx = sparse[e.index];
-        return components[idx];
+        T* component = TryGet(e);
+        assert(component != nullptr);
+        return *component;
+    }
+
+    const T& Get(Entity e) const
+    {
+        const T* component = TryGet(e);
+        assert(component != nullptr);
+        return *component;
     }
 
     void Remove(Entity e)
     {
-        uint32_t idx = sparse[e.index];
-        uint32_t last = dense.size() - 1;
+        if (!Has(e))
+            return;
 
-        dense[idx] = dense[last];
-        components[idx] = components[last];
+        const uint32_t id = e.index;
+        const uint32_t idx = sparse[id];
+        const uint32_t last = static_cast<uint32_t>(dense.size() - 1U);
 
-        sparse[dense[idx].index] = idx;
+        if (idx != last) {
+            dense[idx] = dense[last];
+            components[idx] = std::move(components[last]);
+            sparse[dense[idx].index] = idx;
+        }
 
         dense.pop_back();
         components.pop_back();
+        sparse[id] = kInvalidIndex;
     }
 
 };
