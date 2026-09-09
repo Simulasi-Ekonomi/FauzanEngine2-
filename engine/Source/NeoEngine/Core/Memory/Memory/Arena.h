@@ -1,41 +1,71 @@
 #pragma once
 #include <cstddef>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 
 namespace Neo {
     class Arena {
     private:
-        uint8_t* memory;
-        size_t capacity;
-        size_t offset;
+        std::uint8_t* memory = nullptr;
+        std::size_t capacity = 0;
+        std::size_t offset = 0;
+
+        static bool IsPowerOfTwo(std::size_t value) {
+            return value != 0 && (value & (value - 1)) == 0;
+        }
 
     public:
-        Arena(size_t size) : capacity(size), offset(0) {
-            memory = (uint8_t*)std::malloc(size);
+        explicit Arena(std::size_t size) : capacity(size) {
+            if (size != 0) {
+                memory = static_cast<std::uint8_t*>(std::malloc(size));
+                if (memory == nullptr) capacity = 0;
+            }
         }
 
-        ~Arena() {
+        ~Arena() { std::free(memory); }
+
+        Arena(const Arena&) = delete;
+        Arena& operator=(const Arena&) = delete;
+
+        Arena(Arena&& other) noexcept
+            : memory(other.memory), capacity(other.capacity), offset(other.offset) {
+            other.memory = nullptr;
+            other.capacity = 0;
+            other.offset = 0;
+        }
+
+        Arena& operator=(Arena&& other) noexcept {
+            if (this == &other) return *this;
             std::free(memory);
+            memory = other.memory;
+            capacity = other.capacity;
+            offset = other.offset;
+            other.memory = nullptr;
+            other.capacity = 0;
+            other.offset = 0;
+            return *this;
         }
 
-        // Alokasi O(1) - Sangat cepat!
-        void* Alloc(size_t size, size_t alignment = 8) {
-            // Hitung alignment padding
-            size_t currentAddr = (size_t)memory + offset;
-            size_t padding = (alignment - (currentAddr % alignment)) % alignment;
+        void* Alloc(std::size_t size, std::size_t alignment = alignof(std::max_align_t)) {
+            if (memory == nullptr || size == 0 || !IsPowerOfTwo(alignment)) return nullptr;
 
-            if (offset + padding + size > capacity) return nullptr;
+            const std::uintptr_t currentAddress =
+                reinterpret_cast<std::uintptr_t>(memory) + offset;
+            const std::size_t padding =
+                static_cast<std::size_t>(-currentAddress) & (alignment - 1);
 
-            uint8_t* ptr = memory + offset + padding;
+            if (padding > capacity - offset) return nullptr;
+            const std::size_t available = capacity - offset - padding;
+            if (size > available) return nullptr;
+
+            std::uint8_t* ptr = memory + offset + padding;
             offset += padding + size;
-            return (void*)ptr;
+            return ptr;
         }
 
-        void Reset() {
-            offset = 0;
-        }
+        void Reset() { offset = 0; }
 
-        size_t GetUsedMemory() const { return offset; }
+        [[nodiscard]] std::size_t GetUsedMemory() const { return offset; }
+        [[nodiscard]] std::size_t GetCapacity() const { return capacity; }
     };
 }
