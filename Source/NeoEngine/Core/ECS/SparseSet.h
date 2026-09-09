@@ -103,6 +103,11 @@ public:
         sparse[id] = kInvalidIndex;
     }
 
+    size_t Size() const
+    {
+        return components.size();
+    }
+
 };
 
 }

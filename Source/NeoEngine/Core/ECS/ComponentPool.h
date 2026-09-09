@@ -1,7 +1,6 @@
 #pragma once
 
-#include <vector>
-#include <cassert>
+#include <cstddef>
 #include "SparseSet.h"
 #include "Entity.h"
 
@@ -14,48 +13,37 @@ public:
 
     void Insert(Entity e, const T& component)
     {
-        sparse.Insert(e.index);
-
-        if (sparse.Size() > components.size())
-            components.push_back(component);
-        else
-            components[sparse.Index(e.index)] = component;
+        components_.Insert(e, component);
     }
 
     void Remove(Entity e)
     {
-        if (!sparse.Contains(e.index))
-            return;
-
-        uint32_t index = sparse.Index(e.index);
-        uint32_t lastEntity = sparse.GetDense(sparse.Size() - 1);
-
-        components[index] = components.back();
-        components.pop_back();
-
-        sparse.Remove(e.index);
+        components_.Remove(e);
     }
 
     T& Get(Entity e)
     {
-        assert(sparse.Contains(e.index));
-        return components[sparse.Index(e.index)];
+        return components_.Get(e);
     }
 
-    bool Has(Entity e)
+    const T& Get(Entity e) const
     {
-        return sparse.Contains(e.index);
+        return components_.Get(e);
+    }
+
+    bool Has(Entity e) const
+    {
+        return components_.Has(e);
     }
 
     size_t Size() const
     {
-        return sparse.Size();
+        return components_.Size();
     }
 
 private:
 
-    SparseSet sparse;
-    [[maybe_unused]] std::vector<T> components;
+    SparseSet<T> components_;
 };
 
 }
