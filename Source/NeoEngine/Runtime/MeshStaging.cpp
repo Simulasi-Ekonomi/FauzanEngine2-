@@ -13,7 +13,9 @@ bool MeshStagingStore::StageObj(const AssetRegistry& registry,std::string_view a
     ObjMeshImporter importer;std::vector<MeshVertex> vertices;std::vector<uint16_t> indices;const std::string_view source{reinterpret_cast<const char*>(bytes->data()),bytes->size()};
     if(!importer.Import(source,vertices,indices,{options.generateFlatNormals})){lastError_=MeshStagingError::ImportFailed;return false;}
     if(vertices.size()>kMaxStoredVertices-stagedVertices_||indices.size()>kMaxStoredIndices-stagedIndices_){lastError_=MeshStagingError::CapacityExceeded;return false;}
-    stagedVertices_+=vertices.size();stagedIndices_+=indices.size();resources_.push_back({std::string(assetId),definition->contentHash,options.generateFlatNormals,std::move(vertices),std::move(indices)});lastError_=MeshStagingError::None;return true;
+    const size_t addedVertices=vertices.size();const size_t addedIndices=indices.size();
+    resources_.push_back({std::string(assetId),definition->contentHash,options.generateFlatNormals,std::move(vertices),std::move(indices)});
+    stagedVertices_+=addedVertices;stagedIndices_+=addedIndices;lastError_=MeshStagingError::None;return true;
 }
 bool MeshStagingStore::Refresh(const AssetRegistry& registry,std::string_view assetId){
     const AssetDefinition* definition=registry.Find(assetId);const std::vector<uint8_t>* bytes=registry.Data(assetId);
