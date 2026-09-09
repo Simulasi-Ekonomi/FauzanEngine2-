@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cassert>
 #include <limits>
+#include <utility>
 #include "Entity.h"
 
 namespace NeoEngine {
@@ -21,7 +22,7 @@ public:
 
     void Insert(Entity e, const T& component)
     {
-        const uint32_t id = e.index;
+        const uint32_t id = e.GetID();
 
         if (Has(e)) {
             components[sparse[id]] = component;
@@ -44,7 +45,7 @@ public:
 
     bool Has(Entity e) const
     {
-        const uint32_t id = e.index;
+        const uint32_t id = e.GetID();
 
         if (id >= sparse.size())
             return false;
@@ -58,14 +59,14 @@ public:
     {
         if (!Has(e))
             return nullptr;
-        return &components[sparse[e.index]];
+        return &components[sparse[e.GetID()]];
     }
 
     const T* TryGet(Entity e) const
     {
         if (!Has(e))
             return nullptr;
-        return &components[sparse[e.index]];
+        return &components[sparse[e.GetID()]];
     }
 
     T& Get(Entity e)
@@ -87,14 +88,14 @@ public:
         if (!Has(e))
             return;
 
-        const uint32_t id = e.index;
+        const uint32_t id = e.GetID();
         const uint32_t idx = sparse[id];
         const uint32_t last = static_cast<uint32_t>(dense.size() - 1U);
 
         if (idx != last) {
             dense[idx] = dense[last];
             components[idx] = std::move(components[last]);
-            sparse[dense[idx].index] = idx;
+            sparse[dense[idx].GetID()] = idx;
         }
 
         dense.pop_back();
