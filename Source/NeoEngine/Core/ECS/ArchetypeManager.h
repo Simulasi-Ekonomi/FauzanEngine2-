@@ -9,7 +9,6 @@ namespace NeoEngine {
 
 using EntityID = uint32_t;
 
-// Component masks
 constexpr uint32_t COMP_POSITION = 1 << 0;
 constexpr uint32_t COMP_VELOCITY = 1 << 1;
 constexpr uint32_t COMP_COLLIDER = 1 << 2;
@@ -44,7 +43,6 @@ public:
     EntityID CreateEntity(uint32_t componentMask);
     void DestroyEntity(EntityID id);
 
-    // Setters untuk benchmark (ditambahkan)
     void SetPosX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posX); }
     void SetPosZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posZ); }
     void SetVelX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::velX); }
