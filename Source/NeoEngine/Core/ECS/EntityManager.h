@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Components.h"
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 namespace NeoEngine {
 
@@ -21,43 +21,50 @@ public:
 
     void DestroyEntityUnsafe(EntityID id);
 
+    bool IsAlive(EntityID id) const
+    {
+        return static_cast<std::size_t>(id) < alive_.size() && alive_[id] != 0;
+    }
 
     float GetPosX(EntityID id) const
     {
-        return posX_[id];
+        return IsAlive(id) ? posX_[id] : 0.0f;
     }
 
     float GetPosZ(EntityID id) const
     {
-        return posZ_[id];
+        return IsAlive(id) ? posZ_[id] : 0.0f;
     }
 
     float GetVelX(EntityID id) const
     {
-        return velX_[id];
+        return IsAlive(id) ? velX_[id] : 0.0f;
     }
 
     float GetVelZ(EntityID id) const
     {
-        return velZ_[id];
+        return IsAlive(id) ? velZ_[id] : 0.0f;
     }
 
     float GetRadius(EntityID id) const
     {
-        return radius_[id];
+        return IsAlive(id) ? radius_[id] : 0.0f;
     }
 
     float GetInvMass(EntityID id) const
     {
-        return invMass_[id];
+        return IsAlive(id) ? invMass_[id] : 0.0f;
     }
-
 
 private:
 
     EntityManager() = default;
 
+    // EntityID is a stable slot identity. Destroying an entity never moves
+    // another entity into its slot, so existing IDs remain valid.
     std::vector<EntityID> entities_;
+    std::vector<std::uint8_t> alive_;
+    std::vector<EntityID> freeIds_;
 
     std::vector<float> posX_;
     std::vector<float> posZ_;
