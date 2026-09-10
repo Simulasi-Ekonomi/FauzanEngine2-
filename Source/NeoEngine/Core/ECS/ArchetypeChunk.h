@@ -1,33 +1,76 @@
 #pragma once
-#include <cstdlib>
-#include <cstdint>
+
+#include <cstddef>
+#include <vector>
+
+#include "Entity.h"
+#include "Signature.h"
 
 namespace NeoEngine {
 
-// INDUSTRY AAA MEMORY SAFE CHUNK
-template<typename T, size_t CHUNK_SIZE = 1024>
+// Standalone archetype-storage chunk. This type is intentionally separate from
+// ArchetypeManager's runtime SoA chunk, which remains canonical for physics.
 class ArchetypeChunk {
-private:
-    uint8_t* data;
-
 public:
-    ArchetypeChunk() {
-        data = reinterpret_cast<uint8_t*>(AlignedAlloc(64, sizeof(T) * CHUNK_SIZE));
+    static constexpr std::size_t CHUNK_SIZE = 1024;
+
+    explicit ArchetypeChunk(const Signature& sig = Signature{})
+        : signature(sig)
+    {
+        entities.reserve(CHUNK_SIZE);
     }
 
-    ~ArchetypeChunk() {
-        free(data);
+    [[nodiscard]] bool HasSpace() const noexcept
+    {
+        return entities.size() < CHUNK_SIZE;
     }
 
-    static void* AlignedAlloc(size_t alignment, size_t size) {
-        void* ptr = nullptr;
-        if (posix_memalign(&ptr, alignment, size) != 0) return nullptr;
-        return ptr;
+    [[nodiscard]] std::size_t EntityCount() const noexcept
+    {
+        return entities.size();
     }
 
-    T* GetData() {
-        return reinterpret_cast<T*>(data);
+    [[nodiscard]] std::size_t Capacity() const noexcept
+    {
+        return CHUNK_SIZE;
     }
+
+    [[nodiscard]] const Signature& GetSignature() const noexcept
+    {
+        return signature;
+    }
+
+    bool AddEntity(const Entity& entity)
+    {
+        if (!HasSpace()) return false;
+        entities.push_back(entity);
+        return true;
+    }
+
+    bool RemoveEntity(EntityID id)
+    {
+        for (auto it = entities.begin(); it != entities.end(); ++it) {
+            if (it->GetID() == id) {
+                entities.erase(it);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    [[nodiscard]] const std::vector<Entity>& GetEntities() const noexcept
+    {
+        return entities;
+    }
+
+    [[nodiscard]] std::vector<Entity>& GetEntities() noexcept
+    {
+        return entities;
+    }
+
+private:
+    Signature signature;
+    std::vector<Entity> entities;
 };
 
-}
+} // namespace NeoEngine
