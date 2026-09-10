@@ -2,116 +2,148 @@
 
 namespace NeoEngine {
 
-static inline TaggedIndex LoadTagged(const std::atomic<uint64_t>& src) {
-    TaggedIndex ti; ti.value = src.load(std::memory_order_acquire); return ti;
-}
-static inline void StoreTagged(std::atomic<uint64_t>& dst, TaggedIndex ti) {
-    dst.store(ti.value, std::memory_order_release);
-}
-
 void JobSystem::Initialize(size_t numThreads) {
-    if (running_) return;
+    if (running_.load(std::memory_order_acquire)) return;
+    if (numThreads == 0) numThreads = 1;
+
     numWorkers_ = numThreads;
-    running_ = true;
-    workers_.reserve(numThreads);
+    workers_.reserve(numWorkers_);
     for (size_t i = 0; i < numWorkers_; ++i) {
-        auto ws = std::make_unique<WorkerState>();
-        StoreTagged(ws->head, {0}); StoreTagged(ws->tail, {0});
-        workers_.push_back(std::move(ws));
+        auto worker = std::make_unique<WorkerState>();
+        for (size_t slot = 0; slot < QUEUE_SIZE; ++slot) {
+            worker->jobs[slot].sequence.store(slot, std::memory_order_relaxed);
+        }
+        workers_.push_back(std::move(worker));
     }
+
+    running_.store(true, std::memory_order_release);
     for (size_t i = 0; i < numWorkers_; ++i) {
         workers_[i]->worker = std::thread([this, i] { WorkerLoop(i); });
     }
 }
 
 void JobSystem::Shutdown() {
-    running_ = false;
-    for (auto& ws : workers_) if (ws->worker.joinable()) ws->worker.join();
+    if (!running_.load(std::memory_order_acquire) && workers_.empty()) return;
+
+    WaitForAll();
+    running_.store(false, std::memory_order_release);
+    for (auto& worker : workers_) {
+        if (worker->worker.joinable()) worker->worker.join();
+    }
     workers_.clear();
+    numWorkers_ = 0;
+}
+
+bool JobSystem::TryPush(WorkerState& worker, Job&& job) {
+    size_t position = worker.enqueuePos.load(std::memory_order_relaxed);
+    for (;;) {
+        JobSlot& slot = worker.jobs[position % QUEUE_SIZE];
+        const size_t sequence = slot.sequence.load(std::memory_order_acquire);
+        const std::intptr_t difference =
+            static_cast<std::intptr_t>(sequence) - static_cast<std::intptr_t>(position);
+
+        if (difference == 0) {
+            if (worker.enqueuePos.compare_exchange_weak(
+                    position, position + 1, std::memory_order_relaxed)) {
+                slot.job = std::move(job);
+                slot.sequence.store(position + 1, std::memory_order_release);
+                return true;
+            }
+        } else if (difference < 0) {
+            return false;
+        } else {
+            position = worker.enqueuePos.load(std::memory_order_relaxed);
+        }
+    }
+}
+
+bool JobSystem::TryPop(WorkerState& worker, Job& job) {
+    size_t position = worker.dequeuePos.load(std::memory_order_relaxed);
+    for (;;) {
+        JobSlot& slot = worker.jobs[position % QUEUE_SIZE];
+        const size_t sequence = slot.sequence.load(std::memory_order_acquire);
+        const std::intptr_t difference =
+            static_cast<std::intptr_t>(sequence) - static_cast<std::intptr_t>(position + 1);
+
+        if (difference == 0) {
+            if (worker.dequeuePos.compare_exchange_weak(
+                    position, position + 1, std::memory_order_relaxed)) {
+                job = std::move(slot.job);
+                slot.sequence.store(position + QUEUE_SIZE, std::memory_order_release);
+                return true;
+            }
+        } else if (difference < 0) {
+            return false;
+        } else {
+            position = worker.dequeuePos.load(std::memory_order_relaxed);
+        }
+    }
 }
 
 void JobSystem::Execute(Job&& job) {
-    static std::atomic<size_t> rr{0};
-    for (size_t attempt = 0; attempt < numWorkers_; ++attempt) {
-        size_t idx = rr.fetch_add(1, std::memory_order_relaxed) % numWorkers_;
-        auto& ws = *workers_[idx];
-        TaggedIndex tail = LoadTagged(ws.tail);
-        TaggedIndex head = LoadTagged(ws.head);
-        if (tail.Pos() - head.Pos() < QUEUE_SIZE) {
-            ws.jobs[tail.Pos() % QUEUE_SIZE] = std::move(job);
-            std::atomic_thread_fence(std::memory_order_release);
-            tail.Set(tail.Pos() + 1, tail.Tag() + 1);
-            StoreTagged(ws.tail, tail);
-            totalJobs_.fetch_add(1, std::memory_order_release);
-            return;
-        }
+    if (!job) return;
+
+    if (!running_.load(std::memory_order_acquire) || workers_.empty()) {
+        job();
+        return;
     }
-    job(); // fallback langsung
+
+    static std::atomic<size_t> roundRobin{0};
+    totalJobs_.fetch_add(1, std::memory_order_acq_rel);
+
+    const size_t start = roundRobin.fetch_add(1, std::memory_order_relaxed);
+    for (size_t attempt = 0; attempt < numWorkers_; ++attempt) {
+        const size_t index = (start + attempt) % numWorkers_;
+        if (TryPush(*workers_[index], std::move(job))) return;
+    }
+
+    totalJobs_.fetch_sub(1, std::memory_order_acq_rel);
+    job();
 }
 
 void JobSystem::ExecuteRaw(RawJob job, void* context) {
     if (!job) return;
-    Execute([job, context]() { job(context); });
+    Execute([job, context] { job(context); });
 }
 
 void JobSystem::WaitForAll() {
     while (totalJobs_.load(std::memory_order_acquire) > 0) {
-        std::this_thread::sleep_for(std::chrono::microseconds(1));
+        std::this_thread::yield();
     }
 }
 
 void JobSystem::WorkerLoop(size_t workerIndex) {
-    auto& ws = *workers_[workerIndex];
-    while (running_.load(std::memory_order_acquire)) {
-        TaggedIndex head = LoadTagged(ws.head);
-        TaggedIndex tail = LoadTagged(ws.tail);
-        if (head.Pos() < tail.Pos()) {
-            TaggedIndex newHead;
-            newHead.Set(head.Pos() + 1, head.Tag() + 1);
-            if (std::atomic_compare_exchange_strong(
-                    reinterpret_cast<std::atomic<uint64_t>*>(&ws.head),
-                    &head.value, newHead.value)) {
-                Job job = std::move(ws.jobs[head.Pos() % QUEUE_SIZE]);
-                if (job) {
-                    activeJobs_.fetch_add(1, std::memory_order_release);
-                    job();
-                    activeJobs_.fetch_sub(1, std::memory_order_release);
-                    totalJobs_.fetch_sub(1, std::memory_order_release);
-                    continue;
+    while (running_.load(std::memory_order_acquire) ||
+           totalJobs_.load(std::memory_order_acquire) > 0) {
+        Job job;
+        bool found = TryPop(*workers_[workerIndex], job);
+
+        if (!found) {
+            for (size_t i = 0; i < numWorkers_; ++i) {
+                if (i == workerIndex) continue;
+                if (TryPop(*workers_[i], job)) {
+                    found = true;
+                    break;
                 }
             }
         }
-        // Steal dari worker lain
-        Job job;
-        for (size_t i = 0; i < numWorkers_; ++i) {
-            if (i == workerIndex) continue;
-            if (TrySteal(*workers_[i], job)) break;
+
+        if (found && job) {
+            activeJobs_.fetch_add(1, std::memory_order_acq_rel);
+            try {
+                job();
+            } catch (...) {
+                activeJobs_.fetch_sub(1, std::memory_order_acq_rel);
+                totalJobs_.fetch_sub(1, std::memory_order_acq_rel);
+                throw;
+            }
+            activeJobs_.fetch_sub(1, std::memory_order_acq_rel);
+            totalJobs_.fetch_sub(1, std::memory_order_acq_rel);
+            continue;
         }
-        if (job) {
-            activeJobs_.fetch_add(1, std::memory_order_release);
-            job();
-            activeJobs_.fetch_sub(1, std::memory_order_release);
-            totalJobs_.fetch_sub(1, std::memory_order_release);
-        } else {
-            std::this_thread::sleep_for(std::chrono::microseconds(50));
-        }
+
+        std::this_thread::yield();
     }
 }
 
-bool JobSystem::TrySteal(WorkerState& from, Job& job) {
-    while (true) {
-        TaggedIndex head = LoadTagged(from.head);
-        TaggedIndex tail = LoadTagged(from.tail);
-        if (head.Pos() >= tail.Pos()) return false;
-        TaggedIndex newHead;
-        newHead.Set(head.Pos() + 1, head.Tag() + 1);
-        if (std::atomic_compare_exchange_strong(
-                reinterpret_cast<std::atomic<uint64_t>*>(&from.head),
-                &head.value, newHead.value)) {
-            job = std::move(from.jobs[head.Pos() % QUEUE_SIZE]);
-            return true;
-        }
-    }
-}
-
-} // namespace
+} // namespace NeoEngine
