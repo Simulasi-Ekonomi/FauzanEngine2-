@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <unordered_map>
-#include <vector>
 
 #include "ArchetypeChunk.h"
 
@@ -10,7 +10,8 @@ namespace NeoEngine {
 
 class ArchetypeStorage {
 private:
-    std::unordered_map<uint64_t, std::vector<ArchetypeChunk>> archetypes;
+    // deque keeps references to existing chunks stable when another chunk is added.
+    std::unordered_map<uint64_t, std::deque<ArchetypeChunk>> archetypes;
 
 public:
     ArchetypeChunk& GetOrCreate(uint64_t signatureValue)
@@ -22,12 +23,12 @@ public:
         return chunks.back();
     }
 
-    [[nodiscard]] std::unordered_map<uint64_t, std::vector<ArchetypeChunk>>& GetAll() noexcept
+    [[nodiscard]] std::unordered_map<uint64_t, std::deque<ArchetypeChunk>>& GetAll() noexcept
     {
         return archetypes;
     }
 
-    [[nodiscard]] const std::unordered_map<uint64_t, std::vector<ArchetypeChunk>>& GetAll() const noexcept
+    [[nodiscard]] const std::unordered_map<uint64_t, std::deque<ArchetypeChunk>>& GetAll() const noexcept
     {
         return archetypes;
     }
