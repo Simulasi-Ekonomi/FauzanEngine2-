@@ -27,16 +27,16 @@ struct Archetype {
 
     ArchetypeChunk& GetOrCreateChunk()
     {
-        for(auto& chunk : chunks)
+        for (auto& chunk : chunks)
         {
-            if(chunk.HasSpace())
+            if (chunk.HasSpace())
                 return chunk;
         }
 
-        chunks.emplace_back();
+        chunks.emplace_back(signature);
         return chunks.back();
     }
 
 };
 
-}
+} // namespace NeoEngine
