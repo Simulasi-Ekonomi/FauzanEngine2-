@@ -1,36 +1,36 @@
 #pragma once
 
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
+
 #include "ArchetypeChunk.h"
 
 namespace NeoEngine {
 
 class ArchetypeStorage {
-
 private:
-
     std::unordered_map<uint64_t, std::vector<ArchetypeChunk>> archetypes;
 
 public:
-
-    ArchetypeChunk& GetOrCreate(uint64_t signature)
+    ArchetypeChunk& GetOrCreate(uint64_t signatureValue)
     {
-        auto& vec = archetypes[signature];
-
-        if(vec.empty() || vec.back().entityCount >= CHUNK_SIZE)
-        {
-            vec.emplace_back(Signature(signature));
+        auto& chunks = archetypes[signatureValue];
+        if (chunks.empty() || !chunks.back().HasSpace()) {
+            chunks.emplace_back(Signature(signatureValue));
         }
-
-        return vec.back();
+        return chunks.back();
     }
 
-    std::unordered_map<uint64_t, std::vector<ArchetypeChunk>>& GetAll()
+    [[nodiscard]] std::unordered_map<uint64_t, std::vector<ArchetypeChunk>>& GetAll() noexcept
     {
         return archetypes;
     }
 
+    [[nodiscard]] const std::unordered_map<uint64_t, std::vector<ArchetypeChunk>>& GetAll() const noexcept
+    {
+        return archetypes;
+    }
 };
 
-}
+} // namespace NeoEngine
