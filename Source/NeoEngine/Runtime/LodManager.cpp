@@ -1,7 +1,6 @@
 #include "LodManager.h"
 #include <algorithm>
 #include <cmath>
-#include <limits>
 
 namespace NeoEngine {
 
@@ -44,17 +43,17 @@ bool LodManager::SelectLod(AssetID meshId, float cameraDistance, uint8_t& outLod
         return false;
     }
 
-    // Select LOD based on distance thresholds
-    outLodLevel = 0;
-    for (uint32_t i = 0; i < 4; ++i) {
+    // Select the next LOD only after crossing the threshold for that LOD.
+    outLodLevel = data.thresholds.lodLevel[0];
+    for (uint32_t i = 0; i + 1 < 4; ++i) {
         if (cameraDistance > data.thresholds.distanceMeters[i]) {
-            outLodLevel = data.thresholds.lodLevel[i];
+            outLodLevel = data.thresholds.lodLevel[i + 1];
         } else {
             break;
         }
     }
 
-    // Clamp to available LOD levels
+    // Clamp to available LOD levels.
     outLodLevel = std::min(outLodLevel, static_cast<uint8_t>(data.variants.size() - 1));
 
     lastError_ = false;
@@ -68,9 +67,9 @@ bool LodManager::SelectTextureMip(uint32_t fullWidth, float cameraDistance, uint
     }
 
     // Heuristic: at 1000m distance, use mip level 4 (1/16 resolution)
-    // Scale linearly with distance
-    const float mipLevelF = (cameraDistance / 1000.f) * 4.f;
-    outMipLevel = std::min(static_cast<uint32_t>(mipLevelF), 8u);  // Cap at 8 levels
+    // Scale linearly with distance.
+    const float mipLevelF = (cameraDistance / 1000.0f) * 4.0f;
+    outMipLevel = std::min(static_cast<uint32_t>(mipLevelF), 8u);  // Cap at 8 levels.
 
     lastError_ = false;
     return true;
