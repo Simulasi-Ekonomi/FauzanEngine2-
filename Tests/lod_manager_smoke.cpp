@@ -1,45 +1,56 @@
+#include "Runtime/LodManager.h"
 #include <cassert>
-#include <string>
+#include <cmath>
+#include <cstdint>
+#include <limits>
 #include <vector>
-#include <unordered_map>
-
-namespace NeoEngine {
-
-using AssetID = std::string;
-
-struct MeshVariant {
-    uint32_t vertexCount = 0;
-    uint32_t indexCount = 0;
-};
-
-class LodManager {
-public:
-    [[nodiscard]] bool SelectLod(float cameraDistance, uint8_t& outLodLevel) const noexcept {
-        // Simple distance-based LOD selection
-        if (cameraDistance < 100.f) outLodLevel = 0;     // Full detail
-        else if (cameraDistance < 500.f) outLodLevel = 1; // Medium
-        else if (cameraDistance < 2000.f) outLodLevel = 2; // Low
-        else outLodLevel = 3;                             // Minimal
-        return true;
-    }
-};
-
-} // namespace NeoEngine
 
 int main() {
-    NeoEngine::LodManager manager;
-    uint8_t selectedLod = 0;
+    using namespace NeoEngine;
 
-    // Test 1: LOD selection at different distances
-    assert(manager.SelectLod(50.f, selectedLod) && selectedLod == 0);    // Closest = full detail
-    assert(manager.SelectLod(200.f, selectedLod) && selectedLod == 1);   // Medium distance
-    assert(manager.SelectLod(1000.f, selectedLod) && selectedLod == 2);  // Far
-    assert(manager.SelectLod(5000.f, selectedLod) && selectedLod == 3);  // Very far = minimal
+    LodManager manager;
+    std::vector<MeshVariant> variants(4);
+    variants[0].vertexCount = 1000;
+    variants[1].vertexCount = 500;
+    variants[2].vertexCount = 250;
+    variants[3].vertexCount = 100;
 
-    // Test 2: Boundary cases
-    assert(manager.SelectLod(100.f, selectedLod) && selectedLod == 0);
-    assert(manager.SelectLod(500.f, selectedLod) && selectedLod == 1);
-    assert(manager.SelectLod(2000.f, selectedLod) && selectedLod == 2);
+    uint8_t selectedLod = 99;
+    assert(manager.Register("mesh", variants));
+    assert(manager.SelectLod("mesh", 50.f, selectedLod) && selectedLod == 0);
+    assert(manager.SelectLod("mesh", 100.f, selectedLod) && selectedLod == 0);
+    assert(manager.SelectLod("mesh", 200.f, selectedLod) && selectedLod == 1);
+    assert(manager.SelectLod("mesh", 500.f, selectedLod) && selectedLod == 1);
+    assert(manager.SelectLod("mesh", 1000.f, selectedLod) && selectedLod == 2);
+    assert(manager.SelectLod("mesh", 2000.f, selectedLod) && selectedLod == 2);
+    assert(manager.SelectLod("mesh", 5000.f, selectedLod) && selectedLod == 3);
 
-    return 0;  // All tests passed
+    assert(manager.GetVariant("mesh", 3) != nullptr);
+    assert(manager.GetVariant("mesh", 4) == nullptr);
+    assert(manager.LastError());
+
+    uint32_t mip = 99;
+    assert(manager.SelectTextureMip(2048, 0.f, mip) && mip == 0);
+    assert(manager.SelectTextureMip(2048, 1000.f, mip) && mip == 4);
+    assert(manager.SelectTextureMip(2048, 5000.f, mip) && mip == 8);
+
+    assert(!manager.Register("", variants));
+    assert(!manager.Register("empty", {}));
+    assert(!manager.Register("too-many", std::vector<MeshVariant>(5)));
+
+    selectedLod = 77;
+    assert(!manager.SelectLod("missing", 10.f, selectedLod));
+    assert(selectedLod == 77);
+    assert(!manager.SelectLod("mesh", -1.f, selectedLod));
+    assert(!manager.SelectLod("mesh", std::numeric_limits<float>::quiet_NaN(), selectedLod));
+    assert(!manager.SelectLod("mesh", std::numeric_limits<float>::infinity(), selectedLod));
+
+    mip = 77;
+    assert(!manager.SelectTextureMip(0, 10.f, mip));
+    assert(mip == 77);
+    assert(!manager.SelectTextureMip(2048, -1.f, mip));
+    assert(!manager.SelectTextureMip(2048, std::numeric_limits<float>::quiet_NaN(), mip));
+    assert(!manager.SelectTextureMip(2048, std::numeric_limits<float>::infinity(), mip));
+
+    return 0;
 }

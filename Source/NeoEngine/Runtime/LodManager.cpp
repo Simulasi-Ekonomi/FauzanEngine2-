@@ -10,17 +10,27 @@ bool LodManager::Register(AssetID meshId, const std::vector<MeshVariant>& varian
         return false;
     }
 
-    MeshLodData data{
-        variants,
-        LODThresholds{}  // Default thresholds
-    };
+    try {
+        MeshLodData data{
+            variants,
+            LODThresholds{}  // Default thresholds
+        };
+        lodData_[meshId] = std::move(data);
+    } catch (...) {
+        lastError_ = true;
+        return false;
+    }
 
-    lodData_[meshId] = data;
     lastError_ = false;
     return true;
 }
 
 bool LodManager::SelectLod(AssetID meshId, float cameraDistance, uint8_t& outLodLevel) const noexcept {
+    if (!std::isfinite(cameraDistance) || cameraDistance < 0.0f) {
+        lastError_ = true;
+        return false;
+    }
+
     auto it = lodData_.find(meshId);
     if (it == lodData_.end()) {
         lastError_ = true;
@@ -28,18 +38,22 @@ bool LodManager::SelectLod(AssetID meshId, float cameraDistance, uint8_t& outLod
     }
 
     const MeshLodData& data = it->second;
-    
-    // Select LOD based on distance thresholds
-    outLodLevel = 0;
-    for (uint32_t i = 0; i < 4; ++i) {
+    if (data.variants.empty()) {
+        lastError_ = true;
+        return false;
+    }
+
+    // Select the next LOD only after crossing the threshold for that LOD.
+    outLodLevel = data.thresholds.lodLevel[0];
+    for (uint32_t i = 0; i + 1 < 4; ++i) {
         if (cameraDistance > data.thresholds.distanceMeters[i]) {
-            outLodLevel = data.thresholds.lodLevel[i];
+            outLodLevel = data.thresholds.lodLevel[i + 1];
         } else {
             break;
         }
     }
 
-    // Clamp to available LOD levels
+    // Clamp to available LOD levels.
     outLodLevel = std::min(outLodLevel, static_cast<uint8_t>(data.variants.size() - 1));
 
     lastError_ = false;
@@ -47,15 +61,15 @@ bool LodManager::SelectLod(AssetID meshId, float cameraDistance, uint8_t& outLod
 }
 
 bool LodManager::SelectTextureMip(uint32_t fullWidth, float cameraDistance, uint32_t& outMipLevel) const noexcept {
-    if (fullWidth == 0) {
+    if (fullWidth == 0 || !std::isfinite(cameraDistance) || cameraDistance < 0.0f) {
         lastError_ = true;
         return false;
     }
 
     // Heuristic: at 1000m distance, use mip level 4 (1/16 resolution)
-    // Scale linearly with distance
-    float mipLevelF = (cameraDistance / 1000.f) * 4.f;
-    outMipLevel = std::min(static_cast<uint32_t>(mipLevelF), 8u);  // Cap at 8 levels
+    // Scale linearly with distance.
+    const float mipLevelF = (cameraDistance / 1000.0f) * 4.0f;
+    outMipLevel = std::min(static_cast<uint32_t>(mipLevelF), 8u);  // Cap at 8 levels.
 
     lastError_ = false;
     return true;
