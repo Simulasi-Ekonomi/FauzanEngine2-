@@ -5,7 +5,7 @@
 namespace NeoEngine {
 bool RuntimeClock::Fail(RuntimeClockError error) { lastError_ = error; return false; }
 bool RuntimeClock::Initialize(const RuntimeClockConfig& config) {
-    if (!(config.fixedStepSeconds > 0.0F) || !(config.maxFrameDeltaSeconds >= config.fixedStepSeconds) || config.maxFixedStepsPerFrame == 0) return Fail(RuntimeClockError::InvalidConfiguration);
+    if (!(config.fixedStepSeconds > 0.0F) || !(config.maxFrameDeltaSeconds >= config.fixedStepSeconds) || config.maxFixedStepsPerFrame == 0 || !std::isfinite(config.fixedStepSeconds) || !std::isfinite(config.maxFrameDeltaSeconds)) return Fail(RuntimeClockError::InvalidConfiguration);
     config_ = config; snapshot_ = {}; snapshot_.timeScale = 1.0F; accumulator_ = 0.0F; initialized_ = true; lastError_ = RuntimeClockError::None; return true;
 }
 bool RuntimeClock::SetPaused(bool paused) { if (!initialized_) return Fail(RuntimeClockError::NotInitialized); snapshot_.paused = paused; lastError_ = RuntimeClockError::None; return true; }
@@ -15,7 +15,7 @@ bool RuntimeClock::Advance(float realDeltaSeconds) {
     snapshot_.unscaledDeltaSeconds = realDeltaSeconds > config_.maxFrameDeltaSeconds ? config_.maxFrameDeltaSeconds : realDeltaSeconds;
     snapshot_.scaledDeltaSeconds = snapshot_.paused ? 0.0F : snapshot_.unscaledDeltaSeconds * snapshot_.timeScale;
     snapshot_.unscaledTimeSeconds += snapshot_.unscaledDeltaSeconds; snapshot_.scaledTimeSeconds += snapshot_.scaledDeltaSeconds; ++snapshot_.frameCount;
-    accumulator_ += snapshot_.scaledDeltaSeconds; uint8_t steps = 0; while (accumulator_ + 0.000001F >= config_.fixedStepSeconds && steps < config_.maxFixedStepsPerFrame) { accumulator_ -= config_.fixedStepSeconds; ++steps; }
+    accumulator_ += snapshot_.scaledDeltaSeconds; uint8_t steps = 0; while (accumulator_ >= config_.fixedStepSeconds && steps < config_.maxFixedStepsPerFrame) { accumulator_ -= config_.fixedStepSeconds; ++steps; }
     if (steps == config_.maxFixedStepsPerFrame && accumulator_ >= config_.fixedStepSeconds) accumulator_ = 0.0F;
     snapshot_.pendingFixedSteps = steps; lastError_ = RuntimeClockError::None; return true;
 }
