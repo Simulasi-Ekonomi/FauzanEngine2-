@@ -1,17 +1,45 @@
 #include "Runtime/EventSignalBus.h"
+#include <cassert>
+#include <cstdint>
 
-#include <cstdio>
-
-struct Listener final : NeoEngine::RuntimeEventListener { uint32_t count = 0; uint64_t tickSum = 0; void OnRuntimeEvent(const NeoEngine::RuntimeEvent& event) override { ++count; tickSum += event.tick; } };
+namespace {
+class Listener final : public NeoEngine::RuntimeEventListener {
+public:
+    void OnRuntimeEvent(const NeoEngine::RuntimeEvent& event) override { ++count; last = event; }
+    uint32_t count = 0U;
+    NeoEngine::RuntimeEvent last{};
+};
+}
 
 int main() {
     using namespace NeoEngine;
     EventSignalBus bus;
-    Listener first{}, second{};
-    EventSignalDispatchReceipt initialReceipt{};
-    if (!bus.Subscribe(first) || !bus.Subscribe(second) || bus.Subscribe(first) || bus.LastError() != EventSignalError::DuplicateListener || !bus.Queue({RuntimeEventKind::InputAction, 7, 1, 3}) || !bus.Queue({RuntimeEventKind::WorldMutation, 9, 2, 5}) || bus.PendingCount() != 2 || !bus.Dispatch(&initialReceipt) || initialReceipt.listenerCount != 2U || initialReceipt.eventCount != 2U || initialReceipt.eventDigest == 0U || first.count != 2 || second.count != 2 || first.tickSum != 8 || !bus.Unsubscribe(second) || !bus.Queue({RuntimeEventKind::RuntimePaused, 0, 0, 9})) return 1;
-    EventSignalDispatchReceipt finalReceipt{};
-    if (!bus.Dispatch(&finalReceipt) || finalReceipt.listenerCount != 1U || finalReceipt.eventCount != 1U || finalReceipt.eventDigest == 0U || finalReceipt.eventDigest == initialReceipt.eventDigest || first.count != 3 || second.count != 2 || bus.Unsubscribe(second) || bus.LastError() != EventSignalError::MissingListener) return 1;
-    std::printf("EVENT_SIGNAL_BUS_SMOKE_OK listeners=2 ordered=1 dispatchReceipt=1 unsubscribe=1 bounded=1\n");
+    Listener listener;
+    assert(bus.Subscribe(listener));
+    assert(!bus.Subscribe(listener));
+    assert(bus.LastError() == EventSignalError::DuplicateListener);
+    const RuntimeEvent event{RuntimeEventKind::WorldMutation, 42U, -7, 99U};
+    assert(bus.Queue(event));
+    EventSignalDispatchReceipt receipt{};
+    assert(bus.Dispatch(&receipt));
+    assert(listener.count == 1U);
+    assert(listener.last.kind == event.kind && listener.last.subjectId == event.subjectId && listener.last.value == event.value && listener.last.tick == event.tick);
+    assert(receipt.listenerCount == 1U && receipt.eventCount == 1U);
+    assert(bus.PendingCount() == 0U);
+    assert(bus.Unsubscribe(listener));
+    assert(!bus.Unsubscribe(listener));
+    assert(bus.LastError() == EventSignalError::MissingListener);
+    Listener listeners[EventSignalBus::kMaxListeners];
+    for (uint16_t i = 0U; i < EventSignalBus::kMaxListeners; ++i) assert(bus.Subscribe(listeners[i]));
+    Listener overflowListener;
+    assert(!bus.Subscribe(overflowListener));
+    assert(bus.LastError() == EventSignalError::Capacity);
+    assert(bus.ListenerCount() == EventSignalBus::kMaxListeners);
+    for (uint16_t i = 0U; i < EventSignalBus::kMaxEvents; ++i) assert(bus.Queue({RuntimeEventKind::TimerFired, i, static_cast<int32_t>(i), i}));
+    assert(!bus.Queue({RuntimeEventKind::TimerFired, 999U, 0, 999U}));
+    assert(bus.LastError() == EventSignalError::QueueFull);
+    assert(bus.PendingCount() == EventSignalBus::kMaxEvents);
+    assert(bus.Dispatch());
+    assert(bus.PendingCount() == 0U);
     return 0;
 }
