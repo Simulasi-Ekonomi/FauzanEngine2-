@@ -7,7 +7,7 @@
 namespace NeoEngine {
 namespace {
 constexpr uint32_t kMagic = 0x454D4954U; // TIME
-constexpr uint16_t kVersion = 1U;
+constexpr uint16_t kVersion = 2U;
 constexpr uint32_t kMaxHostFixedTicksPerAdvance = 1000000U;
 constexpr uint64_t kHashOffset = 1469598103934665603ULL;
 constexpr uint64_t kHashPrime = 1099511628211ULL;
@@ -81,6 +81,7 @@ bool RuntimeTimeSystem::Initialize(const RuntimeTimeConfig& config) {
     lastReceipt_ = {};
     lastReceipt_.snapshot = snapshot_;
     eventSequence_ = 0U;
+    simulationTickAccumulatorPermille_ = 0U;
     initialized_ = true;
     lastError_ = RuntimeTimeError::None;
     return true;
@@ -234,7 +235,7 @@ bool RuntimeTimeSystem::SetTimeScalePermille(uint16_t scalePermille) {
 bool RuntimeTimeSystem::Serialize(std::vector<uint8_t>& bytes) const {
     if (!initialized_) return false;
     std::vector<uint8_t> candidate;
-    candidate.reserve(96U);
+    candidate.reserve(104U);
     AppendU32(candidate, kMagic);
     AppendU16(candidate, kVersion);
     AppendU32(candidate, config_.gameMinutesPerFixedStep);
@@ -249,6 +250,7 @@ bool RuntimeTimeSystem::Serialize(std::vector<uint8_t>& bytes) const {
     AppendU64(candidate, snapshot_.stateRevision);
     AppendU16(candidate, snapshot_.timeScalePermille);
     candidate.push_back(snapshot_.paused ? 1U : 0U);
+    AppendU64(candidate, simulationTickAccumulatorPermille_);
     AppendU64(candidate, eventSequence_);
     AppendU64(candidate, Hash(candidate));
     bytes = std::move(candidate);
@@ -259,7 +261,7 @@ bool RuntimeTimeSystem::Deserialize(std::span<const uint8_t> bytes) {
     size_t offset = 0U;
     uint32_t magic = 0U, gameMinutesPerFixedStep = 0U, minutesPerDay = 0U, dayStartMinute = 0U, nightStartMinute = 0U;
     uint16_t version = 0U, defaultScale = 0U, maxScale = 0U, maxEvents = 0U, scale = 0U;
-    uint64_t gameTimeUnits = 0U, hostFixedStepCount = 0U, stateRevision = 0U, eventSequence = 0U, expectedHash = 0U;
+    uint64_t gameTimeUnits = 0U, hostFixedStepCount = 0U, stateRevision = 0U, simulationAccumulator = 0U, eventSequence = 0U, expectedHash = 0U;
     uint8_t paused = 0U;
     if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || magic != kMagic || version != kVersion ||
         !ReadU32(bytes, offset, gameMinutesPerFixedStep) || !ReadU32(bytes, offset, minutesPerDay) || !ReadU32(bytes, offset, dayStartMinute) ||
@@ -267,15 +269,18 @@ bool RuntimeTimeSystem::Deserialize(std::span<const uint8_t> bytes) {
         !ReadU16(bytes, offset, maxEvents) || !ReadU64(bytes, offset, gameTimeUnits) || !ReadU64(bytes, offset, hostFixedStepCount) ||
         !ReadU64(bytes, offset, stateRevision) || !ReadU16(bytes, offset, scale) || offset >= bytes.size()) return Fail(RuntimeTimeError::CorruptPersistence);
     paused = bytes[offset++];
-    if (!ReadU64(bytes, offset, eventSequence) || !ReadU64(bytes, offset, expectedHash) || offset != bytes.size() || paused > 1U) return Fail(RuntimeTimeError::CorruptPersistence);
+    if (!ReadU64(bytes, offset, simulationAccumulator) || !ReadU64(bytes, offset, eventSequence) || !ReadU64(bytes, offset, expectedHash) ||
+        offset != bytes.size() || paused > 1U || simulationAccumulator >= 1000U) return Fail(RuntimeTimeError::CorruptPersistence);
     if (Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expectedHash) return Fail(RuntimeTimeError::CorruptPersistence);
     const RuntimeTimeConfig parsedConfig{gameMinutesPerFixedStep, minutesPerDay, dayStartMinute, nightStartMinute, defaultScale, maxScale, maxEvents};
-    if (!ValidConfig(parsedConfig) || scale > maxScale || (stateRevision == 0U && (gameTimeUnits != 0U || hostFixedStepCount != 0U || eventSequence != 0U))) return Fail(RuntimeTimeError::CorruptPersistence);
+    if (!ValidConfig(parsedConfig) || scale > maxScale ||
+        (stateRevision == 0U && (gameTimeUnits != 0U || hostFixedStepCount != 0U || eventSequence != 0U || simulationAccumulator != 0U))) return Fail(RuntimeTimeError::CorruptPersistence);
 
     RuntimeTimeSystem candidate;
     candidate.config_ = parsedConfig;
     candidate.initialized_ = true;
     candidate.eventSequence_ = eventSequence;
+    candidate.simulationTickAccumulatorPermille_ = simulationAccumulator;
     candidate.snapshot_ = candidate.SnapshotFor(gameTimeUnits, hostFixedStepCount, stateRevision, scale, paused != 0U);
     candidate.lastReceipt_ = {};
     candidate.lastReceipt_.snapshot = candidate.snapshot_;
