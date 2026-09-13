@@ -1,6 +1,7 @@
 #include "AtomicSaveFile.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <fstream>
 
@@ -9,6 +10,12 @@ namespace {
 bool ValidSlot(std::string_view slot) {
     return !slot.empty() && slot.size() <= 48U &&
            std::all_of(slot.begin(), slot.end(), [](unsigned char c) { return std::isalnum(c) || c == '-' || c == '_'; });
+}
+
+std::filesystem::path MakeTempPath(const std::filesystem::path& root, std::string_view slot, std::string_view suffix) {
+    static std::atomic<uint64_t> sequence{0U};
+    const uint64_t id = sequence.fetch_add(1U, std::memory_order_relaxed);
+    return root / (std::string(slot) + std::string(suffix) + "." + std::to_string(id) + ".tmp");
 }
 
 bool ReadPath(const std::filesystem::path& path, std::vector<uint8_t>& bytes, AtomicSaveFileError& error) {
@@ -68,7 +75,7 @@ bool AtomicSaveFile::Write(const std::filesystem::path& root, std::string_view s
         return false;
     }
     const std::filesystem::path finalPath = root / (std::string(slot) + ".sav");
-    const std::filesystem::path tempPath = root / (std::string(slot) + ".tmp");
+    const std::filesystem::path tempPath = MakeTempPath(root, slot, "");
     if (!WritePath(tempPath, bytes)) {
         std::filesystem::remove(tempPath, ec);
         error = AtomicSaveFileError::WriteFailure;
@@ -105,7 +112,7 @@ bool AtomicSaveFile::Backup(const std::filesystem::path& root, std::string_view 
         return false;
     }
     std::error_code ec;
-    const std::filesystem::path tempPath = root / (std::string(slot) + ".bak.tmp");
+    const std::filesystem::path tempPath = MakeTempPath(root, slot, ".bak");
     const std::filesystem::path backupPath = root / (std::string(slot) + ".bak");
     if (!WritePath(tempPath, bytes)) {
         std::filesystem::remove(tempPath, ec);
