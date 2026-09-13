@@ -22,7 +22,7 @@ int main() {
     if (events[0].kind != RuntimeTimeEventKind::PhaseChanged || events[0].snapshot.minuteOfDay != 1080U || events[1].kind != RuntimeTimeEventKind::DayChanged || events[2].kind != RuntimeTimeEventKind::TimeChanged) return 8;
 
     RuntimeTimeSystem batch;
-    if (!batch.Initialize({60U, 1440U, 360U, 1080U, 1000U, 4000U, 16U}) || !batch.AdvanceFixedTicks(48U, events, simulatedTicks) || events.size() != 7U || events[0].kind != RuntimeTimeEventKind::PhaseChanged || events[0].snapshot.totalGameMinutes != 360U || events[5].kind != RuntimeTimeEventKind::DayChanged || events[5].snapshot.totalGameMinutes != 2880U || events[6].kind != RuntimeTimeEventKind::TimeChanged) return 9;
+    if (!batch.Initialize(config) || !batch.AdvanceFixedTicks(48U, events, simulatedTicks) || events.size() != 7U || events[0].kind != RuntimeTimeEventKind::PhaseChanged || events[0].snapshot.totalGameMinutes != 360U || events[5].kind != RuntimeTimeEventKind::DayChanged || events[5].snapshot.totalGameMinutes != 2880U || events[6].kind != RuntimeTimeEventKind::TimeChanged) return 9;
     RuntimeTimeSystem bounded;
     if (!bounded.Initialize({60U, 1440U, 360U, 1080U, 1000U, 4000U, 4U})) return 10;
     const RuntimeTimeSnapshot boundedBefore = bounded.Snapshot();
@@ -47,7 +47,21 @@ int main() {
     corrupted.back() ^= 0xA5U;
     if (restored.Deserialize(corrupted) || restored.LastError() != RuntimeTimeError::CorruptPersistence || restored.Snapshot().gameTimeUnits != preserved.gameTimeUnits) return 20;
 
+    RuntimeTimeSystem fractional;
+    RuntimeTimeSystem fractionalRestored;
+    if (!fractional.Initialize(config) || !fractional.SetTimeScalePermille(500U)) return 21;
+    if (!fractional.AdvanceFixedTicks(1U, events, simulatedTicks) || simulatedTicks != 0U) return 22;
+    std::vector<uint8_t> fractionalSaved;
+    if (!fractional.Serialize(fractionalSaved)) return 23;
+    if (!fractionalRestored.Deserialize(fractionalSaved)) return 24;
+    uint32_t originalTicks = 0U;
+    uint32_t restoredTicks = 0U;
+    std::vector<RuntimeTimeEvent> originalEvents;
+    std::vector<RuntimeTimeEvent> restoredEvents;
+    if (!fractional.AdvanceFixedTicks(1U, originalEvents, originalTicks) || !fractionalRestored.AdvanceFixedTicks(1U, restoredEvents, restoredTicks)) return 25;
+    if (originalTicks != 1U || restoredTicks != originalTicks || fractionalRestored.Snapshot().gameTimeUnits != fractional.Snapshot().gameTimeUnits || fractionalRestored.Snapshot().hostFixedStepCount != fractional.Snapshot().hostFixedStepCount) return 26;
+
     RuntimeTimeSystem invalid;
-    if (invalid.AdvanceFixedTicks(1U, events, simulatedTicks) || invalid.LastError() != RuntimeTimeError::NotInitialized) return 21;
+    if (invalid.AdvanceFixedTicks(1U, events, simulatedTicks) || invalid.LastError() != RuntimeTimeError::NotInitialized) return 27;
     return 0;
 }
