@@ -22,6 +22,7 @@ bool TowerDefenseGame::PlaceTower(uint8_t lane) {
 bool TowerDefenseGame::StartWave(uint8_t count) {
     if (!m_Enemies.empty()) return Fail(TowerDefenseError::WaveActive);
     if (count == 0 || count > 32) return Fail(TowerDefenseError::InvalidWave);
+    if (m_Enemies.size() > m_Enemies.max_size() - count) return Fail(TowerDefenseError::Capacity);
 
     try {
         m_Enemies.reserve(m_Enemies.size() + count);
