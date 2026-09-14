@@ -244,19 +244,24 @@ bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::v
         completionRevisions_ = previousCompletionRevisions;
         if (!validCandidate) return Fail(CurriculumError::CorruptPersistence);
 
-        CurriculumProgressReceipt candidateReceipt{};
         const std::vector<uint8_t> oldCompleted = completed_;
+        const std::vector<uint64_t> oldCompletedAt = completedAtGameMinutes_;
+        const std::vector<uint64_t> oldCompletionRevisions = completionRevisions_;
+        const uint64_t oldRevision = revision_;
+        CurriculumProgressReceipt candidateReceipt{};
+        std::vector<CurriculumEvent> candidateEvents;
+
         completed_ = candidateCompleted;
         completedAtGameMinutes_ = candidateCompletedAt;
         completionRevisions_ = candidateCompletionRevisions;
         revision_ = candidateRevision;
         if (!BuildReceipt(observation, candidateReceipt)) {
             completed_ = oldCompleted;
-            completedAtGameMinutes_ = std::vector<uint64_t>(completedAtGameMinutes_.size(), 0U);
-            completionRevisions_ = std::vector<uint64_t>(completionRevisions_.size(), 0U);
+            completedAtGameMinutes_ = oldCompletedAt;
+            completionRevisions_ = oldCompletionRevisions;
+            revision_ = oldRevision;
             return Fail(CurriculumError::CorruptPersistence);
         }
-        std::vector<CurriculumEvent> candidateEvents;
         for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
             if (oldCompleted[index] == 0U && completed_[index] != 0U) {
                 candidateEvents.push_back({graph_.Lessons()[index].id, LessonStatus::Completed, revision_});
