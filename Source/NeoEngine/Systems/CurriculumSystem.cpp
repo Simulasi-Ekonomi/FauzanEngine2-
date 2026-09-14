@@ -4,6 +4,7 @@
 #include <array>
 #include <cctype>
 #include <limits>
+#include <new>
 
 namespace NeoEngine {
 namespace {
@@ -107,7 +108,7 @@ bool CurriculumGraph::AddLesson(LessonNode lesson) {
     for (const LessonCondition& condition : lesson.completionConditions) if (condition.target == 0U || static_cast<uint8_t>(condition.kind) > static_cast<uint8_t>(LessonConditionKind::FarmQuestCompleted)) return Fail(CurriculumError::InvalidCondition);
     for (const LessonMaterial& material : lesson.materials) if (!ValidText(material.title, 256U) || !ValidText(material.body) || !ValidText(material.sourceDocument, 256U)) return Fail(CurriculumError::InvalidConfiguration);
     for (const LessonReward& reward : lesson.rewards) if (!ValidId(reward.flag) || reward.amount < 0) return Fail(CurriculumError::InvalidConfiguration);
-    lessons_.push_back(std::move(lesson));
+    try { lessons_.push_back(std::move(lesson)); } catch (const std::bad_alloc&) { return Fail(CurriculumError::Capacity); }
     lastError_ = CurriculumError::None;
     return true;
 }
@@ -215,53 +216,80 @@ bool CurriculumSystem::BuildReceipt(const CurriculumObservation& observation, Cu
 
 bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::vector<CurriculumEvent>& events) {
     if (!initialized_) return Fail(CurriculumError::NotInitialized);
-    std::vector<uint8_t> candidateCompleted = completed_;
-    std::vector<uint64_t> candidateCompletedAt = completedAtGameMinutes_;
-    std::vector<uint64_t> candidateCompletionRevisions = completionRevisions_;
-    bool changed = false;
-    uint64_t candidateRevision = revision_;
-    if (candidateRevision == std::numeric_limits<uint64_t>::max()) return Fail(CurriculumError::RevisionOverflow);
-    for (const uint16_t index : graph_.EvaluationOrder()) {
-        if (candidateCompleted[index] != 0U || !PrerequisitesCompleted(index, candidateCompleted)) continue;
-        const LessonNode& lesson = graph_.Lessons()[index];
-        const bool allConditions = std::all_of(lesson.completionConditions.begin(), lesson.completionConditions.end(), [this, &observation](const LessonCondition& condition) { return EvaluateCondition(condition, observation); });
-        if (allConditions) {
-            candidateCompleted[index] = 1U;
-            changed = true;
+    try {
+        std::vector<uint8_t> candidateCompleted = completed_;
+        std::vector<uint64_t> candidateCompletedAt = completedAtGameMinutes_;
+        std::vector<uint64_t> candidateCompletionRevisions = completionRevisions_;
+        bool changed = false;
+        uint64_t candidateRevision = revision_;
+        if (candidateRevision == std::numeric_limits<uint64_t>::max()) return Fail(CurriculumError::RevisionOverflow);
+        for (const uint16_t index : graph_.EvaluationOrder()) {
+            if (candidateCompleted[index] != 0U || !PrerequisitesCompleted(index, candidateCompleted)) continue;
+            const LessonNode& lesson = graph_.Lessons()[index];
+            const bool allConditions = std::all_of(lesson.completionConditions.begin(), lesson.completionConditions.end(), [this, &observation](const LessonCondition& condition) { return EvaluateCondition(condition, observation); });
+            if (allConditions) { candidateCompleted[index] = 1U; changed = true; }
         }
-    }
-    if (changed) {
-        candidateRevision = revision_ + 1U;
-        for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
-            if (completed_[index] == 0U && candidateCompleted[index] != 0U) {
-                candidateCompletedAt[index] = observation.time.totalGameMinutes;
-                candidateCompletionRevisions[index] = candidateRevision;
+        if (changed) {
+            candidateRevision = revision_ + 1U;
+            for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
+                if (completed_[index] == 0U && candidateCompleted[index] != 0U) {
+                    candidateCompletedAt[index] = observation.time.totalGameMinutes;
+                    candidateCompletionRevisions[index] = candidateRevision;
+                }
             }
         }
-    }
-    const std::vector<uint64_t> previousCompletionRevisions = completionRevisions_;
-    completionRevisions_ = candidateCompletionRevisions;
-    const bool validCandidate = ValidateProgress(candidateCompleted, candidateRevision);
-    completionRevisions_ = previousCompletionRevisions;
-    if (!validCandidate) return Fail(CurriculumError::CorruptPersistence);
 
-    const std::vector<uint8_t> oldCompleted = completed_;
-    completed_ = std::move(candidateCompleted);
-    completedAtGameMinutes_ = std::move(candidateCompletedAt);
-    completionRevisions_ = std::move(candidateCompletionRevisions);
-    revision_ = candidateRevision;
-    CurriculumProgressReceipt candidateReceipt{};
-    if (!BuildReceipt(observation, candidateReceipt)) return Fail(CurriculumError::CorruptPersistence);
-    events.clear();
-    for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
-        if (oldCompleted[index] == 0U && completed_[index] != 0U) {
-            events.push_back({graph_.Lessons()[index].id, LessonStatus::Completed, revision_});
-            candidateReceipt.newlyEarnedRewards.insert(candidateReceipt.newlyEarnedRewards.end(), graph_.Lessons()[index].rewards.begin(), graph_.Lessons()[index].rewards.end());
+        if (candidateCompleted.size() != graph_.Lessons().size()) return Fail(CurriculumError::CorruptPersistence);
+        for (uint16_t index = 0U; index < candidateCompleted.size(); ++index) {
+            if (candidateCompleted[index] > 1U) return Fail(CurriculumError::CorruptPersistence);
+            if (candidateCompleted[index] != 0U && !PrerequisitesCompleted(index, candidateCompleted)) return Fail(CurriculumError::CorruptPersistence);
+            if (candidateCompleted[index] != 0U && candidateCompletionRevisions[index] > candidateRevision) return Fail(CurriculumError::CorruptPersistence);
         }
+
+        CurriculumProgressReceipt candidateReceipt{};
+        candidateReceipt.revision = candidateRevision;
+        candidateReceipt.lessons.reserve(graph_.Lessons().size());
+        std::vector<CurriculumEvent> candidateEvents;
+        size_t rewardCount = 0U;
+        for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) rewardCount += graph_.Lessons()[index].rewards.size();
+        candidateEvents.reserve(graph_.Lessons().size());
+        candidateReceipt.newlyEarnedRewards.reserve(rewardCount);
+
+        for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
+            const LessonNode& lesson = graph_.Lessons()[index];
+            LessonProgress progress{};
+            progress.id = lesson.id;
+            progress.totalConditions = static_cast<uint16_t>(lesson.completionConditions.size());
+            progress.completedConditions = static_cast<uint16_t>(std::count_if(lesson.completionConditions.begin(), lesson.completionConditions.end(), [this, &observation](const LessonCondition& condition) { return EvaluateCondition(condition, observation); }));
+            progress.completedAtGameMinutes = candidateCompletedAt[index];
+            progress.completionRevision = candidateCompletionRevisions[index];
+            if (candidateCompleted[index] != 0U) progress.status = LessonStatus::Completed;
+            else if (!PrerequisitesCompleted(index, candidateCompleted)) progress.status = LessonStatus::Locked;
+            else if (progress.completedConditions == progress.totalConditions) progress.status = LessonStatus::InProgress;
+            else if (progress.completedConditions != 0U) progress.status = LessonStatus::InProgress;
+            else progress.status = LessonStatus::Available;
+            if (progress.status == LessonStatus::Completed) ++candidateReceipt.completedLessons;
+            else if (progress.status == LessonStatus::Available) ++candidateReceipt.availableLessons;
+            else if (progress.status == LessonStatus::InProgress) ++candidateReceipt.inProgressLessons;
+            candidateReceipt.lessons.push_back(std::move(progress));
+
+            if (completed_[index] == 0U && candidateCompleted[index] != 0U) {
+                candidateEvents.push_back({lesson.id, LessonStatus::Completed, candidateRevision});
+                candidateReceipt.newlyEarnedRewards.insert(candidateReceipt.newlyEarnedRewards.end(), lesson.rewards.begin(), lesson.rewards.end());
+            }
+        }
+
+        completed_ = std::move(candidateCompleted);
+        completedAtGameMinutes_ = std::move(candidateCompletedAt);
+        completionRevisions_ = std::move(candidateCompletionRevisions);
+        revision_ = candidateRevision;
+        events = std::move(candidateEvents);
+        lastReceipt_ = std::move(candidateReceipt);
+        lastError_ = CurriculumError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
+        return Fail(CurriculumError::Capacity);
     }
-    lastReceipt_ = std::move(candidateReceipt);
-    lastError_ = CurriculumError::None;
-    return true;
 }
 
 bool CurriculumSystem::Query(std::string_view lessonId, LessonProgress& progress) const {
@@ -290,53 +318,57 @@ bool CurriculumSystem::ValidateProgress(const std::vector<uint8_t>& completed, u
 
 bool CurriculumSystem::Serialize(std::vector<uint8_t>& bytes) const {
     if (!initialized_ || completed_.size() > std::numeric_limits<uint16_t>::max()) return false;
-    std::vector<uint8_t> candidate;
-    AppendU32(candidate, kMagic);
-    AppendU16(candidate, kVersion);
-    AppendU64(candidate, GraphFingerprint(graph_));
-    AppendU64(candidate, revision_);
-    AppendU16(candidate, static_cast<uint16_t>(completed_.size()));
-    for (uint16_t index = 0U; index < completed_.size(); ++index) {
-        candidate.push_back(completed_[index]);
-        AppendU64(candidate, completedAtGameMinutes_[index]);
-        AppendU64(candidate, completionRevisions_[index]);
-    }
-    AppendU64(candidate, Hash(candidate));
-    if (candidate.size() > kMaxSerializedBytes) return false;
-    bytes = std::move(candidate);
-    return true;
+    try {
+        std::vector<uint8_t> candidate;
+        AppendU32(candidate, kMagic);
+        AppendU16(candidate, kVersion);
+        AppendU64(candidate, GraphFingerprint(graph_));
+        AppendU64(candidate, revision_);
+        AppendU16(candidate, static_cast<uint16_t>(completed_.size()));
+        for (uint16_t index = 0U; index < completed_.size(); ++index) {
+            candidate.push_back(completed_[index]);
+            AppendU64(candidate, completedAtGameMinutes_[index]);
+            AppendU64(candidate, completionRevisions_[index]);
+        }
+        AppendU64(candidate, Hash(candidate));
+        if (candidate.size() > kMaxSerializedBytes) return false;
+        bytes = std::move(candidate);
+        return true;
+    } catch (const std::bad_alloc&) { return false; }
 }
 
 bool CurriculumSystem::Deserialize(std::span<const uint8_t> bytes) {
     if (!initialized_) return Fail(CurriculumError::NotInitialized);
-    if (bytes.size() > kMaxSerializedBytes) return Fail(CurriculumError::CorruptPersistence);
-    size_t offset = 0U;
-    uint32_t magic = 0U;
-    uint16_t version = 0U, count = 0U;
-    uint64_t graphFingerprint = 0U, revision = 0U, expectedHash = 0U;
-    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, graphFingerprint) || !ReadU64(bytes, offset, revision) || !ReadU16(bytes, offset, count) || magic != kMagic || version != kVersion || graphFingerprint != GraphFingerprint(graph_) || count != graph_.Lessons().size()) return Fail(CurriculumError::CorruptPersistence);
-    std::vector<uint8_t> candidateCompleted(count, 0U);
-    std::vector<uint64_t> candidateCompletedAt(count, 0U);
-    std::vector<uint64_t> candidateCompletionRevisions(count, 0U);
-    for (uint16_t index = 0U; index < count; ++index) {
-        if (offset >= bytes.size() || bytes[offset] > 1U) return Fail(CurriculumError::CorruptPersistence);
-        candidateCompleted[index] = bytes[offset++];
-        if (!ReadU64(bytes, offset, candidateCompletedAt[index]) || !ReadU64(bytes, offset, candidateCompletionRevisions[index])) return Fail(CurriculumError::CorruptPersistence);
-    }
-    if (!ReadU64(bytes, offset, expectedHash) || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expectedHash) return Fail(CurriculumError::CorruptPersistence);
-    const std::vector<uint64_t> oldCompletionRevisions = completionRevisions_;
-    completionRevisions_ = candidateCompletionRevisions;
-    const bool valid = ValidateProgress(candidateCompleted, revision);
-    completionRevisions_ = oldCompletionRevisions;
-    if (!valid) return Fail(CurriculumError::CorruptPersistence);
-    completed_ = std::move(candidateCompleted);
-    completedAtGameMinutes_ = std::move(candidateCompletedAt);
-    completionRevisions_ = std::move(candidateCompletionRevisions);
-    revision_ = revision;
-    CurriculumObservation restoredObservation{};
-    if (!BuildReceipt(restoredObservation, lastReceipt_)) return Fail(CurriculumError::CorruptPersistence);
-    lastError_ = CurriculumError::None;
-    return true;
+    try {
+        if (bytes.size() > kMaxSerializedBytes) return Fail(CurriculumError::CorruptPersistence);
+        size_t offset = 0U;
+        uint32_t magic = 0U;
+        uint16_t version = 0U, count = 0U;
+        uint64_t graphFingerprint = 0U, revision = 0U, expectedHash = 0U;
+        if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, graphFingerprint) || !ReadU64(bytes, offset, revision) || !ReadU16(bytes, offset, count) || magic != kMagic || version != kVersion || graphFingerprint != GraphFingerprint(graph_) || count != graph_.Lessons().size()) return Fail(CurriculumError::CorruptPersistence);
+        std::vector<uint8_t> candidateCompleted(count, 0U);
+        std::vector<uint64_t> candidateCompletedAt(count, 0U);
+        std::vector<uint64_t> candidateCompletionRevisions(count, 0U);
+        for (uint16_t index = 0U; index < count; ++index) {
+            if (offset >= bytes.size() || bytes[offset] > 1U) return Fail(CurriculumError::CorruptPersistence);
+            candidateCompleted[index] = bytes[offset++];
+            if (!ReadU64(bytes, offset, candidateCompletedAt[index]) || !ReadU64(bytes, offset, candidateCompletionRevisions[index])) return Fail(CurriculumError::CorruptPersistence);
+        }
+        if (!ReadU64(bytes, offset, expectedHash) || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expectedHash) return Fail(CurriculumError::CorruptPersistence);
+        const std::vector<uint64_t> oldCompletionRevisions = completionRevisions_;
+        completionRevisions_ = candidateCompletionRevisions;
+        const bool valid = ValidateProgress(candidateCompleted, revision);
+        completionRevisions_ = oldCompletionRevisions;
+        if (!valid) return Fail(CurriculumError::CorruptPersistence);
+        completed_ = std::move(candidateCompleted);
+        completedAtGameMinutes_ = std::move(candidateCompletedAt);
+        completionRevisions_ = std::move(candidateCompletionRevisions);
+        revision_ = revision;
+        CurriculumObservation restoredObservation{};
+        if (!BuildReceipt(restoredObservation, lastReceipt_)) return Fail(CurriculumError::CorruptPersistence);
+        lastError_ = CurriculumError::None;
+        return true;
+    } catch (const std::bad_alloc&) { return Fail(CurriculumError::Capacity); }
 }
 
 } // namespace NeoEngine
