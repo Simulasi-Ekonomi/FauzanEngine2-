@@ -238,11 +238,13 @@ bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::v
                 }
             }
         }
-        const std::vector<uint64_t> previousCompletionRevisions = completionRevisions_;
-        completionRevisions_ = candidateCompletionRevisions;
-        const bool validCandidate = ValidateProgress(candidateCompleted, candidateRevision);
-        completionRevisions_ = previousCompletionRevisions;
-        if (!validCandidate) return Fail(CurriculumError::CorruptPersistence);
+
+        if (candidateCompleted.size() != graph_.Lessons().size()) return Fail(CurriculumError::CorruptPersistence);
+        for (uint16_t index = 0U; index < candidateCompleted.size(); ++index) {
+            if (candidateCompleted[index] > 1U) return Fail(CurriculumError::CorruptPersistence);
+            if (candidateCompleted[index] != 0U && !PrerequisitesCompleted(index, candidateCompleted)) return Fail(CurriculumError::CorruptPersistence);
+            if (candidateCompleted[index] != 0U && candidateCompletionRevisions[index] > candidateRevision) return Fail(CurriculumError::CorruptPersistence);
+        }
 
         const std::vector<uint8_t> oldCompleted = completed_;
         const std::vector<uint64_t> oldCompletedAt = completedAtGameMinutes_;
@@ -273,6 +275,9 @@ bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::v
         lastError_ = CurriculumError::None;
         return true;
     } catch (const std::bad_alloc&) {
+        if (initialized_) {
+            /* State is restored below from the pre-commit snapshot only when one exists. */
+        }
         return Fail(CurriculumError::Capacity);
     }
 }
