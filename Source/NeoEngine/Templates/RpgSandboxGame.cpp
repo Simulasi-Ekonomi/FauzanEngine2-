@@ -124,9 +124,19 @@ bool RpgSandboxGame::DefeatMonster(uint32_t playerId, uint16_t level, uint8_t sl
 
     Monster& monster = monsters_[MonsterIndex(level, slot)];
     if (!monster.alive) return Fail(RpgSandboxError::MonsterNotAlive);
+    if (simulationSeconds_ > std::numeric_limits<uint64_t>::max() - kMonsterRespawnSeconds) {
+        return Fail(RpgSandboxError::InvalidConfig);
+    }
+
+    const uint32_t monsterIndex = MonsterIndex(level, slot);
+    try {
+        deadMonsterIndices_.push_back(monsterIndex);
+    } catch (const std::bad_alloc&) {
+        return Fail(RpgSandboxError::ItemCapacity);
+    }
+
     monster.alive = false;
     monster.respawnAtSecond = simulationSeconds_ + kMonsterRespawnSeconds;
-    deadMonsterIndices_.push_back(MonsterIndex(level, slot));
 
     const uint32_t roll = static_cast<uint32_t>(NextRandom() % 1'000U);
     if (roll < 700U) {
@@ -183,9 +193,17 @@ bool RpgSandboxGame::CreateEquipment(uint32_t playerId, RpgItemGrade grade, uint
     if (equipment_.size() >= kMaxEquipment || nextEquipmentId_ == 0) return Fail(RpgSandboxError::ItemCapacity);
     uint32_t& inventory = players_[playerId].items[GradeIndex(grade)];
     if (inventory == 0) return Fail(RpgSandboxError::InsufficientItems);
+
+    const uint32_t candidateId = nextEquipmentId_;
+    try {
+        equipment_.push_back({candidateId, playerId, grade, 0});
+    } catch (const std::bad_alloc&) {
+        return Fail(RpgSandboxError::ItemCapacity);
+    }
+
     --inventory;
-    equipment_.push_back({nextEquipmentId_, playerId, grade, 0});
-    equipmentId = nextEquipmentId_++;
+    equipmentId = candidateId;
+    ++nextEquipmentId_;
     lastError_ = RpgSandboxError::None;
     return true;
 }

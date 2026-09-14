@@ -18,6 +18,24 @@ bool PopulateAndValidate(NeoEngine::RpgSandboxGame& sandbox, uint64_t& state) {
         return false;
     }
 
+    const uint64_t invalidState = sandbox.DeterministicState();
+    NeoEngine::RpgMonsterDrop invalidDrop{};
+    if (sandbox.DefeatMonster(10'000, 1, 0, invalidDrop) ||
+        sandbox.LastError() != NeoEngine::RpgSandboxError::InvalidPlayer ||
+        sandbox.DeterministicState() != invalidState) {
+        return false;
+    }
+    if (sandbox.DefeatMonster(0, 0, 0, invalidDrop) ||
+        sandbox.LastError() != NeoEngine::RpgSandboxError::InvalidLevel ||
+        sandbox.DeterministicState() != invalidState) {
+        return false;
+    }
+    if (sandbox.DefeatMonster(0, 1, 100, invalidDrop) ||
+        sandbox.LastError() != NeoEngine::RpgSandboxError::InvalidMonsterSlot ||
+        sandbox.DeterministicState() != invalidState) {
+        return false;
+    }
+
     NeoEngine::RpgMonsterDrop drop{};
     for (uint16_t level = 1; level <= 1'000; ++level) {
         for (uint8_t slot = 0; slot < 100; ++slot) {
@@ -81,7 +99,9 @@ bool PopulateAndValidate(NeoEngine::RpgSandboxGame& sandbox, uint64_t& state) {
     if (sandbox.ItemCount(0, NeoEngine::RpgItemGrade::MythicRed) == 0) return false;
 
     uint32_t equipmentId = 0;
+    const uint32_t mythicBeforeEquipment = sandbox.ItemCount(0, NeoEngine::RpgItemGrade::MythicRed);
     if (!sandbox.CreateEquipment(0, NeoEngine::RpgItemGrade::MythicRed, equipmentId) || equipmentId == 0 ||
+        sandbox.ItemCount(0, NeoEngine::RpgItemGrade::MythicRed) != mythicBeforeEquipment - 1 ||
         sandbox.EnhancementChancePermille(NeoEngine::RpgItemGrade::RareBlue, 0) <=
             sandbox.EnhancementChancePermille(NeoEngine::RpgItemGrade::RareBlue, 10)) {
         return false;
