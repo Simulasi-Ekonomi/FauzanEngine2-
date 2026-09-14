@@ -1,3 +1,34 @@
 #include "Systems/TrustSafetySystem.h"
 #include <cstdio>
-using namespace NeoEngine;int main(){TrustSafetySystem a,b;bool ok=a.Report("player-1","receipt-1",FraudSignal::DuplicateReceipt)&&!a.Report("player-1","receipt-1",FraudSignal::DuplicateReceipt)&&a.Report("player-1","ledger-1",FraudSignal::LedgerMismatch)&&a.IsBanned("player-1")&&a.Score("player-1")==8&&!a.Report("player-1","inventory-1",FraudSignal::ImpossibleInventory);ok=ok&&b.Report("player-1","receipt-1",FraudSignal::DuplicateReceipt)&&b.Report("player-1","ledger-1",FraudSignal::LedgerMismatch)&&a.DeterministicState()==b.DeterministicState()&&a.Audit().size()==2;if(!ok){std::fprintf(stderr,"TRUST_SAFETY_SMOKE_FAIL\n");return 1;}std::printf("TRUST_SAFETY_SMOKE_OK ban=permanent audit=%zu\n",a.Audit().size());}
+using namespace NeoEngine;
+
+int main() {
+    TrustSafetySystem a, b;
+    bool ok = a.Report("player-1", "receipt-1", FraudSignal::DuplicateReceipt)
+        && !a.Report("player-1", "receipt-1", FraudSignal::DuplicateReceipt)
+        && a.Report("player-1", "ledger-1", FraudSignal::LedgerMismatch)
+        && a.IsBanned("player-1")
+        && a.Score("player-1") == 8
+        && !a.Report("player-1", "inventory-1", FraudSignal::ImpossibleInventory);
+
+    ok = ok
+        && b.Report("player-1", "receipt-1", FraudSignal::DuplicateReceipt)
+        && b.Report("player-1", "ledger-1", FraudSignal::LedgerMismatch)
+        && a.DeterministicState() == b.DeterministicState()
+        && a.Audit().size() == 2;
+
+    TrustSafetySystem invalid;
+    const uint64_t before = invalid.DeterministicState();
+    ok = ok
+        && !invalid.Report("player-2", "bad-signal", static_cast<FraudSignal>(255))
+        && invalid.Score("player-2") == 0
+        && !invalid.IsBanned("player-2")
+        && invalid.Audit().empty()
+        && invalid.DeterministicState() == before;
+
+    if (!ok) {
+        std::fprintf(stderr, "TRUST_SAFETY_SMOKE_FAIL\n");
+        return 1;
+    }
+    std::printf("TRUST_SAFETY_SMOKE_OK ban=permanent audit=%zu\n", a.Audit().size());
+}
