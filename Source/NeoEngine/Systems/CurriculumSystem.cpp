@@ -246,38 +246,48 @@ bool CurriculumSystem::Evaluate(const CurriculumObservation& observation, std::v
             if (candidateCompleted[index] != 0U && candidateCompletionRevisions[index] > candidateRevision) return Fail(CurriculumError::CorruptPersistence);
         }
 
-        const std::vector<uint8_t> oldCompleted = completed_;
-        const std::vector<uint64_t> oldCompletedAt = completedAtGameMinutes_;
-        const std::vector<uint64_t> oldCompletionRevisions = completionRevisions_;
-        const uint64_t oldRevision = revision_;
         CurriculumProgressReceipt candidateReceipt{};
+        candidateReceipt.revision = candidateRevision;
+        candidateReceipt.lessons.reserve(graph_.Lessons().size());
         std::vector<CurriculumEvent> candidateEvents;
+        size_t rewardCount = 0U;
+        for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) rewardCount += graph_.Lessons()[index].rewards.size();
+        candidateEvents.reserve(graph_.Lessons().size());
+        candidateReceipt.newlyEarnedRewards.reserve(rewardCount);
 
-        completed_ = candidateCompleted;
-        completedAtGameMinutes_ = candidateCompletedAt;
-        completionRevisions_ = candidateCompletionRevisions;
-        revision_ = candidateRevision;
-        if (!BuildReceipt(observation, candidateReceipt)) {
-            completed_ = oldCompleted;
-            completedAtGameMinutes_ = oldCompletedAt;
-            completionRevisions_ = oldCompletionRevisions;
-            revision_ = oldRevision;
-            return Fail(CurriculumError::CorruptPersistence);
-        }
         for (uint16_t index = 0U; index < graph_.Lessons().size(); ++index) {
-            if (oldCompleted[index] == 0U && completed_[index] != 0U) {
-                candidateEvents.push_back({graph_.Lessons()[index].id, LessonStatus::Completed, revision_});
-                candidateReceipt.newlyEarnedRewards.insert(candidateReceipt.newlyEarnedRewards.end(), graph_.Lessons()[index].rewards.begin(), graph_.Lessons()[index].rewards.end());
+            const LessonNode& lesson = graph_.Lessons()[index];
+            LessonProgress progress{};
+            progress.id = lesson.id;
+            progress.totalConditions = static_cast<uint16_t>(lesson.completionConditions.size());
+            progress.completedConditions = static_cast<uint16_t>(std::count_if(lesson.completionConditions.begin(), lesson.completionConditions.end(), [this, &observation](const LessonCondition& condition) { return EvaluateCondition(condition, observation); }));
+            progress.completedAtGameMinutes = candidateCompletedAt[index];
+            progress.completionRevision = candidateCompletionRevisions[index];
+            if (candidateCompleted[index] != 0U) progress.status = LessonStatus::Completed;
+            else if (!PrerequisitesCompleted(index, candidateCompleted)) progress.status = LessonStatus::Locked;
+            else if (progress.completedConditions == progress.totalConditions) progress.status = LessonStatus::InProgress;
+            else if (progress.completedConditions != 0U) progress.status = LessonStatus::InProgress;
+            else progress.status = LessonStatus::Available;
+            if (progress.status == LessonStatus::Completed) ++candidateReceipt.completedLessons;
+            else if (progress.status == LessonStatus::Available) ++candidateReceipt.availableLessons;
+            else if (progress.status == LessonStatus::InProgress) ++candidateReceipt.inProgressLessons;
+            candidateReceipt.lessons.push_back(std::move(progress));
+
+            if (completed_[index] == 0U && candidateCompleted[index] != 0U) {
+                candidateEvents.push_back({lesson.id, LessonStatus::Completed, candidateRevision});
+                candidateReceipt.newlyEarnedRewards.insert(candidateReceipt.newlyEarnedRewards.end(), lesson.rewards.begin(), lesson.rewards.end());
             }
         }
+
+        completed_ = std::move(candidateCompleted);
+        completedAtGameMinutes_ = std::move(candidateCompletedAt);
+        completionRevisions_ = std::move(candidateCompletionRevisions);
+        revision_ = candidateRevision;
         events = std::move(candidateEvents);
         lastReceipt_ = std::move(candidateReceipt);
         lastError_ = CurriculumError::None;
         return true;
     } catch (const std::bad_alloc&) {
-        if (initialized_) {
-            /* State is restored below from the pre-commit snapshot only when one exists. */
-        }
         return Fail(CurriculumError::Capacity);
     }
 }
