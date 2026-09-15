@@ -31,13 +31,13 @@ layout(set = 2, binding = 0) uniform samplerCube irradianceMap;
 layout(set = 2, binding = 1) uniform samplerCube prefilteredEnvironment;
 layout(set = 2, binding = 2) uniform sampler2D brdfLut;
 
-// Runtime PBRIBLSettings are supplied through the lighting/environment integration.
-// Binding 3 keeps the shader layout backward-compatible with the existing three IBL samplers.
-layout(set = 2, binding = 3, std140) uniform IBLParams {
-    float environmentIntensity;
-    float irradianceStrength;
-    float maxReflectionLod;
-    float _padding;
+// The existing transform push-constant range occupies bytes 0..63 in the vertex stage.
+// IBL settings occupy bytes 64..79 in the fragment stage, avoiding a new descriptor binding.
+layout(push_constant) uniform IBLParams {
+    layout(offset = 64) float environmentIntensity;
+    layout(offset = 68) float irradianceStrength;
+    layout(offset = 72) float maxReflectionLod;
+    layout(offset = 76) float _padding;
 } ibl;
 
 layout(location = 0) in vec3 inWorldPosition;
@@ -131,7 +131,6 @@ vec3 EvaluateSpot(vec3 worldPosition, vec3 n, vec3 v, vec3 albedo, float metalli
     float distanceToLight = length(toLight);
     if (distanceToLight <= EPSILON || distanceToLight >= light.positionRadius.w) return vec3(0.0);
     vec3 l = toLight / distanceToLight;
-    // Both vectors point from the light toward the fragment/cone respectively.
     float cone = dot(normalize(light.directionInnerCos.xyz), -l);
     float coneRange = max(light.directionInnerCos.w - light.outerCosPadding.x, EPSILON);
     float coneFade = clamp((cone - light.outerCosPadding.x) / coneRange, 0.0, 1.0);
