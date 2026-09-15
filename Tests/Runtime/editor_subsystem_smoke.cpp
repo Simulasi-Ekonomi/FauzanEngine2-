@@ -1,7 +1,9 @@
+#include "Runtime/EditorSceneAgentAPI.h"
 #include "Runtime/EditorSceneDocumentCodec.h"
 
 #include <cassert>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 int main() {
@@ -35,6 +37,27 @@ int main() {
     auto truncated = bytes;
     truncated.pop_back();
     assert(!codec.Decode(truncated, decoded));
+
+    AssetRegistry assets;
+    EditorSceneSession session;
+    assert(session.Open(document, assets));
+
+    EditorSceneAgentAPI agent;
+    std::string response;
+    assert(agent.Execute(R"({"operation":"select","actorId":42})", session, assets, response));
+    assert(session.SelectedActorId() == 42);
+
+    const std::string fullTransform = R"({"operation":"transform","actorId":42,"transform":{"x":3,"y":4,"z":5,"rx":6,"ry":7,"rz":8,"sx":2,"sy":3,"sz":4}})";
+    assert(agent.Execute(fullTransform, session, assets, response));
+    EditorSceneActor inspected;
+    assert(session.InspectActor(42, inspected));
+    assert(inspected.transform.x == 3.0f && inspected.transform.ry == 7.0f && inspected.transform.sz == 4.0f);
+
+    assert(!agent.Execute(R"({"operation":"transform","actorId":42,"transform":{"x":9}})", session, assets, response));
+    assert(!agent.Execute(R"({"operation":"select","actorId":42,"extra":true})", session, assets, response));
+    assert(!agent.Execute(R"({"operation":"unknown"})", session, assets, response));
+    assert(!agent.Execute(R"([])", session, assets, response));
+    assert(!agent.Execute(R"({"operation":"select","actorId":999})", session, assets, response));
 
     return 0;
 }
