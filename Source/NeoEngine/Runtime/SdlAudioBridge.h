@@ -6,7 +6,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <mutex>
 #include <vector>
 
 namespace NeoEngine {
@@ -31,12 +30,17 @@ public:
     [[nodiscard]] SdlAudioBridgeError LastError() const { return lastError_; }
 
 private:
+    static constexpr size_t kCallbackCapacityMultiplier = 4;
+    static constexpr size_t kMaxCallbackFrames = 4096;
+    static constexpr size_t kStereoChannels = 2;
+
     static void AudioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount);
 
     SDL_AudioStream* stream_ = nullptr;
     bool audioInitialized_ = false;
     AudioMixer mixer_;
-    mutable std::mutex mixerMutex_;
+    std::vector<int16_t> callbackBuffer_;
+    size_t callbackBufferFrames_ = 0;
     std::atomic<uint64_t> framesMixed_{0};
     SdlAudioBridgeError lastError_ = SdlAudioBridgeError::None;
 };
