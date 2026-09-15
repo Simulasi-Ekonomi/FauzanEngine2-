@@ -55,7 +55,12 @@ int main(int argc, char** argv) {
 
     const std::vector<uint32_t> invalidSpirV = {0x07230203U, 0x00010000U};
     CHECK(library.CompileShader("invalid", VK_SHADER_STAGE_VERTEX_BIT, invalidSpirV) == VK_NULL_HANDLE,
-          "Invalid SPIR-V must be rejected");
+          "Truncated SPIR-V must be rejected");
+
+    const std::vector<uint32_t> invalidInstruction = {
+        0x07230203U, 0x00010000U, 0U, 1U, 0U, 0x00030001U};
+    CHECK(library.CompileShader("invalid-instruction", VK_SHADER_STAGE_VERTEX_BIT, invalidInstruction) == VK_NULL_HANDLE,
+          "Truncated SPIR-V instruction must be rejected");
 
     if (argc >= 3) {
         const std::vector<uint32_t> vertexSpirV = ReadSpirV(argv[1]);
