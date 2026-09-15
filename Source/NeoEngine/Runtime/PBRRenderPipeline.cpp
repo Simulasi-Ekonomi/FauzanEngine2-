@@ -1,6 +1,5 @@
 #include "Runtime/PBRRenderPipeline.h"
 
-#include <algorithm>
 #include <utility>
 
 namespace NeoEngine {
@@ -102,8 +101,8 @@ bool PBRRenderPipeline::InitializeInternal(VkDevice device, VkRenderPass renderP
 
     VkPushConstantRange iblRange{};
     iblRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    iblRange.offset = sizeof(float) * 16;
-    iblRange.size = sizeof(float) * 4;
+    iblRange.offset = 0;
+    iblRange.size = sizeof(PBRIBLPushConstants);
     config.pushConstantRanges = {transformRange, iblRange};
 
     if (!pipeline_.Initialize(device_, config)) {
