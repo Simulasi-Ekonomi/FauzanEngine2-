@@ -2,7 +2,7 @@ name: PBR Validation
 
 on:
   push:
-    branches: [ feature/pbr-render-pipeline-r1 ]
+    branches: [ feature/pbr-environment-r1 ]
   pull_request:
     branches: [ main ]
 
@@ -52,6 +52,15 @@ jobs:
             Tests/pbr_render_pipeline_smoke.cpp \
             -lvulkan -o /tmp/pbr_render_pipeline_smoke
 
+      - name: Build PBR-5 environment smoke target
+        run: |
+          g++ -std=c++20 -O2 -I Source/NeoEngine \
+            Source/NeoEngine/Runtime/VulkanContext.cpp \
+            Source/NeoEngine/Runtime/PBRIBL.cpp \
+            Source/NeoEngine/Runtime/PBREnvironment.cpp \
+            Tests/pbr_environment_smoke.cpp \
+            -lvulkan -o /tmp/pbr_environment_smoke
+
       - name: Validate PBR shaders
         run: |
           glslangValidator -V Source/NeoEngine/Shaders/neo_mesh.vert -o /tmp/neo_mesh.vert.spv
@@ -70,3 +79,6 @@ jobs:
 
       - name: Run PBR-4 smoke
         run: /tmp/pbr_render_pipeline_smoke
+
+      - name: Run PBR-5 smoke
+        run: /tmp/pbr_environment_smoke
