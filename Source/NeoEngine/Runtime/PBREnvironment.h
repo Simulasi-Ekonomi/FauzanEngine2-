@@ -49,6 +49,7 @@ public:
     [[nodiscard]] uint32_t PrefilterFaceSize() const noexcept { return config_.prefilterFaceSize; }
     [[nodiscard]] uint32_t PrefilterMipLevels() const noexcept { return prefilterMipLevels_; }
     [[nodiscard]] const PBRIBLSettings& Settings() const noexcept { return settings_; }
+    [[nodiscard]] VkDevice Device() const noexcept { return device_; }
     [[nodiscard]] VkImageView EnvironmentView() const noexcept { return environmentResource_.view; }
     [[nodiscard]] VkSampler EnvironmentSampler() const noexcept { return environmentResource_.sampler; }
     [[nodiscard]] VkImageView IrradianceView() const noexcept { return irradianceResource_.view; }
