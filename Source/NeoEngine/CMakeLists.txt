@@ -25,11 +25,16 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
     Runtime/TextureStaging.cpp
+    Runtime/ObjMeshImporter.cpp
+    Runtime/MtlMaterialImporter.cpp
+    Runtime/PpmTextureDecoder.cpp
+    Runtime/BmpTextureDecoder.cpp
     Runtime/EditorScenePrefabCodec.cpp
     Runtime/SceneSpriteAdapter.cpp
     Runtime/RenderCamera.cpp
     Runtime/MeshRenderer.cpp
     Runtime/SpriteBatch.cpp
+    Runtime/SoftwareRenderer.cpp
     Runtime/WavAudioParser.cpp
     Runtime/AudioMixer.cpp
     Runtime/AudioComponent.cpp
