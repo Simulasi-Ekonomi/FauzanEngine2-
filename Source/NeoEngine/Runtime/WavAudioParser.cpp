@@ -45,9 +45,10 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
 
 std::vector<uint8_t> WavAudioParser::GenerateSyntheticWav(uint32_t sampleRate, uint16_t channels, float frequencyHz, float durationSeconds) {
     if (sampleRate == 0 || channels == 0 || channels > 2 || !std::isfinite(frequencyHz) || frequencyHz < 0.0f || !std::isfinite(durationSeconds) || durationSeconds <= 0.0f) return {};
-    const double requested = static_cast<double>(sampleRate) * durationSeconds;
-    if (requested > static_cast<double>(std::numeric_limits<uint32_t>::max())) return {};
-    const uint32_t frames = static_cast<uint32_t>(requested);
+    const double requested = static_cast<double>(sampleRate) * static_cast<double>(durationSeconds);
+    if (requested > static_cast<double>(std::numeric_limits<uint32_t>::max()) || requested < 1.0) return {};
+    const uint32_t frames = static_cast<uint32_t>(std::llround(requested));
+    if (frames == 0) return {};
     const uint64_t sampleCount = static_cast<uint64_t>(frames) * channels;
     const uint64_t dataBytes = sampleCount * 2U;
     const uint64_t byteRate = static_cast<uint64_t>(sampleRate) * channels * 2U;
