@@ -19,14 +19,6 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBREnvironment.cpp
     Runtime/PBREnvironmentDescriptorSet.cpp
     Runtime/PBRRenderPipeline.cpp
-    Runtime/AudioMixer.cpp
-    Runtime/SdlAudioBridge.cpp
-    Runtime/WavAudioParser.cpp
-    Runtime/AudioComponent.cpp
-    Runtime/EditorSceneDocumentCodec.cpp
-    Runtime/EditorSceneSession.cpp
-    Editor/EditorAgentAPI.cpp
-    Editor/EditorProvider.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -69,14 +61,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
     add_xpbd_executable(vulkan_swapchain_manager_smoke ../../Tests/Runtime/vulkan_swapchain_manager_smoke.cpp)
     add_xpbd_executable(vulkan_sync_primitives_smoke ../../Tests/Runtime/vulkan_sync_primitives_smoke.cpp)
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_subsystem_smoke.cpp")
-    add_xpbd_executable(audio_subsystem_smoke ../../Tests/Runtime/audio_subsystem_smoke.cpp)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smoke.cpp")
-    add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")

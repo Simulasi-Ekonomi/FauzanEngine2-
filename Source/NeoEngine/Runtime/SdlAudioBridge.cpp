@@ -37,11 +37,11 @@ bool SdlAudioBridge::Initialize(uint16_t framesPerCallback) {
 }
 
 bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8) {
+    std::lock_guard<std::mutex> lock(mixerMutex_);
     if (stream_ == nullptr) {
         lastError_ = SdlAudioBridgeError::NotInitialized;
         return false;
     }
-    std::lock_guard<std::mutex> lock(mixerMutex_);
     if (!mixer_.Play(id, std::move(mono), gainQ8)) {
         lastError_ = SdlAudioBridgeError::MixerRejected;
         return false;
@@ -51,11 +51,11 @@ bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ
 }
 
 bool SdlAudioBridge::PlaySpatial(const SpatialVoiceParams& params) {
+    std::lock_guard<std::mutex> lock(mixerMutex_);
     if (stream_ == nullptr) {
         lastError_ = SdlAudioBridgeError::NotInitialized;
         return false;
     }
-    std::lock_guard<std::mutex> lock(mixerMutex_);
     if (!mixer_.PlaySpatial(params)) {
         lastError_ = SdlAudioBridgeError::MixerRejected;
         return false;
@@ -80,22 +80,23 @@ uint16_t SdlAudioBridge::QueuedVoiceCount() const {
 }
 
 void SdlAudioBridge::Reset() {
-    if (stream_ != nullptr) {
-        SDL_LockAudioStream(stream_);
-        {
-            std::lock_guard<std::mutex> lock(mixerMutex_);
-            mixer_.Clear();
-        }
-        SDL_UnlockAudioStream(stream_);
-        SDL_DestroyAudioStream(stream_);
-    } else {
+    SDL_AudioStream* streamToDestroy = nullptr;
+    {
         std::lock_guard<std::mutex> lock(mixerMutex_);
+        streamToDestroy = stream_;
+        stream_ = nullptr;
         mixer_.Clear();
     }
-    stream_ = nullptr;
-    if (audioInitialized_) SDL_QuitSubSystem(SDL_INIT_AUDIO);
-    audioInitialized_ = false;
+    if (streamToDestroy != nullptr) {
+        SDL_PauseAudioStreamDevice(streamToDestroy);
+        SDL_DestroyAudioStream(streamToDestroy);
+    }
+    if (audioInitialized_) {
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        audioInitialized_ = false;
+    }
     framesMixed_.store(0);
+    lastError_ = SdlAudioBridgeError::None;
 }
 
 void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int /*totalAmount*/) {
@@ -103,11 +104,14 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
     const size_t frames = static_cast<size_t>(additionalAmount) / (sizeof(int16_t) * 2U);
     if (frames == 0) return;
+
     std::vector<int16_t> mixed;
     {
         std::lock_guard<std::mutex> lock(bridge->mixerMutex_);
+        if (bridge->stream_ == nullptr) return;
         bridge->mixer_.Mix(frames, mixed);
     }
+
     const size_t byteCount = std::min(static_cast<size_t>(additionalAmount), mixed.size() * sizeof(int16_t));
     if (byteCount > 0) SDL_PutAudioStreamData(stream, mixed.data(), static_cast<int>(byteCount));
     if (byteCount < static_cast<size_t>(additionalAmount)) {

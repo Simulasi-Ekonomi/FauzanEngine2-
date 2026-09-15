@@ -11,7 +11,7 @@ int main() {
 
     AssetRegistry assets;
     EditorSceneDocument doc{};
-    doc.sceneId = "UnrealAgentAuthoringScene";
+    doc.sceneId = "UnrealRemediationScene";
     doc.revision = 1;
 
     EditorSceneActor rootActor;
@@ -21,91 +21,109 @@ int main() {
     doc.actors.push_back(rootActor);
 
     EditorSceneSession session;
-    if (!session.Open(doc, assets) || session.Document().sceneId != "UnrealAgentAuthoringScene") {
+    if (!session.Open(doc, assets)) {
         std::printf("ERR: Session Open failed\n");
         return 1;
     }
 
-    EditorSceneActor lightActor;
-    lightActor.id = 2;
-    lightActor.parentId = 1;
-    lightActor.name = "MainLight";
-    lightActor.kind = EditorSceneActorKind::Light;
-    if (!session.AddActor(lightActor, assets)) {
-        std::printf("ERR: AddActor Light failed\n");
+    EditorSceneActor duplicateActor;
+    duplicateActor.id = 1;
+    duplicateActor.name = "DuplicateRoot";
+    if (session.AddActor(duplicateActor, assets)) {
+        std::printf("ERR: AddActor with duplicate ID should be rejected\n");
         return 1;
     }
 
-    EditorSceneActor meshActor;
-    meshActor.id = 3;
-    meshActor.parentId = 1;
-    meshActor.name = "HeroCube";
-    meshActor.kind = EditorSceneActorKind::Mesh;
-    meshActor.transform = {10.0f, 20.0f, 0.0f, 0, 0, 0, 1, 1, 1};
-    if (!session.AddActor(meshActor, assets)) {
-        std::printf("ERR: AddActor Mesh failed\n");
+    EditorSceneActor childA;
+    childA.id = 10;
+    childA.parentId = 1;
+    childA.name = "Node_A";
+    childA.kind = EditorSceneActorKind::Mesh;
+    if (!session.AddActor(childA, assets)) {
+        std::printf("ERR: AddActor Node_A failed\n");
         return 1;
     }
 
-    if (!session.UpdateTransform(3, {15.0f, 25.0f, 5.0f, 0, 0, 0, 1, 1, 1}, assets)) {
-        std::printf("ERR: UpdateTransform failed\n");
+    EditorSceneActor childB;
+    childB.id = 20;
+    childB.parentId = 10;
+    childB.name = "Node_B";
+    childB.kind = EditorSceneActorKind::Mesh;
+    if (!session.AddActor(childB, assets)) {
+        std::printf("ERR: AddActor Node_B failed\n");
         return 1;
     }
 
-    if (!session.DuplicateActor(3, 4, assets)) {
+    if (session.ReparentActor(10, 20, assets)) {
+        std::printf("ERR: Reparenting forming hierarchy cycle should be rejected\n");
+        return 1;
+    }
+
+    if (session.DuplicateActor(20, 10, assets)) {
+        std::printf("ERR: DuplicateActor with colliding new ID should be rejected\n");
+        return 1;
+    }
+
+    if (!session.DuplicateActor(20, 21, assets)) {
         std::printf("ERR: DuplicateActor failed\n");
         return 1;
     }
 
-    if (!session.MultiSelectActors({3, 4}) || session.SelectedActorIds().size() != 2) {
+    if (!session.MultiSelectActors({10, 20, 21}) || session.SelectedActorIds().size() != 3) {
         std::printf("ERR: MultiSelectActors failed\n");
         return 1;
     }
 
-    if (!session.CanUndo()) {
-        std::printf("ERR: CanUndo should be true\n");
+    if (!session.DeleteActor(21, assets)) {
+        std::printf("ERR: DeleteActor 21 failed\n");
         return 1;
     }
 
-    if (!session.Undo(assets) || session.HierarchySnapshot().size() != 3) {
+    if (session.SelectedActorIds().size() != 2) {
+        std::printf("ERR: Selection pruning failed after deletion\n");
+        return 1;
+    }
+
+    size_t actorCountBeforeUndo = session.HierarchySnapshot().size();
+    if (!session.Undo(assets) || session.HierarchySnapshot().size() >= actorCountBeforeUndo) {
         std::printf("ERR: Undo failed\n");
         return 1;
     }
 
-    if (!session.Redo(assets) || session.HierarchySnapshot().size() != 4) {
+    if (!session.Redo(assets) || session.HierarchySnapshot().size() != actorCountBeforeUndo) {
         std::printf("ERR: Redo failed\n");
         return 1;
     }
 
-    std::string spawnJson = R"({"cmd":"SPAWN","actorId":5,"parentId":1,"kind":3,"name":"AgentCamera","x":0.0,"y":5.0,"z":10.0})";
-    auto agentResp = EditorAgentAPI::ProcessJsonCommand(session, assets, spawnJson);
-    if (!agentResp.success || agentResp.actorCount != 5) {
-        std::printf("ERR: Agent SPAWN failed\n");
+    std::string escapedNameJson = R"({"cmd":"SPAWN","actorId":99,"parentId":1,"kind":1,"name":"Robot \"Boss\" \\ Special","x":12.5,"y":0.0,"z":-5.0})";
+    auto agentResp = EditorAgentAPI::ProcessJsonCommand(session, assets, escapedNameJson);
+    if (!agentResp.success || agentResp.jsonPayload.empty()) {
+        std::printf("ERR: Agent SPAWN with escaped JSON string failed: %s\n", agentResp.error.c_str());
         return 1;
     }
 
-    std::string queryJson = R"({"cmd":"QUERY"})";
-    auto queryResp = EditorAgentAPI::ProcessJsonCommand(session, assets, queryJson);
-    if (!queryResp.success || queryResp.jsonPayload.empty()) {
-        std::printf("ERR: Agent QUERY failed\n");
+    std::string malformedJson = R"({"cmd":"SPAWN", actorId: invalid_json})";
+    auto errResp = EditorAgentAPI::ProcessJsonCommand(session, assets, malformedJson);
+    if (errResp.success || errResp.error.empty()) {
+        std::printf("ERR: Malformed JSON should return error response\n");
         return 1;
     }
 
-    std::vector<uint8_t> sceneBytes;
-    if (!session.SaveBytes(sceneBytes) || sceneBytes.empty()) {
+    std::vector<uint8_t> bytes;
+    if (!session.SaveBytes(bytes) || bytes.empty()) {
         std::printf("ERR: SaveBytes failed\n");
         return 1;
     }
 
-    EditorSceneSession reloadedSession;
-    if (!reloadedSession.OpenBytes(sceneBytes, assets) || reloadedSession.HierarchySnapshot().size() != 5) {
-        std::printf("ERR: OpenBytes reloaded session failed\n");
+    EditorSceneSession reloaded;
+    if (!reloaded.OpenBytes(bytes, assets) || reloaded.HierarchySnapshot().size() != session.HierarchySnapshot().size()) {
+        std::printf("ERR: OpenBytes roundtrip failed\n");
         return 1;
     }
 
     std::printf("EDITOR_SUBSYSTEM_SMOKE_OK actors=%zu revision=%llu json_len=%zu\n",
-                reloadedSession.HierarchySnapshot().size(),
-                static_cast<unsigned long long>(reloadedSession.Document().revision),
-                queryResp.jsonPayload.size());
+                reloaded.HierarchySnapshot().size(),
+                static_cast<unsigned long long>(reloaded.Document().revision),
+                agentResp.jsonPayload.size());
     return 0;
 }

@@ -2,11 +2,13 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 namespace NeoEngine {
 
 bool WavAudioParser::Parse(const std::vector<uint8_t>& wavBytes, WavAudioData& outData) {
-    if (wavBytes.size() < 44) return false;
+    outData = WavAudioData{};
+    if (wavBytes.size() < 12) return false;
 
     if (std::memcmp(wavBytes.data(), "RIFF", 4) != 0) return false;
     if (std::memcmp(wavBytes.data() + 8, "WAVE", 4) != 0) return false;
@@ -15,84 +17,103 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& wavBytes, WavAudioData& o
     bool foundFmt = false;
     bool foundData = false;
     size_t dataOffset = 0;
-    uint32_t dataSize = 0;
+    size_t dataSize = 0;
 
     while (offset + 8 <= wavBytes.size()) {
         char chunkId[5] = {0};
         std::memcpy(chunkId, wavBytes.data() + offset, 4);
         uint32_t chunkSize = 0;
         std::memcpy(&chunkSize, wavBytes.data() + offset + 4, 4);
-        offset += 8;
+
+        size_t chunkDataOffset = offset + 8;
+        if (chunkSize > wavBytes.size() || chunkDataOffset > wavBytes.size() - chunkSize) {
+            if (std::strcmp(chunkId, "data") == 0 && chunkDataOffset < wavBytes.size()) {
+                dataOffset = chunkDataOffset;
+                dataSize = wavBytes.size() - chunkDataOffset;
+                foundData = true;
+                break;
+            } else {
+                return false;
+            }
+        }
 
         if (std::strcmp(chunkId, "fmt ") == 0) {
-            if (chunkSize < 16 || offset + chunkSize > wavBytes.size()) return false;
-            std::memcpy(&outData.audioFormat, wavBytes.data() + offset, 2);
-            std::memcpy(&outData.numChannels, wavBytes.data() + offset + 2, 2);
-            std::memcpy(&outData.sampleRate, wavBytes.data() + offset + 4, 4);
-            std::memcpy(&outData.byteRate, wavBytes.data() + offset + 8, 4);
-            std::memcpy(&outData.blockAlign, wavBytes.data() + offset + 12, 2);
-            std::memcpy(&outData.bitsPerSample, wavBytes.data() + offset + 14, 2);
+            if (chunkSize < 16) return false;
+            std::memcpy(&outData.audioFormat, wavBytes.data() + chunkDataOffset, 2);
+            std::memcpy(&outData.numChannels, wavBytes.data() + chunkDataOffset + 2, 2);
+            std::memcpy(&outData.sampleRate, wavBytes.data() + chunkDataOffset + 4, 4);
+            std::memcpy(&outData.byteRate, wavBytes.data() + chunkDataOffset + 8, 4);
+            std::memcpy(&outData.blockAlign, wavBytes.data() + chunkDataOffset + 12, 2);
+            std::memcpy(&outData.bitsPerSample, wavBytes.data() + chunkDataOffset + 14, 2);
+
+            if (outData.audioFormat != 1) return false;
+            if (outData.numChannels != 1 && outData.numChannels != 2) return false;
+            if (outData.sampleRate < 8000 || outData.sampleRate > 192000) return false;
+            if (outData.bitsPerSample != 8 && outData.bitsPerSample != 16) return false;
+
+            uint16_t expectedBlockAlign = outData.numChannels * (outData.bitsPerSample / 8);
+            if (outData.blockAlign != expectedBlockAlign) return false;
+
+            uint32_t expectedByteRate = outData.sampleRate * outData.blockAlign;
+            if (outData.byteRate != expectedByteRate) return false;
+
             foundFmt = true;
-            offset += chunkSize;
         } else if (std::strcmp(chunkId, "data") == 0) {
-            dataOffset = offset;
-            dataSize = std::min(chunkSize, static_cast<uint32_t>(wavBytes.size() - offset));
+            dataOffset = chunkDataOffset;
+            dataSize = chunkSize;
             foundData = true;
             break;
-        } else {
-            offset += chunkSize;
         }
+
+        size_t paddedChunkSize = (static_cast<size_t>(chunkSize) + 1U) & ~1U;
+        if (chunkDataOffset > wavBytes.size() - paddedChunkSize) break;
+        offset = chunkDataOffset + paddedChunkSize;
     }
 
-    if (!foundFmt || !foundData || outData.audioFormat != 1) return false;
+    if (!foundFmt || !foundData || dataSize < outData.blockAlign) return false;
 
     outData.pcmSamples.clear();
+    const size_t validBytes = std::min(dataSize, wavBytes.size() - dataOffset);
+    const size_t validFrames = validBytes / outData.blockAlign;
+
+    if (validFrames == 0) return false;
+
+    outData.pcmSamples.reserve(validFrames);
+
     if (outData.bitsPerSample == 16) {
-        size_t sampleCount = dataSize / 2;
+        const int16_t* src = reinterpret_cast<const int16_t*>(wavBytes.data() + dataOffset);
         if (outData.numChannels == 1) {
-            outData.pcmSamples.resize(sampleCount);
-            std::memcpy(outData.pcmSamples.data(), wavBytes.data() + dataOffset, sampleCount * 2);
-        } else if (outData.numChannels == 2) {
-            size_t frameCount = sampleCount / 2;
-            outData.pcmSamples.resize(frameCount);
-            const int16_t* src = reinterpret_cast<const int16_t*>(wavBytes.data() + dataOffset);
-            for (size_t i = 0; i < frameCount; ++i) {
+            outData.pcmSamples.assign(src, src + validFrames);
+        } else {
+            for (size_t i = 0; i < validFrames; ++i) {
                 int32_t left = src[i * 2];
                 int32_t right = src[i * 2 + 1];
-                outData.pcmSamples[i] = static_cast<int16_t>((left + right) / 2);
+                outData.pcmSamples.push_back(static_cast<int16_t>((left + right) / 2));
             }
-        } else {
-            return false;
         }
     } else if (outData.bitsPerSample == 8) {
-        size_t sampleCount = dataSize;
+        const uint8_t* src = wavBytes.data() + dataOffset;
         if (outData.numChannels == 1) {
-            outData.pcmSamples.resize(sampleCount);
-            const uint8_t* src = wavBytes.data() + dataOffset;
-            for (size_t i = 0; i < sampleCount; ++i) {
-                outData.pcmSamples[i] = static_cast<int16_t>((static_cast<int32_t>(src[i]) - 128) * 256);
-            }
-        } else if (outData.numChannels == 2) {
-            size_t frameCount = sampleCount / 2;
-            outData.pcmSamples.resize(frameCount);
-            const uint8_t* src = wavBytes.data() + dataOffset;
-            for (size_t i = 0; i < frameCount; ++i) {
-                int32_t left = (static_cast<int32_t>(src[i * 2]) - 128) * 256;
-                int32_t right = (static_cast<int32_t>(src[i * 2 + 1]) - 128) * 256;
-                outData.pcmSamples[i] = static_cast<int16_t>((left + right) / 2);
+            for (size_t i = 0; i < validFrames; ++i) {
+                outData.pcmSamples.push_back(static_cast<int16_t>((static_cast<int32_t>(src[i]) - 128) * 256));
             }
         } else {
-            return false;
+            for (size_t i = 0; i < validFrames; ++i) {
+                int32_t left = (static_cast<int32_t>(src[i * 2]) - 128) * 256;
+                int32_t right = (static_cast<int32_t>(src[i * 2 + 1]) - 128) * 256;
+                outData.pcmSamples.push_back(static_cast<int16_t>((left + right) / 2));
+            }
         }
-    } else {
-        return false;
     }
 
     return !outData.pcmSamples.empty();
 }
 
 std::vector<uint8_t> WavAudioParser::GenerateSyntheticWav(uint32_t sampleRate, uint16_t numChannels, float frequencyHz, float durationSeconds) {
+    if (sampleRate == 0 || numChannels == 0 || durationSeconds <= 0.0f) return {};
     uint32_t totalFrames = static_cast<uint32_t>(sampleRate * durationSeconds);
+    if (totalFrames == 0) return {};
+
     uint16_t bitsPerSample = 16;
     uint16_t blockAlign = numChannels * (bitsPerSample / 8);
     uint32_t byteRate = sampleRate * blockAlign;

@@ -23,9 +23,6 @@ public:
 
     bool Initialize(uint16_t framesPerCallback = 256);
     bool Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8 = 256);
-    bool PlaySpatial(const SpatialVoiceParams& params);
-    void SetListener(const AudioListener& listener);
-    bool UpdateVoicePosition(uint32_t id, const AudioVector3& position);
     void Reset();
 
     [[nodiscard]] bool IsReady() const { return stream_ != nullptr; }

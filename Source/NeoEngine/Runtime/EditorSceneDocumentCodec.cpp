@@ -68,7 +68,7 @@ bool WriteActor(std::vector<uint8_t>& out, const EditorSceneActor& actor) {
     for (const float value : {actor.transform.x, actor.transform.y, actor.transform.z, actor.transform.rx, actor.transform.ry, actor.transform.rz, actor.transform.sx, actor.transform.sy, actor.transform.sz}) Write(out, value);
     return WriteString(out, actor.assetId) && WriteString(out, actor.materialAssetId) && WriteString(out, actor.materialName) && WriteString(out, actor.textureAssetId) &&
            (Write(out, actor.spriteWidth), true) && (Write(out, actor.spriteHeight), true) && (Write(out, actor.spriteLayer), true) &&
-           (Write(out, actor.spriteOrder), true) && (Write(out, actor.spriteRgba), true) && WriteString(out, actor.name);
+           (Write(out, actor.spriteOrder), true) && (Write(out, actor.spriteRgba), true);
 }
 
 bool ReadActor(const std::vector<uint8_t>& in, size_t& offset, EditorSceneActor& actor) {
@@ -77,14 +77,10 @@ bool ReadActor(const std::vector<uint8_t>& in, size_t& offset, EditorSceneActor&
     actor.kind = static_cast<EditorSceneActorKind>(kind);
     float* values[] = {&actor.transform.x, &actor.transform.y, &actor.transform.z, &actor.transform.rx, &actor.transform.ry, &actor.transform.rz, &actor.transform.sx, &actor.transform.sy, &actor.transform.sz};
     for (float* value : values) if (!Read(in, offset, *value)) return false;
-    if (!(FiniteTransform(actor.transform) && ReadString(in, offset, actor.assetId) && ReadString(in, offset, actor.materialAssetId) &&
+    return FiniteTransform(actor.transform) && ReadString(in, offset, actor.assetId) && ReadString(in, offset, actor.materialAssetId) &&
            ReadString(in, offset, actor.materialName) && ReadString(in, offset, actor.textureAssetId) && Read(in, offset, actor.spriteWidth) &&
            Read(in, offset, actor.spriteHeight) && Read(in, offset, actor.spriteLayer) && Read(in, offset, actor.spriteOrder) &&
-           Read(in, offset, actor.spriteRgba) && std::isfinite(actor.spriteWidth) && std::isfinite(actor.spriteHeight))) return false;
-    if (offset < in.size()) {
-        ReadString(in, offset, actor.name);
-    }
-    return true;
+           Read(in, offset, actor.spriteRgba) && std::isfinite(actor.spriteWidth) && std::isfinite(actor.spriteHeight);
 }
 } // namespace
 

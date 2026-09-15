@@ -1,33 +1,43 @@
 #include "EditorAgentAPI.h"
-#include <sstream>
+#include <json/json.h>
+#include <memory>
 #include <algorithm>
 
 namespace NeoEngine {
 
 std::string EditorAgentAPI::SerializeSceneToJSON(const EditorSceneSession& session) {
-    std::stringstream ss;
     const auto hierarchy = session.HierarchySnapshot();
-    ss << "{\"sceneId\":\"" << session.Document().sceneId << "\",";
-    ss << "\"revision\":" << session.Document().revision << ",";
-    ss << "\"selectedActorId\":" << session.SelectedActorId() << ",";
-    ss << "\"hasUnsavedChanges\":" << (session.HasUnsavedChanges() ? "true" : "false") << ",";
-    ss << "\"actorCount\":" << hierarchy.size() << ",";
-    ss << "\"actors\":[";
+    Json::Value root;
+    root["sceneId"] = session.Document().sceneId;
+    root["revision"] = static_cast<Json::UInt64>(session.Document().revision);
+    root["selectedActorId"] = session.SelectedActorId();
+    root["hasUnsavedChanges"] = session.HasUnsavedChanges();
+    root["actorCount"] = static_cast<Json::UInt64>(hierarchy.size());
 
-    for (size_t i = 0; i < hierarchy.size(); ++i) {
-        const auto& a = hierarchy[i];
-        if (i > 0) ss << ",";
-        ss << "{\"id\":" << a.id << ",";
-        ss << "\"parentId\":" << a.parentId << ",";
-        ss << "\"kind\":" << static_cast<int>(a.kind) << ",";
-        ss << "\"name\":\"" << a.name << "\",";
-        ss << "\"assetId\":\"" << a.assetId << "\",";
-        ss << "\"materialAssetId\":\"" << a.materialAssetId << "\",";
-        ss << "\"textureAssetId\":\"" << a.textureAssetId << "\",";
-        ss << "\"transform\":{\"x\":" << a.transform.x << ",\"y\":" << a.transform.y << ",\"z\":" << a.transform.z << "}}";
+    Json::Value actorsArray(Json::arrayValue);
+    for (const auto& a : hierarchy) {
+        Json::Value actorVal;
+        actorVal["id"] = a.id;
+        actorVal["parentId"] = a.parentId;
+        actorVal["kind"] = static_cast<int>(a.kind);
+        actorVal["name"] = a.name;
+        actorVal["assetId"] = a.assetId;
+        actorVal["materialAssetId"] = a.materialAssetId;
+        actorVal["textureAssetId"] = a.textureAssetId;
+
+        Json::Value tf;
+        tf["x"] = a.transform.x;
+        tf["y"] = a.transform.y;
+        tf["z"] = a.transform.z;
+        actorVal["transform"] = tf;
+
+        actorsArray.append(actorVal);
     }
-    ss << "]}";
-    return ss.str();
+    root["actors"] = actorsArray;
+
+    Json::StreamWriterBuilder writerBuilder;
+    writerBuilder["indentation"] = "";
+    return Json::writeString(writerBuilder, root);
 }
 
 EditorAgentResponse EditorAgentAPI::ProcessRequest(EditorSceneSession& session, const AssetRegistry& assets, const EditorAgentRequest& req) {
@@ -111,27 +121,33 @@ EditorAgentResponse EditorAgentAPI::ProcessRequest(EditorSceneSession& session, 
 }
 
 EditorAgentResponse EditorAgentAPI::ProcessJsonCommand(EditorSceneSession& session, const AssetRegistry& assets, const std::string& json) {
+    EditorAgentResponse resp;
+    if (json.empty()) {
+        resp.success = false;
+        resp.error = "Empty JSON payload";
+        return resp;
+    }
+
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::string errs;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+
+    if (!reader->parse(json.c_str(), json.c_str() + json.size(), &root, &errs)) {
+        resp.success = false;
+        resp.error = "Malformed JSON: " + errs;
+        return resp;
+    }
+
+    if (!root.isObject()) {
+        resp.success = false;
+        resp.error = "JSON root must be an object";
+        return resp;
+    }
+
     EditorAgentRequest req;
+    std::string cmd = root.get("cmd", "").asString();
 
-    auto findVal = [&](const std::string& key) -> std::string {
-        size_t pos = json.find("\"" + key + "\"");
-        if (pos == std::string::npos) return "";
-        size_t colon = json.find(":", pos);
-        if (colon == std::string::npos) return "";
-        size_t start = json.find_first_not_of(" \t\n\r", colon + 1);
-        if (start == std::string::npos) return "";
-        if (json[start] == '\"') {
-            size_t end = json.find('\"', start + 1);
-            if (end == std::string::npos) return "";
-            return json.substr(start + 1, end - start - 1);
-        } else {
-            size_t end = json.find_first_of(" \t\n\r,}", start);
-            if (end == std::string::npos) end = json.size();
-            return json.substr(start, end - start);
-        }
-    };
-
-    std::string cmd = findVal("cmd");
     if (cmd == "SPAWN") req.commandType = EditorAgentCommandType::SpawnActor;
     else if (cmd == "DELETE") req.commandType = EditorAgentCommandType::DeleteActor;
     else if (cmd == "DUPLICATE") req.commandType = EditorAgentCommandType::DuplicateActor;
@@ -143,27 +159,33 @@ EditorAgentResponse EditorAgentAPI::ProcessJsonCommand(EditorSceneSession& sessi
     else if (cmd == "UNDO") req.commandType = EditorAgentCommandType::Undo;
     else if (cmd == "REDO") req.commandType = EditorAgentCommandType::Redo;
     else if (cmd == "QUERY") req.commandType = EditorAgentCommandType::QueryScene;
+    else {
+        resp.success = false;
+        resp.error = "Unknown command: " + cmd;
+        return resp;
+    }
 
-    std::string idStr = findVal("actorId");
-    if (!idStr.empty()) req.actorId = static_cast<uint32_t>(std::stoul(idStr));
+    if (root.isMember("actorId")) req.actorId = root["actorId"].asUInt();
+    if (root.isMember("newActorId")) req.newActorId = root["newActorId"].asUInt();
+    if (root.isMember("parentId")) req.parentId = root["parentId"].asUInt();
+    if (root.isMember("kind")) req.kind = static_cast<EditorSceneActorKind>(root["kind"].asUInt());
 
-    std::string newIdStr = findVal("newActorId");
-    if (!newIdStr.empty()) req.newActorId = static_cast<uint32_t>(std::stoul(newIdStr));
+    if (root.isMember("name")) req.name = root["name"].asString();
+    if (root.isMember("assetId")) req.assetId = root["assetId"].asString();
+    if (root.isMember("materialAssetId")) req.materialAssetId = root["materialAssetId"].asString();
+    if (root.isMember("textureAssetId")) req.textureAssetId = root["textureAssetId"].asString();
 
-    std::string parentStr = findVal("parentId");
-    if (!parentStr.empty()) req.parentId = static_cast<uint32_t>(std::stoul(parentStr));
+    if (root.isMember("x")) req.transform.x = root["x"].asFloat();
+    if (root.isMember("y")) req.transform.y = root["y"].asFloat();
+    if (root.isMember("z")) req.transform.z = root["z"].asFloat();
 
-    std::string kindStr = findVal("kind");
-    if (!kindStr.empty()) req.kind = static_cast<EditorSceneActorKind>(std::stoul(kindStr));
-
-    req.name = findVal("name");
-    req.assetId = findVal("assetId");
-    req.materialAssetId = findVal("materialAssetId");
-    req.textureAssetId = findVal("textureAssetId");
-
-    std::string xStr = findVal("x"); if (!xStr.empty()) req.transform.x = std::stof(xStr);
-    std::string yStr = findVal("y"); if (!yStr.empty()) req.transform.y = std::stof(yStr);
-    std::string zStr = findVal("z"); if (!zStr.empty()) req.transform.z = std::stof(zStr);
+    if (root.isMember("selectionIds") && root["selectionIds"].isArray()) {
+        for (const auto& item : root["selectionIds"]) {
+            if (item.isUInt()) {
+                req.selectionIds.push_back(item.asUInt());
+            }
+        }
+    }
 
     return ProcessRequest(session, assets, req);
 }

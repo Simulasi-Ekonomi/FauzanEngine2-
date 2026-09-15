@@ -26,7 +26,6 @@ struct EditorSceneActor {
     int16_t spriteLayer = 0;
     int16_t spriteOrder = 0;
     uint32_t spriteRgba = 0xFFFFFFFFU;
-    std::string name;
 };
 
 struct EditorSceneDocument {

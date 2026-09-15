@@ -10,15 +10,31 @@
 int main() {
     using namespace NeoEngine;
 
-    auto syntheticWav = WavAudioParser::GenerateSyntheticWav(44100, 1, 440.0f, 0.1f);
-    if (syntheticWav.empty()) {
-        std::printf("ERR: Synthetic WAV generation failed\n");
+    auto wavMono16 = WavAudioParser::GenerateSyntheticWav(44100, 1, 440.0f, 0.1f);
+    WavAudioData dataMono16;
+    if (!WavAudioParser::Parse(wavMono16, dataMono16) || dataMono16.pcmSamples.empty() || dataMono16.sampleRate != 44100) {
+        std::printf("ERR: Mono 16-bit WAV parsing failed\n");
         return 1;
     }
 
-    WavAudioData wavData;
-    if (!WavAudioParser::Parse(syntheticWav, wavData) || wavData.pcmSamples.empty() || wavData.sampleRate != 44100) {
-        std::printf("ERR: WAV parsing failed\n");
+    auto wavStereo16 = WavAudioParser::GenerateSyntheticWav(48000, 2, 880.0f, 0.05f);
+    WavAudioData dataStereo16;
+    if (!WavAudioParser::Parse(wavStereo16, dataStereo16) || dataStereo16.pcmSamples.empty() || dataStereo16.sampleRate != 48000) {
+        std::printf("ERR: Stereo 16-bit WAV parsing failed\n");
+        return 1;
+    }
+
+    WavAudioData dummy;
+    std::vector<uint8_t> truncatedHeader = { 'R', 'I', 'F', 'F', 0, 0 };
+    if (WavAudioParser::Parse(truncatedHeader, dummy)) {
+        std::printf("ERR: Truncated header should be rejected\n");
+        return 1;
+    }
+
+    std::vector<uint8_t> invalidMagic = wavMono16;
+    invalidMagic[0] = 'X';
+    if (WavAudioParser::Parse(invalidMagic, dummy)) {
+        std::printf("ERR: Invalid magic RIFF should be rejected\n");
         return 1;
     }
 
@@ -29,83 +45,64 @@ int main() {
     listener.up = {0.0f, 1.0f, 0.0f};
     mixer.SetListener(listener);
 
-    SpatialVoiceParams leftParams;
-    leftParams.id = 101;
-    leftParams.mono = wavData.pcmSamples;
-    leftParams.spatialized = true;
-    leftParams.position = {-10.0f, 0.0f, 5.0f};
-    leftParams.attenuation.minDistance = 1.0f;
-    leftParams.attenuation.maxDistance = 50.0f;
-    if (!mixer.PlaySpatial(leftParams)) {
-        std::printf("ERR: PlaySpatial left failed\n");
+    if (mixer.Play(0, dataMono16.pcmSamples)) {
+        std::printf("ERR: Voice ID 0 should be rejected\n");
         return 1;
     }
 
-    std::vector<int16_t> leftStereo;
-    mixer.Mix(10, leftStereo);
-    if (leftStereo.size() != 20) {
-        std::printf("ERR: Left mix size invalid\n");
+    if (!mixer.Play(10, dataMono16.pcmSamples) || mixer.Play(10, dataMono16.pcmSamples)) {
+        std::printf("ERR: Duplicate voice ID should be rejected\n");
+        return 1;
+    }
+    mixer.Stop(10);
+
+    SpatialVoiceParams linearParams;
+    linearParams.id = 1;
+    linearParams.mono = dataMono16.pcmSamples;
+    linearParams.spatialized = true;
+    linearParams.position = {0.0f, 0.0f, 10.0f};
+    linearParams.attenuation.model = AudioAttenuationModel::Linear;
+    linearParams.attenuation.minDistance = 2.0f;
+    linearParams.attenuation.maxDistance = 20.0f;
+    linearParams.attenuation.minVolume = 0.0f;
+    if (!mixer.PlaySpatial(linearParams)) {
+        std::printf("ERR: PlaySpatial Linear failed\n");
         return 1;
     }
 
-    int64_t sumLeftL = 0, sumLeftR = 0;
-    for (size_t i = 0; i < 10; ++i) {
-        sumLeftL += std::abs(leftStereo[i * 2]);
-        sumLeftR += std::abs(leftStereo[i * 2 + 1]);
-    }
-    if (sumLeftL <= sumLeftR) {
-        std::printf("ERR: Left spatial panning assertion failed: Left=%lld, Right=%lld\n", static_cast<long long>(sumLeftL), static_cast<long long>(sumLeftR));
+    SpatialVoiceParams invParams = linearParams;
+    invParams.id = 2;
+    invParams.attenuation.model = AudioAttenuationModel::InverseSquare;
+    if (!mixer.PlaySpatial(invParams)) {
+        std::printf("ERR: PlaySpatial InverseSquare failed\n");
         return 1;
     }
 
-    mixer.Clear();
-
-    SpatialVoiceParams rightParams;
-    rightParams.id = 102;
-    rightParams.mono = wavData.pcmSamples;
-    rightParams.spatialized = true;
-    rightParams.position = {10.0f, 0.0f, 5.0f};
-    rightParams.attenuation.minDistance = 1.0f;
-    rightParams.attenuation.maxDistance = 50.0f;
-    if (!mixer.PlaySpatial(rightParams)) {
-        std::printf("ERR: PlaySpatial right failed\n");
+    std::vector<int16_t> mixed;
+    mixer.Mix(100, mixed);
+    if (mixed.size() != 200) {
+        std::printf("ERR: Mixed size invalid\n");
         return 1;
     }
 
-    std::vector<int16_t> rightStereo;
-    mixer.Mix(10, rightStereo);
-    int64_t sumRightL = 0, sumRightR = 0;
-    for (size_t i = 0; i < 10; ++i) {
-        sumRightL += std::abs(rightStereo[i * 2]);
-        sumRightR += std::abs(rightStereo[i * 2 + 1]);
-    }
-    if (sumRightR <= sumRightL) {
-        std::printf("ERR: Right spatial panning assertion failed: Left=%lld, Right=%lld\n", static_cast<long long>(sumRightL), static_cast<long long>(sumRightR));
+    AudioComponent component;
+    component.SetSound(50, dataMono16.pcmSamples);
+    component.SetPosition({-5.0f, 0.0f, 2.0f});
+    component.SetPitch(1.5f);
+    if (!component.Play(mixer) || !component.IsPlaying()) {
+        std::printf("ERR: Component play failed\n");
         return 1;
     }
 
-    mixer.Clear();
+    component.Update(mixer, {5.0f, 0.0f, 2.0f});
+    mixer.Mix(50, mixed);
 
-    AudioComponent audioComp;
-    audioComp.SetSound(201, wavData.pcmSamples);
-    audioComp.SetPosition({0.0f, 0.0f, 2.0f});
-    audioComp.SetPitch(1.2f);
-    audioComp.SetLooping(true);
-
-    if (!audioComp.Play(mixer) || !audioComp.IsPlaying()) {
-        std::printf("ERR: AudioComponent Play failed\n");
+    if (!component.Stop(mixer) || component.IsPlaying()) {
+        std::printf("ERR: Component stop failed\n");
         return 1;
     }
 
-    audioComp.Update(mixer, {5.0f, 0.0f, 2.0f});
-    std::vector<int16_t> compStereo;
-    mixer.Mix(50, compStereo);
-
-    if (compStereo.size() != 100 || !audioComp.Stop(mixer) || audioComp.IsPlaying()) {
-        std::printf("ERR: AudioComponent update/stop failed\n");
-        return 1;
-    }
-
-    std::printf("AUDIO_SUBSYSTEM_SMOKE_OK wav_samples=%zu active_voices=%zu\n", wavData.pcmSamples.size(), mixer.ActiveVoices());
+    std::printf("AUDIO_SUBSYSTEM_SMOKE_OK mono_samples=%zu stereo_samples=%zu active_voices=%zu\n",
+                dataMono16.pcmSamples.size(), dataStereo16.pcmSamples.size(), mixer.ActiveVoices());
     return 0;
 }
