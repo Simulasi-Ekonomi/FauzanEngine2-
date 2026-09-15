@@ -5,6 +5,7 @@
 #include "Physics/PhysicsStepBudget.h"
 #include "Systems/CommandIdempotency.h"
 #include "Systems/TransactionJournal.h"
+#include "Platform/AndroidLifecycleGate.h"
 
 #include <array>
 #include <cassert>
@@ -87,5 +88,17 @@ int main() {
     assert(!journal.Apply(1U, -200, transaction));
     assert(journal.Apply(2U, 100, transaction));
     assert(journal.Balance() == 850);
+
+    NeoEngine::AndroidLifecycleGate lifecycle;
+    assert(!lifecycle.CanRender());
+    assert(lifecycle.OnResume());
+    assert(lifecycle.CanRender());
+    assert(lifecycle.OnPause());
+    assert(!lifecycle.CanRender() && lifecycle.CanSubmitAudio());
+    assert(lifecycle.OnResume());
+    assert(lifecycle.OnStop());
+    assert(!lifecycle.CanRender());
+    assert(lifecycle.OnDestroy());
+    assert(!lifecycle.OnResume());
     return 0;
 }
