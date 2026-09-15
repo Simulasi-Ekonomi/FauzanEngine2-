@@ -21,6 +21,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBRRenderPipeline.cpp
     Runtime/ShaderLibrary.cpp
     Runtime/AssetRegistry.cpp
+    Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/SceneWorld.cpp
     Runtime/MeshStaging.cpp
@@ -87,6 +88,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_frame_contrac
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_streaming_queue_smoke.cpp")
     add_xpbd_executable(asset_streaming_queue_smoke ../../Tests/Runtime/asset_streaming_queue_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manager_smoke.cpp")
+    add_xpbd_executable(asset_resource_manager_smoke ../../Tests/Runtime/asset_resource_manager_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
