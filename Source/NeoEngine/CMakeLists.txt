@@ -5,6 +5,7 @@ project(NeoEngine LANGUAGES CXX)
 find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -20,6 +21,12 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBREnvironmentDescriptorSet.cpp
     Runtime/PBRRenderPipeline.cpp
     Runtime/ShaderLibrary.cpp
+    Runtime/WavAudioParser.cpp
+    Runtime/AudioMixer.cpp
+    Runtime/AudioComponent.cpp
+    Runtime/SdlAudioBridge.cpp
+    Runtime/EditorSceneDocumentCodec.cpp
+    Runtime/EditorSceneSession.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -40,7 +47,7 @@ add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
-target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} ${CURL_LIBRARIES} Vulkan::Vulkan log)
+target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} ${CURL_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 log)
 
 function(add_xpbd_executable target_name source_file)
     add_executable(${target_name} ${source_file})
@@ -98,10 +105,15 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/shader_library_smoke.cpp")
     add_xpbd_executable(shader_library_smoke ../../Tests/shader_library_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_subsystem_smoke.cpp")
+    add_xpbd_executable(audio_subsystem_smoke ../../Tests/Runtime/audio_subsystem_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smoke.cpp")
+    add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
+endif()
 
-message(STATUS "NeoEngine CMake configured with canonical Renderer source paths")
+message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, and Editor runtime sources")
 
-# Jules Release Gates R6-R10
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
 add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
 add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence_recovery_100_smoke.cpp)
