@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <fstream>
 #include <string>
-#include <vector>
 
 namespace {
 void WriteTinyHDR(const std::string& path) {
@@ -12,12 +11,8 @@ void WriteTinyHDR(const std::string& path) {
     assert(out);
     out << "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 2 +X 2\n";
     const uint8_t scanline[] = {
-        2, 2, 0, 2,
-        1, 128, 128, 129, 2, 128, 128, 129,
-        1, 128, 128, 129, 2, 128, 128, 129,
-        2, 2, 0, 2,
-        1, 128, 128, 130, 2, 128, 128, 130,
-        1, 128, 128, 130, 2, 128, 128, 130
+        2,2,0,2, 130,128, 130,128, 130,128, 130,129,
+        2,2,0,2, 130,64, 130,64, 130,64, 130,128
     };
     out.write(reinterpret_cast<const char*>(scanline), sizeof(scanline));
 }
@@ -35,13 +30,24 @@ int main() {
     config.prefilterSamples = 8;
     assert(environment.LoadHDR(path, config));
     assert(environment.IsCpuReady());
+    assert(environment.Format() == VK_FORMAT_R16G16B16A16_SFLOAT);
     assert(environment.EnvironmentFaceSize() == 8);
     assert(environment.IrradianceFaceSize() == 4);
     assert(environment.PrefilterFaceSize() == 8);
     assert(environment.PrefilterMipLevels() == 4);
     assert(environment.Settings().maxReflectionLod == 3.0f);
+    assert(NeoEngine::ValidatePBRIBLSettings(environment.Settings()));
 
-    const auto settings = environment.Settings();
-    assert(NeoEngine::ValidatePBRIBLSettings(settings));
+    assert(environment.UploadToVulkan());
+    assert(environment.IsGpuReady());
+    assert(environment.EnvironmentView() != VK_NULL_HANDLE);
+    assert(environment.EnvironmentSampler() != VK_NULL_HANDLE);
+    assert(environment.IrradianceView() != VK_NULL_HANDLE);
+    assert(environment.IrradianceSampler() != VK_NULL_HANDLE);
+    assert(environment.PrefilteredView() != VK_NULL_HANDLE);
+    assert(environment.PrefilteredSampler() != VK_NULL_HANDLE);
+
+    environment.Destroy();
+    assert(!environment.IsGpuReady());
     return 0;
 }
