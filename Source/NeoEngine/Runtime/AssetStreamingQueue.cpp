@@ -7,23 +7,25 @@
 namespace NeoEngine {
 
 bool AssetStreamingQueue::Enqueue(const StreamRequest& req) noexcept {
-    if (req.id.empty() || req.filepath.empty() || !std::isfinite(req.priority) ||
-        req.estimatedSizeMB == 0 || req.estimatedSizeMB > memoryBudgetMB_) {
-        return false;
-    }
-
     std::lock_guard<std::mutex> lock(mutex_);
-    if (loadedAssets_.size() >= maxAssets_ || loadedAssets_.find(req.id) != loadedAssets_.end()) {
+    if (req.id.empty() || req.filepath.empty() || !std::isfinite(req.priority) ||
+        req.estimatedSizeMB == 0 || req.estimatedSizeMB > memoryBudgetMB_ ||
+        loadedAssets_.size() >= maxAssets_ || loadedAssets_.find(req.id) != loadedAssets_.end()) {
         return false;
     }
 
-    streamQueue_.push(req);
     try {
-        loadedAssets_.emplace(req.id, StreamedAssetInfo{
-            req.id, StreamState::Pending, VK_NULL_HANDLE, req.estimatedSizeMB, 0});
+        const auto [it, inserted] = loadedAssets_.emplace(
+            req.id, StreamedAssetInfo{req.id, StreamState::Pending, VK_NULL_HANDLE,
+                                     req.estimatedSizeMB, 0});
+        if (!inserted) return false;
+        try {
+            streamQueue_.push(req);
+        } catch (...) {
+            loadedAssets_.erase(it);
+            return false;
+        }
     } catch (...) {
-        // Keep the queue and registry transactionally aligned if allocation fails.
-        streamQueue_.pop();
         return false;
     }
     return true;
@@ -40,7 +42,11 @@ bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
         return false;
     }
 
-    out = candidate;
+    try {
+        out = candidate;
+    } catch (...) {
+        return false;
+    }
     it->second.state = StreamState::Uploading;
     streamQueue_.pop();
     return true;
@@ -75,9 +81,7 @@ bool AssetStreamingQueue::Release(AssetID id) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = loadedAssets_.find(id);
     if (it == loadedAssets_.end()) return false;
-    if (it->second.state == StreamState::Ready) {
-        residentMemoryMB_ -= it->second.allocatedSizeMB;
-    }
+    if (it->second.state == StreamState::Ready) residentMemoryMB_ -= it->second.allocatedSizeMB;
     loadedAssets_.erase(it);
     return true;
 }
@@ -102,8 +106,11 @@ VkDeviceMemory AssetStreamingQueue::GetMemory(AssetID id) const noexcept {
 }
 
 void AssetStreamingQueue::SetMemoryBudgetMB(uint32_t budgetMB) noexcept {
-    std::lock_guard<std::mutex> lock(mutex_);
-    memoryBudgetMB_ = budgetMB;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        memoryBudgetMB_ = budgetMB;
+    }
+    (void)EvictToBudget();
 }
 
 uint32_t AssetStreamingQueue::GetMemoryBudgetMB() const noexcept {
@@ -139,17 +146,21 @@ bool AssetStreamingQueue::EvictToBudget() noexcept {
     if (residentMemoryMB_ <= memoryBudgetMB_) return true;
 
     std::vector<AssetID> candidates;
-    candidates.reserve(loadedAssets_.size());
-    for (const auto& [id, info] : loadedAssets_) {
-        if (info.state == StreamState::Ready) candidates.push_back(id);
+    try {
+        candidates.reserve(loadedAssets_.size());
+        for (const auto& [id, info] : loadedAssets_) {
+            if (info.state == StreamState::Ready) candidates.push_back(id);
+        }
+        std::sort(candidates.begin(), candidates.end(), [this](const AssetID& a, const AssetID& b) {
+            const auto lhs = loadedAssets_.find(a);
+            const auto rhs = loadedAssets_.find(b);
+            if (lhs->second.lastAccessFrame != rhs->second.lastAccessFrame)
+                return lhs->second.lastAccessFrame < rhs->second.lastAccessFrame;
+            return a < b;
+        });
+    } catch (...) {
+        return false;
     }
-
-    std::sort(candidates.begin(), candidates.end(), [this](const AssetID& a, const AssetID& b) {
-        const auto& lhs = loadedAssets_.find(a)->second;
-        const auto& rhs = loadedAssets_.find(b)->second;
-        if (lhs.lastAccessFrame != rhs.lastAccessFrame) return lhs.lastAccessFrame < rhs.lastAccessFrame;
-        return a < b;
-    });
 
     for (const auto& id : candidates) {
         if (residentMemoryMB_ <= memoryBudgetMB_) break;
