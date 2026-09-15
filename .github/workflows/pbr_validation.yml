@@ -1,13 +1,13 @@
-name: PBR-1 Validation
+name: PBR Validation
 
 on:
   push:
-    branches: [ feature/pbr-materials-r2 ]
+    branches: [ feature/pbr-lighting-r2 ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  pbr1:
+  pbr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +17,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y g++ libvulkan-dev libglm-dev libjsoncpp-dev glslang-tools pkg-config
 
-      - name: Build PBR-1 smoke target
+      - name: Build PBR-1 material smoke target
         run: |
           g++ -std=c++20 -O2 -I Source/NeoEngine $(pkg-config --cflags jsoncpp) \
             Source/NeoEngine/Runtime/VulkanContext.cpp \
@@ -29,8 +29,21 @@ jobs:
             Tests/pbr_material_smoke.cpp \
             $(pkg-config --libs jsoncpp) -lvulkan -o /tmp/pbr_material_smoke
 
-      - name: Validate PBR shader
-        run: glslangValidator -V Source/NeoEngine/Shaders/pbr_material.frag -o /tmp/pbr_material.frag.spv
+      - name: Build PBR-2 lighting smoke target
+        run: |
+          g++ -std=c++20 -O2 -I Source/NeoEngine \
+            Source/NeoEngine/Runtime/PBRLighting.cpp \
+            Tests/pbr_lighting_smoke.cpp \
+            -o /tmp/pbr_lighting_smoke
 
-      - name: Run PBR smoke
+      - name: Validate PBR shaders
+        run: |
+          glslangValidator -V Source/NeoEngine/Shaders/neo_mesh.vert -o /tmp/neo_mesh.vert.spv
+          glslangValidator -V Source/NeoEngine/Shaders/pbr_material.frag -o /tmp/pbr_material.frag.spv
+          glslangValidator -V Source/NeoEngine/Shaders/pbr_lighting.frag -o /tmp/pbr_lighting.frag.spv
+
+      - name: Run PBR-1 smoke
         run: /tmp/pbr_material_smoke
+
+      - name: Run PBR-2 smoke
+        run: /tmp/pbr_lighting_smoke
