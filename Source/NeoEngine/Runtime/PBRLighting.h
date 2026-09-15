@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include <glm/glm.hpp>
+#include <glm/gtx/norm.hpp>
 
 namespace NeoEngine {
 
