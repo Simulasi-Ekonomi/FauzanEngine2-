@@ -23,6 +23,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetRegistry.cpp
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
+    Runtime/Vulkan3DRenderer.cpp
     Runtime/SceneWorld.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -158,7 +159,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
-message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, and Asset runtime sources")
+message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, Asset, and Vulkan3D runtime sources")
 
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
 add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
