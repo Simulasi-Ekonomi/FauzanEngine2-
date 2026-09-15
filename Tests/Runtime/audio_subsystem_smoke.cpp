@@ -13,6 +13,7 @@ int main() {
     WavAudioData decoded;
     assert(WavAudioParser::Parse(wav, decoded));
     assert(decoded.sampleRate == 48000 && decoded.channels == 1 && decoded.pcmSamples.size() == 480);
+    const auto decodedSamples = decoded.pcmSamples;
 
     auto truncated = wav;
     truncated.pop_back();
@@ -20,7 +21,7 @@ int main() {
 
     AudioMixer mixer;
     AudioComponent component(1);
-    assert(component.SetSamples(decoded.pcmSamples));
+    assert(component.SetSamples(decodedSamples));
     component.SetGainQ8(256);
     assert(component.Play(mixer));
     std::vector<int16_t> output;
@@ -30,7 +31,7 @@ int main() {
     mixer.Clear();
 
     AudioComponent spatial(2);
-    assert(spatial.SetSamples(decoded.pcmSamples));
+    assert(spatial.SetSamples(decodedSamples));
     spatial.SetSpatialized(true);
     spatial.SetPosition(2.0f, 0.0f, 0.0f);
     spatial.SetLooping(true);
