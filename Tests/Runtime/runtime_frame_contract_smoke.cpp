@@ -1,6 +1,7 @@
 #include "RuntimeFrameContract.h"
 #include "ECS/ECSCommandBuffer.h"
 #include "AssetRuntimeState.h"
+#include "Renderer/RenderFrameGraph.h"
 
 #include <array>
 #include <cassert>
@@ -46,5 +47,16 @@ int main() {
     assert(!assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Staged));
     assert(assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Evicted));
     assert(assets.Find("mesh/player")->residentBytes == 0U);
+
+    NeoEngine::RenderFrameGraph graph;
+    assert(graph.AddPass(1U, "depth"));
+    assert(graph.AddPass(2U, "opaque", {1U}));
+    assert(graph.AddPass(3U, "post", {2U}));
+    std::vector<uint32_t> order;
+    assert(graph.BuildOrder(order));
+    assert(order.size() == 3U);
+    assert(order[0] == 1U && order[1] == 2U && order[2] == 3U);
+    assert(!graph.AddPass(4U, "cycle", {3U, 4U}));
+    assert(graph.Size() == 3U);
     return 0;
 }
