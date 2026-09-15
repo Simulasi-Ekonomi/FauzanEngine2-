@@ -72,8 +72,12 @@ jobs:
         run: |
           g++ -std=c++20 -O2 -I Source/NeoEngine \
             Source/NeoEngine/Runtime/VulkanContext.cpp \
+            Source/NeoEngine/Runtime/VulkanGPUTexture.cpp \
+            Source/NeoEngine/Runtime/VulkanDescriptorManager.cpp \
             Source/NeoEngine/Runtime/PBRIBL.cpp \
+            Source/NeoEngine/Runtime/BRDFLut.cpp \
             Source/NeoEngine/Runtime/PBREnvironment.cpp \
+            Source/NeoEngine/Runtime/PBREnvironmentDescriptorSet.cpp \
             Tests/pbr_environment_smoke.cpp \
             -lvulkan -o /tmp/pbr_environment_smoke
 
