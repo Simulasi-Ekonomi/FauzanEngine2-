@@ -24,6 +24,9 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AudioMixer.cpp
     Runtime/AudioComponent.cpp
     Runtime/SdlAudioBridge.cpp
+    Runtime/InputState.cpp
+    Runtime/SdlInputBridge.cpp
+    Runtime/UiInputRouter.cpp
     Runtime/EditorSceneDocumentCodec.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneAgentAPI.cpp
@@ -97,6 +100,18 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_environment_descriptor_sm
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/shader_library_smoke.cpp")
     add_xpbd_executable(shader_library_smoke ../../Tests/shader_library_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_audio_bridge_smoke.cpp")
+    add_xpbd_executable(sdl_audio_bridge_smoke ../../Tests/Runtime/sdl_audio_bridge_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_input_bridge_smoke.cpp")
+    add_xpbd_executable(sdl_input_bridge_smoke ../../Tests/Runtime/sdl_input_bridge_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/input_state_smoke.cpp")
+    add_xpbd_executable(input_state_smoke ../../Tests/Runtime/input_state_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/ui_input_router_smoke.cpp")
+    add_xpbd_executable(ui_input_router_smoke ../../Tests/Runtime/ui_input_router_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_subsystem_smoke.cpp")
     add_xpbd_executable(audio_subsystem_smoke ../../Tests/Runtime/audio_subsystem_smoke.cpp)
