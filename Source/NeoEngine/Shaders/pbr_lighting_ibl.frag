@@ -31,14 +31,12 @@ layout(set = 2, binding = 0) uniform samplerCube irradianceMap;
 layout(set = 2, binding = 1) uniform samplerCube prefilteredEnvironment;
 layout(set = 2, binding = 2) uniform sampler2D brdfLut;
 
-// The existing transform push-constant range occupies bytes 0..63 in the vertex stage.
-// IBL settings occupy bytes 64..79 in the fragment stage, avoiding a new descriptor binding.
-layout(push_constant) uniform IBLParams {
-    layout(offset = 64) float environmentIntensity;
-    layout(offset = 68) float irradianceStrength;
-    layout(offset = 72) float maxReflectionLod;
-    layout(offset = 76) float _padding;
-} ibl;
+// Push-constant layout shares the first 64 bytes with the existing vertex
+// transform block. The fragment stage consumes only the trailing vec4.
+layout(push_constant) uniform PBRPushConstants {
+    mat4 transformPadding;
+    vec4 iblSettings;
+} pushConstants;
 
 layout(location = 0) in vec3 inWorldPosition;
 layout(location = 1) in vec3 inNormal;
@@ -141,8 +139,8 @@ vec3 EvaluateSpot(vec3 worldPosition, vec3 n, vec3 v, vec3 albedo, float metalli
 }
 
 vec3 EvaluateIBL(vec3 n, vec3 v, vec3 albedo, float metallic, float roughness, float ao) {
-    float environmentIntensity = max(ibl.environmentIntensity, 0.0);
-    float irradianceStrength = max(ibl.irradianceStrength, 0.0);
+    float environmentIntensity = max(pushConstants.iblSettings.x, 0.0);
+    float irradianceStrength = max(pushConstants.iblSettings.y, 0.0);
     float nDotV = max(dot(n, v), 0.0);
     vec3 reflection = reflect(-v, n);
     vec3 f0 = mix(vec3(0.04), albedo, metallic);
@@ -150,7 +148,7 @@ vec3 EvaluateIBL(vec3 n, vec3 v, vec3 albedo, float metallic, float roughness, f
     vec3 irradiance = texture(irradianceMap, n).rgb * irradianceStrength;
     vec3 diffuse = irradiance * albedo / PI * (1.0 - metallic) * ao;
     float queriedMaxLod = max(float(textureQueryLevels(prefilteredEnvironment) - 1), 0.0);
-    float maxLod = min(queriedMaxLod, max(ibl.maxReflectionLod, 0.0));
+    float maxLod = min(queriedMaxLod, max(pushConstants.iblSettings.z, 0.0));
     float lod = min(roughness * maxLod, queriedMaxLod);
     vec3 prefiltered = textureLod(prefilteredEnvironment, reflection, lod).rgb;
     vec2 brdf = texture(brdfLut, vec2(nDotV, roughness)).rg;
