@@ -19,6 +19,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBREnvironment.cpp
     Runtime/PBREnvironmentDescriptorSet.cpp
     Runtime/PBRRenderPipeline.cpp
+    Runtime/ShaderLibrary.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -93,6 +94,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_environment_smoke.cpp")
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_environment_descriptor_smoke.cpp")
     add_xpbd_executable(pbr_environment_descriptor_smoke ../../Tests/pbr_environment_descriptor_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/shader_library_smoke.cpp")
+    add_xpbd_executable(shader_library_smoke ../../Tests/shader_library_smoke.cpp)
 endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Renderer source paths")

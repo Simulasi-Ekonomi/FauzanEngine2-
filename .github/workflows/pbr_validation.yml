@@ -2,7 +2,7 @@ name: PBR Validation
 
 on:
   push:
-    branches: [ feature/pbr-environment-r1 ]
+    branches: [ feature/pbr-environment-r1, feature/pbr-6-2-shader-library-r1 ]
   pull_request:
     branches: [ main ]
 
@@ -92,6 +92,14 @@ jobs:
             Tests/pbr_environment_descriptor_smoke.cpp \
             -lvulkan -o /tmp/pbr_environment_descriptor_smoke
 
+      - name: Build PBR-6.2 shader library smoke target
+        run: |
+          g++ -std=c++20 -O2 -I Source/NeoEngine \
+            Source/NeoEngine/Runtime/VulkanContext.cpp \
+            Source/NeoEngine/Runtime/ShaderLibrary.cpp \
+            Tests/shader_library_smoke.cpp \
+            -lvulkan -o /tmp/shader_library_smoke
+
       - name: Validate PBR shaders
         run: |
           glslangValidator -V Source/NeoEngine/Shaders/neo_mesh.vert -o /tmp/neo_mesh.vert.spv
@@ -116,3 +124,6 @@ jobs:
 
       - name: Run PBR-5 environment descriptor smoke
         run: /tmp/pbr_environment_descriptor_smoke
+
+      - name: Run PBR-6.2 shader library smoke
+        run: /tmp/shader_library_smoke /tmp/neo_mesh.vert.spv /tmp/pbr_lighting.frag.spv
