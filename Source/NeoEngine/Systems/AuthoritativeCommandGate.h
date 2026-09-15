@@ -23,6 +23,7 @@ enum class AuthorityError : uint8_t {
     RateLimited,
     HandlerRejected,
     CorruptPersistence,
+    Capacity,
 };
 
 struct AuthorityConfig {
