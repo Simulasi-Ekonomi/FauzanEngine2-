@@ -1,2 +1,5 @@
 #include "EditorProvider.h"
-namespace NeoEngine {}
+
+namespace NeoEngine {
+// Implemented in EditorProvider.h
+}

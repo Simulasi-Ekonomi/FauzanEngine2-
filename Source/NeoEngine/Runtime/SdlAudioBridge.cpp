@@ -50,6 +50,30 @@ bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ
     return true;
 }
 
+bool SdlAudioBridge::PlaySpatial(const SpatialVoiceParams& params) {
+    if (stream_ == nullptr) {
+        lastError_ = SdlAudioBridgeError::NotInitialized;
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(mixerMutex_);
+    if (!mixer_.PlaySpatial(params)) {
+        lastError_ = SdlAudioBridgeError::MixerRejected;
+        return false;
+    }
+    lastError_ = SdlAudioBridgeError::None;
+    return true;
+}
+
+void SdlAudioBridge::SetListener(const AudioListener& listener) {
+    std::lock_guard<std::mutex> lock(mixerMutex_);
+    mixer_.SetListener(listener);
+}
+
+bool SdlAudioBridge::UpdateVoicePosition(uint32_t id, const AudioVector3& position) {
+    std::lock_guard<std::mutex> lock(mixerMutex_);
+    return mixer_.UpdateVoicePosition(id, position);
+}
+
 uint16_t SdlAudioBridge::QueuedVoiceCount() const {
     std::lock_guard<std::mutex> lock(mixerMutex_);
     return static_cast<uint16_t>(mixer_.ActiveVoices());

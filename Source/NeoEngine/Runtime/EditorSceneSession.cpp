@@ -30,6 +30,16 @@ bool EditorSceneSession::UpdateTransform(uint32_t actorId, const Transform3& tra
     if (found == candidate.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
     found->transform = transform; ++candidate.revision; return CommitMutation(candidate, assets);
 }
+bool EditorSceneSession::UpdateActorProperties(uint32_t actorId, const std::string& name, const std::string& materialAssetId, const std::string& textureAssetId, uint32_t spriteRgba, const AssetRegistry& assets) {
+    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    EditorSceneDocument candidate = document_; const auto found = std::find_if(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
+    if (found == candidate.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
+    if (!name.empty()) found->name = name;
+    if (!materialAssetId.empty()) found->materialAssetId = materialAssetId;
+    if (!textureAssetId.empty()) found->textureAssetId = textureAssetId;
+    found->spriteRgba = spriteRgba;
+    ++candidate.revision; return CommitMutation(candidate, assets);
+}
 bool EditorSceneSession::ReparentActor(uint32_t actorId, uint32_t parentId, const AssetRegistry& assets) {
     if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     EditorSceneDocument candidate = document_; const auto found = std::find_if(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
@@ -39,6 +49,16 @@ bool EditorSceneSession::ReparentActor(uint32_t actorId, uint32_t parentId, cons
 bool EditorSceneSession::AddActor(const EditorSceneActor& actor, const AssetRegistry& assets) {
     if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     EditorSceneDocument candidate = document_; candidate.actors.push_back(actor); ++candidate.revision; return CommitMutation(candidate, assets);
+}
+bool EditorSceneSession::DuplicateActor(uint32_t actorId, uint32_t newActorId, const AssetRegistry& assets) {
+    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
+    if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
+    EditorSceneActor copy = *found;
+    copy.id = newActorId;
+    if (!copy.name.empty()) copy.name += "_Copy";
+    copy.transform.x += 1.0f;
+    return AddActor(copy, assets);
 }
 bool EditorSceneSession::DeleteActor(uint32_t actorId, const AssetRegistry& assets) {
     if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
@@ -68,7 +88,20 @@ bool EditorSceneSession::InstantiateStagedPrefab(const PrefabStagingStore& prefa
 bool EditorSceneSession::SelectActor(uint32_t actorId) {
     const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
     if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
-    selectedActorId_ = actorId; lastError_ = EditorSceneSessionError::None; return true;
+    selectedActorId_ = actorId;
+    selectedActorIds_ = {actorId};
+    lastError_ = EditorSceneSessionError::None;
+    return true;
+}
+bool EditorSceneSession::MultiSelectActors(const std::vector<uint32_t>& actorIds) {
+    for (uint32_t id : actorIds) {
+        const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [id](const EditorSceneActor& actor) { return actor.id == id; });
+        if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
+    }
+    selectedActorIds_ = actorIds;
+    selectedActorId_ = actorIds.empty() ? 0U : actorIds[0];
+    lastError_ = EditorSceneSessionError::None;
+    return true;
 }
 bool EditorSceneSession::Save(EditorSceneDocument& document) const { if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } document = document_; savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true; }
 bool EditorSceneSession::SaveBytes(std::vector<uint8_t>& bytes) const { if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } EditorSceneDocumentCodec codec; if (!codec.Encode(document_, bytes)) { lastError_ = EditorSceneSessionError::CodecEncodeFailed; return false; } savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true; }
