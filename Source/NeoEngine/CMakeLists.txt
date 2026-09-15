@@ -24,6 +24,10 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/Vulkan3DRenderer.cpp
+    Runtime/VulkanPresentProbe.cpp
+    Runtime/VulkanTexturedPresent.cpp
+    Runtime/NeoRuntime.cpp
+    Runtime/FarmRuntimeSession.cpp
     Runtime/SceneWorld.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -93,6 +97,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manager_smoke.cpp")
     add_xpbd_executable(asset_resource_manager_smoke ../../Tests/Runtime/asset_resource_manager_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp")
+    add_xpbd_executable(farm_vulkan_textured_present_smoke ../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp)
+endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
@@ -159,7 +166,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
-message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, Asset, and Vulkan3D runtime sources")
+message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, Asset, Farm, and Vulkan runtime sources")
 
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
 add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
