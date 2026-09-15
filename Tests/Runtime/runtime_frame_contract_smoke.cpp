@@ -3,6 +3,7 @@
 #include "AssetRuntimeState.h"
 #include "Renderer/RenderFrameGraph.h"
 #include "Physics/PhysicsStepBudget.h"
+#include "Systems/CommandIdempotency.h"
 
 #include <array>
 #include <cassert>
@@ -67,5 +68,13 @@ int main() {
     assert(budget.MeetsTarget());
     budget.Record(100000U, 200000U, 200000U, 5001U);
     assert(!budget.MeetsTarget());
+
+    NeoEngine::CommandIdempotency idempotency(2U);
+    assert(idempotency.Accept(1U, 0xAAU));
+    assert(idempotency.Accept(1U, 0xAAU));
+    assert(!idempotency.Accept(1U, 0xBBU));
+    assert(idempotency.Accept(2U, 0xCCU));
+    assert(!idempotency.Accept(3U, 0xDDU));
+    assert(idempotency.Matches(2U, 0xCCU));
     return 0;
 }
