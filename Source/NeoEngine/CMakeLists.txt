@@ -21,6 +21,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBRRenderPipeline.cpp
     Runtime/ShaderLibrary.cpp
     Runtime/AssetRegistry.cpp
+    Runtime/AssetStreamingQueue.cpp
     Runtime/SceneWorld.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -83,6 +84,9 @@ endfunction()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_frame_contract_smoke.cpp")
     add_xpbd_executable(runtime_frame_contract_smoke ../../Tests/Runtime/runtime_frame_contract_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_streaming_queue_smoke.cpp")
+    add_xpbd_executable(asset_streaming_queue_smoke ../../Tests/Runtime/asset_streaming_queue_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
@@ -150,7 +154,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
-message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, and Editor runtime sources")
+message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, and Asset runtime sources")
 
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
 add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
