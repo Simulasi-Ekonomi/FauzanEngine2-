@@ -25,7 +25,7 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev glslang-tools ninja-build xvfb mesa-vulkan-drivers libx11-xcb1 libxcb1 libxrandr2 libxinerama1 libxcursor1 libxi6 libvulkan1 vulkan-tools libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxfixes-dev libxss-dev libxtst-dev libdrm-dev libgbm-dev libudev-dev
+          sudo apt-get install -y libvulkan-dev glslang-tools ninja-build xvfb mesa-vulkan-drivers libx11-xcb1 libxcb1 libxrandr2 libxinerama2 libxcursor1 libxi6 libvulkan1 vulkan-tools libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxfixes-dev libxss-dev libxtst-dev libdrm-dev libgbm-dev libudev-dev
           VULKAN_ICD="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name '*.json' -print | grep -E '/(lvp|lavapipe|swrast).*\.json$' | head -n 1)"
           test -n "${VULKAN_ICD}"
           echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
@@ -33,9 +33,12 @@ jobs:
 
       - name: Build and install SDL3
         run: |
+          set -euo pipefail
           SDL_VERSION=3.4.14
           SDL_SHA256=30d4aa2b3037718142b32dffd4e72f917ebb6cc5227150e7bb9c45efb2153aeb
-          curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" -o /tmp/SDL3.tar.gz
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 20 --max-time 180 \
+            "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" \
+            -o /tmp/SDL3.tar.gz
           echo "${SDL_SHA256}  /tmp/SDL3.tar.gz" | sha256sum -c -
           tar -xzf /tmp/SDL3.tar.gz -C /tmp
           SDL_SOURCE_DIR="$(tar -tzf /tmp/SDL3.tar.gz | awk -F/ 'NF > 1 {print $1; exit}')"
