@@ -7,12 +7,10 @@ namespace NeoEngine {
 PBRRenderPipeline::~PBRRenderPipeline() { Destroy(); }
 
 PBRRenderPipeline::PBRRenderPipeline(PBRRenderPipeline&& other) noexcept
-    : device_(other.device_),
-      materialLayout_(other.materialLayout_),
-      lightingDescriptors_(std::move(other.lightingDescriptors_)),
-      pipeline_(std::move(other.pipeline_)) {
+    : device_(other.device_), materialLayout_(other.materialLayout_), iblLayout_(other.iblLayout_), lightingDescriptors_(std::move(other.lightingDescriptors_)), pipeline_(std::move(other.pipeline_)) {
     other.device_ = VK_NULL_HANDLE;
     other.materialLayout_ = VK_NULL_HANDLE;
+    other.iblLayout_ = VK_NULL_HANDLE;
 }
 
 PBRRenderPipeline& PBRRenderPipeline::operator=(PBRRenderPipeline&& other) noexcept {
@@ -20,32 +18,47 @@ PBRRenderPipeline& PBRRenderPipeline::operator=(PBRRenderPipeline&& other) noexc
         Destroy();
         device_ = other.device_;
         materialLayout_ = other.materialLayout_;
+        iblLayout_ = other.iblLayout_;
         lightingDescriptors_ = std::move(other.lightingDescriptors_);
         pipeline_ = std::move(other.pipeline_);
         other.device_ = VK_NULL_HANDLE;
         other.materialLayout_ = VK_NULL_HANDLE;
+        other.iblLayout_ = VK_NULL_HANDLE;
     }
     return *this;
 }
 
-bool PBRRenderPipeline::Initialize(
-    VkDevice device,
-    VkRenderPass renderPass,
-    VkDescriptorSetLayout materialLayout,
-    const std::vector<uint32_t>& vertexSpv,
-    const std::vector<uint32_t>& fragmentSpv,
-    const VkVertexInputBindingDescription& vertexBinding,
-    const std::vector<VkVertexInputAttributeDescription>& vertexAttributes) {
-    if (device == VK_NULL_HANDLE || renderPass == VK_NULL_HANDLE ||
-        materialLayout == VK_NULL_HANDLE || vertexSpv.empty() || fragmentSpv.empty()) {
-        return false;
-    }
+bool PBRRenderPipeline::Initialize(VkDevice device, VkRenderPass renderPass, VkDescriptorSetLayout materialLayout,
+                                   const std::vector<uint32_t>& vertexSpv, const std::vector<uint32_t>& fragmentSpv,
+                                   const VkVertexInputBindingDescription& vertexBinding,
+                                   const std::vector<VkVertexInputAttributeDescription>& vertexAttributes) {
+    return InitializeInternal(device, renderPass, materialLayout, VK_NULL_HANDLE, vertexSpv, fragmentSpv,
+                              vertexBinding, vertexAttributes);
+}
+
+bool PBRRenderPipeline::InitializeWithIBL(VkDevice device, VkRenderPass renderPass,
+                                          VkDescriptorSetLayout materialLayout, VkDescriptorSetLayout iblLayout,
+                                          const std::vector<uint32_t>& vertexSpv, const std::vector<uint32_t>& fragmentSpv,
+                                          const VkVertexInputBindingDescription& vertexBinding,
+                                          const std::vector<VkVertexInputAttributeDescription>& vertexAttributes) {
+    if (iblLayout == VK_NULL_HANDLE) return false;
+    return InitializeInternal(device, renderPass, materialLayout, iblLayout, vertexSpv, fragmentSpv,
+                              vertexBinding, vertexAttributes);
+}
+
+bool PBRRenderPipeline::InitializeInternal(VkDevice device, VkRenderPass renderPass,
+                                            VkDescriptorSetLayout materialLayout, VkDescriptorSetLayout iblLayout,
+                                            const std::vector<uint32_t>& vertexSpv, const std::vector<uint32_t>& fragmentSpv,
+                                            const VkVertexInputBindingDescription& vertexBinding,
+                                            const std::vector<VkVertexInputAttributeDescription>& vertexAttributes) {
+    if (device == VK_NULL_HANDLE || renderPass == VK_NULL_HANDLE || materialLayout == VK_NULL_HANDLE ||
+        vertexSpv.empty() || fragmentSpv.empty()) return false;
 
     Destroy();
     device_ = device;
     materialLayout_ = materialLayout;
+    iblLayout_ = iblLayout;
 
-    // Matches pbr_lighting.frag set=1,binding=0 LightingFrame.
     const std::vector<DescriptorLayoutBindingInfo> lightingBindings = {
         {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
     };
@@ -68,8 +81,8 @@ bool PBRRenderPipeline::Initialize(
     config.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
     config.blendEnable = false;
     config.descriptorSetLayouts = {materialLayout_, lightingDescriptors_.GetLayout()};
+    if (iblLayout_ != VK_NULL_HANDLE) config.descriptorSetLayouts.push_back(iblLayout_);
 
-    // neo_mesh.vert consumes a mat4 transform.mvp push constant.
     VkPushConstantRange transformRange{};
     transformRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     transformRange.offset = 0;
@@ -80,7 +93,6 @@ bool PBRRenderPipeline::Initialize(
         Destroy();
         return false;
     }
-
     return true;
 }
 
@@ -89,31 +101,26 @@ VkDescriptorSet PBRRenderPipeline::AllocateLightingSet() {
     return lightingDescriptors_.AllocateSet();
 }
 
-void PBRRenderPipeline::UpdateLightingBuffer(VkDescriptorSet descriptorSet,
-                                              VkBuffer buffer,
-                                              VkDeviceSize offset,
-                                              VkDeviceSize range) {
-    if (!lightingDescriptors_.IsValid() || descriptorSet == VK_NULL_HANDLE ||
-        buffer == VK_NULL_HANDLE || range == 0) {
-        return;
-    }
-    lightingDescriptors_.UpdateBufferBinding(descriptorSet, 0,
-                                              VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                              buffer, offset, range);
+void PBRRenderPipeline::UpdateLightingBuffer(VkDescriptorSet descriptorSet, VkBuffer buffer,
+                                              VkDeviceSize offset, VkDeviceSize range) {
+    if (!lightingDescriptors_.IsValid() || descriptorSet == VK_NULL_HANDLE || buffer == VK_NULL_HANDLE || range == 0) return;
+    lightingDescriptors_.UpdateBufferBinding(descriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, buffer, offset, range);
 }
 
-void PBRRenderPipeline::Bind(VkCommandBuffer commandBuffer,
-                             VkDescriptorSet materialSet,
-                             VkDescriptorSet lightingSet) const {
-    if (!IsValid() || commandBuffer == VK_NULL_HANDLE ||
-        materialSet == VK_NULL_HANDLE || lightingSet == VK_NULL_HANDLE) {
-        return;
-    }
-
+void PBRRenderPipeline::Bind(VkCommandBuffer commandBuffer, VkDescriptorSet materialSet, VkDescriptorSet lightingSet) const {
+    if (!IsValid() || HasIBL() || commandBuffer == VK_NULL_HANDLE || materialSet == VK_NULL_HANDLE || lightingSet == VK_NULL_HANDLE) return;
     const VkDescriptorSet sets[2] = {materialSet, lightingSet};
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.GetPipeline());
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline_.GetPipelineLayout(), 0, 2, sets, 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.GetPipelineLayout(), 0, 2, sets, 0, nullptr);
+}
+
+void PBRRenderPipeline::BindWithIBL(VkCommandBuffer commandBuffer, VkDescriptorSet materialSet,
+                                    VkDescriptorSet lightingSet, VkDescriptorSet iblSet) const {
+    if (!IsValid() || !HasIBL() || commandBuffer == VK_NULL_HANDLE || materialSet == VK_NULL_HANDLE ||
+        lightingSet == VK_NULL_HANDLE || iblSet == VK_NULL_HANDLE) return;
+    const VkDescriptorSet sets[3] = {materialSet, lightingSet, iblSet};
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.GetPipeline());
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.GetPipelineLayout(), 0, 3, sets, 0, nullptr);
 }
 
 void PBRRenderPipeline::Destroy() {
@@ -121,6 +128,7 @@ void PBRRenderPipeline::Destroy() {
     lightingDescriptors_.Destroy();
     device_ = VK_NULL_HANDLE;
     materialLayout_ = VK_NULL_HANDLE;
+    iblLayout_ = VK_NULL_HANDLE;
 }
 
 } // namespace NeoEngine
