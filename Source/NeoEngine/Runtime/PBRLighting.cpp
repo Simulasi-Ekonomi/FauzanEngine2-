@@ -54,7 +54,7 @@ glm::vec3 PBRFresnelSchlickRoughness(float cosTheta, const glm::vec3& f0, float 
 bool ValidatePBRLight(const PBRDirectionalLight& light) noexcept {
     const glm::vec3 direction(light.directionIntensity);
     return Finite(light.directionIntensity) && Finite(light.color) &&
-           glm::length2(direction) > kEpsilon && light.directionIntensity.w >= 0.0f &&
+           glm::dot(direction, direction) > kEpsilon && light.directionIntensity.w >= 0.0f &&
            light.color.w >= 0.0f;
 }
 
@@ -67,7 +67,7 @@ bool ValidatePBRLight(const PBRSpotLight& light) noexcept {
     const glm::vec3 direction(light.directionInnerCos);
     return Finite(light.positionRadius) && Finite(light.directionInnerCos) &&
            Finite(light.colorIntensity) && Finite(light.outerCosPadding) &&
-           light.positionRadius.w > 0.0f && glm::length2(direction) > kEpsilon &&
+           light.positionRadius.w > 0.0f && glm::dot(direction, direction) > kEpsilon &&
            light.directionInnerCos.w >= 0.0f && light.outerCosPadding.x >= 0.0f &&
            light.outerCosPadding.x < light.directionInnerCos.w && light.colorIntensity.w >= 0.0f;
 }
