@@ -26,5 +26,7 @@ int main(){
     if(restored.SetTransform(child,{std::numeric_limits<float>::infinity(),0,0})||restored.LastError()!=SceneWorldError::InvalidTransform||restored.GetTransform(child)->x!=childX)return 1;
     std::vector<uint8_t> corrupted=bytes;const float infinity=std::numeric_limits<float>::infinity();std::memcpy(corrupted.data()+14U,&infinity,sizeof(infinity));
     if(restored.Deserialize(corrupted)||restored.LastError()!=SceneWorldError::InvalidTransform||restored.GetTransform(child)->x!=childX)return 1;
-    std::printf("SCENE_WORLD_SMOKE_OK entities=%u hierarchy=1 rotation=1 validation=1 dirty=1 localWorld=1 bytes=%zu\n",restored.AliveCount(),bytes.size());
+    std::vector<uint8_t> truncated={0x53,0x4E,0x57,0x31,0x01,0x00,0x00,0x00};
+    if(restored.Deserialize(truncated)||restored.LastError()!=SceneWorldError::Corrupt||restored.GetTransform(child)->x!=childX||restored.AliveCount()!=2U)return 1;
+    std::printf("SCENE_WORLD_SMOKE_OK entities=%u hierarchy=1 rotation=1 validation=1 dirty=1 localWorld=1 bounds=1 bytes=%zu\n",restored.AliveCount(),bytes.size());
 }

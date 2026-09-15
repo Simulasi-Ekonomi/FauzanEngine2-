@@ -6,7 +6,7 @@
 namespace NeoEngine {
 namespace {
 template<class T> void Put(std::vector<uint8_t>& bytes,const T& value){const auto* pointer=reinterpret_cast<const uint8_t*>(&value);bytes.insert(bytes.end(),pointer,pointer+sizeof(T));}
-template<class T> bool Get(const std::vector<uint8_t>& bytes,size_t& offset,T& value){if(offset+sizeof(T)>bytes.size())return false;std::memcpy(&value,bytes.data()+offset,sizeof(T));offset+=sizeof(T);return true;}
+template<class T> bool Get(const std::vector<uint8_t>& bytes,size_t& offset,T& value){if(offset>bytes.size()||bytes.size()-offset<sizeof(T))return false;std::memcpy(&value,bytes.data()+offset,sizeof(T));offset+=sizeof(T);return true;}
 bool ValidTransform(const Transform3& transform){return std::isfinite(transform.x)&&std::isfinite(transform.y)&&std::isfinite(transform.z)&&std::isfinite(transform.rx)&&std::isfinite(transform.ry)&&std::isfinite(transform.rz)&&std::isfinite(transform.sx)&&std::isfinite(transform.sy)&&std::isfinite(transform.sz)&&transform.sx>0.0F&&transform.sy>0.0F&&transform.sz>0.0F;}
 Transform3 Compose(const Transform3& parent,const Transform3& local){
     const float lx=local.x*parent.sx,ly=local.y*parent.sy,lz=local.z*parent.sz;
