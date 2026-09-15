@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     }
 
     NeoEngine::ShaderLibrary library;
-    CHECK(library.Initialize(context.GetDevice()), "ShaderLibrary initialization failed");
+    CHECK(library.Initialize(context.Device()), "ShaderLibrary initialization failed");
     CHECK(library.IsValid(), "ShaderLibrary should be valid after initialization");
 
     CHECK(library.GetSampler(NeoEngine::TextureSampler::PointClamp) != VK_NULL_HANDLE,
