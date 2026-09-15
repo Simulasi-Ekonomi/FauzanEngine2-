@@ -48,7 +48,7 @@ jobs:
       - name: Setup native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libvulkan-dev glslang-tools ninja-build pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libxss-dev libxtst-dev libwayland-dev libdecor-0-dev wayland-protocols
+          sudo apt-get install -y build-essential cmake libjsoncpp-dev libvulkan-dev glslang-tools ninja-build pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libxss-dev libxtst-dev libwayland-dev libdecor-0-dev wayland-protocols
       - name: Build and install SDL3
         run: |
           curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz
