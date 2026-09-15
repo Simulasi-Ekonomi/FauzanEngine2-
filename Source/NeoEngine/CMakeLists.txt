@@ -20,6 +20,16 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBREnvironmentDescriptorSet.cpp
     Runtime/PBRRenderPipeline.cpp
     Runtime/ShaderLibrary.cpp
+    Runtime/AssetRegistry.cpp
+    Runtime/SceneWorld.cpp
+    Runtime/MeshStaging.cpp
+    Runtime/MaterialStaging.cpp
+    Runtime/TextureStaging.cpp
+    Runtime/EditorScenePrefabCodec.cpp
+    Runtime/SceneSpriteAdapter.cpp
+    Runtime/RenderCamera.cpp
+    Runtime/MeshRenderer.cpp
+    Runtime/SpriteBatch.cpp
     Runtime/WavAudioParser.cpp
     Runtime/AudioMixer.cpp
     Runtime/AudioComponent.cpp
