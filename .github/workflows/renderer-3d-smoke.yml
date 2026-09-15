@@ -3,6 +3,7 @@ name: Renderer 3D Vulkan Smoke
 on:
   pull_request:
     paths:
+      - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
       - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
       - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
@@ -19,6 +20,7 @@ on:
       - 'feature/renderer-3d-100'
       - 'feature/r3-gpu-indirect'
     paths:
+      - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
       - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
       - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
