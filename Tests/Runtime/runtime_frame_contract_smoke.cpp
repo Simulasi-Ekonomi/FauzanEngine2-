@@ -4,6 +4,7 @@
 #include "Renderer/RenderFrameGraph.h"
 #include "Physics/PhysicsStepBudget.h"
 #include "Systems/CommandIdempotency.h"
+#include "Systems/TransactionJournal.h"
 
 #include <array>
 #include <cassert>
@@ -76,5 +77,15 @@ int main() {
     assert(idempotency.Accept(2U, 0xCCU));
     assert(!idempotency.Accept(3U, 0xDDU));
     assert(idempotency.Matches(2U, 0xCCU));
+
+    NeoEngine::TransactionJournal journal(1000);
+    NeoEngine::TransactionRecord transaction{};
+    assert(journal.Apply(1U, -250, transaction));
+    assert(transaction.balanceAfter == 750);
+    assert(journal.Apply(1U, -250, transaction));
+    assert(transaction.balanceAfter == 750);
+    assert(!journal.Apply(1U, -200, transaction));
+    assert(journal.Apply(2U, 100, transaction));
+    assert(journal.Balance() == 850);
     return 0;
 }
