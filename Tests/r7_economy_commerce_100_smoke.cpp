@@ -1,10 +1,10 @@
 #include "../Source/NeoEngine/Systems/CommodityEconomyLedger.h"
 #include "../Source/NeoEngine/Systems/CommodityCatalog.h"
 #include <iostream>
+#include <vector>
 
 int main() {
-    std::cout << "[SMOKE TEST] R7 Economy & Commerce 100%..." << std::endl;
-
+    std::cout << "[SMOKE TEST] R7 Economy & Commerce..." << std::endl;
     NeoEngine::CommodityCatalog catalog;
     NeoEngine::CommodityDefinition def;
     def.id = "C001";
@@ -15,43 +15,17 @@ int main() {
     catalog.Add(def);
 
     NeoEngine::CommodityEconomyLedger ledger;
+    NeoEngine::CommodityEconomyCommand cmd;
+    cmd.id = "cmd_001";
+    cmd.kind = NeoEngine::CommodityEconomyKind::HarvestGrant;
+    cmd.commodityId = "C001";
+    cmd.quantity = 10;
 
-    NeoEngine::CommodityEconomyCommand cmd1;
-    cmd1.id = "cmd_001";
-    cmd1.kind = NeoEngine::CommodityEconomyKind::HarvestGrant;
-    cmd1.commodityId = "C001";
-    cmd1.quantity = 10;
+    if (!ledger.Apply(catalog, cmd) || ledger.Quantity("C001") != 10 || !ledger.HasApplied("cmd_001")) return 1;
+    if (ledger.Apply(catalog, cmd) || ledger.Quantity("C001") != 10) return 1;
 
-    // First apply should succeed
-    if (!ledger.Apply(catalog, cmd1)) {
-        std::cerr << "FAIL: Commodity ledger apply failed!" << std::endl;
-        return 1;
-    }
-
-    if (ledger.Quantity("C001") != 10) {
-        std::cerr << "FAIL: Ledger quantity mismatch!" << std::endl;
-        return 1;
-    }
-
-    // Duplicate command ID check: HasApplied should return true, and quantity should remain 10
-    if (!ledger.HasApplied("cmd_001")) {
-        std::cerr << "FAIL: HasApplied returned false for applied command!" << std::endl;
-        return 1;
-    }
-
-    ledger.Apply(catalog, cmd1); // Re-apply
-    if (ledger.Quantity("C001") != 10) {
-        std::cerr << "FAIL: Idempotency check failed! Quantity increased on duplicate command." << std::endl;
-        return 1;
-    }
-
-    // Serialization check
     std::vector<uint8_t> bytes;
-    if (!ledger.Serialize(bytes) || bytes.empty()) {
-        std::cerr << "FAIL: Commodity ledger serialization failed!" << std::endl;
-        return 1;
-    }
-
-    std::cout << "SUCCESS: R7 Economy & Commerce Smoke Test Passed (100%)!" << std::endl;
+    if (!ledger.Serialize(bytes) || bytes.empty()) return 1;
+    std::cout << "R7 Economy & Commerce Smoke Test Passed" << std::endl;
     return 0;
 }

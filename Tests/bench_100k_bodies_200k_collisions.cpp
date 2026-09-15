@@ -1,5 +1,5 @@
-#include "Core/ECS/ArchetypeManager.h"
 #include "Physics/V5/XPBDPhysicsSystem.h"
+#include "Core/ECS/ArchetypeManager.h"
 #include "Threading/JobSystem.h"
 #include <algorithm>
 #include <chrono>
@@ -8,10 +8,6 @@
 #include <cstdlib>
 #include <memory>
 #include <vector>
-
-#if defined(__linux__)
-#include <sys/resource.h>
-#endif
 
 using namespace NeoEngine;
 
@@ -79,13 +75,12 @@ int main(int argc, char** argv) {
     const double averageMs = totalMs / static_cast<double>(times.size());
     const size_t p50Index = (times.size() - 1) / 2;
     const size_t p95Index = static_cast<size_t>(std::ceil((times.size() - 1) * 0.95));
-    const size_t p99Index = static_cast<size_t>(std::ceil((times.size() - 1) * 0.99));
     const double avgContacts = static_cast<double>(totalContacts) / static_cast<double>(frameCount);
     const double avgCandidates = static_cast<double>(totalCandidatePairs) / static_cast<double>(frameCount);
     const double p95Ms = times[p95Index];
-
     std::printf("Contacts/frame: %.1f | Collision candidates/frame: %.1f\n", avgContacts, avgCandidates);
-    std::printf("Frame time ms: avg=%.3f p50=%.3f p95=%.3f p99=%.3f min=%.3f max=%.3f\n", averageMs, times[p50Index], p95Ms, times[p99Index], times.front(), times.back());
+    std::printf("Frame time ms: avg=%.3f p50=%.3f p95=%.3f min=%.3f max=%.3f\n", averageMs, times[p50Index], p95Ms, times.front(), times.back());
+
     const bool collisionGate = avgContacts >= static_cast<double>(kMinimumCollisions);
     const bool performanceGate = p95Ms < kTargetMs;
     if (!collisionGate) std::fprintf(stderr, "FAIL: fewer than %zu actual contacts/frame.\n", kMinimumCollisions);
