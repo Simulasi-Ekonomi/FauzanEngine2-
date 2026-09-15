@@ -12,6 +12,8 @@ namespace {
 
 constexpr float kPi = 3.14159265358979323846f;
 constexpr uint32_t kFaces = 6;
+constexpr uint32_t kMaxFaceSize = 2048;
+constexpr uint32_t kMaxPrefilterSamples = 4096;
 constexpr VkDeviceSize kMaxUploadBytes = 256ULL * 1024ULL * 1024ULL;
 
 uint32_t MipCount(uint32_t size) {
@@ -24,15 +26,42 @@ uint16_t Half(float value) {
     uint32_t bits = 0;
     std::memcpy(&bits, &value, sizeof(bits));
     const uint32_t sign = (bits >> 16U) & 0x8000U;
+    const uint32_t exponentBits = (bits >> 23U) & 0xffU;
     const uint32_t mantissa = bits & 0x007fffffU;
-    const int32_t exponent = static_cast<int32_t>((bits >> 23U) & 0xffU) - 127;
-    if (exponent <= -15) {
-        if (exponent < -24) return static_cast<uint16_t>(sign);
-        const uint32_t m = mantissa | 0x00800000U;
-        return static_cast<uint16_t>(sign | (m >> static_cast<uint32_t>(-exponent - 1 + 13)));
+
+    if (exponentBits == 0xffU) {
+        return static_cast<uint16_t>(sign | 0x7c00U | (mantissa >> 13U));
     }
-    if (exponent >= 16) return static_cast<uint16_t>(sign | 0x7c00U);
-    return static_cast<uint16_t>(sign | (static_cast<uint32_t>(exponent + 15) << 10U) | (mantissa >> 13U));
+
+    const int32_t exponent = static_cast<int32_t>(exponentBits) - 127;
+    if (exponent < -14) {
+        if (exponent < -24) return static_cast<uint16_t>(sign);
+        const uint32_t significand = mantissa | 0x00800000U;
+        const uint32_t shift = static_cast<uint32_t>(-exponent - 1);
+        uint32_t subnormal = significand >> shift;
+        const uint32_t remainderMask = (1U << shift) - 1U;
+        const uint32_t remainder = significand & remainderMask;
+        const uint32_t halfway = 1U << (shift - 1U);
+        if (remainder > halfway || (remainder == halfway && (subnormal & 1U) != 0U)) ++subnormal;
+        if (subnormal >= 0x400U) return static_cast<uint16_t>(sign | 0x0400U);
+        return static_cast<uint16_t>(sign | subnormal);
+    }
+    if (exponent > 15) return static_cast<uint16_t>(sign | 0x7c00U);
+
+    uint32_t halfMantissa = mantissa >> 13U;
+    const uint32_t remainder = mantissa & 0x1fffU;
+    if (remainder > 0x1000U || (remainder == 0x1000U && (halfMantissa & 1U) != 0U)) {
+        ++halfMantissa;
+        if (halfMantissa == 0x400U) {
+            halfMantissa = 0;
+            const uint32_t halfExponent = static_cast<uint32_t>(exponent + 16);
+            if (halfExponent >= 0x1fU) return static_cast<uint16_t>(sign | 0x7c00U);
+            return static_cast<uint16_t>(sign | (halfExponent << 10U));
+        }
+    }
+    return static_cast<uint16_t>(sign |
+                                 (static_cast<uint32_t>(exponent + 15) << 10U) |
+                                 halfMantissa);
 }
 
 void AppendRGBA16F(std::vector<uint8_t>& dst, const glm::vec4& value) {
@@ -187,9 +216,15 @@ bool DecodeRadiance(const std::string& path, std::vector<glm::vec3>& pixels, uin
                               channel.begin() + static_cast<size_t>(c) * width + x + count, b);
                     x += count;
                 } else {
-                    if (x + 1 >= width) return false;
-                    channel[static_cast<size_t>(c) * width + x++] = a;
+                    const uint32_t count = a;
+                    if (count == 0 || x + count > width) return false;
                     channel[static_cast<size_t>(c) * width + x++] = b;
+                    for (uint32_t i = 1; i < count; ++i) {
+                        uint8_t value = 0;
+                        file.read(reinterpret_cast<char*>(&value), 1);
+                        if (!file) return false;
+                        channel[static_cast<size_t>(c) * width + x++] = value;
+                    }
                 }
             }
         }
@@ -274,7 +309,9 @@ bool UploadImage(VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue
                  PBREnvironment::ImageResource& resource) {
     VkFormatProperties props{};
     vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16G16B16A16_SFLOAT, &props);
-    const VkFormatFeatureFlags required = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+    const VkFormatFeatureFlags required = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
+                                          VK_FORMAT_FEATURE_TRANSFER_DST_BIT |
+                                          VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
     if ((props.optimalTilingFeatures & required) != required || mips.size() != mipLevels) return false;
 
     std::vector<uint8_t> bytes;
@@ -302,6 +339,7 @@ bool UploadImage(VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue
     VkDeviceMemory bufferMemory = VK_NULL_HANDLE;
     VkCommandPool pool = VK_NULL_HANDLE;
     VkFence fence = VK_NULL_HANDLE;
+    bool submitted = false;
     bool success = false;
 
     do {
@@ -368,17 +406,36 @@ bool UploadImage(VkPhysicalDevice physicalDevice, VkDevice device, VkQueue queue
         VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         if (vkCreateFence(device, &fi, nullptr, &fence) != VK_SUCCESS) break;
         VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO}; si.commandBufferCount = 1; si.pCommandBuffers = &cb;
-        if (vkQueueSubmit(queue, 1, &si, fence) != VK_SUCCESS ||
-            vkWaitForFences(device, 1, &fence, VK_TRUE, 5'000'000'000ULL) != VK_SUCCESS) break;
+        const VkResult submitResult = vkQueueSubmit(queue, 1, &si, fence);
+        if (submitResult != VK_SUCCESS) break;
+        submitted = true;
+        const VkResult waitResult = vkWaitForFences(device, 1, &fence, VK_TRUE, 5'000'000'000ULL);
+        if (waitResult == VK_TIMEOUT) {
+            if (vkDeviceWaitIdle(device) != VK_SUCCESS) break;
+        } else if (waitResult != VK_SUCCESS) {
+            break;
+        }
         success = true;
     } while (false);
 
+    if (submitted && !success) vkDeviceWaitIdle(device);
     if (fence) vkDestroyFence(device, fence, nullptr);
     if (pool) vkDestroyCommandPool(device, pool, nullptr);
     if (buffer) vkDestroyBuffer(device, buffer, nullptr);
     if (bufferMemory) vkFreeMemory(device, bufferMemory, nullptr);
-    if (!success) return false;
-    return CreateCubeViewAndSampler(device, resource.image, mipLevels, resource.view, resource.sampler);
+    if (!success) {
+        if (resource.image) vkDestroyImage(device, resource.image, nullptr);
+        if (resource.memory) vkFreeMemory(device, resource.memory, nullptr);
+        resource = {};
+        return false;
+    }
+    if (!CreateCubeViewAndSampler(device, resource.image, mipLevels, resource.view, resource.sampler)) {
+        vkDestroyImage(device, resource.image, nullptr);
+        vkFreeMemory(device, resource.memory, nullptr);
+        resource = {};
+        return false;
+    }
+    return true;
 }
 
 } // namespace
@@ -404,6 +461,8 @@ PBREnvironment& PBREnvironment::operator=(PBREnvironment&& other) noexcept {
 bool PBREnvironment::LoadHDR(const std::string& path, const PBREnvironmentConfig& config) {
     Destroy();
     if (config.environmentFaceSize == 0 || config.irradianceFaceSize == 0 || config.prefilterFaceSize == 0 || config.prefilterSamples == 0 ||
+        config.environmentFaceSize > kMaxFaceSize || config.irradianceFaceSize > kMaxFaceSize || config.prefilterFaceSize > kMaxFaceSize ||
+        config.prefilterSamples > kMaxPrefilterSamples ||
         !std::isfinite(config.environmentIntensity) || !std::isfinite(config.irradianceStrength) ||
         config.environmentIntensity < 0.0f || config.irradianceStrength < 0.0f) return false;
     config_ = config;
