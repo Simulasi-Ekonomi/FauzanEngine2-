@@ -28,6 +28,13 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SdlInputBridge.cpp
     Runtime/UiInputRouter.cpp
     Runtime/EditorSceneDocumentCodec.cpp
+    Runtime/EditorSceneDocument.cpp
+    Runtime/EditorSceneMeshBinder.cpp
+    Runtime/EditorSceneSpriteBinder.cpp
+    Runtime/SceneMeshAdapter.cpp
+    Runtime/EditorScenePrefab.cpp
+    Runtime/PrefabStaging.cpp
+    Runtime/SceneRenderAdapter.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneAgentAPI.cpp
     Systems/AuthorityLoopbackServer.cpp
