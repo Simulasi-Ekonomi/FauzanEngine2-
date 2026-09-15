@@ -4,19 +4,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <fstream>
-#include <limits>
 
 #include <json/json.h>
 
 namespace NeoEngine {
 
 namespace {
-constexpr float kDefaultMetallic = 0.0f;
-constexpr float kDefaultRoughness = 0.5f;
-constexpr float kDefaultNormalStrength = 1.0f;
-constexpr float kDefaultAOStrength = 1.0f;
-
 bool ReadFloat(const Json::Value& value, float& target) {
     if (!value.isNumeric()) return false;
     target = value.asFloat();
@@ -36,7 +31,6 @@ bool ReadColor(const Json::Value& value, glm::vec4& target) {
 size_t SlotIndex(TextureSlot slot) {
     return static_cast<size_t>(slot);
 }
-
 } // namespace
 
 PBRMaterial::PBRMaterial() noexcept {
