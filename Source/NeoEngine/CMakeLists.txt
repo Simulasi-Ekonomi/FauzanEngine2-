@@ -27,8 +27,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/TextureStaging.cpp
     Runtime/ObjMeshImporter.cpp
     Runtime/MtlMaterialImporter.cpp
-    Runtime/PpmTextureDecoder.cpp
-    Runtime/BmpTextureDecoder.cpp
+    Runtime/PpmTexture.cpp
+    Runtime/BmpTexture.cpp
     Runtime/EditorScenePrefabCodec.cpp
     Runtime/SceneSpriteAdapter.cpp
     Runtime/RenderCamera.cpp
