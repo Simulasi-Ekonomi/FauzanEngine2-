@@ -5,6 +5,7 @@
 #include "Physics/PhysicsStepBudget.h"
 #include "Systems/CommandIdempotency.h"
 #include "Systems/TransactionJournal.h"
+#include "Systems/SecurityCommandValidator.h"
 #include "Platform/AndroidLifecycleGate.h"
 
 #include <array>
@@ -100,5 +101,14 @@ int main() {
     assert(!lifecycle.CanRender());
     assert(lifecycle.OnDestroy());
     assert(!lifecycle.OnResume());
+
+    NeoEngine::SecurityCommandValidator validator({8U, 2U, true});
+    assert(!validator.Validate(1U, 9U));
+    assert(validator.Validate(1U, 8U));
+    assert(!validator.Validate(1U, 8U));
+    assert(validator.Validate(2U, 8U));
+    assert(!validator.Validate(3U, 8U));
+    validator.BeginFrame();
+    assert(validator.Validate(3U, 8U));
     return 0;
 }
