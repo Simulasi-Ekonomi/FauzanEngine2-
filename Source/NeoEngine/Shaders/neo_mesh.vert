@@ -12,12 +12,15 @@ layout(push_constant) uniform Transform {
     mat4 mvp;
 } transform;
 
-layout(location = 0) out vec3 outNormal;
-layout(location = 1) out vec2 outUV;
+layout(location = 0) out vec3 outWorldPosition;
+layout(location = 1) out vec3 outNormal;
+layout(location = 2) out vec2 outUV;
 
 void main() {
     mat4 instanceTransform = mat4(instanceM0, instanceM1, instanceM2, instanceM3);
-    gl_Position = transform.mvp * instanceTransform * vec4(inPosition, 1.0);
-    outNormal = inNormal;
+    vec4 worldPosition = instanceTransform * vec4(inPosition, 1.0);
+    gl_Position = transform.mvp * worldPosition;
+    outWorldPosition = worldPosition.xyz;
+    outNormal = normalize(mat3(instanceTransform) * inNormal);
     outUV = inUV;
 }
