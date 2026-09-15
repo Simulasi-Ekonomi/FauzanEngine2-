@@ -2,6 +2,7 @@
 #include "ECS/ECSCommandBuffer.h"
 #include "AssetRuntimeState.h"
 #include "Renderer/RenderFrameGraph.h"
+#include "Physics/PhysicsStepBudget.h"
 
 #include <array>
 #include <cassert>
@@ -58,5 +59,13 @@ int main() {
     assert(order[0] == 1U && order[1] == 2U && order[2] == 3U);
     assert(!graph.AddPass(4U, "cycle", {3U, 4U}));
     assert(graph.Size() == 3U);
+
+    NeoEngine::PhysicsStepBudget budget;
+    assert(budget.Accepts(100000U, 200000U));
+    assert(!budget.Accepts(100001U, 200000U));
+    budget.Record(100000U, 200000U, 200000U, 4999U);
+    assert(budget.MeetsTarget());
+    budget.Record(100000U, 200000U, 200000U, 5001U);
+    assert(!budget.MeetsTarget());
     return 0;
 }
