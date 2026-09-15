@@ -15,7 +15,7 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++ libvulkan-dev libglm-dev libjsoncpp-dev glslang-tools pkg-config mesa-vulkan-drivers vulkan-tools
+          sudo apt-get install -y g++ libvulkan-dev libglm-dev libjsoncpp-dev glslang-tools spirv-tools pkg-config mesa-vulkan-drivers vulkan-tools
 
       - name: Verify Vulkan software device
         run: |
@@ -106,6 +106,13 @@ jobs:
           glslangValidator -V Source/NeoEngine/Shaders/pbr_material.frag -o /tmp/pbr_material.frag.spv
           glslangValidator -V Source/NeoEngine/Shaders/pbr_lighting.frag -o /tmp/pbr_lighting.frag.spv
           glslangValidator -V Source/NeoEngine/Shaders/pbr_ibl.frag -o /tmp/pbr_ibl.frag.spv
+
+      - name: Validate generated SPIR-V
+        run: |
+          spirv-val /tmp/neo_mesh.vert.spv
+          spirv-val /tmp/pbr_material.frag.spv
+          spirv-val /tmp/pbr_lighting.frag.spv
+          spirv-val /tmp/pbr_ibl.frag.spv
 
       - name: Run PBR-1 smoke
         run: /tmp/pbr_material_smoke
