@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Runtime/PBRIBL.h"
+#include "Runtime/VulkanContext.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -36,18 +38,18 @@ public:
     void Destroy();
 
     [[nodiscard]] bool IsCpuReady() const noexcept { return !source_.empty() && !environment_.empty(); }
-    [[nodiscard]] bool IsGpuReady() const noexcept { return device_ != VK_NULL_HANDLE && environmentImage_ != VK_NULL_HANDLE && irradianceImage_ != VK_NULL_HANDLE && prefilteredImage_ != VK_NULL_HANDLE; }
+    [[nodiscard]] bool IsGpuReady() const noexcept { return device_ != VK_NULL_HANDLE && environmentResource_.image != VK_NULL_HANDLE && irradianceResource_.image != VK_NULL_HANDLE && prefilteredResource_.image != VK_NULL_HANDLE && environmentResource_.view != VK_NULL_HANDLE && irradianceResource_.view != VK_NULL_HANDLE && prefilteredResource_.view != VK_NULL_HANDLE; }
     [[nodiscard]] uint32_t EnvironmentFaceSize() const noexcept { return config_.environmentFaceSize; }
     [[nodiscard]] uint32_t IrradianceFaceSize() const noexcept { return config_.irradianceFaceSize; }
     [[nodiscard]] uint32_t PrefilterFaceSize() const noexcept { return config_.prefilterFaceSize; }
     [[nodiscard]] uint32_t PrefilterMipLevels() const noexcept { return prefilterMipLevels_; }
     [[nodiscard]] const PBRIBLSettings& Settings() const noexcept { return settings_; }
-    [[nodiscard]] VkImageView EnvironmentView() const noexcept { return environmentView_; }
-    [[nodiscard]] VkSampler EnvironmentSampler() const noexcept { return environmentSampler_; }
-    [[nodiscard]] VkImageView IrradianceView() const noexcept { return irradianceView_; }
-    [[nodiscard]] VkSampler IrradianceSampler() const noexcept { return irradianceSampler_; }
-    [[nodiscard]] VkImageView PrefilteredView() const noexcept { return prefilteredView_; }
-    [[nodiscard]] VkSampler PrefilteredSampler() const noexcept { return prefilteredSampler_; }
+    [[nodiscard]] VkImageView EnvironmentView() const noexcept { return environmentResource_.view; }
+    [[nodiscard]] VkSampler EnvironmentSampler() const noexcept { return environmentResource_.sampler; }
+    [[nodiscard]] VkImageView IrradianceView() const noexcept { return irradianceResource_.view; }
+    [[nodiscard]] VkSampler IrradianceSampler() const noexcept { return irradianceResource_.sampler; }
+    [[nodiscard]] VkImageView PrefilteredView() const noexcept { return prefilteredResource_.view; }
+    [[nodiscard]] VkSampler PrefilteredSampler() const noexcept { return prefilteredResource_.sampler; }
     [[nodiscard]] VkFormat Format() const noexcept { return VK_FORMAT_R16G16B16A16_SFLOAT; }
 
 private:
@@ -68,6 +70,7 @@ private:
     std::vector<glm::vec4> irradiance_;
     std::vector<std::vector<glm::vec4>> prefilteredMips_;
 
+    std::unique_ptr<VulkanContext> context_;
     VkDevice device_ = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
     VkQueue graphicsQueue_ = VK_NULL_HANDLE;
@@ -75,16 +78,6 @@ private:
     ImageResource environmentResource_{};
     ImageResource irradianceResource_{};
     ImageResource prefilteredResource_{};
-
-    VkImage environmentImage_ = VK_NULL_HANDLE;
-    VkImageView environmentView_ = VK_NULL_HANDLE;
-    VkSampler environmentSampler_ = VK_NULL_HANDLE;
-    VkImage irradianceImage_ = VK_NULL_HANDLE;
-    VkImageView irradianceView_ = VK_NULL_HANDLE;
-    VkSampler irradianceSampler_ = VK_NULL_HANDLE;
-    VkImage prefilteredImage_ = VK_NULL_HANDLE;
-    VkImageView prefilteredView_ = VK_NULL_HANDLE;
-    VkSampler prefilteredSampler_ = VK_NULL_HANDLE;
 };
 
 } // namespace NeoEngine
