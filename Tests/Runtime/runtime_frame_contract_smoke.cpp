@@ -43,7 +43,7 @@ int main() {
     assert(assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Ready, 4096U));
     const auto* ready = assets.Find("mesh/player");
     assert(ready != nullptr && ready->residentBytes == 4096U);
-    assert(!assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Completed));
+    assert(!assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Staged));
     assert(assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Evicted));
     assert(assets.Find("mesh/player")->residentBytes == 0U);
     return 0;
