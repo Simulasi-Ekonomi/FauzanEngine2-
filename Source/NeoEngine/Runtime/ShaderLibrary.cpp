@@ -52,11 +52,8 @@ bool ShaderLibrary::Initialize(VkDevice device) {
 }
 
 bool ShaderLibrary::IsValidSpirV(const std::vector<uint32_t>& spirv) {
-    // Validate the SPIR-V container/header and instruction boundaries before
-    // passing the module to Vulkan. Semantic validation remains the job of
-    // spirv-val in CI and vkCreateShaderModule at runtime.
     constexpr uint32_t kMagic = 0x07230203U;
-    constexpr uint32_t kMaxSupportedVersion = 0x00010600U; // SPIR-V 1.6
+    constexpr uint32_t kMaxSupportedVersion = 0x00010600U;
 
     if (spirv.size() < 5 || spirv[0] != kMagic || spirv[1] > kMaxSupportedVersion ||
         spirv[3] == 0U || spirv[4] != 0U) {
@@ -162,12 +159,29 @@ bool ShaderLibrary::ReloadShader(std::string_view name,
     if (device_ == VK_NULL_HANDLE || name.empty() || !IsValidSpirV(spirv)) return false;
 
     ShaderVariantKey key{std::string(name), stage, std::string(variant)};
-    const auto found = shaders_.find(key);
-    if (found != shaders_.end()) {
-        vkDestroyShaderModule(device_, found->second, nullptr);
-        shaders_.erase(found);
+
+    VkShaderModuleCreateInfo createInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    createInfo.codeSize = spirv.size() * sizeof(uint32_t);
+    createInfo.pCode = spirv.data();
+
+    VkShaderModule replacement = VK_NULL_HANDLE;
+    if (vkCreateShaderModule(device_, &createInfo, nullptr, &replacement) != VK_SUCCESS) {
+        // Keep the currently active shader intact when replacement creation fails.
+        return false;
     }
-    return CompileShader(name, stage, spirv, variant) != VK_NULL_HANDLE;
+
+    const auto found = shaders_.find(key);
+    if (found == shaders_.end()) {
+        shaders_.emplace(std::move(key), replacement);
+        return true;
+    }
+
+    const VkShaderModule previous = found->second;
+    found->second = replacement;
+    if (previous != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(device_, previous, nullptr);
+    }
+    return true;
 }
 
 void ShaderLibrary::ClearShaders() {
