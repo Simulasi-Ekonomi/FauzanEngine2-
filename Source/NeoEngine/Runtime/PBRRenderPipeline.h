@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Runtime/PBRIBL.h"
 #include "Runtime/VulkanDescriptorManager.h"
 #include "Runtime/VulkanGraphicsPipeline.h"
 
@@ -52,10 +53,19 @@ public:
               VkDescriptorSet materialSet,
               VkDescriptorSet lightingSet) const;
 
+    // Backward-compatible IBL bind using default PBR IBL settings.
     void BindWithIBL(VkCommandBuffer commandBuffer,
                      VkDescriptorSet materialSet,
                      VkDescriptorSet lightingSet,
                      VkDescriptorSet iblSet) const;
+
+    // Preferred IBL bind path: supplies the runtime environment settings
+    // without adding another descriptor allocation/update to the render loop.
+    void BindWithIBL(VkCommandBuffer commandBuffer,
+                     VkDescriptorSet materialSet,
+                     VkDescriptorSet lightingSet,
+                     VkDescriptorSet iblSet,
+                     const PBRIBLSettings& settings) const;
 
     void Destroy();
 

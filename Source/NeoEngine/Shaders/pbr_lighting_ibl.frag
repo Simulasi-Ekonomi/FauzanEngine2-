@@ -31,6 +31,13 @@ layout(set = 2, binding = 0) uniform samplerCube irradianceMap;
 layout(set = 2, binding = 1) uniform samplerCube prefilteredEnvironment;
 layout(set = 2, binding = 2) uniform sampler2D brdfLut;
 
+// Push-constant layout shares the first 64 bytes with the existing vertex
+// transform block. The fragment stage consumes only the trailing vec4.
+layout(push_constant) uniform PBRPushConstants {
+    mat4 transformPadding;
+    vec4 iblSettings;
+} pushConstants;
+
 layout(location = 0) in vec3 inWorldPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inUV;
@@ -122,7 +129,7 @@ vec3 EvaluateSpot(vec3 worldPosition, vec3 n, vec3 v, vec3 albedo, float metalli
     float distanceToLight = length(toLight);
     if (distanceToLight <= EPSILON || distanceToLight >= light.positionRadius.w) return vec3(0.0);
     vec3 l = toLight / distanceToLight;
-    float cone = dot(normalize(-light.directionInnerCos.xyz), -l);
+    float cone = dot(normalize(light.directionInnerCos.xyz), -l);
     float coneRange = max(light.directionInnerCos.w - light.outerCosPadding.x, EPSILON);
     float coneFade = clamp((cone - light.outerCosPadding.x) / coneRange, 0.0, 1.0);
     float radiusFade = 1.0 - smoothstep(0.0, light.positionRadius.w, distanceToLight);
@@ -132,18 +139,21 @@ vec3 EvaluateSpot(vec3 worldPosition, vec3 n, vec3 v, vec3 albedo, float metalli
 }
 
 vec3 EvaluateIBL(vec3 n, vec3 v, vec3 albedo, float metallic, float roughness, float ao) {
+    float environmentIntensity = max(pushConstants.iblSettings.x, 0.0);
+    float irradianceStrength = max(pushConstants.iblSettings.y, 0.0);
     float nDotV = max(dot(n, v), 0.0);
     vec3 reflection = reflect(-v, n);
     vec3 f0 = mix(vec3(0.04), albedo, metallic);
     vec3 fresnel = FresnelSchlick(nDotV, f0);
-    vec3 irradiance = texture(irradianceMap, n).rgb;
+    vec3 irradiance = texture(irradianceMap, n).rgb * irradianceStrength;
     vec3 diffuse = irradiance * albedo / PI * (1.0 - metallic) * ao;
-    float maxLod = max(float(textureQueryLevels(prefilteredEnvironment) - 1), 0.0);
-    float lod = roughness * maxLod;
+    float queriedMaxLod = max(float(textureQueryLevels(prefilteredEnvironment) - 1), 0.0);
+    float maxLod = min(queriedMaxLod, max(pushConstants.iblSettings.z, 0.0));
+    float lod = min(roughness * maxLod, queriedMaxLod);
     vec3 prefiltered = textureLod(prefilteredEnvironment, reflection, lod).rgb;
     vec2 brdf = texture(brdfLut, vec2(nDotV, roughness)).rg;
     vec3 specular = prefiltered * (fresnel * brdf.x + brdf.y);
-    return diffuse + specular;
+    return (diffuse + specular) * environmentIntensity;
 }
 
 void main() {

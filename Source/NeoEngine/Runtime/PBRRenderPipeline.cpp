@@ -4,6 +4,17 @@
 
 namespace NeoEngine {
 
+namespace {
+struct PBRIBLPushConstants {
+    float transformPadding[16]{};
+    float environmentIntensity = 1.0f;
+    float irradianceStrength = 1.0f;
+    float maxReflectionLod = 5.0f;
+    float padding = 0.0f;
+};
+static_assert(sizeof(PBRIBLPushConstants) == 80, "PBR IBL push constant layout must remain 80 bytes");
+}
+
 PBRRenderPipeline::~PBRRenderPipeline() { Destroy(); }
 
 PBRRenderPipeline::PBRRenderPipeline(PBRRenderPipeline&& other) noexcept
@@ -87,7 +98,12 @@ bool PBRRenderPipeline::InitializeInternal(VkDevice device, VkRenderPass renderP
     transformRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     transformRange.offset = 0;
     transformRange.size = sizeof(float) * 16;
-    config.pushConstantRanges = {transformRange};
+
+    VkPushConstantRange iblRange{};
+    iblRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    iblRange.offset = 0;
+    iblRange.size = sizeof(PBRIBLPushConstants);
+    config.pushConstantRanges = {transformRange, iblRange};
 
     if (!pipeline_.Initialize(device_, config)) {
         Destroy();
@@ -116,11 +132,25 @@ void PBRRenderPipeline::Bind(VkCommandBuffer commandBuffer, VkDescriptorSet mate
 
 void PBRRenderPipeline::BindWithIBL(VkCommandBuffer commandBuffer, VkDescriptorSet materialSet,
                                     VkDescriptorSet lightingSet, VkDescriptorSet iblSet) const {
+    BindWithIBL(commandBuffer, materialSet, lightingSet, iblSet, PBRIBLSettings{});
+}
+
+void PBRRenderPipeline::BindWithIBL(VkCommandBuffer commandBuffer, VkDescriptorSet materialSet,
+                                    VkDescriptorSet lightingSet, VkDescriptorSet iblSet,
+                                    const PBRIBLSettings& settings) const {
     if (!IsValid() || !HasIBL() || commandBuffer == VK_NULL_HANDLE || materialSet == VK_NULL_HANDLE ||
-        lightingSet == VK_NULL_HANDLE || iblSet == VK_NULL_HANDLE) return;
+        lightingSet == VK_NULL_HANDLE || iblSet == VK_NULL_HANDLE || !ValidatePBRIBLSettings(settings)) return;
+
     const VkDescriptorSet sets[3] = {materialSet, lightingSet, iblSet};
+    PBRIBLPushConstants push{};
+    push.environmentIntensity = settings.environmentIntensity;
+    push.irradianceStrength = settings.irradianceStrength;
+    push.maxReflectionLod = settings.maxReflectionLod;
+
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.GetPipeline());
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_.GetPipelineLayout(), 0, 3, sets, 0, nullptr);
+    vkCmdPushConstants(commandBuffer, pipeline_.GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT,
+                       sizeof(float) * 16, sizeof(float) * 4, &push.environmentIntensity);
 }
 
 void PBRRenderPipeline::Destroy() {
