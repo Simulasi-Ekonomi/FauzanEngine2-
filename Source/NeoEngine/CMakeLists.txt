@@ -1,22 +1,19 @@
-find_package(CURL REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(JSONCPP REQUIRED jsoncpp)
-
-link_libraries(
-    ${CURL_LIBRARIES}
-    ${JSONCPP_LIBRARIES}
-    log
-)
-
 cmake_minimum_required(VERSION 3.28)
 
 project(NeoEngine LANGUAGES CXX)
+
+find_package(CURL REQUIRED)
+find_package(PkgConfig REQUIRED)
+find_package(Vulkan REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
+    Runtime/PBRMaterial.cpp
+    Runtime/BRDFLut.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -35,6 +32,9 @@ set(XPBD_RUNTIME_SOURCES
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
+target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} ${CURL_LIBRARIES} Vulkan::Vulkan log)
 
 function(add_xpbd_executable target_name source_file)
     add_executable(${target_name} ${source_file})
@@ -58,7 +58,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
 endif()
 
-# R3 GPU Indirect Executables
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")
     add_xpbd_executable(r3_gpu_indirect_10k_execution_smoke Tests/r3_gpu_indirect_10k_execution_smoke.cpp)
     add_xpbd_executable(r3_gpu_indirect_capacity_smoke Tests/r3_gpu_indirect_capacity_smoke.cpp)
@@ -67,13 +66,16 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke
     add_xpbd_executable(vulkan_mesh_indirect_batch_gpu_smoke Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp)
 endif()
 
-# R4 Frustum Culling Executables
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r4_frustum_culling_smoke.cpp")
     add_xpbd_executable(r4_frustum_culling_smoke Tests/r4_frustum_culling_smoke.cpp)
     add_xpbd_executable(r4_occlusion_hiz_smoke Tests/r4_occlusion_hiz_smoke.cpp)
 endif()
 
-message(STATUS "✅ NeoEngine CMake configured with native nested source paths")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_material_smoke.cpp")
+    add_xpbd_executable(pbr_material_smoke ../../Tests/pbr_material_smoke.cpp)
+endif()
+
+message(STATUS "NeoEngine CMake configured with native nested source paths")
 
 # Jules Release Gates R6-R10
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
