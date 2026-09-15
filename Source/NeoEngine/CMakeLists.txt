@@ -91,6 +91,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_environment_smoke.cpp")
     add_xpbd_executable(pbr_environment_smoke ../../Tests/pbr_environment_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_environment_descriptor_smoke.cpp")
+    add_xpbd_executable(pbr_environment_descriptor_smoke ../../Tests/pbr_environment_descriptor_smoke.cpp)
+endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Renderer source paths")
 
