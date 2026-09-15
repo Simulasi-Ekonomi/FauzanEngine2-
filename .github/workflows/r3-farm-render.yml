@@ -31,27 +31,11 @@ jobs:
           echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
           echo "Using software Vulkan ICD: ${VULKAN_ICD}"
 
-      - name: Build and install SDL3
-        run: |
-          set -euo pipefail
-          SDL_VERSION=3.4.14
-          SDL_SHA256=30d4aa2b3037718142b32dffd4e72f917ebb6cc5227150e7bb9c45efb2153aeb
-          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 20 --max-time 180 \
-            "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" \
-            -o /tmp/SDL3.tar.gz
-          echo "${SDL_SHA256}  /tmp/SDL3.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/SDL3.tar.gz -C /tmp
-          SDL_SOURCE_DIR="$(tar -tzf /tmp/SDL3.tar.gz | awk -F/ 'NF > 1 {print $1; exit}')"
-          test -n "${SDL_SOURCE_DIR}"
-          test -f "/tmp/${SDL_SOURCE_DIR}/CMakeLists.txt"
-          cmake -S "/tmp/${SDL_SOURCE_DIR}" -B /tmp/SDL-build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
-          cmake --build /tmp/SDL-build --parallel
-          sudo cmake --install /tmp/SDL-build
-          sudo ldconfig
-          pkg-config --modversion sdl3
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@main
+        with:
+          version: 3.4.14
+          install-linux-dependencies: true
 
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/r3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
