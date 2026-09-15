@@ -14,6 +14,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
     Runtime/PBRMaterial.cpp
     Runtime/BRDFLut.cpp
+    Runtime/PBRLighting.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -24,10 +25,10 @@ set(XPBD_RUNTIME_SOURCES
     Templates/SudokuGame.cpp
     Templates/TowerDefenseGame.cpp
     Threading/JobSystem.cpp
-    Rendering/Rendering/Renderer/GPUDrivenRenderer.cpp
-    Rendering/Rendering/Renderer/GPUFrustumCulling.cpp
-    Rendering/Rendering/Renderer/HiZBuffer.cpp
-    Rendering/Rendering/Renderer/OcclusionCulling.cpp
+    Renderer/GPUDrivenRenderer.cpp
+    Renderer/GPUFrustumCulling.cpp
+    Renderer/HiZBuffer.cpp
+    Renderer/OcclusionCulling.cpp
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
@@ -75,7 +76,11 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_material_smoke.cpp")
     add_xpbd_executable(pbr_material_smoke ../../Tests/pbr_material_smoke.cpp)
 endif()
 
-message(STATUS "NeoEngine CMake configured with native nested source paths")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_lighting_smoke.cpp")
+    add_xpbd_executable(pbr_lighting_smoke ../../Tests/pbr_lighting_smoke.cpp)
+endif()
+
+message(STATUS "NeoEngine CMake configured with canonical Renderer source paths")
 
 # Jules Release Gates R6-R10
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
