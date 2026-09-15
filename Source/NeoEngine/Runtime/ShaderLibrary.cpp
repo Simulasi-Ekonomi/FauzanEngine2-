@@ -1,16 +1,18 @@
 #include "Runtime/ShaderLibrary.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <utility>
 
 namespace NeoEngine {
 
-size_t ShaderVariantKeyHash::operator()(const ShaderVariantKey& key) const noexcept {
-    const size_t hName = std::hash<std::string>{}(key.name);
-    const size_t hStage = std::hash<uint32_t>{}(static_cast<uint32_t>(key.stage));
-    const size_t hVariant = std::hash<std::string>{}(key.variant);
-    return hName ^ (hStage + static_cast<size_t>(0x9e3779b9U) + (hName << 6U) + (hName >> 2U)) ^
-           (hVariant + static_cast<size_t>(0x9e3779b9U) + (hStage << 6U) + (hStage >> 2U));
+std::size_t ShaderVariantKeyHash::operator()(const ShaderVariantKey& key) const noexcept {
+    const std::size_t hName = std::hash<std::string>{}(key.name);
+    const std::size_t hStage = std::hash<uint32_t>{}(static_cast<uint32_t>(key.stage));
+    const std::size_t hVariant = std::hash<std::string>{}(key.variant);
+    return hName ^ (hStage + static_cast<std::size_t>(0x9e3779b9U) + (hName << 6U) + (hName >> 2U)) ^
+           (hVariant + static_cast<std::size_t>(0x9e3779b9U) + (hStage << 6U) + (hStage >> 2U));
 }
 
 ShaderLibrary::~ShaderLibrary() {
@@ -61,11 +63,11 @@ bool ShaderLibrary::IsValidSpirV(const std::vector<uint32_t>& spirv) {
         return false;
     }
 
-    size_t cursor = 5;
+    std::size_t cursor = 5;
     while (cursor < spirv.size()) {
         const uint32_t instruction = spirv[cursor];
         const uint32_t wordCount = instruction >> 16U;
-        if (wordCount == 0U || wordCount > spirv.size() - cursor) {
+        if (wordCount == 0U || static_cast<std::size_t>(wordCount) > spirv.size() - cursor) {
             return false;
         }
         cursor += wordCount;
@@ -108,7 +110,7 @@ VkShaderModule ShaderLibrary::GetShaderModule(std::string_view name,
 }
 
 VkSampler ShaderLibrary::GetSampler(TextureSampler type) const {
-    const auto index = static_cast<size_t>(type);
+    const auto index = static_cast<std::size_t>(type);
     return index < samplers_.size() ? samplers_[index] : VK_NULL_HANDLE;
 }
 
@@ -118,9 +120,9 @@ bool ShaderLibrary::CreateSampler(TextureSampler type,
                                   bool mipmapped) {
     if (device_ == VK_NULL_HANDLE || type == TextureSampler::Count) return false;
 
-    const size_t index = static_cast<size_t>(type);
-    if (samplers_.size() < static_cast<size_t>(TextureSampler::Count)) {
-        samplers_.resize(static_cast<size_t>(TextureSampler::Count), VK_NULL_HANDLE);
+    const std::size_t index = static_cast<std::size_t>(type);
+    if (samplers_.size() < static_cast<std::size_t>(TextureSampler::Count)) {
+        samplers_.resize(static_cast<std::size_t>(TextureSampler::Count), VK_NULL_HANDLE);
     }
     if (samplers_[index] != VK_NULL_HANDLE) return true;
 
@@ -136,15 +138,15 @@ bool ShaderLibrary::CreateSampler(TextureSampler type,
     info.maxAnisotropy = 1.0f;
     info.compareEnable = VK_FALSE;
     info.minLod = 0.0f;
-    info.maxLod = mipmapped ? VK_LOD_CLAMP_NONE : 0.0f;
+    info.maxLod = mipmapped ? 1000.0f : 0.0f;
     info.unnormalizedCoordinates = VK_FALSE;
 
     return vkCreateSampler(device_, &info, nullptr, &samplers_[index]) == VK_SUCCESS;
 }
 
 bool ShaderLibrary::CreateDefaultSamplers() {
-    if (samplers_.size() != static_cast<size_t>(TextureSampler::Count)) {
-        samplers_.assign(static_cast<size_t>(TextureSampler::Count), VK_NULL_HANDLE);
+    if (samplers_.size() != static_cast<std::size_t>(TextureSampler::Count)) {
+        samplers_.assign(static_cast<std::size_t>(TextureSampler::Count), VK_NULL_HANDLE);
     }
 
     return CreateSampler(TextureSampler::PointClamp, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE) &&
