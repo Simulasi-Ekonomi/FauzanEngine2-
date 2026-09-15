@@ -74,6 +74,35 @@ vec3 FresnelSchlick(float cosTheta, vec3 f0) {
     return f0 + (1.0 - f0) * pow(1.0 - c, 5.0);
 }
 
+vec3 BuildNormalFromMap(vec3 geometricNormal) {
+    vec3 n = normalize(geometricNormal);
+    vec3 dp1 = dFdx(inWorldPosition);
+    vec3 dp2 = dFdy(inWorldPosition);
+    vec2 duv1 = dFdx(inUV);
+    vec2 duv2 = dFdy(inUV);
+
+    vec3 tangent = dp1 * duv2.y - dp2 * duv1.y;
+    vec3 bitangent = -dp1 * duv2.x + dp2 * duv1.x;
+    float tangentLength = length(tangent);
+    float bitangentLength = length(bitangent);
+
+    if (tangentLength <= EPSILON || bitangentLength <= EPSILON) {
+        vec3 reference = abs(n.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+        tangent = normalize(cross(reference, n));
+        bitangent = normalize(cross(n, tangent));
+    } else {
+        tangent = normalize(tangent - n * dot(n, tangent));
+        bitangent = normalize(cross(n, tangent));
+    }
+
+    vec3 tangentNormal = texture(normalMap, inUV).xyz * 2.0 - 1.0;
+    float strength = max(material.materialFactors.z, 0.0);
+    tangentNormal.xy *= strength;
+    tangentNormal = normalize(tangentNormal);
+
+    return normalize(tangent * tangentNormal.x + bitangent * tangentNormal.y + n * tangentNormal.z);
+}
+
 vec3 EvaluateBRDF(vec3 n, vec3 v, vec3 l, vec3 radiance, vec3 albedo, float metallic, float roughness) {
     float nDotL = max(dot(n, l), 0.0);
     float nDotV = max(dot(n, v), 0.0);
@@ -133,7 +162,7 @@ void main() {
     float roughness = clamp(material.materialFactors.y * texture(roughnessMap, inUV).r, MIN_ROUGHNESS, 1.0);
     float ao = mix(1.0, texture(aoMap, inUV).r, clamp(material.materialFactors.w, 0.0, 1.0));
 
-    vec3 n = normalize(inNormal);
+    vec3 n = BuildNormalFromMap(inNormal);
     vec3 v = normalize(lighting.cameraPosition.xyz - inWorldPosition);
     if (length(v) <= EPSILON) v = n;
 
