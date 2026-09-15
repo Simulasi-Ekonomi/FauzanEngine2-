@@ -27,6 +27,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SdlAudioBridge.cpp
     Runtime/EditorSceneDocumentCodec.cpp
     Runtime/EditorSceneSession.cpp
+    Runtime/EditorSceneAgentAPI.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
