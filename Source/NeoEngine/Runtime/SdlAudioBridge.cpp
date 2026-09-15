@@ -100,24 +100,20 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     const size_t frames = requestedBytes / bytesPerFrame;
     if (frames == 0) return;
 
-    // The callback never grows or allocates memory. Initialization reserves the
-    // largest supported callback buffer; an unexpectedly larger request is
-    // serviced with silence rather than allocating on the realtime thread.
-    if (frames > bridge->callbackBufferFrames_) {
-        static const int16_t silence[] = {0, 0};
-        size_t remaining = requestedBytes;
-        while (remaining > 0) {
-            const int chunk = static_cast<int>(std::min(remaining, sizeof(silence)));
-            SDL_PutAudioStreamData(stream, silence, chunk);
-            remaining -= static_cast<size_t>(chunk);
-        }
-        return;
+    // SDL may vary additionalAmount from callback to callback. Mix in bounded
+    // chunks so the realtime callback never allocates or depends on one fixed
+    // device request size.
+    size_t remainingFrames = frames;
+    while (remainingFrames > 0) {
+        const size_t chunkFrames = std::min(remainingFrames, bridge->callbackBufferFrames_);
+        bridge->mixer_.Mix(chunkFrames, bridge->callbackBuffer_);
+        const size_t chunkBytes = chunkFrames * bytesPerFrame;
+        SDL_PutAudioStreamData(stream, bridge->callbackBuffer_.data(), static_cast<int>(chunkBytes));
+        bridge->framesMixed_.fetch_add(chunkFrames, std::memory_order_relaxed);
+        remainingFrames -= chunkFrames;
     }
 
-    bridge->mixer_.Mix(frames, bridge->callbackBuffer_);
-    const size_t byteCount = frames * bytesPerFrame;
-    SDL_PutAudioStreamData(stream, bridge->callbackBuffer_.data(), static_cast<int>(byteCount));
-    const size_t trailingBytes = requestedBytes - byteCount;
+    const size_t trailingBytes = requestedBytes - (frames * bytesPerFrame);
     if (trailingBytes > 0) {
         static const int16_t silence[] = {0, 0};
         size_t remaining = trailingBytes;
@@ -127,7 +123,6 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
             remaining -= static_cast<size_t>(chunk);
         }
     }
-    bridge->framesMixed_.fetch_add(frames, std::memory_order_relaxed);
 }
 
 } // namespace NeoEngine
