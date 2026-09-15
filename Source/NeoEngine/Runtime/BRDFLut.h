@@ -1,8 +1,11 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include <cstdint>
+
 #include <glm/glm.hpp>
-#include <memory>
+#include <vulkan/vulkan.h>
+
+#include "Runtime/VulkanGPUTexture.h"
 
 namespace NeoEngine {
 
@@ -12,33 +15,37 @@ public:
     static constexpr VkFormat LUT_FORMAT = VK_FORMAT_R16G16_SFLOAT;
 
     BRDFLut() noexcept = default;
-    ~BRDFLut() noexcept;
+    ~BRDFLut() noexcept = default;
 
     BRDFLut(const BRDFLut&) = delete;
     BRDFLut& operator=(const BRDFLut&) = delete;
     BRDFLut(BRDFLut&&) noexcept = default;
     BRDFLut& operator=(BRDFLut&&) noexcept = default;
 
-    // Generate BRDF lookup table texture
-    // Pre-computes BRDF for all roughness/view angle combinations
+    // Supplies the Vulkan context used by Generate(). The object does not own the device or queue.
+    [[nodiscard]] bool Initialize(VkDevice device,
+                                   VkPhysicalDevice physicalDevice,
+                                   VkQueue graphicsQueue,
+                                   uint32_t graphicsQueueFamily) noexcept;
+
+    // Generates the GGX/Smith split-sum LUT and uploads it to a sampled Vulkan image.
     [[nodiscard]] bool Generate() noexcept;
+    void Destroy() noexcept;
 
-    // Get the LUT texture image view for GPU binding
-    [[nodiscard]] VkImageView GetImageView() const noexcept { return imageView_; }
-
-    // Get the LUT texture image for memory management
-    [[nodiscard]] VkImage GetImage() const noexcept { return image_; }
-
-    // Check if LUT is valid and ready to use
-    [[nodiscard]] bool IsValid() const noexcept { return isValid_; }
+    [[nodiscard]] VkImageView GetImageView() const noexcept { return texture_.GetImageView(); }
+    [[nodiscard]] VkImage GetImage() const noexcept { return texture_.GetImage(); }
+    [[nodiscard]] VkDeviceMemory GetMemory() const noexcept { return texture_.GetMemory(); }
+    [[nodiscard]] VkSampler GetSampler() const noexcept { return texture_.GetSampler(); }
+    [[nodiscard]] bool IsValid() const noexcept { return isValid_ && texture_.IsValid(); }
 
 private:
-    VkImage image_ = VK_NULL_HANDLE;
-    VkImageView imageView_ = VK_NULL_HANDLE;
-    VkDeviceMemory memory_ = VK_NULL_HANDLE;
+    VkDevice device_ = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
+    VkQueue graphicsQueue_ = VK_NULL_HANDLE;
+    uint32_t graphicsQueueFamily_ = UINT32_MAX;
+    VulkanGPUTexture texture_;
     bool isValid_ = false;
 
-    // Cook-Torrance BRDF calculation (CPU-side for LUT generation)
     [[nodiscard]] static glm::vec2 IntegrateBRDF(float roughness, float ndotv) noexcept;
 };
 
