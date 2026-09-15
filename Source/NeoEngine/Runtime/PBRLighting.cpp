@@ -8,6 +8,7 @@ namespace NeoEngine {
 namespace {
 constexpr float kMinRoughness = 0.045f;
 constexpr float kEpsilon = 1.0e-5f;
+constexpr float kPi = 3.14159265358979323846f;
 
 [[nodiscard]] bool Finite(const glm::vec4& value) noexcept {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z) && std::isfinite(value.w);
@@ -23,7 +24,7 @@ float PBRDistributionGGX(float nDotH, float roughness) noexcept {
     const float alpha = std::max(roughness, kMinRoughness);
     const float a2 = alpha * alpha;
     const float denom = nH * nH * (a2 - 1.0f) + 1.0f;
-    const float normalized = a2 / std::max(glm::pi<float>() * denom * denom, kEpsilon);
+    const float normalized = a2 / std::max(kPi * denom * denom, kEpsilon);
     return std::max(normalized, 0.0f);
 }
 
