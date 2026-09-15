@@ -50,9 +50,28 @@ bool ShaderLibrary::Initialize(VkDevice device) {
 }
 
 bool ShaderLibrary::IsValidSpirV(const std::vector<uint32_t>& spirv) {
-    // SPIR-V magic plus a minimally valid header. Full semantic validation is
-    // intentionally delegated to vkCreateShaderModule and the Vulkan driver.
-    return spirv.size() >= 5 && spirv[0] == 0x07230203U && spirv[3] > 0U;
+    // Validate the SPIR-V container/header and instruction boundaries before
+    // passing the module to Vulkan. Semantic validation remains the job of
+    // spirv-val in CI and vkCreateShaderModule at runtime.
+    constexpr uint32_t kMagic = 0x07230203U;
+    constexpr uint32_t kMaxSupportedVersion = 0x00010600U; // SPIR-V 1.6
+
+    if (spirv.size() < 5 || spirv[0] != kMagic || spirv[1] > kMaxSupportedVersion ||
+        spirv[3] == 0U || spirv[4] != 0U) {
+        return false;
+    }
+
+    size_t cursor = 5;
+    while (cursor < spirv.size()) {
+        const uint32_t instruction = spirv[cursor];
+        const uint32_t wordCount = instruction >> 16U;
+        if (wordCount == 0U || wordCount > spirv.size() - cursor) {
+            return false;
+        }
+        cursor += wordCount;
+    }
+
+    return cursor == spirv.size();
 }
 
 VkShaderModule ShaderLibrary::CompileShader(std::string_view name,
