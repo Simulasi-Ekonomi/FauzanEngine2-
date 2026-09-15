@@ -26,7 +26,9 @@ jobs:
 
       - name: Select software Vulkan ICD
         run: |
-          ICD="$(find /usr/share/vulkan/icd.d /usr/lib/x86_64-linux-gnu/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd.x86_64.json' -print -quit 2>/dev/null || true)"
+          ICD="$(find /usr/share/vulkan/icd.d /usr/lib/x86_64-linux-gnu/vulkan/icd.d \
+            -maxdepth 1 -type f \( -name 'lvp_icd.json' -o -name 'lvp_icd.x86_64.json' \) \
+            -print -quit 2>/dev/null || true)"
           test -n "$ICD"
           echo "Using Vulkan ICD: $ICD"
           echo "VK_ICD_FILENAMES=$ICD" >> "$GITHUB_ENV"
