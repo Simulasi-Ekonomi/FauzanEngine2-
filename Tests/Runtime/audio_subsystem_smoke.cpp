@@ -9,10 +9,10 @@
 int main() {
     using namespace NeoEngine;
 
-    const auto wav = WavAudioParser::GenerateSyntheticWav(48000, 1, 256, 440.0f);
+    const auto wav = WavAudioParser::GenerateSyntheticWav(48000, 1, 440.0f, 0.01f);
     WavAudioData decoded;
     assert(WavAudioParser::Parse(wav, decoded));
-    assert(decoded.sampleRate == 48000 && decoded.channels == 1 && decoded.pcmSamples.size() == 256);
+    assert(decoded.sampleRate == 48000 && decoded.channels == 1 && decoded.pcmSamples.size() == 480);
 
     auto truncated = wav;
     truncated.pop_back();
@@ -26,7 +26,8 @@ int main() {
     std::vector<int16_t> output;
     mixer.Mix(64, output);
     assert(output.size() == 128);
-    assert(mixer.ActiveVoices() == 0);
+    assert(mixer.ActiveVoices() == 1);
+    mixer.Clear();
 
     AudioComponent spatial(2);
     assert(spatial.SetSamples(decoded.pcmSamples));
