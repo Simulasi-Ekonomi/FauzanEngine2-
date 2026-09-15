@@ -1,5 +1,6 @@
 #include "RuntimeFrameContract.h"
 #include "ECS/ECSCommandBuffer.h"
+#include "AssetRuntimeState.h"
 
 #include <array>
 #include <cassert>
@@ -33,5 +34,17 @@ int main() {
     assert(commands.Payload(commands.Commands()[1])[2] == 3U);
     commands.Clear();
     assert(commands.Empty());
+
+    NeoEngine::AssetRuntimeStateStore assets;
+    assert(assets.Register("mesh/player", 0x1234U));
+    assert(!assets.Register("mesh/player", 0x5678U));
+    assert(assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Staged));
+    assert(assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Loading));
+    assert(assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Ready, 4096U));
+    const auto* ready = assets.Find("mesh/player");
+    assert(ready != nullptr && ready->residentBytes == 4096U);
+    assert(!assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Completed));
+    assert(assets.Transition("mesh/player", NeoEngine::AssetRuntimeState::Evicted));
+    assert(assets.Find("mesh/player")->residentBytes == 0U);
     return 0;
 }
