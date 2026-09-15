@@ -8,10 +8,11 @@
 #include "SceneRenderAdapter.h"
 
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 namespace NeoEngine {
-enum class EditorSceneSessionError : uint8_t { None, InvalidDocument, DocumentLoadFailed, MeshBindFailed, SpriteBindFailed, CodecDecodeFailed, CodecEncodeFailed, HistoryUnavailable, UnknownActor, NoSelection, ActorHasChildren, ViewportRenderFailed };
+enum class EditorSceneSessionError : uint8_t { None, InvalidDocument, DocumentLoadFailed, MeshBindFailed, SpriteBindFailed, CodecDecodeFailed, CodecEncodeFailed, HistoryUnavailable, UnknownActor, NoSelection, ActorHasChildren, InvalidHierarchy, DuplicateActorId, ViewportRenderFailed };
 
 // Bounded in-engine editor foundation. It owns a loaded SceneDocument snapshot
 // and its canonical runtime adapters; it has no desktop UI, filesystem, network,
