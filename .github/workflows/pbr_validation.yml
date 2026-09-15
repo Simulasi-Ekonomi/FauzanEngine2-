@@ -2,7 +2,7 @@ name: PBR Validation
 
 on:
   push:
-    branches: [ feature/pbr-environment-r1, feature/pbr-6-2-shader-library-r1 ]
+    branches: [ feature/pbr-environment-r1, feature/pbr-6-2-shader-library-r1, pbr-6.3-integration ]
   pull_request:
     branches: [ main ]
 
@@ -106,6 +106,7 @@ jobs:
           glslangValidator -V Source/NeoEngine/Shaders/pbr_material.frag -o /tmp/pbr_material.frag.spv
           glslangValidator -V Source/NeoEngine/Shaders/pbr_lighting.frag -o /tmp/pbr_lighting.frag.spv
           glslangValidator -V Source/NeoEngine/Shaders/pbr_ibl.frag -o /tmp/pbr_ibl.frag.spv
+          glslangValidator -V Source/NeoEngine/Shaders/pbr_lighting_ibl.frag -o /tmp/pbr_lighting_ibl.frag.spv
 
       - name: Validate generated SPIR-V
         run: |
@@ -113,6 +114,7 @@ jobs:
           spirv-val /tmp/pbr_material.frag.spv
           spirv-val /tmp/pbr_lighting.frag.spv
           spirv-val /tmp/pbr_ibl.frag.spv
+          spirv-val /tmp/pbr_lighting_ibl.frag.spv
 
       - name: Run PBR-1 smoke
         run: /tmp/pbr_material_smoke
