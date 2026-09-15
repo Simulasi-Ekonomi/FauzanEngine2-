@@ -17,6 +17,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBRLighting.cpp
     Runtime/PBRIBL.cpp
     Runtime/PBREnvironment.cpp
+    Runtime/PBREnvironmentDescriptorSet.cpp
     Runtime/PBRRenderPipeline.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
