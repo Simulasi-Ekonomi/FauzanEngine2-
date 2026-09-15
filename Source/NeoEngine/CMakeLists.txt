@@ -16,6 +16,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/BRDFLut.cpp
     Runtime/PBRLighting.cpp
     Runtime/PBRIBL.cpp
+    Runtime/PBREnvironment.cpp
+    Runtime/PBREnvironmentDescriptorSet.cpp
     Runtime/PBRRenderPipeline.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
@@ -77,17 +79,20 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_material_smoke.cpp")
     add_xpbd_executable(pbr_material_smoke ../../Tests/pbr_material_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_lighting_smoke.cpp")
     add_xpbd_executable(pbr_lighting_smoke ../../Tests/pbr_lighting_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_ibl_smoke.cpp")
     add_xpbd_executable(pbr_ibl_smoke ../../Tests/pbr_ibl_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_render_pipeline_smoke.cpp")
     add_xpbd_executable(pbr_render_pipeline_smoke ../../Tests/pbr_render_pipeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_environment_smoke.cpp")
+    add_xpbd_executable(pbr_environment_smoke ../../Tests/pbr_environment_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_environment_descriptor_smoke.cpp")
+    add_xpbd_executable(pbr_environment_descriptor_smoke ../../Tests/pbr_environment_descriptor_smoke.cpp)
 endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Renderer source paths")
