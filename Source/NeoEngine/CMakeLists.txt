@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.28)
 
 project(NeoEngine LANGUAGES CXX)
 
-find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
@@ -48,7 +47,7 @@ add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
-target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} ${CURL_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 log)
+target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 log)
 
 function(add_xpbd_executable target_name source_file)
     add_executable(${target_name} ${source_file})
