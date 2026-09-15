@@ -17,6 +17,7 @@ struct EditorSceneActor {
     uint32_t parentId = 0;
     EditorSceneActorKind kind = EditorSceneActorKind::Empty;
     Transform3 transform{};
+    std::string name;
     std::string assetId;
     std::string materialAssetId;
     std::string materialName;
