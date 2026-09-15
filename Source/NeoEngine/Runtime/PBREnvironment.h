@@ -24,12 +24,17 @@ struct PBREnvironmentConfig {
 
 class PBREnvironment {
 public:
+    struct ImageResource {
+        VkImage image = VK_NULL_HANDLE;
+        VkDeviceMemory memory = VK_NULL_HANDLE;
+        VkImageView view = VK_NULL_HANDLE;
+        VkSampler sampler = VK_NULL_HANDLE;
+    };
+
     PBREnvironment() = default;
     ~PBREnvironment();
-
     PBREnvironment(const PBREnvironment&) = delete;
     PBREnvironment& operator=(const PBREnvironment&) = delete;
-
     PBREnvironment(PBREnvironment&& other) noexcept;
     PBREnvironment& operator=(PBREnvironment&& other) noexcept;
 
@@ -53,13 +58,6 @@ public:
     [[nodiscard]] VkFormat Format() const noexcept { return VK_FORMAT_R16G16B16A16_SFLOAT; }
 
 private:
-    struct ImageResource {
-        VkImage image = VK_NULL_HANDLE;
-        VkDeviceMemory memory = VK_NULL_HANDLE;
-        VkImageView view = VK_NULL_HANDLE;
-        VkSampler sampler = VK_NULL_HANDLE;
-    };
-
     PBREnvironmentConfig config_{};
     PBRIBLSettings settings_{};
     uint32_t sourceWidth_ = 0;
@@ -69,7 +67,6 @@ private:
     std::vector<glm::vec4> environment_;
     std::vector<glm::vec4> irradiance_;
     std::vector<std::vector<glm::vec4>> prefilteredMips_;
-
     std::unique_ptr<VulkanContext> context_;
     VkDevice device_ = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
