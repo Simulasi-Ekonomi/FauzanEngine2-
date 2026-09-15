@@ -1,16 +1,32 @@
 #include "../Source/NeoEngine/Systems/AntiCheatSystem.h"
 #include "../Source/NeoEngine/Systems/FraudDetectionSystem.h"
 #include "../Source/NeoEngine/Systems/TrustSafetySystem.h"
+#include <chrono>
 #include <iostream>
 
 int main() {
     std::cout << "[SMOKE TEST] R6 Anti-Cheat & Fraud Detection..." << std::endl;
+
+    // Exercise the real punishment path without invoking DetectAndPunish(),
+    // whose production contract reports synchronously to the remote service.
+    // The smoke test must remain hermetic and deterministic/offline.
     NeoEngine::AntiCheatSystem antiCheat;
-    antiCheat.DetectAndPunish("Player_Cheat1", "Cheater", "speed_hack", "Velocity > 1000", "");
-    if (!antiCheat.IsPlayerBanned("Player_Cheat1")) return 1;
+    NeoEngine::CheatRecord record{
+        "Player_Cheat1",
+        "Cheater",
+        "speed_hack",
+        "",
+        "Velocity > 1000",
+        std::chrono::system_clock::now(),
+        NeoEngine::PunishmentLevel::PermaBan,
+        false};
+    antiCheat.ExecutePunishment(record);
+    if (!record.executed || !antiCheat.IsPlayerBanned("Player_Cheat1")) return 1;
 
     NeoEngine::FraudDetectionSystem fraud;
-    for (int i = 0; i < 6; ++i) fraud.ValidateTransaction("BotBuyer", "Seller1", "Item_123", 100);
+    for (int i = 0; i < 6; ++i) {
+        fraud.ValidateTransaction("BotBuyer", "Seller1", "Item_123", 100);
+    }
     if (fraud.ValidateTransaction("BotBuyer", "Seller1", "Item_123", 100)) return 1;
 
     NeoEngine::TrustSafetySystem trust;
