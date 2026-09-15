@@ -50,6 +50,9 @@ public:
     [[nodiscard]] uint32_t PrefilterMipLevels() const noexcept { return prefilterMipLevels_; }
     [[nodiscard]] const PBRIBLSettings& Settings() const noexcept { return settings_; }
     [[nodiscard]] VkDevice Device() const noexcept { return device_; }
+    [[nodiscard]] VkPhysicalDevice PhysicalDevice() const noexcept { return physicalDevice_; }
+    [[nodiscard]] VkQueue GraphicsQueue() const noexcept { return graphicsQueue_; }
+    [[nodiscard]] uint32_t GraphicsQueueFamily() const noexcept { return graphicsQueueFamily_; }
     [[nodiscard]] VkImageView EnvironmentView() const noexcept { return environmentResource_.view; }
     [[nodiscard]] VkSampler EnvironmentSampler() const noexcept { return environmentResource_.sampler; }
     [[nodiscard]] VkImageView IrradianceView() const noexcept { return irradianceResource_.view; }
