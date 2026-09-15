@@ -31,6 +31,15 @@ layout(set = 2, binding = 0) uniform samplerCube irradianceMap;
 layout(set = 2, binding = 1) uniform samplerCube prefilteredEnvironment;
 layout(set = 2, binding = 2) uniform sampler2D brdfLut;
 
+// Runtime PBRIBLSettings are supplied through the lighting/environment integration.
+// Binding 3 keeps the shader layout backward-compatible with the existing three IBL samplers.
+layout(set = 2, binding = 3, std140) uniform IBLParams {
+    float environmentIntensity;
+    float irradianceStrength;
+    float maxReflectionLod;
+    float _padding;
+} ibl;
+
 layout(location = 0) in vec3 inWorldPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inUV;
@@ -122,7 +131,8 @@ vec3 EvaluateSpot(vec3 worldPosition, vec3 n, vec3 v, vec3 albedo, float metalli
     float distanceToLight = length(toLight);
     if (distanceToLight <= EPSILON || distanceToLight >= light.positionRadius.w) return vec3(0.0);
     vec3 l = toLight / distanceToLight;
-    float cone = dot(normalize(-light.directionInnerCos.xyz), -l);
+    // Both vectors point from the light toward the fragment/cone respectively.
+    float cone = dot(normalize(light.directionInnerCos.xyz), -l);
     float coneRange = max(light.directionInnerCos.w - light.outerCosPadding.x, EPSILON);
     float coneFade = clamp((cone - light.outerCosPadding.x) / coneRange, 0.0, 1.0);
     float radiusFade = 1.0 - smoothstep(0.0, light.positionRadius.w, distanceToLight);
@@ -132,18 +142,21 @@ vec3 EvaluateSpot(vec3 worldPosition, vec3 n, vec3 v, vec3 albedo, float metalli
 }
 
 vec3 EvaluateIBL(vec3 n, vec3 v, vec3 albedo, float metallic, float roughness, float ao) {
+    float environmentIntensity = max(ibl.environmentIntensity, 0.0);
+    float irradianceStrength = max(ibl.irradianceStrength, 0.0);
     float nDotV = max(dot(n, v), 0.0);
     vec3 reflection = reflect(-v, n);
     vec3 f0 = mix(vec3(0.04), albedo, metallic);
     vec3 fresnel = FresnelSchlick(nDotV, f0);
-    vec3 irradiance = texture(irradianceMap, n).rgb;
+    vec3 irradiance = texture(irradianceMap, n).rgb * irradianceStrength;
     vec3 diffuse = irradiance * albedo / PI * (1.0 - metallic) * ao;
-    float maxLod = max(float(textureQueryLevels(prefilteredEnvironment) - 1), 0.0);
-    float lod = roughness * maxLod;
+    float queriedMaxLod = max(float(textureQueryLevels(prefilteredEnvironment) - 1), 0.0);
+    float maxLod = min(queriedMaxLod, max(ibl.maxReflectionLod, 0.0));
+    float lod = min(roughness * maxLod, queriedMaxLod);
     vec3 prefiltered = textureLod(prefilteredEnvironment, reflection, lod).rgb;
     vec2 brdf = texture(brdfLut, vec2(nDotV, roughness)).rg;
     vec3 specular = prefiltered * (fresnel * brdf.x + brdf.y);
-    return diffuse + specular;
+    return (diffuse + specular) * environmentIntensity;
 }
 
 void main() {
