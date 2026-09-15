@@ -1,4 +1,6 @@
+#include "Runtime/BRDFLut.h"
 #include "Runtime/PBREnvironment.h"
+#include "Runtime/PBREnvironmentDescriptorSet.h"
 
 #include <cassert>
 #include <cstdint>
@@ -47,6 +49,22 @@ int main() {
     assert(environment.PrefilteredView() != VK_NULL_HANDLE);
     assert(environment.PrefilteredSampler() != VK_NULL_HANDLE);
 
+    NeoEngine::BRDFLut brdfLut;
+    assert(brdfLut.Initialize(environment.Device(), environment.PhysicalDevice(),
+                              environment.GraphicsQueue(), environment.GraphicsQueueFamily()));
+    assert(brdfLut.Generate());
+    assert(brdfLut.IsValid());
+
+    NeoEngine::PBREnvironmentDescriptorSet environmentDescriptors;
+    assert(environmentDescriptors.Initialize(environment.Device()));
+    assert(environmentDescriptors.IsValid());
+    VkDescriptorSet environmentSet = environmentDescriptors.AllocateSet();
+    assert(environmentSet != VK_NULL_HANDLE);
+    environmentDescriptors.Update(environmentSet, environment,
+                                   brdfLut.GetImageView(), brdfLut.GetSampler());
+
+    environmentDescriptors.Destroy();
+    brdfLut.Destroy();
     environment.Destroy();
     assert(!environment.IsGpuReady());
     return 0;
