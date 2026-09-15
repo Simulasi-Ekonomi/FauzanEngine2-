@@ -32,16 +32,6 @@ on:
       - 'Source/NeoEngine/Runtime/EditorScene*.*'
       - 'Tests/Runtime/sdl_audio_bridge_smoke.cpp'
       - 'Tests/Runtime/sdl_input_bridge_smoke.cpp'
-      - 'Tests/Runtime/InputState.*'
-      - 'Tests/Runtime/UiInputRouter.*'
-      - 'Tests/Runtime/SdlInputBridge.*'
-      - 'Tests/Runtime/SdlAudioBridge.*'
-      - 'Tests/Runtime/AudioMixer.*'
-      - 'Tests/Runtime/WavAudioParser.*'
-      - 'Tests/Runtime/AudioComponent.*'
-      - 'Tests/Runtime/EditorScene*.*'
-      - 'Tests/Runtime/sdl_audio_bridge_smoke.cpp'
-      - 'Tests/Runtime/sdl_input_bridge_smoke.cpp'
       - 'Tests/Runtime/input_state_smoke.cpp'
       - 'Tests/Runtime/ui_input_router_smoke.cpp'
       - 'Tests/Runtime/audio_subsystem_smoke.cpp'
@@ -89,7 +79,7 @@ jobs:
           SDL_AUDIODRIVER: dummy
           SDL_VIDEODRIVER: dummy
         run: |
-          cmake --build build/r4-asan --target sdl_audio_bridge_smoke sdl_input_bridge_smoke input_state_smoke audio_subsystem_smoke editor_subsystem_smoke -j2
+          cmake --build build/r4-asan --target sdl_audio_bridge_smoke sdl_input_bridge_smoke input_state_smoke ui_input_router_smoke audio_subsystem_smoke editor_subsystem_smoke -j2
           ./build/r4-asan/sdl_audio_bridge_smoke
           ./build/r4-asan/sdl_input_bridge_smoke
           ./build/r4-asan/input_state_smoke
