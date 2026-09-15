@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <new>
 
 namespace NeoEngine {
 namespace {
@@ -18,7 +19,7 @@ void Append(std::vector<uint8_t>& output, T value) {
 
 template <typename T>
 bool Read(std::span<const uint8_t> input, size_t& offset, T& value) {
-    if (offset + sizeof(T) > input.size()) return false;
+    if (offset > input.size() || input.size() - offset < sizeof(T)) return false;
     uint64_t raw = 0;
     for (size_t byte = 0; byte < sizeof(T); ++byte) raw |= static_cast<uint64_t>(input[offset + byte]) << (byte * 8U);
     value = static_cast<T>(raw);
@@ -28,7 +29,7 @@ bool Read(std::span<const uint8_t> input, size_t& offset, T& value) {
 
 bool ReadString(std::span<const uint8_t> input, size_t& offset, std::string& value) {
     uint16_t length = 0;
-    if (!Read(input, offset, length) || length == 0 || offset + length > input.size()) return false;
+    if (!Read(input, offset, length) || length == 0 || offset > input.size() || input.size() - offset < length) return false;
     value.assign(reinterpret_cast<const char*>(input.data() + offset), length);
     offset += length;
     return true;
@@ -52,7 +53,12 @@ bool AuthoritativeCommandGate::Initialize(TrustSafetySystem& trustSafety, const 
         return false;
     }
     config_ = config;
-    players_.reserve(config.maxPlayers);
+    try {
+        players_.reserve(config.maxPlayers);
+    } catch (const std::bad_alloc&) {
+        lastError_ = AuthorityError::PlayerCapacity;
+        return false;
+    }
     trustSafety_ = &trustSafety;
     initialized_ = true;
     return true;
@@ -77,7 +83,12 @@ bool AuthoritativeCommandGate::BindSession(const std::string& playerId, const st
             lastError_ = AuthorityError::PlayerCapacity;
             return false;
         }
-        players_.push_back({playerId, sessionId, 0, 0, 0, {}});
+        try {
+            players_.push_back({playerId, sessionId, 0, 0, 0, {}});
+        } catch (const std::bad_alloc&) {
+            lastError_ = AuthorityError::PlayerCapacity;
+            return false;
+        }
     } else {
         player->sessionId = sessionId;
     }
@@ -102,19 +113,30 @@ AuthorityDecision AuthoritativeCommandGate::Submit(const AuthorityCommand& comma
         return {AuthorityError::None, duplicate->revision, true};
     }
     if (command.clientSequence != player->lastSequence + 1U) return Reject(AuthorityError::OutOfOrder);
-    if (serverTick < player->windowStartTick) return Reject(AuthorityError::InvalidCommand);
-    if (serverTick - player->windowStartTick >= config_.windowTicks) {
-        player->windowStartTick = serverTick;
-        player->commandsInWindow = 0;
+
+    uint64_t nextWindowStart = player->windowStartTick;
+    uint16_t nextCommandsInWindow = player->commandsInWindow;
+    if (serverTick < nextWindowStart) return Reject(AuthorityError::InvalidCommand);
+    if (serverTick - nextWindowStart >= config_.windowTicks) {
+        nextWindowStart = serverTick;
+        nextCommandsInWindow = 0;
     }
-    if (player->commandsInWindow >= config_.maxCommandsPerWindow) return Reject(AuthorityError::RateLimited);
+    if (nextCommandsInWindow >= config_.maxCommandsPerWindow) return Reject(AuthorityError::RateLimited);
     if (authoritativeRevision_ == std::numeric_limits<uint64_t>::max()) return Reject(AuthorityError::InvalidConfiguration);
     const uint64_t nextRevision = authoritativeRevision_ + 1U;
+
+    try {
+        if (player->recentCommands.size() < kMaxRecentCommandsPerPlayer) player->recentCommands.reserve(player->recentCommands.size() + 1U);
+    } catch (const std::bad_alloc&) {
+        return Reject(AuthorityError::HandlerRejected);
+    }
+
     if (!handler(command, nextRevision)) return Reject(AuthorityError::HandlerRejected);
 
     authoritativeRevision_ = nextRevision;
     player->lastSequence = command.clientSequence;
-    ++player->commandsInWindow;
+    player->windowStartTick = nextWindowStart;
+    player->commandsInWindow = static_cast<uint16_t>(nextCommandsInWindow + 1U);
     if (player->recentCommands.size() == kMaxRecentCommandsPerPlayer) player->recentCommands.erase(player->recentCommands.begin());
     player->recentCommands.push_back({command.commandId, nextRevision});
     lastError_ = AuthorityError::None;
@@ -153,52 +175,57 @@ bool AuthoritativeCommandGate::DeserializeState(std::span<const uint8_t> bytes) 
         lastError_ = AuthorityError::NotInitialized;
         return false;
     }
-    size_t offset = 0;
-    uint32_t magic = 0;
-    uint16_t version = 0;
-    AuthorityConfig storedConfig{};
-    uint64_t revision = 0;
-    uint16_t playerCount = 0;
-    if (!Read(bytes, offset, magic) || !Read(bytes, offset, version) || !Read(bytes, offset, storedConfig.maxPlayers) || !Read(bytes, offset, storedConfig.maxCommandsPerWindow) ||
-        !Read(bytes, offset, storedConfig.windowTicks) || !Read(bytes, offset, storedConfig.maxClientTickLead) || !Read(bytes, offset, storedConfig.maxClientTickLag) ||
-        !Read(bytes, offset, revision) || !Read(bytes, offset, playerCount) || magic != kLedgerMagic || version != kLedgerVersion ||
-        storedConfig.maxPlayers != config_.maxPlayers || storedConfig.maxCommandsPerWindow != config_.maxCommandsPerWindow || storedConfig.windowTicks != config_.windowTicks ||
-        storedConfig.maxClientTickLead != config_.maxClientTickLead || storedConfig.maxClientTickLag != config_.maxClientTickLag || playerCount > config_.maxPlayers) {
-        lastError_ = AuthorityError::CorruptPersistence;
-        return false;
-    }
-    std::vector<PlayerState> restored;
-    restored.reserve(playerCount);
-    for (uint16_t playerIndex = 0; playerIndex < playerCount; ++playerIndex) {
-        PlayerState player{};
-        uint16_t recentCount = 0;
-        if (!ReadString(bytes, offset, player.playerId) || !IsValidId(player.playerId, 1) || !Read(bytes, offset, player.lastSequence) || !Read(bytes, offset, player.windowStartTick) ||
-            !Read(bytes, offset, player.commandsInWindow) || !Read(bytes, offset, recentCount) || player.commandsInWindow > config_.maxCommandsPerWindow || recentCount > kMaxRecentCommandsPerPlayer ||
-            std::any_of(restored.begin(), restored.end(), [&player](const PlayerState& existing) { return existing.playerId == player.playerId; })) {
+    try {
+        size_t offset = 0;
+        uint32_t magic = 0;
+        uint16_t version = 0;
+        AuthorityConfig storedConfig{};
+        uint64_t revision = 0;
+        uint16_t playerCount = 0;
+        if (!Read(bytes, offset, magic) || !Read(bytes, offset, version) || !Read(bytes, offset, storedConfig.maxPlayers) || !Read(bytes, offset, storedConfig.maxCommandsPerWindow) ||
+            !Read(bytes, offset, storedConfig.windowTicks) || !Read(bytes, offset, storedConfig.maxClientTickLead) || !Read(bytes, offset, storedConfig.maxClientTickLag) ||
+            !Read(bytes, offset, revision) || !Read(bytes, offset, playerCount) || magic != kLedgerMagic || version != kLedgerVersion ||
+            storedConfig.maxPlayers != config_.maxPlayers || storedConfig.maxCommandsPerWindow != config_.maxCommandsPerWindow || storedConfig.windowTicks != config_.windowTicks ||
+            storedConfig.maxClientTickLead != config_.maxClientTickLead || storedConfig.maxClientTickLag != config_.maxClientTickLag || playerCount > config_.maxPlayers) {
             lastError_ = AuthorityError::CorruptPersistence;
             return false;
         }
-        player.recentCommands.reserve(recentCount);
-        for (uint16_t commandIndex = 0; commandIndex < recentCount; ++commandIndex) {
-            RecentCommand command{};
-            if (!ReadString(bytes, offset, command.id) || !IsValidId(command.id, 8) || !Read(bytes, offset, command.revision) || command.revision == 0 || command.revision > revision ||
-                std::any_of(player.recentCommands.begin(), player.recentCommands.end(), [&command](const RecentCommand& existing) { return existing.id == command.id; })) {
+        std::vector<PlayerState> restored;
+        restored.reserve(playerCount);
+        for (uint16_t playerIndex = 0; playerIndex < playerCount; ++playerIndex) {
+            PlayerState player{};
+            uint16_t recentCount = 0;
+            if (!ReadString(bytes, offset, player.playerId) || !IsValidId(player.playerId, 1) || !Read(bytes, offset, player.lastSequence) || !Read(bytes, offset, player.windowStartTick) ||
+                !Read(bytes, offset, player.commandsInWindow) || !Read(bytes, offset, recentCount) || player.commandsInWindow > config_.maxCommandsPerWindow || recentCount > kMaxRecentCommandsPerPlayer ||
+                std::any_of(restored.begin(), restored.end(), [&player](const PlayerState& existing) { return existing.playerId == player.playerId; })) {
                 lastError_ = AuthorityError::CorruptPersistence;
                 return false;
             }
-            player.recentCommands.push_back(std::move(command));
+            player.recentCommands.reserve(recentCount);
+            for (uint16_t commandIndex = 0; commandIndex < recentCount; ++commandIndex) {
+                RecentCommand command{};
+                if (!ReadString(bytes, offset, command.id) || !IsValidId(command.id, 8) || !Read(bytes, offset, command.revision) || command.revision == 0 || command.revision > revision ||
+                    std::any_of(player.recentCommands.begin(), player.recentCommands.end(), [&command](const RecentCommand& existing) { return existing.id == command.id; })) {
+                    lastError_ = AuthorityError::CorruptPersistence;
+                    return false;
+                }
+                player.recentCommands.push_back(std::move(command));
+            }
+            player.sessionId.clear(); // Session credentials are deliberately not persisted.
+            restored.push_back(std::move(player));
         }
-        player.sessionId.clear(); // Session credentials are deliberately not persisted.
-        restored.push_back(std::move(player));
-    }
-    if (offset != bytes.size()) {
+        if (offset != bytes.size()) {
+            lastError_ = AuthorityError::CorruptPersistence;
+            return false;
+        }
+        players_ = std::move(restored);
+        authoritativeRevision_ = revision;
+        lastError_ = AuthorityError::None;
+        return true;
+    } catch (const std::bad_alloc&) {
         lastError_ = AuthorityError::CorruptPersistence;
         return false;
     }
-    players_ = std::move(restored);
-    authoritativeRevision_ = revision;
-    lastError_ = AuthorityError::None;
-    return true;
 }
 
 bool AuthoritativeCommandGate::IsValidId(const std::string& value, size_t minimumLength) {
