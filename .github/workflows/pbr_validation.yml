@@ -98,7 +98,7 @@ jobs:
             Source/NeoEngine/Runtime/VulkanContext.cpp \
             Source/NeoEngine/Runtime/ShaderLibrary.cpp \
             Tests/shader_library_smoke.cpp \
-            -lvulkan -o /tmp/shader_library_smoke
+            $(pkg-config --cflags --libs vulkan) -o /tmp/shader_library_smoke
 
       - name: Validate PBR shaders
         run: |
