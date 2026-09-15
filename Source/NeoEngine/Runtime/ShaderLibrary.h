@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -29,7 +30,7 @@ struct ShaderVariantKey {
 };
 
 struct ShaderVariantKeyHash {
-    size_t operator()(const ShaderVariantKey& key) const noexcept;
+    std::size_t operator()(const ShaderVariantKey& key) const noexcept;
 };
 
 class ShaderLibrary {
@@ -73,7 +74,7 @@ public:
 
     [[nodiscard]] VkDevice GetDevice() const noexcept { return device_; }
     [[nodiscard]] bool IsValid() const noexcept { return device_ != VK_NULL_HANDLE; }
-    [[nodiscard]] size_t ShaderCount() const noexcept { return shaders_.size(); }
+    [[nodiscard]] std::size_t ShaderCount() const noexcept { return shaders_.size(); }
 
 private:
     bool CreateDefaultSamplers();
