@@ -59,5 +59,47 @@ int main() {
     assert(!agent.Execute(R"([])", session, assets, response));
     assert(!agent.Execute(R"({"operation":"select","actorId":999})", session, assets, response));
 
+    EditorSceneActor child;
+    child.id = 43;
+    child.name = "Child";
+    child.parentId = 42;
+    assert(session.AddActor(child, assets));
+    assert(session.InspectActor(43, inspected));
+    assert(inspected.parentId == 42);
+
+    EditorSceneActor duplicate = child;
+    assert(!session.AddActor(duplicate, assets));
+    assert(session.LastError() == EditorSceneSessionError::DuplicateActorId);
+
+    EditorSceneActor selfParent = child;
+    selfParent.id = 44;
+    selfParent.parentId = 44;
+    assert(!session.AddActor(selfParent, assets));
+    assert(session.LastError() == EditorSceneSessionError::InvalidHierarchy);
+
+    EditorSceneActor missingParent = child;
+    missingParent.id = 45;
+    missingParent.parentId = 999;
+    assert(!session.AddActor(missingParent, assets));
+    assert(session.LastError() == EditorSceneSessionError::UnknownActor);
+
+    assert(!session.ReparentActor(43, 43, assets));
+    assert(session.LastError() == EditorSceneSessionError::InvalidHierarchy);
+
+    assert(!session.ReparentActor(43, 999, assets));
+    assert(session.LastError() == EditorSceneSessionError::UnknownActor);
+
+    assert(!session.ReparentActor(42, 43, assets));
+    assert(session.LastError() == EditorSceneSessionError::InvalidHierarchy);
+    assert(session.InspectActor(42, inspected));
+    assert(inspected.parentId == 0U);
+
+    assert(!session.DeleteActor(42, assets));
+    assert(session.LastError() == EditorSceneSessionError::ActorHasChildren);
+
+    assert(session.DeleteActor(43, assets));
+    assert(session.InspectActor(42, inspected));
+    assert(inspected.parentId == 0U);
+
     return 0;
 }
