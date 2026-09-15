@@ -1,0 +1,30 @@
+name: PBR-1 Validation
+
+on:
+  push:
+    branches: [ feature/pbr-materials-r2 ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pbr1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ libvulkan-dev libglm-dev libjsoncpp-dev libcurl4-openssl-dev glslang-tools
+
+      - name: Configure NeoEngine runtime
+        run: cmake -S Source/NeoEngine -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build PBR runtime and smoke
+        run: cmake --build build --target pbr_material_smoke -j2
+
+      - name: Validate PBR shader
+        run: glslangValidator -V Source/NeoEngine/Shaders/pbr_material.frag -o /tmp/pbr_material.frag.spv
+
+      - name: Run PBR smoke
+        run: ./build/pbr_material_smoke
