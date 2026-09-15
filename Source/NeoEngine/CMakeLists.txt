@@ -16,6 +16,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/BRDFLut.cpp
     Runtime/PBRLighting.cpp
     Runtime/PBRIBL.cpp
+    Runtime/PBRRenderPipeline.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -83,6 +84,10 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_ibl_smoke.cpp")
     add_xpbd_executable(pbr_ibl_smoke ../../Tests/pbr_ibl_smoke.cpp)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/pbr_render_pipeline_smoke.cpp")
+    add_xpbd_executable(pbr_render_pipeline_smoke ../../Tests/pbr_render_pipeline_smoke.cpp)
 endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Renderer source paths")
