@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <vector>
 
 using namespace NeoEngine;
@@ -69,6 +70,41 @@ int main() {
     assert(!queue.Release("high"));
     assert(released.size() == 2);
     assert(released[1] == static_cast<VkDeviceMemory>(1));
+
+    // Existing allocations retain the releaser that owned them even if the
+    // queue callback is replaced later (e.g. after a Vulkan device recreation).
+    AssetStreamingQueue ownershipQueue(8, 8);
+    std::vector<VkDeviceMemory> ownerA;
+    std::vector<VkDeviceMemory> ownerB;
+    ownershipQueue.SetGpuMemoryReleaseCallback([&ownerA](VkDeviceMemory memory) { ownerA.push_back(memory); });
+    assert(ownershipQueue.Enqueue(StreamRequest{"owned", "owned.obj", 1.0f, 2, 1}));
+    assert(ownershipQueue.TryDequeue(next));
+    assert(next.id == "owned");
+    assert(ownershipQueue.CompleteUpload("owned", static_cast<VkDeviceMemory>(11), 2));
+    ownershipQueue.SetGpuMemoryReleaseCallback([&ownerB](VkDeviceMemory memory) { ownerB.push_back(memory); });
+    assert(ownershipQueue.Release("owned"));
+    assert(ownerA.size() == 1 && ownerA[0] == static_cast<VkDeviceMemory>(11));
+    assert(ownerB.empty());
+
+    // A throwing releaser must not make an allocation disappear or corrupt
+    // resident accounting. A shared state lets the test recover and retry.
+    AssetStreamingQueue retryQueue(8, 8);
+    auto throwOnce = std::make_shared<bool>(true);
+    std::vector<VkDeviceMemory> retryReleased;
+    retryQueue.SetGpuMemoryReleaseCallback([throwOnce, &retryReleased](VkDeviceMemory memory) {
+        if (*throwOnce) { *throwOnce = false; throw 1; }
+        retryReleased.push_back(memory);
+    });
+    assert(retryQueue.Enqueue(StreamRequest{"retry", "retry.obj", 1.0f, 2, 1}));
+    assert(retryQueue.TryDequeue(next));
+    assert(retryQueue.CompleteUpload("retry", static_cast<VkDeviceMemory>(12), 2));
+    assert(!retryQueue.Release("retry"));
+    assert(retryQueue.IsReady("retry"));
+    assert(retryQueue.GetMemory("retry") == static_cast<VkDeviceMemory>(12));
+    assert(retryQueue.GetResidentMB() == 2);
+    assert(retryQueue.Release("retry"));
+    assert(retryReleased.size() == 1 && retryReleased[0] == static_cast<VkDeviceMemory>(12));
+    assert(retryQueue.GetResidentMB() == 0);
 
     std::cout << "ASSET_STREAMING_QUEUE_SMOKE_OK\n";
     return 0;
