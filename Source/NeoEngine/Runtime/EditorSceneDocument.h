@@ -17,7 +17,9 @@ struct EditorSceneActor {
     uint32_t parentId = 0;
     EditorSceneActorKind kind = EditorSceneActorKind::Empty;
     Transform3 transform{};
-    std::string name;
+    // Keep the established aggregate field order intact. New authoring metadata
+    // is appended after the pre-existing asset/render fields so older positional
+    // construction cannot silently bind an asset ID into the actor name.
     std::string assetId;
     std::string materialAssetId;
     std::string materialName;
@@ -27,6 +29,7 @@ struct EditorSceneActor {
     int16_t spriteLayer = 0;
     int16_t spriteOrder = 0;
     uint32_t spriteRgba = 0xFFFFFFFFU;
+    std::string name;
 };
 
 struct EditorSceneDocument {
