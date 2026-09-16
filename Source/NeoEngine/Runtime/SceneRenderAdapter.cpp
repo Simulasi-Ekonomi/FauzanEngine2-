@@ -78,8 +78,6 @@ Mat4 MakeModel(const Transform3& transform) {
     const float cy = std::cos(transform.ry), sy = std::sin(transform.ry);
     const float cz = std::cos(transform.rz), sz = std::sin(transform.rz);
 
-    // R = Rz * Ry * Rx, column-major. This matches the transform convention used
-    // by the SceneWorld Euler fields without introducing a second transform API.
     Mat4 model{};
     model.v = {
         (cz * cy) * transform.sx, (sz * cy) * transform.sx, (-sy) * transform.sx, 0.0F,
@@ -150,8 +148,8 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         }
 
         const Mat4 model = MakeModel(*transform);
-        std::vector<float> modelMatrix(model.v.begin(), model.v.end());
-        if (!renderer.DrawIndexedInstanced(vertices, indices, modelMatrix)) {
+        const Mat4 mvp = Multiply(viewProjection, model);
+        if (!renderer.DrawIndexed(vertices, indices, mvp.v.data())) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;
