@@ -14,6 +14,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(NEO_SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/neo_shaders")
 set(NEO_MESH_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.vert.spv")
 set(NEO_MESH_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.frag.spv")
+set(NEO_TEXTURE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.vert.spv")
+set(NEO_TEXTURE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.frag.spv")
+set(NEO_TRIANGLE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.vert.spv")
+set(NEO_TRIANGLE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.frag.spv")
 
 add_custom_command(
     OUTPUT "${NEO_MESH_VERT_SPV}"
@@ -29,7 +33,38 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.frag"
     VERBATIM
 )
-add_custom_target(neoengine_mesh_shaders ALL DEPENDS "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}")
+add_custom_command(
+    OUTPUT "${NEO_TEXTURE_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert" -o "${NEO_TEXTURE_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_TEXTURE_FRAG_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.frag" -o "${NEO_TEXTURE_FRAG_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.frag"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_TRIANGLE_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.vert" -o "${NEO_TRIANGLE_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.vert"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_TRIANGLE_FRAG_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.frag" -o "${NEO_TRIANGLE_FRAG_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.frag"
+    VERBATIM
+)
+add_custom_target(neoengine_mesh_shaders ALL DEPENDS
+    "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
+    "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
+    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
