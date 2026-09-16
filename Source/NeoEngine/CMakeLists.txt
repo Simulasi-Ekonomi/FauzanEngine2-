@@ -126,7 +126,6 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(farm_vulkan_textured_present_smoke ../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
     add_xpbd_executable(vulkan_descriptor_manager_smoke ../../Tests/Runtime/vulkan_descriptor_manager_smoke.cpp)
@@ -142,6 +141,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
     add_xpbd_executable(vulkan_swapchain_manager_smoke ../../Tests/Runtime/vulkan_swapchain_manager_smoke.cpp)
     add_xpbd_executable(vulkan_sync_primitives_smoke ../../Tests/Runtime/vulkan_sync_primitives_smoke.cpp)
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp")
+    add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")
