@@ -1,23 +1,19 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <mutex>
 #include <queue>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <mutex>
 #include <vulkan/vulkan.h>
 
 namespace NeoEngine {
 
 using AssetID = std::string;
 
-enum class StreamState : uint8_t {
-    Pending,
-    Uploading,
-    Ready,
-    Failed
-};
+enum class StreamState : uint8_t { Pending, Uploading, Ready, Failed };
 
 struct StreamRequest {
     AssetID id;
@@ -33,14 +29,17 @@ struct StreamedAssetInfo {
     VkDeviceMemory gpuMemory = VK_NULL_HANDLE;
     uint32_t allocatedSizeMB = 0;
     uint64_t lastAccessFrame = 0;
+    std::function<void(VkDeviceMemory)> gpuMemoryReleaseCallback{};
 };
 
 class AssetStreamingQueue {
 public:
+    using GpuMemoryReleaseCallback = std::function<void(VkDeviceMemory)>;
+
     explicit AssetStreamingQueue(uint32_t budgetMB = 1024, uint32_t maxAssets = 4096) noexcept
         : memoryBudgetMB_(budgetMB), maxAssets_(maxAssets) {}
 
-    ~AssetStreamingQueue() noexcept = default;
+    ~AssetStreamingQueue() noexcept;
 
     AssetStreamingQueue(const AssetStreamingQueue&) = delete;
     AssetStreamingQueue& operator=(const AssetStreamingQueue&) = delete;
@@ -65,6 +64,15 @@ public:
     void MarkAccessed(AssetID id, uint64_t frameNumber) noexcept;
     [[nodiscard]] bool EvictToBudget() noexcept;
 
+    // The queue stores ownership metadata for VkDeviceMemory. Production Vulkan
+    // owners must bind a release callback so Release/Evict/destruction actually
+    // return the allocation to the Vulkan device. Existing callers may leave this
+    // unset when they use non-owning/test handles. Each ready allocation captures
+    // the callback active when its upload is accepted; replacing the queue callback
+    // never changes ownership of an existing allocation.
+    void SetGpuMemoryReleaseCallback(GpuMemoryReleaseCallback callback) noexcept;
+    [[nodiscard]] bool HasGpuMemoryReleaseCallback() const noexcept;
+
 private:
     struct PriorityCompare {
         bool operator()(const StreamRequest& a, const StreamRequest& b) const noexcept {
@@ -74,6 +82,8 @@ private:
         }
     };
 
+    [[nodiscard]] bool ReleaseGpuMemoryLocked(StreamedAssetInfo& info) noexcept;
+
     std::priority_queue<StreamRequest, std::vector<StreamRequest>, PriorityCompare> streamQueue_;
     std::unordered_map<AssetID, StreamedAssetInfo> loadedAssets_;
     mutable std::mutex mutex_;
@@ -81,6 +91,7 @@ private:
     uint32_t memoryBudgetMB_ = 1024;
     uint32_t residentMemoryMB_ = 0;
     uint32_t maxAssets_ = 4096;
+    GpuMemoryReleaseCallback gpuMemoryReleaseCallback_{};
 };
 
 } // namespace NeoEngine

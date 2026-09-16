@@ -3,11 +3,16 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 using namespace NeoEngine;
 
 int main() {
     AssetStreamingQueue queue(8, 8);
+    std::vector<VkDeviceMemory> released;
+    queue.SetGpuMemoryReleaseCallback([&released](VkDeviceMemory memory) { released.push_back(memory); });
+    assert(queue.HasGpuMemoryReleaseCallback());
 
     StreamRequest low{"low", "low.obj", 1.0f, 2, 1};
     StreamRequest high{"high", "high.obj", 10.0f, 3, 1};
@@ -44,15 +49,62 @@ int main() {
     queue.MarkAccessed("old", 10);
     assert(queue.GetResidentMB() == 7);
 
+    assert(queue.Enqueue(StreamRequest{"over", "over.obj", 1.0f, 1, 1}));
+    assert(queue.TryDequeue(next));
+    assert(next.id == "over");
+    // Total resident budget, not just per-allocation budget, is the contract.
+    assert(!queue.CompleteUpload("over", static_cast<VkDeviceMemory>(3), 2));
+    assert(queue.GetState("over") == StreamState::Uploading);
+    assert(queue.FailUpload("over"));
+
     queue.SetMemoryBudgetMB(4);
     assert(queue.EvictToBudget());
     assert(queue.GetResidentMB() <= 4);
     assert(queue.IsReady("high"));
     assert(!queue.IsReady("old"));
+    assert(released.size() == 1);
+    assert(released[0] == static_cast<VkDeviceMemory>(2));
 
     assert(queue.Release("high"));
     assert(queue.GetResidentMB() == 0);
     assert(!queue.Release("high"));
+    assert(released.size() == 2);
+    assert(released[1] == static_cast<VkDeviceMemory>(1));
+
+    // Existing allocations retain the releaser that owned them even if the
+    // queue callback is replaced later (e.g. after a Vulkan device recreation).
+    AssetStreamingQueue ownershipQueue(8, 8);
+    std::vector<VkDeviceMemory> ownerA;
+    std::vector<VkDeviceMemory> ownerB;
+    ownershipQueue.SetGpuMemoryReleaseCallback([&ownerA](VkDeviceMemory memory) { ownerA.push_back(memory); });
+    assert(ownershipQueue.Enqueue(StreamRequest{"owned", "owned.obj", 1.0f, 2, 1}));
+    assert(ownershipQueue.TryDequeue(next));
+    assert(next.id == "owned");
+    assert(ownershipQueue.CompleteUpload("owned", static_cast<VkDeviceMemory>(11), 2));
+    ownershipQueue.SetGpuMemoryReleaseCallback([&ownerB](VkDeviceMemory memory) { ownerB.push_back(memory); });
+    assert(ownershipQueue.Release("owned"));
+    assert(ownerA.size() == 1 && ownerA[0] == static_cast<VkDeviceMemory>(11));
+    assert(ownerB.empty());
+
+    // A throwing releaser must not make an allocation disappear or corrupt
+    // resident accounting. A shared state lets the test recover and retry.
+    AssetStreamingQueue retryQueue(8, 8);
+    auto throwOnce = std::make_shared<bool>(true);
+    std::vector<VkDeviceMemory> retryReleased;
+    retryQueue.SetGpuMemoryReleaseCallback([throwOnce, &retryReleased](VkDeviceMemory memory) {
+        if (*throwOnce) { *throwOnce = false; throw 1; }
+        retryReleased.push_back(memory);
+    });
+    assert(retryQueue.Enqueue(StreamRequest{"retry", "retry.obj", 1.0f, 2, 1}));
+    assert(retryQueue.TryDequeue(next));
+    assert(retryQueue.CompleteUpload("retry", static_cast<VkDeviceMemory>(12), 2));
+    assert(!retryQueue.Release("retry"));
+    assert(retryQueue.IsReady("retry"));
+    assert(retryQueue.GetMemory("retry") == static_cast<VkDeviceMemory>(12));
+    assert(retryQueue.GetResidentMB() == 2);
+    assert(retryQueue.Release("retry"));
+    assert(retryReleased.size() == 1 && retryReleased[0] == static_cast<VkDeviceMemory>(12));
+    assert(retryQueue.GetResidentMB() == 0);
 
     std::cout << "ASSET_STREAMING_QUEUE_SMOKE_OK\n";
     return 0;
