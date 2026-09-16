@@ -161,6 +161,10 @@ private:
     std::unique_ptr<SceneWorld> m_Scene;
     std::unique_ptr<SceneMeshAdapter> m_SceneMeshes;
     std::unique_ptr<RenderCamera> m_SceneCamera;
+    RenderCameraConfig m_SceneCameraConfig{};
+    uint16_t m_RenderWidth = 0U;
+    uint16_t m_RenderHeight = 0U;
+    bool m_EnableVulkan3DRenderer = false;
     std::unique_ptr<SceneRenderAdapter> m_SceneRenderAdapter;
     std::unique_ptr<Vulkan3DRenderer> m_VulkanRenderer;
     std::unique_ptr<SoftwareRenderer> m_Renderer;
