@@ -36,7 +36,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT "${NEO_TEXTURE_VERT_SPV}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
-    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert" -o "${NEO_TEXTURE_VERT_SPV}"
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert" -o "${NEO_TEXTURE_VERT_SPV}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert"
     VERBATIM
 )
@@ -119,10 +119,35 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PrefabStaging.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneAgentAPI.cpp
+    Runtime/SoftwareSurfacePresenter.cpp
+    Runtime/GridRouteFollower.cpp
+    Runtime/FarmRuntimeHud.cpp
+    Runtime/RuntimeTimeSystem.cpp
+    Runtime/EventSignalBus.cpp
+    Runtime/FarmRenderAssetManifest.cpp
+    Runtime/FarmRenderAdapter.cpp
+    Runtime/FarmSpriteRenderAdapter.cpp
+    Runtime/FarmWorldTool.cpp
+    Runtime/FarmAuthoritativeService.cpp
+    Runtime/ActorComponentWorld.cpp
+    Runtime/ReplicationWorld.cpp
+    Runtime/KinematicMotionController.cpp
+    Runtime/SkeletalAnimationController.cpp
+    Runtime/FarmPlayerInputBridge.cpp
+    Runtime/RuntimeTimerQueue.cpp
+    Runtime/MovementAuthorityGate.cpp
+    Runtime/RouteRootMotionAdapter.cpp
+    Runtime/InputMotionBridge.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
+    Systems/GridNavigation.cpp
+    Systems/WorldAuthoring.cpp
+    Systems/CurriculumSystem.cpp
+    Systems/AgricultureCurriculum.cpp
+    Systems/AuthoringCatalog.cpp
+    Systems/FarmSystem.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
     Templates/RpgSandboxGame.cpp
