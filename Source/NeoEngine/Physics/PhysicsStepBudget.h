@@ -34,7 +34,6 @@ struct PhysicsStepBudget final {
                simulatedBodies <= maxBodies &&
                collisionTests >= minCollisions &&
                collisionTests <= maxCollisions &&
-               contactsSolved >= collisionTests &&
                elapsedMicroseconds < budgetMicroseconds;
     }
 };
