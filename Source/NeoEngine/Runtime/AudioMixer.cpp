@@ -1,6 +1,7 @@
 #include "AudioMixer.h"
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace NeoEngine {
 namespace {
@@ -79,7 +80,6 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
             up[1] -= forward[1] * forwardDotUp;
             up[2] -= forward[2] * forwardDotUp;
             if (Normalize3(up)) {
-                // Right-handed listener basis: right = up x forward.
                 const float right[3]{
                     up[1] * forward[2] - up[2] * forward[1],
                     up[2] * forward[0] - up[0] * forward[2],
@@ -126,7 +126,6 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
 
             const int64_t sample = static_cast<int64_t>(voice.samples[voice.cursor++]) * voice.gain / 256;
             if (!voice.spatialized) {
-                // Preserve the established mono->stereo amplitude: center playback is 1x per channel.
                 left += sample;
                 right += sample;
             } else {
