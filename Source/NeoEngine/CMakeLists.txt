@@ -127,7 +127,6 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/FarmRenderAssetManifest.cpp
     Runtime/FarmRenderAdapter.cpp
     Runtime/FarmSpriteRenderAdapter.cpp
-    Runtime/FarmWorldTool.cpp
     Runtime/FarmAuthoritativeService.cpp
     Runtime/ActorComponentWorld.cpp
     Runtime/ReplicationWorld.cpp
