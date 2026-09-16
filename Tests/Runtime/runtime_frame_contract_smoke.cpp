@@ -67,9 +67,15 @@ int main() {
     NeoEngine::PhysicsStepBudget budget;
     assert(budget.Accepts(100000U, 200000U));
     assert(!budget.Accepts(100001U, 200000U));
-    budget.Record(100000U, 200000U, 200000U, 4999U);
+    budget.Record(99999U, 200000U, 0U, 1U);
+    assert(!budget.MeetsTarget());
+    budget.Record(100000U, 199999U, 0U, 1U);
+    assert(!budget.MeetsTarget());
+    budget.Record(100000U, 200000U, 0U, 4999U);
     assert(budget.MeetsTarget());
-    budget.Record(100000U, 200000U, 200000U, 5001U);
+    budget.Record(100000U, 200000U, 0U, 5000U);
+    assert(!budget.MeetsTarget());
+    budget.Record(100000U, 200000U, 0U, 5001U);
     assert(!budget.MeetsTarget());
 
     NeoEngine::CommandIdempotency idempotency(2U);
