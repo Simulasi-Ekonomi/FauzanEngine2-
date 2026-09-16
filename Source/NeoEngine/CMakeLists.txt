@@ -48,6 +48,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
+    Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
     Runtime/RuntimeClock.cpp
     Runtime/RuntimePersistence.cpp
@@ -81,7 +82,6 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SceneRenderAdapter.cpp
     Runtime/EditorScenePrefab.cpp
     Runtime/PrefabStaging.cpp
-    Runtime/SceneRenderAdapter.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneAgentAPI.cpp
     Systems/AuthorityLoopbackServer.cpp
