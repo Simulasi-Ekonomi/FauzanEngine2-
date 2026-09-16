@@ -9,17 +9,25 @@ namespace NeoEngine {
 
 AssetStreamingQueue::~AssetStreamingQueue() noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
-    for (auto& [id, info] : loadedAssets_) ReleaseGpuMemoryLocked(info);
+    for (auto& [id, info] : loadedAssets_) (void)ReleaseGpuMemoryLocked(info);
     loadedAssets_.clear();
     residentMemoryMB_ = 0;
 }
 
-void AssetStreamingQueue::ReleaseGpuMemoryLocked(StreamedAssetInfo& info) noexcept {
-    if (info.gpuMemory != VK_NULL_HANDLE && gpuMemoryReleaseCallback_) {
-        try { gpuMemoryReleaseCallback_(info.gpuMemory); } catch (...) { /* never throw across queue lifetime */ }
+bool AssetStreamingQueue::ReleaseGpuMemoryLocked(StreamedAssetInfo& info) noexcept {
+    if (info.gpuMemory == VK_NULL_HANDLE) return true;
+    const VkDeviceMemory memory = info.gpuMemory;
+    if (info.gpuMemoryReleaseCallback) {
+        try {
+            info.gpuMemoryReleaseCallback(memory);
+        } catch (...) {
+            return false;
+        }
     }
     info.gpuMemory = VK_NULL_HANDLE;
     info.allocatedSizeMB = 0;
+    info.gpuMemoryReleaseCallback = {};
+    return true;
 }
 
 bool AssetStreamingQueue::Enqueue(const StreamRequest& req) noexcept {
@@ -28,7 +36,7 @@ bool AssetStreamingQueue::Enqueue(const StreamRequest& req) noexcept {
         req.estimatedSizeMB == 0 || req.estimatedSizeMB > memoryBudgetMB_ ||
         loadedAssets_.size() >= maxAssets_ || loadedAssets_.find(req.id) != loadedAssets_.end()) return false;
     try {
-        const auto [it, inserted] = loadedAssets_.emplace(req.id, StreamedAssetInfo{req.id, StreamState::Pending, VK_NULL_HANDLE, req.estimatedSizeMB, 0});
+        const auto [it, inserted] = loadedAssets_.emplace(req.id, StreamedAssetInfo{req.id, StreamState::Pending, VK_NULL_HANDLE, req.estimatedSizeMB, 0, {}});
         if (!inserted) return false;
         try { streamQueue_.push(req); } catch (...) { loadedAssets_.erase(it); return false; }
     } catch (...) { return false; }
@@ -38,7 +46,12 @@ bool AssetStreamingQueue::Enqueue(const StreamRequest& req) noexcept {
 bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     while (!streamQueue_.empty()) {
-        const StreamRequest candidate = streamQueue_.top();
+        StreamRequest candidate;
+        try {
+            candidate = streamQueue_.top();
+        } catch (...) {
+            return false;
+        }
         auto it = loadedAssets_.find(candidate.id);
         if (it == loadedAssets_.end() || it->second.state != StreamState::Pending) { streamQueue_.pop(); continue; }
         try { out = candidate; } catch (...) { return false; }
@@ -56,6 +69,11 @@ bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory, u
     if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading) return false;
     if (allocatedSizeMB > memoryBudgetMB_ || residentMemoryMB_ > std::numeric_limits<uint32_t>::max() - allocatedSizeMB ||
         residentMemoryMB_ + allocatedSizeMB > memoryBudgetMB_) return false;
+    try {
+        it->second.gpuMemoryReleaseCallback = gpuMemoryReleaseCallback_;
+    } catch (...) {
+        return false;
+    }
     it->second.gpuMemory = gpuMemory;
     it->second.allocatedSizeMB = allocatedSizeMB;
     it->second.state = StreamState::Ready;
@@ -76,8 +94,8 @@ bool AssetStreamingQueue::Release(AssetID id) noexcept {
     auto it = loadedAssets_.find(id);
     if (it == loadedAssets_.end()) return false;
     if (it->second.state == StreamState::Ready) {
+        if (!ReleaseGpuMemoryLocked(it->second)) return false;
         residentMemoryMB_ -= it->second.allocatedSizeMB;
-        ReleaseGpuMemoryLocked(it->second);
     }
     loadedAssets_.erase(it);
     return true;
@@ -135,8 +153,8 @@ bool AssetStreamingQueue::EvictToBudget() noexcept {
         if (residentMemoryMB_ <= memoryBudgetMB_) break;
         auto it = loadedAssets_.find(id);
         if (it == loadedAssets_.end() || it->second.state != StreamState::Ready) continue;
+        if (!ReleaseGpuMemoryLocked(it->second)) continue;
         residentMemoryMB_ -= it->second.allocatedSizeMB;
-        ReleaseGpuMemoryLocked(it->second);
         loadedAssets_.erase(it);
     }
     return residentMemoryMB_ <= memoryBudgetMB_;
