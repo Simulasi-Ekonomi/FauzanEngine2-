@@ -42,7 +42,7 @@ struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapsho
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
 struct RuntimeConfig {
     uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32;
-    uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; FarmBalanceProfile farmBalance{}; bool enableFarmRuntimeHud=false;
+    uint64_t authoringWorldSeed=5640001344762956868ULL; FarmBalanceProfile farmBalance{}; bool enableFarmRuntimeHud=false;
     bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true;
     bool enableVulkan3DRenderer=false; RenderCameraConfig sceneCamera{};
     bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false;
