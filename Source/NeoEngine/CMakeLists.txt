@@ -119,10 +119,35 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PrefabStaging.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneAgentAPI.cpp
+    Runtime/SoftwareSurfacePresenter.cpp
+    Runtime/GridRouteFollower.cpp
+    Runtime/FarmRuntimeHud.cpp
+    Runtime/RuntimeTimeSystem.cpp
+    Runtime/EventSignalBus.cpp
+    Runtime/FarmRenderAssetManifest.cpp
+    Runtime/FarmRenderAdapter.cpp
+    Runtime/FarmSpriteRenderAdapter.cpp
+    Runtime/FarmWorldTool.cpp
+    Runtime/FarmAuthoritativeService.cpp
+    Runtime/ActorComponentWorld.cpp
+    Runtime/ReplicationWorld.cpp
+    Runtime/KinematicMotionController.cpp
+    Runtime/SkeletalAnimationController.cpp
+    Runtime/FarmPlayerInputBridge.cpp
+    Runtime/RuntimeTimerQueue.cpp
+    Runtime/MovementAuthorityGate.cpp
+    Runtime/RouteRootMotionAdapter.cpp
+    Runtime/InputMotionBridge.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
+    Systems/GridNavigation.cpp
+    Systems/WorldAuthoring.cpp
+    Systems/CurriculumSystem.cpp
+    Systems/AgricultureCurriculum.cpp
+    Systems/AuthoringCatalog.cpp
+    Systems/FarmSystem.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
     Templates/RpgSandboxGame.cpp
