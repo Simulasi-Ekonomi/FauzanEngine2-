@@ -74,16 +74,16 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
         float forward[3]{m_Listener.forward[0], m_Listener.forward[1], m_Listener.forward[2]};
         float up[3]{m_Listener.up[0], m_Listener.up[1], m_Listener.up[2]};
         if (Normalize3(forward) && Normalize3(up)) {
-            // Gram-Schmidt removes any non-orthogonality from the supplied listener basis.
             const float forwardDotUp = Dot3(forward, up);
             up[0] -= forward[0] * forwardDotUp;
             up[1] -= forward[1] * forwardDotUp;
             up[2] -= forward[2] * forwardDotUp;
             if (Normalize3(up)) {
+                // Right-handed listener basis: right = up x forward.
                 const float right[3]{
-                    forward[1] * up[2] - forward[2] * up[1],
-                    forward[2] * up[0] - forward[0] * up[2],
-                    forward[0] * up[1] - forward[1] * up[0]
+                    up[1] * forward[2] - up[2] * forward[1],
+                    up[2] * forward[0] - up[0] * forward[2],
+                    up[0] * forward[1] - up[1] * forward[0]
                 };
                 const float source[3]{dx / distance, dy / distance, dz / distance};
                 pan = std::clamp(Dot3(source, right), -1.0f, 1.0f);
@@ -126,12 +126,11 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
 
             const int64_t sample = static_cast<int64_t>(voice.samples[voice.cursor++]) * voice.gain / 256;
             if (!voice.spatialized) {
-                // Preserve the legacy mono->stereo amplitude: center playback is 1.0x per channel.
+                // Preserve the established mono->stereo amplitude: center playback is 1x per channel.
                 left += sample;
                 right += sample;
             } else {
                 const float pan = std::clamp(voice.pan, -1.0f, 1.0f);
-                // Equal-power spatial panning: center remains balanced and movement is smooth.
                 constexpr float kHalfPi = 1.57079632679489661923f;
                 const float angle = (pan + 1.0f) * 0.25f * kHalfPi;
                 const float leftGain = std::cos(angle);
