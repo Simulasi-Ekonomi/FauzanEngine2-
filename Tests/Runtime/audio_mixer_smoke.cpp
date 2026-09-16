@@ -1,5 +1,4 @@
 #include "Runtime/AudioMixer.h"
-#include <cmath>
 #include <cstdio>
 
 using namespace NeoEngine;
@@ -43,7 +42,7 @@ int main() {
     source.attenuation.maxDistance = 1000.0f;
     ok = ok && spatial.PlaySpatial(source);
     spatial.Mix(1, out);
-    ok = ok && out[0] > out[1];
+    ok = ok && out[1] > out[0];
 
     AudioMixer rotated;
     listener.forward[2] = -1.0f;
@@ -51,7 +50,7 @@ int main() {
     source.id = 12;
     ok = ok && rotated.PlaySpatial(source);
     rotated.Mix(1, out);
-    ok = ok && out[1] > out[0];
+    ok = ok && out[0] > out[1];
 
     if (!ok) return 1;
     std::printf("AUDIO_MIXER_SMOKE_OK frames=%zu saturation=1 looping=1 listener_pan=1\n", out.size() / 2);
