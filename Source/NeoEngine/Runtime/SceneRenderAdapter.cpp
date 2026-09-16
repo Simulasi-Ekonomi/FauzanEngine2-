@@ -10,9 +10,7 @@
 
 namespace NeoEngine {
 namespace {
-struct Mat4 {
-    std::array<float, 16> v{};
-};
+struct Mat4 { std::array<float, 16> v{}; };
 
 Mat4 Multiply(const Mat4& a, const Mat4& b) {
     Mat4 out{};
@@ -26,8 +24,16 @@ Mat4 Multiply(const Mat4& a, const Mat4& b) {
     return out;
 }
 
+RenderPoint3 Normalize(RenderPoint3 value) {
+    const float length = std::sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
+    if (!std::isfinite(length) || length <= 1.0e-6F) return {0.0F, 0.0F, 1.0F};
+    return {value.x / length, value.y / length, value.z / length};
+}
+
 Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3 up) {
-    const RenderPoint3 forward = config.forward;
+    const RenderPoint3 forward = Normalize(config.forward);
+    right = Normalize(right);
+    up = Normalize(up);
     Mat4 view{};
     view.v = {
         right.x, up.x, forward.x, 0.0F,
@@ -77,7 +83,6 @@ Mat4 MakeModel(const Transform3& transform) {
     const float cx = std::cos(transform.rx), sx = std::sin(transform.rx);
     const float cy = std::cos(transform.ry), sy = std::sin(transform.ry);
     const float cz = std::cos(transform.rz), sz = std::sin(transform.rz);
-
     Mat4 model{};
     model.v = {
         (cz * cy) * transform.sx, (sz * cy) * transform.sx, (-sy) * transform.sx, 0.0F,
@@ -86,6 +91,22 @@ Mat4 MakeModel(const Transform3& transform) {
         transform.x, transform.y, transform.z, 1.0F
     };
     return model;
+}
+
+RenderPoint3 TransformPoint(const Mat4& matrix, RenderPoint3 point) {
+    return {
+        matrix.v[0] * point.x + matrix.v[4] * point.y + matrix.v[8] * point.z + matrix.v[12],
+        matrix.v[1] * point.x + matrix.v[5] * point.y + matrix.v[9] * point.z + matrix.v[13],
+        matrix.v[2] * point.x + matrix.v[6] * point.y + matrix.v[10] * point.z + matrix.v[14]
+    };
+}
+
+RenderPoint3 TransformDirection(const Mat4& matrix, RenderPoint3 value) {
+    return Normalize({
+        matrix.v[0] * value.x + matrix.v[4] * value.y + matrix.v[8] * value.z,
+        matrix.v[1] * value.x + matrix.v[5] * value.y + matrix.v[9] * value.z,
+        matrix.v[2] * value.x + matrix.v[6] * value.y + matrix.v[10] * value.z
+    });
 }
 
 } // namespace
@@ -108,10 +129,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         return false;
     }
 
-    const Mat4 view = MakeView(config, camera.Right(), camera.Up());
-    const Mat4 projection = MakeProjection(config);
-    const Mat4 viewProjection = Multiply(projection, view);
-
+    const Mat4 viewProjection = Multiply(MakeProjection(config), MakeView(config, camera.Right(), camera.Up()));
     if (!renderer.BeginFrame(clearR, clearG, clearB, clearA)) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
@@ -126,14 +144,13 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             return false;
         }
 
+        const Mat4 model = MakeModel(*transform);
         std::vector<Vulkan3DVertex> vertices;
         vertices.reserve(instance.vertices.size());
         for (const MeshVertex& vertex : instance.vertices) {
-            vertices.push_back(Vulkan3DVertex{
-                vertex.position.x, vertex.position.y, vertex.position.z,
-                vertex.normal.x, vertex.normal.y, vertex.normal.z,
-                vertex.u, vertex.v
-            });
+            const RenderPoint3 position = TransformPoint(model, vertex.position);
+            const RenderPoint3 normal = TransformDirection(model, vertex.normal);
+            vertices.push_back(Vulkan3DVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v});
         }
 
         std::vector<uint32_t> indices;
@@ -147,9 +164,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             indices.push_back(static_cast<uint32_t>(index));
         }
 
-        const Mat4 model = MakeModel(*transform);
-        const Mat4 mvp = Multiply(viewProjection, model);
-        if (!renderer.DrawIndexed(vertices, indices, mvp.v.data())) {
+        if (!renderer.DrawIndexed(vertices, indices, viewProjection.v.data())) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;
