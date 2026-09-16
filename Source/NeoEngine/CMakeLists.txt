@@ -6,9 +6,30 @@ find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
+find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(NEO_SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/neo_shaders")
+set(NEO_MESH_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.vert.spv")
+set(NEO_MESH_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.frag.spv")
+
+add_custom_command(
+    OUTPUT "${NEO_MESH_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.vert" -o "${NEO_MESH_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.vert"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_MESH_FRAG_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.frag" -o "${NEO_MESH_FRAG_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.frag"
+    VERBATIM
+)
+add_custom_target(neoengine_mesh_shaders ALL DEPENDS "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
@@ -28,6 +49,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
     Runtime/FarmRuntimeSession.cpp
+    Runtime/RuntimeClock.cpp
+    Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -55,6 +78,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/EditorSceneMeshBinder.cpp
     Runtime/EditorSceneSpriteBinder.cpp
     Runtime/SceneMeshAdapter.cpp
+    Runtime/SceneRenderAdapter.cpp
     Runtime/EditorScenePrefab.cpp
     Runtime/PrefabStaging.cpp
     Runtime/SceneRenderAdapter.cpp
@@ -75,8 +99,10 @@ set(XPBD_RUNTIME_SOURCES
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
+add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+target_compile_definitions(NeoEngineRuntime PRIVATE NEO_SHADER_DIR="${NEO_SHADER_OUTPUT_DIR}")
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
 target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3)
 if(ANDROID)
@@ -166,7 +192,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
-message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, Asset, Farm, and Vulkan runtime sources")
+message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
 
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
 add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
