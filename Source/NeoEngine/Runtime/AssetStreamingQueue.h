@@ -29,6 +29,7 @@ struct StreamedAssetInfo {
     VkDeviceMemory gpuMemory = VK_NULL_HANDLE;
     uint32_t allocatedSizeMB = 0;
     uint64_t lastAccessFrame = 0;
+    std::function<void(VkDeviceMemory)> gpuMemoryReleaseCallback{};
 };
 
 class AssetStreamingQueue {
@@ -66,7 +67,9 @@ public:
     // The queue stores ownership metadata for VkDeviceMemory. Production Vulkan
     // owners must bind a release callback so Release/Evict/destruction actually
     // return the allocation to the Vulkan device. Existing callers may leave this
-    // unset when they use non-owning/test handles.
+    // unset when they use non-owning/test handles. Each ready allocation captures
+    // the callback active when its upload is accepted; replacing the queue callback
+    // never changes ownership of an existing allocation.
     void SetGpuMemoryReleaseCallback(GpuMemoryReleaseCallback callback) noexcept;
     [[nodiscard]] bool HasGpuMemoryReleaseCallback() const noexcept;
 
@@ -79,7 +82,7 @@ private:
         }
     };
 
-    void ReleaseGpuMemoryLocked(StreamedAssetInfo& info) noexcept;
+    [[nodiscard]] bool ReleaseGpuMemoryLocked(StreamedAssetInfo& info) noexcept;
 
     std::priority_queue<StreamRequest, std::vector<StreamRequest>, PriorityCompare> streamQueue_;
     std::unordered_map<AssetID, StreamedAssetInfo> loadedAssets_;
