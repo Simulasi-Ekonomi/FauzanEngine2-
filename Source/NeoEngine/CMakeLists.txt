@@ -36,7 +36,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT "${NEO_TEXTURE_VERT_SPV}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
-    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert" -o "${NEO_TEXTURE_VERT_SPV}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert" -o "${NEO_TEXTURE_VERT_SPV}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert"
     VERBATIM
 )
