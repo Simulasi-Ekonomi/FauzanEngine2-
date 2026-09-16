@@ -12,6 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
+    Runtime/RuntimeClock.cpp
+    Runtime/RuntimePersistence.cpp
     Runtime/PBRMaterial.cpp
     Runtime/BRDFLut.cpp
     Runtime/PBRLighting.cpp
@@ -166,7 +168,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
-message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, Asset, Farm, and Vulkan runtime sources")
+message(STATUS "NeoEngine CMake configured with canonical Runtime, Renderer, Audio, Editor, Asset, Farm, and Vulkan sources")
 
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
 add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
