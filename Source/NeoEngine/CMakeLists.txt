@@ -43,8 +43,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT "${NEO_TEXTURE_FRAG_SPV}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
-    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.frag" -o "${NEO_TEXTURE_FRAG_SPV}"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.frag"
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.frag"
     VERBATIM
 )
 add_custom_command(
@@ -119,10 +118,46 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PrefabStaging.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneAgentAPI.cpp
+    Runtime/SoftwareSurfacePresenter.cpp
+    Runtime/GridRouteFollower.cpp
+    Runtime/FarmRuntimeHud.cpp
+    Runtime/RuntimeTimeSystem.cpp
+    Runtime/EventSignalBus.cpp
+    Runtime/FarmRenderAssetManifest.cpp
+    Runtime/FarmRenderAdapter.cpp
+    Runtime/FarmSpriteRenderAdapter.cpp
+    Runtime/ActorComponentWorld.cpp
+    Runtime/ReplicationWorld.cpp
+    Runtime/KinematicMotionController.cpp
+    Runtime/FarmPlayerInputBridge.cpp
+    Runtime/RuntimeTimerQueue.cpp
+    Runtime/MovementAuthority.cpp
+    Runtime/FarmActionPanelController.cpp
+    Runtime/UiCanvasRenderer.cpp
+    Runtime/UiLayoutResolver.cpp
+    Runtime/RouteRootMotionAdapter.cpp
+    Runtime/InputMotionBridge.cpp
+    Animation/SkeletalAnimationController.cpp
     Systems/AuthorityLoopbackServer.cpp
+    Systems/AuthoritativeCommandGate.cpp
+    Systems/AuthorityWireProtocol.cpp
+    Systems/FarmAuthoritativeService.cpp
+    Systems/FarmAuthoritativeSessionHost.cpp
+    Systems/FarmAuthoritativeSessionLoopback.cpp
+    Systems/FarmCanonicalGameTool.cpp
+    Systems/FarmCommerceEntitlementLedger.cpp
+    Systems/FarmCommerceCheckpoint.cpp
+    Systems/FarmCommerceCheckpointFile.cpp
+    Systems/FarmWorldTool.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
+    Systems/GridNavigation.cpp
+    Systems/WorldAuthoring.cpp
+    Systems/CurriculumSystem.cpp
+    Systems/AgricultureCurriculum.cpp
+    Systems/AuthoringCatalog.cpp
+    Systems/FarmSystem.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
     Templates/RpgSandboxGame.cpp
@@ -227,6 +262,22 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_subsystem_smoke
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smoke.cpp")
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_canonical_game_tool_smoke.cpp")
+    add_xpbd_executable(farm_canonical_game_tool_smoke ../../Tests/Farm/farm_canonical_game_tool_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp")
+    add_xpbd_executable(neo_runtime_farm_vertical_slice_smoke ../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp")
+    add_xpbd_executable(farm_authoritative_session_loopback_smoke ../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Systems/authority_loopback_transport_smoke.cpp")
+    add_xpbd_executable(authority_loopback_transport_smoke ../../Tests/Systems/authority_loopback_transport_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_entitlement_smoke.cpp")
+    add_xpbd_executable(farm_commerce_entitlement_smoke ../../Tests/Farm/farm_commerce_entitlement_smoke.cpp)
 endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
