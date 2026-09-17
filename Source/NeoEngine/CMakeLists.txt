@@ -6,9 +6,65 @@ find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
+find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(NEO_SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/neo_shaders")
+set(NEO_MESH_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.vert.spv")
+set(NEO_MESH_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.frag.spv")
+set(NEO_TEXTURE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.vert.spv")
+set(NEO_TEXTURE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.frag.spv")
+set(NEO_TRIANGLE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.vert.spv")
+set(NEO_TRIANGLE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.frag.spv")
+
+add_custom_command(
+    OUTPUT "${NEO_MESH_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.vert" -o "${NEO_MESH_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.vert"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_MESH_FRAG_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.frag" -o "${NEO_MESH_FRAG_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.frag"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_TEXTURE_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert" -o "${NEO_TEXTURE_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.vert"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_TEXTURE_FRAG_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.frag" -o "${NEO_TEXTURE_FRAG_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_texture.frag"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_TRIANGLE_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.vert" -o "${NEO_TRIANGLE_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.vert"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_TRIANGLE_FRAG_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.frag" -o "${NEO_TRIANGLE_FRAG_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.frag"
+    VERBATIM
+)
+add_custom_target(neoengine_mesh_shaders ALL DEPENDS
+    "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
+    "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
+    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
@@ -27,7 +83,10 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
+    Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
+    Runtime/RuntimeClock.cpp
+    Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -55,15 +114,51 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/EditorSceneMeshBinder.cpp
     Runtime/EditorSceneSpriteBinder.cpp
     Runtime/SceneMeshAdapter.cpp
+    Runtime/SceneRenderAdapter.cpp
     Runtime/EditorScenePrefab.cpp
     Runtime/PrefabStaging.cpp
-    Runtime/SceneRenderAdapter.cpp
     Runtime/EditorSceneSession.cpp
     Runtime/EditorSceneAgentAPI.cpp
+    Runtime/SoftwareSurfacePresenter.cpp
+    Runtime/GridRouteFollower.cpp
+    Runtime/FarmRuntimeHud.cpp
+    Runtime/RuntimeTimeSystem.cpp
+    Runtime/EventSignalBus.cpp
+    Runtime/FarmRenderAssetManifest.cpp
+    Runtime/FarmRenderAdapter.cpp
+    Runtime/FarmSpriteRenderAdapter.cpp
+    Runtime/ActorComponentWorld.cpp
+    Runtime/ReplicationWorld.cpp
+    Runtime/KinematicMotionController.cpp
+    Runtime/FarmPlayerInputBridge.cpp
+    Runtime/RuntimeTimerQueue.cpp
+    Runtime/MovementAuthority.cpp
+    Runtime/FarmActionPanelController.cpp
+    Runtime/UiCanvasRenderer.cpp
+    Runtime/UiLayoutResolver.cpp
+    Runtime/RouteRootMotionAdapter.cpp
+    Runtime/InputMotionBridge.cpp
+    Animation/SkeletalAnimationController.cpp
     Systems/AuthorityLoopbackServer.cpp
+    Systems/AuthoritativeCommandGate.cpp
+    Systems/AuthorityWireProtocol.cpp
+    Systems/FarmAuthoritativeService.cpp
+    Systems/FarmAuthoritativeSessionHost.cpp
+    Systems/FarmAuthoritativeSessionLoopback.cpp
+    Systems/FarmCanonicalGameTool.cpp
+    Systems/FarmCommerceEntitlementLedger.cpp
+    Systems/FarmCommerceCheckpoint.cpp
+    Systems/FarmCommerceCheckpointFile.cpp
+    Systems/FarmWorldTool.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
+    Systems/GridNavigation.cpp
+    Systems/WorldAuthoring.cpp
+    Systems/CurriculumSystem.cpp
+    Systems/AgricultureCurriculum.cpp
+    Systems/AuthoringCatalog.cpp
+    Systems/FarmSystem.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
     Templates/RpgSandboxGame.cpp
@@ -75,8 +170,10 @@ set(XPBD_RUNTIME_SOURCES
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
+add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+target_compile_definitions(NeoEngineRuntime PRIVATE NEO_SHADER_DIR="${NEO_SHADER_OUTPUT_DIR}")
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
 target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3)
 if(ANDROID)
@@ -100,7 +197,6 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(farm_vulkan_textured_present_smoke ../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
     add_xpbd_executable(vulkan_descriptor_manager_smoke ../../Tests/Runtime/vulkan_descriptor_manager_smoke.cpp)
@@ -116,6 +212,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
     add_xpbd_executable(vulkan_swapchain_manager_smoke ../../Tests/Runtime/vulkan_swapchain_manager_smoke.cpp)
     add_xpbd_executable(vulkan_sync_primitives_smoke ../../Tests/Runtime/vulkan_sync_primitives_smoke.cpp)
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp")
+    add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")
@@ -166,7 +265,23 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
-message(STATUS "NeoEngine CMake configured with canonical Renderer, Audio, Editor, Asset, Farm, and Vulkan runtime sources")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_canonical_game_tool_smoke.cpp")
+    add_xpbd_executable(farm_canonical_game_tool_smoke ../../Tests/Farm/farm_canonical_game_tool_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp")
+    add_xpbd_executable(neo_runtime_farm_vertical_slice_smoke ../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp")
+    add_xpbd_executable(farm_authoritative_session_loopback_smoke ../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Systems/authority_loopback_transport_smoke.cpp")
+    add_xpbd_executable(authority_loopback_transport_smoke ../../Tests/Systems/authority_loopback_transport_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_entitlement_smoke.cpp")
+    add_xpbd_executable(farm_commerce_entitlement_smoke ../../Tests/Farm/farm_commerce_entitlement_smoke.cpp)
+endif()
+
+message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
 
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
 add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)

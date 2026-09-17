@@ -2,6 +2,10 @@
 #include "AssetRegistry.h"
 #include "SceneWorld.h"
 #include "SoftwareRenderer.h"
+#include "Vulkan3DRenderer.h"
+#include "SceneMeshAdapter.h"
+#include "SceneRenderAdapter.h"
+#include "RenderCamera.h"
 #include "SoftwareSurfacePresenter.h"
 #include "RuntimeClock.h"
 #include "RuntimeTimeSystem.h"
@@ -32,12 +36,21 @@
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-    enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
 struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
-struct RuntimeConfig { uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32;     uint64_t authoringWorldSeed=0x4E454F574F524C44ULL; FarmBalanceProfile farmBalance{}; bool enableFarmRuntimeHud=false;
- bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true; bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false; bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false; bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp; Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;     std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; bool enableFarmCurriculum=false; };
+struct RuntimeConfig {
+    uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32;
+    uint64_t authoringWorldSeed=5640001344762956868ULL; FarmBalanceProfile farmBalance{}; bool enableFarmRuntimeHud=false;
+    bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true;
+    bool enableVulkan3DRenderer=false; RenderCameraConfig sceneCamera{};
+    bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false;
+    bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false;
+    bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp;
+    Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;
+    std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; bool enableFarmCurriculum=false;
+};
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
@@ -49,6 +62,7 @@ public:
     bool ReplanRouteMotion();
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
+    bool RenderScene3D();
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
@@ -76,6 +90,12 @@ public:
     const WorldAuthoring* AuthoringWorld() const { return m_AuthoringWorld.get(); }
     SceneWorld* Scene() { return m_Scene.get(); }
     const SceneWorld* Scene() const { return m_Scene.get(); }
+    SceneMeshAdapter* SceneMeshes() { return m_SceneMeshes.get(); }
+    const SceneMeshAdapter* SceneMeshes() const { return m_SceneMeshes.get(); }
+    RenderCamera* SceneCamera() { return m_SceneCamera.get(); }
+    const RenderCamera* SceneCamera() const { return m_SceneCamera.get(); }
+    Vulkan3DRenderer* VulkanRenderer() { return m_VulkanRenderer.get(); }
+    const Vulkan3DRenderer* VulkanRenderer() const { return m_VulkanRenderer.get(); }
     SoftwareRenderer* Renderer() { return m_Renderer.get(); }
     const SoftwareRenderer* Renderer() const { return m_Renderer.get(); }
     const NeoRuntimeFrameReceipt* LastFrameReceipt() const { return m_HasFrameReceipt ? &m_LastFrameReceipt : nullptr; }
@@ -139,6 +159,14 @@ private:
     SceneEntity m_RouteMotionEntity_{0xFFFFU,0U};
     std::unique_ptr<MovementAuthorityGate> m_MotionAuthority;
     std::unique_ptr<SceneWorld> m_Scene;
+    std::unique_ptr<SceneMeshAdapter> m_SceneMeshes;
+    std::unique_ptr<RenderCamera> m_SceneCamera;
+    RenderCameraConfig m_SceneCameraConfig{};
+    uint16_t m_RenderWidth = 0U;
+    uint16_t m_RenderHeight = 0U;
+    bool m_EnableVulkan3DRenderer = false;
+    std::unique_ptr<SceneRenderAdapter> m_SceneRenderAdapter;
+    std::unique_ptr<Vulkan3DRenderer> m_VulkanRenderer;
     std::unique_ptr<SoftwareRenderer> m_Renderer;
     std::unique_ptr<FarmRuntimeHud> m_FarmRuntimeHud;
     std::unique_ptr<FarmRenderAssetManifest> m_FarmRenderAssets;

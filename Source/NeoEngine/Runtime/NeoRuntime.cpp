@@ -175,6 +175,10 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_RouteMotionEntity_ = routeMotionEntity;
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
+    m_SceneCameraConfig = config.sceneCamera;
+    m_RenderWidth = config.renderWidth;
+    m_RenderHeight = config.renderHeight;
+    m_EnableVulkan3DRenderer = config.enableVulkan3DRenderer;
     m_Renderer = std::move(renderer);
     m_FarmRuntimeHud = config.enableFarmRuntimeHud ? std::make_unique<FarmRuntimeHud>() : nullptr;
     m_FarmRenderAssets.reset();
@@ -431,7 +435,15 @@ bool NeoRuntime::Shutdown() {
     m_RenderedFarmFrames = 0U;
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
+    m_VulkanRenderer.reset();
+    m_SceneRenderAdapter.reset();
+    m_SceneCamera.reset();
+    m_SceneMeshes.reset();
     m_Renderer.reset();
+    m_SceneCameraConfig = {};
+    m_RenderWidth = 0U;
+    m_RenderHeight = 0U;
+    m_EnableVulkan3DRenderer = false;
     m_FarmWorldConfig = {};
     m_Clock.reset();
     m_Time.reset();
