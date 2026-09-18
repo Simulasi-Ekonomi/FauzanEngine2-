@@ -18,6 +18,7 @@ set(NEO_TEXTURE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.vert.spv")
 set(NEO_TEXTURE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.frag.spv")
 set(NEO_TRIANGLE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.vert.spv")
 set(NEO_TRIANGLE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.frag.spv")
+set(NEO_SKINNED_MESH_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_skinned_mesh.vert.spv")
 
 add_custom_command(
     OUTPUT "${NEO_MESH_VERT_SPV}"
@@ -61,10 +62,17 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.frag"
     VERBATIM
 )
+add_custom_command(
+    OUTPUT "${NEO_SKINNED_MESH_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_skinned_mesh.vert" -o "${NEO_SKINNED_MESH_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_skinned_mesh.vert"
+    VERBATIM
+)
 add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
     "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
-    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}")
+    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}" "${NEO_SKINNED_MESH_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
@@ -331,3 +339,7 @@ add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence
 add_xpbd_executable(r9_live_ops_telemetry_100_smoke ../../Tests/r9_live_ops_telemetry_100_smoke.cpp)
 add_xpbd_executable(r10_security_privacy_100_smoke ../../Tests/r10_security_privacy_100_smoke.cpp)
 add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehensive_engine_verification_smoke.cpp)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/archetype_manager_smoke.cpp")
+    add_xpbd_executable(archetype_manager_smoke ../../Tests/Runtime/archetype_manager_smoke.cpp)
+endif()
