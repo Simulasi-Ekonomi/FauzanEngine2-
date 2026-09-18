@@ -8,6 +8,7 @@ struct SceneECSBridgeReceipt { uint32_t sceneCount=0; uint32_t ecsCount=0; uint6
 class SceneECSBridge {
 public:
  bool Rebuild(SceneWorld& scene, ArchetypeManager& ecs);
+ bool Sync(SceneWorld& scene, ArchetypeManager& ecs);
  const SceneECSBridgeReceipt& LastReceipt() const { return receipt_; }
  EntityID ECSId(SceneEntity entity) const;
 private:
