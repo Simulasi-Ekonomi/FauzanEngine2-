@@ -154,6 +154,55 @@ EntityID ArchetypeManager::CreateEntity(uint32_t componentMask) {
     return id;
 }
 
+void ArchetypeManager::SetComponentMask(EntityID id, uint32_t componentMask) {
+    const auto it = entityToChunk_.find(id);
+    const auto idx = entityToIndex_.find(id);
+    if (it == entityToChunk_.end() || idx == entityToIndex_.end() || it->second == nullptr) return;
+    if (it->second->componentMask == componentMask) return;
+    const size_t oldIndex = idx->second;
+    ArchetypeChunk* oldChunk = it->second;
+    ArchetypeChunk* newChunk = FindOrCreateChunk(componentMask);
+    if (newChunk == nullptr) return;
+    if (newChunk == oldChunk) return;
+    if (newChunk->count >= newChunk->capacity) return;
+    const size_t newIndex = newChunk->count++;
+    newChunk->entities[newIndex] = id;
+    if (newChunk->posX && oldChunk->posX) newChunk->posX[newIndex] = oldChunk->posX[oldIndex];
+    if (newChunk->posY && oldChunk->posY) newChunk->posY[newIndex] = oldChunk->posY[oldIndex];
+    if (newChunk->posZ && oldChunk->posZ) newChunk->posZ[newIndex] = oldChunk->posZ[oldIndex];
+    if (newChunk->velX && oldChunk->velX) newChunk->velX[newIndex] = oldChunk->velX[oldIndex];
+    if (newChunk->velY && oldChunk->velY) newChunk->velY[newIndex] = oldChunk->velY[oldIndex];
+    if (newChunk->velZ && oldChunk->velZ) newChunk->velZ[newIndex] = oldChunk->velZ[oldIndex];
+    if (newChunk->radius && oldChunk->radius) newChunk->radius[newIndex] = oldChunk->radius[oldIndex];
+    if (newChunk->invMass && oldChunk->invMass) newChunk->invMass[newIndex] = oldChunk->invMass[oldIndex];
+    if (newChunk->meshID && oldChunk->meshID) newChunk->meshID[newIndex] = oldChunk->meshID[oldIndex];
+    if (newChunk->rotX && oldChunk->rotX) newChunk->rotX[newIndex] = oldChunk->rotX[oldIndex];
+    if (newChunk->rotY && oldChunk->rotY) newChunk->rotY[newIndex] = oldChunk->rotY[oldIndex];
+    if (newChunk->rotZ && oldChunk->rotZ) newChunk->rotZ[newIndex] = oldChunk->rotZ[oldIndex];
+    const size_t last = oldChunk->count - 1U;
+    if (oldIndex != last) {
+        const EntityID moved = oldChunk->entities[last];
+        oldChunk->entities[oldIndex] = moved;
+        if (oldChunk->posX) oldChunk->posX[oldIndex] = oldChunk->posX[last];
+        if (oldChunk->posY) oldChunk->posY[oldIndex] = oldChunk->posY[last];
+        if (oldChunk->posZ) oldChunk->posZ[oldIndex] = oldChunk->posZ[last];
+        if (oldChunk->velX) oldChunk->velX[oldIndex] = oldChunk->velX[last];
+        if (oldChunk->velY) oldChunk->velY[oldIndex] = oldChunk->velY[last];
+        if (oldChunk->velZ) oldChunk->velZ[oldIndex] = oldChunk->velZ[last];
+        if (oldChunk->radius) oldChunk->radius[oldIndex] = oldChunk->radius[last];
+        if (oldChunk->invMass) oldChunk->invMass[oldIndex] = oldChunk->invMass[last];
+        if (oldChunk->meshID) oldChunk->meshID[oldIndex] = oldChunk->meshID[last];
+        if (oldChunk->rotX) oldChunk->rotX[oldIndex] = oldChunk->rotX[last];
+        if (oldChunk->rotY) oldChunk->rotY[oldIndex] = oldChunk->rotY[last];
+        if (oldChunk->rotZ) oldChunk->rotZ[oldIndex] = oldChunk->rotZ[last];
+        entityToIndex_[moved] = oldIndex;
+    }
+    oldChunk->count--;
+    entityToChunk_[id] = newChunk;
+    entityToIndex_[id] = newIndex;
+    MarkPhysicsDirty();
+}
+
 void ArchetypeManager::DestroyEntity(EntityID id) {
     const auto chunkIt = entityToChunk_.find(id);
     const auto indexIt = entityToIndex_.find(id);
