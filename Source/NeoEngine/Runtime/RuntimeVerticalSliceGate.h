@@ -4,7 +4,7 @@
 namespace NeoEngine {
 enum class VerticalSliceGateError : uint8_t {
  None, RuntimeNotInitialized, SceneMissing, ECSMissing, SceneECSMismatch,
- AssetsMissing, ResourcesMissing, ReplicationMissing, TickRejected
+ AssetsMissing, ResourcesMissing, ReplicationMissing, TickRejected, SceneECSRevisionMismatch, SceneMeshMissing
 };
 struct VerticalSliceGateReceipt {
  bool initialized=false;
