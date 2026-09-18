@@ -100,6 +100,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/SceneECSBridge.cpp
     Core/ECS/ArchetypeManager.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
