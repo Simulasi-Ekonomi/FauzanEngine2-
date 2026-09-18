@@ -65,6 +65,7 @@ public:
         return it != entityToChunk_.end() && it->second != nullptr && it->second->posX != nullptr;
     }
     void MarkPhysicsDirty() { ++physicsRevision_; }
+    void SetComponentMask(EntityID id, uint32_t componentMask);
     uint64_t GetPhysicsRevision() const { return physicsRevision_; }
 
     template<typename... Args>
