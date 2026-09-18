@@ -10,6 +10,7 @@
 #include "Runtime/SceneWorld.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace NeoEngine {
