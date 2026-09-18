@@ -76,6 +76,9 @@ uint16_t SdlAudioBridge::QueuedVoiceCount() const {
 
 void SdlAudioBridge::Reset() {
     if (stream_ != nullptr) {
+        // SDL invokes AudioCallback on the same stream. Holding the stream lock
+        // across mixer teardown and destruction establishes the same lifetime
+        // boundary for the callback, preventing use-after-destroy of stream.
         SDL_LockAudioStream(stream_);
         mixer_.Clear();
         SDL_UnlockAudioStream(stream_);
@@ -95,14 +98,18 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     auto* bridge = static_cast<SdlAudioBridge*>(userdata);
     if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
 
+    // Reset() takes the same SDL stream lock before destroying the stream. The
+    // callback therefore keeps the stream alive for every PutAudioStreamData call.
+    SDL_LockAudioStream(stream);
+
     constexpr size_t bytesPerFrame = sizeof(int16_t) * kStereoChannels;
     const size_t requestedBytes = static_cast<size_t>(additionalAmount);
     const size_t frames = requestedBytes / bytesPerFrame;
-    if (frames == 0) return;
+    if (frames == 0) {
+        SDL_UnlockAudioStream(stream);
+        return;
+    }
 
-    // SDL may vary additionalAmount from callback to callback. Mix in bounded
-    // chunks so the realtime callback never allocates or depends on one fixed
-    // device request size.
     size_t remainingFrames = frames;
     while (remainingFrames > 0) {
         const size_t chunkFrames = std::min(remainingFrames, bridge->callbackBufferFrames_);
@@ -123,6 +130,8 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
             remaining -= static_cast<size_t>(chunk);
         }
     }
+
+    SDL_UnlockAudioStream(stream);
 }
 
 } // namespace NeoEngine
