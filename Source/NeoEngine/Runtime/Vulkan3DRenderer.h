@@ -53,6 +53,11 @@ public:
     bool DrawIndexedInstanced(std::span<const Vulkan3DVertex> vertices,
                               std::span<const uint32_t> indices,
                               std::span<const float> modelViewProjections4x4);
+    // R3 scene path: instance matrices are model transforms and one shared view-projection is pushed once.
+    bool DrawIndexedInstancedWithViewProjection(std::span<const Vulkan3DVertex> vertices,
+                                                std::span<const uint32_t> indices,
+                                                std::span<const float> modelTransforms4x4,
+                                                const float* viewProjection4x4);
 
     bool EndFrame();
     void Reset();
