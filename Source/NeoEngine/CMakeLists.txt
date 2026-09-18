@@ -135,16 +135,24 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/MovementAuthority.cpp
     Runtime/FarmActionPanelController.cpp
     Runtime/UiCanvasRenderer.cpp
+    Runtime/BitmapTextRenderer.cpp
     Runtime/UiLayoutResolver.cpp
     Runtime/RouteRootMotionAdapter.cpp
     Runtime/InputMotionBridge.cpp
     Animation/SkeletalAnimationController.cpp
+    Animation/SkeletalPoseClip.cpp
+    Animation/Bone.cpp
+    Core/Math/Mat4_Transform.cpp
+    Animation/SkeletalPosePlayer.cpp
+    Animation/Skeleton.cpp
+    Animation/Skinning.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/AuthoritativeCommandGate.cpp
     Systems/AuthorityWireProtocol.cpp
     Systems/FarmAuthoritativeService.cpp
     Systems/FarmAuthoritativeSessionHost.cpp
     Systems/FarmAuthoritativeSessionLoopback.cpp
+    Systems/FarmAuthorityCheckpoint.cpp
     Systems/FarmCanonicalGameTool.cpp
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
@@ -173,7 +181,10 @@ add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
-target_compile_definitions(NeoEngineRuntime PRIVATE NEO_SHADER_DIR="${NEO_SHADER_OUTPUT_DIR}")
+target_compile_definitions(NeoEngineRuntime PUBLIC
+    NEO_SHADER_DIR="${NEO_SHADER_OUTPUT_DIR}"
+    GLM_ENABLE_EXPERIMENTAL
+)
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
 target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3)
 if(ANDROID)
@@ -182,6 +193,12 @@ endif()
 
 function(add_xpbd_executable target_name source_file)
     add_executable(${target_name} ${source_file})
+    target_include_directories(${target_name} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Runtime
+        ${CMAKE_CURRENT_SOURCE_DIR}/Renderer
+        ${CMAKE_CURRENT_SOURCE_DIR}/Physics
+        ${CMAKE_CURRENT_SOURCE_DIR}/Platform
+    )
     target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
 endfunction()
 
@@ -249,6 +266,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_audio_bridge_smoke.cpp")
     add_xpbd_executable(sdl_audio_bridge_smoke ../../Tests/Runtime/sdl_audio_bridge_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_mixer_smoke.cpp")
+    add_xpbd_executable(audio_mixer_smoke ../../Tests/Runtime/audio_mixer_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_input_bridge_smoke.cpp")
     add_xpbd_executable(sdl_input_bridge_smoke ../../Tests/Runtime/sdl_input_bridge_smoke.cpp)
 endif()
@@ -279,6 +299,14 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Systems/authority_loopback_tr
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_entitlement_smoke.cpp")
     add_xpbd_executable(farm_commerce_entitlement_smoke ../../Tests/Farm/farm_commerce_entitlement_smoke.cpp)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp")
+    add_xpbd_executable(farm_commerce_checkpoint_smoke ../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_service_smoke.cpp")
+    add_xpbd_executable(farm_authoritative_service_smoke ../../Tests/Farm/farm_authoritative_service_smoke.cpp)
 endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
