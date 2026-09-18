@@ -154,7 +154,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         if (!transform) continue;
 
         size_t batchIndex = batches.size();
-        if (!instance.sourceAssetId.empty()) {
+        if (!instance.sourceAssetId.empty() && instance.sourceHash != 0U) {
             for (size_t b = 0U; b < batches.size(); ++b) {
                 const SceneMeshInstance& first = meshes.Instances()[batches[b].first];
                 if (first.sourceAssetId == instance.sourceAssetId &&
