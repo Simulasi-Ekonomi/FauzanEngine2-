@@ -83,6 +83,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
+    Runtime/RuntimeVerticalSliceGate.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
     Runtime/RuntimeClock.cpp
