@@ -159,6 +159,8 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
                 const SceneMeshInstance& first = meshes.Instances()[batches[b].first];
                 if (first.sourceAssetId == instance.sourceAssetId &&
                     first.sourceHash == instance.sourceHash &&
+                    first.sourceMaterialAssetId == instance.sourceMaterialAssetId &&
+                    first.sourceMaterialHash == instance.sourceMaterialHash &&
                     first.vertices.size() == instance.vertices.size() &&
                     first.indices.size() == instance.indices.size()) {
                     batchIndex = b;
