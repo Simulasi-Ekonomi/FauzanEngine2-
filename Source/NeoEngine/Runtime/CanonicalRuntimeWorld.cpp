@@ -7,6 +7,11 @@ namespace NeoEngine {
 
 CanonicalRuntimeWorld::CanonicalRuntimeWorld() : resources_(assets_) {}
 
+bool CanonicalRuntimeWorld::IsPhysicsBody(uint32_t componentMask) {
+    constexpr uint32_t required = COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER;
+    return (componentMask & required) == required;
+}
+
 bool CanonicalRuntimeWorld::ValidateTransform(const Transform3& transform) const {
     return std::isfinite(transform.x) && std::isfinite(transform.y) && std::isfinite(transform.z) &&
            std::isfinite(transform.rx) && std::isfinite(transform.ry) && std::isfinite(transform.rz) &&
@@ -17,7 +22,7 @@ bool CanonicalRuntimeWorld::ValidateTransform(const Transform3& transform) const
 bool CanonicalRuntimeWorld::ValidateEntity(const CanonicalEntity& entity) const {
     if (!entity.active || entity.scene.index == 0xFFFFU) return false;
     if (scene_.GetTransform(entity.scene) == nullptr) return false;
-    return !entity.hasPhysics || ecs_.HasEntity(entity.physics);
+    return !entity.hasECS || ecs_.HasEntity(entity.ecs);
 }
 
 bool CanonicalRuntimeWorld::CreateEntity(const Transform3& transform, uint32_t componentMask,
@@ -41,8 +46,8 @@ bool CanonicalRuntimeWorld::CreateEntity(const Transform3& transform, uint32_t c
             lastError_ = CanonicalWorldError::PhysicsCreationFailed;
             return false;
         }
-        candidate.physics = physicsEntity;
-        candidate.hasPhysics = true;
+        candidate.ecs = physicsEntity;
+        candidate.hasECS = true;
         if ((componentMask & COMP_POSITION) != 0U) {
             ecs_.SetPosX(physicsEntity, transform.x);
             ecs_.SetPosZ(physicsEntity, transform.z);
@@ -77,9 +82,9 @@ bool CanonicalRuntimeWorld::SetTransform(CanonicalEntity entity, const Transform
     if (!ValidateTransform(transform)) { lastError_ = CanonicalWorldError::InvalidTransform; return false; }
     if (!scene_.SetTransform(entity.scene, transform)) { lastError_ = CanonicalWorldError::InvalidTransform; return false; }
 
-    if (entity.hasPhysics && (entity.componentMask & COMP_POSITION) != 0U) {
-        ecs_.SetPosX(entity.physics, transform.x);
-        ecs_.SetPosZ(entity.physics, transform.z);
+    if (entity.hasECS && (entity.componentMask & COMP_POSITION) != 0U) {
+        ecs_.SetPosX(entity.ecs, transform.x);
+        ecs_.SetPosZ(entity.ecs, transform.z);
     }
     lastError_ = CanonicalWorldError::None;
     return true;
@@ -95,14 +100,14 @@ bool CanonicalRuntimeWorld::BindMesh(const SceneMeshInstance& instance) {
 bool CanonicalRuntimeWorld::SyncSceneToPhysics() {
     for (uint16_t i = 0U; i < bindingCount_; ++i) {
         const CanonicalEntity& entity = bindings_[i].entity;
-        if (!entity.active || !entity.hasPhysics || entity.authority != CanonicalTransformAuthority::Scene) continue;
+        if (!entity.active || !entity.hasECS || !IsPhysicsBody(entity.componentMask) || entity.authority != CanonicalTransformAuthority::Scene) continue;
         const Transform3* transform = scene_.GetTransform(entity.scene);
         if (!transform || (entity.componentMask & COMP_POSITION) == 0U) {
             lastError_ = CanonicalWorldError::PhysicsSyncFailed;
             return false;
         }
-        ecs_.SetPosX(entity.physics, transform->x);
-        ecs_.SetPosZ(entity.physics, transform->z);
+        ecs_.SetPosX(entity.ecs, transform->x);
+        ecs_.SetPosZ(entity.ecs, transform->z);
     }
     return true;
 }
@@ -111,13 +116,13 @@ bool CanonicalRuntimeWorld::ReadBackPhysicsToScene() {
     const auto chunks = ecs_.GetChunks<PositionComponent>();
     for (uint16_t bindingIndex = 0U; bindingIndex < bindingCount_; ++bindingIndex) {
         const CanonicalEntity& entity = bindings_[bindingIndex].entity;
-        if (!entity.active || !entity.hasPhysics || entity.authority != CanonicalTransformAuthority::Physics) continue;
+        if (!entity.active || !entity.hasECS || !IsPhysicsBody(entity.componentMask) || entity.authority != CanonicalTransformAuthority::Physics) continue;
 
         bool found = false;
         for (const ArchetypeChunk* chunk : chunks) {
             if (!chunk) continue;
             for (size_t index = 0U; index < chunk->count; ++index) {
-                if (chunk->entities[index] != entity.physics) continue;
+                if (chunk->entities[index] != entity.ecs) continue;
                 const Transform3* current = scene_.GetTransform(entity.scene);
                 if (!current || !std::isfinite(chunk->posX[index]) || !std::isfinite(chunk->posZ[index])) {
                     lastError_ = CanonicalWorldError::PhysicsReadbackFailed;
@@ -155,7 +160,7 @@ bool CanonicalRuntimeWorld::Step(float dt) {
     lastFrame_.sceneEntities = scene_.AliveCount();
     lastFrame_.physicsEntities = 0U;
     for (uint16_t i = 0U; i < bindingCount_; ++i)
-        if (bindings_[i].entity.active && bindings_[i].entity.hasPhysics) ++lastFrame_.physicsEntities;
+        if (bindings_[i].entity.active && bindings_[i].entity.hasECS && IsPhysicsBody(bindings_[i].entity.componentMask)) ++lastFrame_.physicsEntities;
     lastFrame_.physicsManifolds = physics_.GetManifoldCount();
     lastFrame_.physicsContacts = physics_.GetBroadphaseStats().candidatePairs;
     lastFrame_.physicsRevision = ecs_.GetPhysicsRevision();
