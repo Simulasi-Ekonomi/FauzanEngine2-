@@ -89,6 +89,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
+    Runtime/SceneECSBridge.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
     Runtime/TextureStaging.cpp
