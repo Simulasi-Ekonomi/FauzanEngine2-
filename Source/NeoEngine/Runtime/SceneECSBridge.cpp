@@ -29,4 +29,22 @@ bool SceneECSBridge::Rebuild(SceneWorld& scene, ArchetypeManager& ecs) {
  receipt_.revision=ecs.GetPhysicsRevision();
  return true;
 }
+
+bool SceneECSBridge::Sync(SceneWorld& scene, ArchetypeManager& ecs) {
+ const auto entities=scene.AliveEntities();
+ if(entities.size()!=map_.size()) return Rebuild(scene,ecs);
+ for(const SceneEntity entity:entities){
+  const uint32_t key=(static_cast<uint32_t>(entity.generation)<<16U)|entity.index;
+  const auto it=map_.find(key);
+  const Transform3* t=scene.GetTransform(entity);
+  if(it==map_.end()||t==nullptr||!ecs.HasEntity(it->second)) return Rebuild(scene,ecs);
+  const EntityID id=it->second;
+  ecs.SetPosX(id,t->x); ecs.SetPosY(id,t->y); ecs.SetPosZ(id,t->z);
+  ecs.SetRotX(id,t->rx); ecs.SetRotY(id,t->ry); ecs.SetRotZ(id,t->rz);
+ }
+ receipt_.sceneCount=static_cast<uint32_t>(entities.size());
+ receipt_.ecsCount=static_cast<uint32_t>(map_.size());
+ receipt_.revision=ecs.GetPhysicsRevision();
+ return true;
+}
 }
