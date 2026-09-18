@@ -283,21 +283,6 @@ bool NeoRuntime::RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mes
     return true;
 }
 
-bool NeoRuntime::RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material,
-                                  const CpuTextureResource* texture) {
-    if (m_State != RuntimeState::Initialized || !m_SceneMeshes) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!m_SceneMeshes->CanRefreshStaged(entity, mesh, material)) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (texture != nullptr) {
-        MeshMaterial surface = material.material;
-        surface.texture = texture;
-        if (!m_SceneMeshes->RefreshStaged(entity, mesh, material)) { m_LastError = RuntimeError::RenderFailed; return false; }
-    } else if (!m_SceneMeshes->RefreshStaged(entity, mesh, material)) {
-        m_LastError = RuntimeError::RenderFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
 
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
