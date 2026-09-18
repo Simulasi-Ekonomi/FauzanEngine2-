@@ -62,7 +62,7 @@ bool CanonicalRuntimeWorld::CreateEntity(const Transform3& transform, uint32_t c
 
 bool CanonicalRuntimeWorld::DestroyEntity(CanonicalEntity entity) {
     if (!ValidateEntity(entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-    if (entity.hasPhysics) ecs_.DestroyEntity(entity.physics);
+    if (entity.hasECS) ecs_.DestroyEntity(entity.ecs);
     if (!scene_.Destroy(entity.scene)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
 
     for (uint16_t i = 0U; i < bindingCount_; ++i) {
