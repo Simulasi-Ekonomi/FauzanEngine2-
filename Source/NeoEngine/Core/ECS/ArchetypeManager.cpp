@@ -226,4 +226,38 @@ template std::vector<ArchetypeChunk*> ArchetypeManager::GetChunks<ColliderCompon
 template std::vector<ArchetypeChunk*> ArchetypeManager::GetChunks<MeshComponent>();
 template std::vector<ArchetypeChunk*> ArchetypeManager::GetChunks<RotationComponent>();
 
+
+bool ArchetypeManager::TryGetPosition(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->posX == nullptr || chunk->posY == nullptr || chunk->posZ == nullptr) return false;
+    x = chunk->posX[index]; y = chunk->posY[index]; z = chunk->posZ[index];
+    return true;
+}
+
+bool ArchetypeManager::TryGetVelocity(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->velX == nullptr || chunk->velY == nullptr || chunk->velZ == nullptr) return false;
+    x = chunk->velX[index]; y = chunk->velY[index]; z = chunk->velZ[index];
+    return true;
+}
+
+bool ArchetypeManager::TryGetRotation(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->rotX == nullptr || chunk->rotY == nullptr || chunk->rotZ == nullptr) return false;
+    x = chunk->rotX[index]; y = chunk->rotY[index]; z = chunk->rotZ[index];
+    return true;
+}
+
 } // namespace NeoEngine
