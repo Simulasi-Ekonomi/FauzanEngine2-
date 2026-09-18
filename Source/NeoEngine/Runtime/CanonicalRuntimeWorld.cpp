@@ -91,6 +91,10 @@ bool CanonicalRuntimeWorld::SetTransform(CanonicalEntity entity, const Transform
 }
 
 bool CanonicalRuntimeWorld::BindMesh(const SceneMeshInstance& instance) {
+    if (bindingCount_ == 0U) {
+        lastError_ = CanonicalWorldError::InvalidEntity;
+        return false;
+    }
     if (!scene_.GetTransform(instance.entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
     if (!meshes_.Add(instance)) { lastError_ = CanonicalWorldError::MeshBindingFailed; return false; }
     lastError_ = CanonicalWorldError::None;
@@ -146,6 +150,10 @@ bool CanonicalRuntimeWorld::ReadBackPhysicsToScene() {
 }
 
 bool CanonicalRuntimeWorld::Step(float dt) {
+    if (bindingCount_ > kMaxBindings) {
+        lastError_ = CanonicalWorldError::Capacity;
+        return false;
+    }
     if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) {
         lastError_ = CanonicalWorldError::PhysicsStepFailed;
         return false;
