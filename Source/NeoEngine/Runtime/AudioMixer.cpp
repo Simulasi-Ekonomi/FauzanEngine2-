@@ -53,6 +53,11 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     if (!std::isfinite(distance)) return false;
 
     float attenuation = 1.0f;
+    if (!std::isfinite(params.attenuation.minDistance) ||
+        !std::isfinite(params.attenuation.maxDistance) ||
+        !std::isfinite(params.attenuation.minVolume)) {
+        return false;
+    }
     const float minD = std::max(0.001f, params.attenuation.minDistance);
     const float maxD = std::max(minD + 0.001f, params.attenuation.maxDistance);
     const float minVolume = std::clamp(params.attenuation.minVolume, 0.0f, 1.0f);

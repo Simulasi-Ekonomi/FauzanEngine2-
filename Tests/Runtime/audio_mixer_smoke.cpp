@@ -1,5 +1,6 @@
 #include "Runtime/AudioMixer.h"
 #include <cstdio>
+#include <limits>
 
 using namespace NeoEngine;
 
@@ -43,6 +44,21 @@ int main() {
     ok = ok && spatial.PlaySpatial(source);
     spatial.Mix(1, out);
     ok = ok && out[1] > out[0];
+
+    AudioMixer invalidAttenuation;
+    SpatialVoiceParams invalid = source;
+    invalid.id = 13;
+
+    invalid.attenuation.minDistance = std::numeric_limits<float>::quiet_NaN();
+    ok = ok && !invalidAttenuation.PlaySpatial(invalid);
+
+    invalid.attenuation.minDistance = 0.1f;
+    invalid.attenuation.maxDistance = std::numeric_limits<float>::quiet_NaN();
+    ok = ok && !invalidAttenuation.PlaySpatial(invalid);
+
+    invalid.attenuation.maxDistance = 1000.0f;
+    invalid.attenuation.minVolume = std::numeric_limits<float>::quiet_NaN();
+    ok = ok && !invalidAttenuation.PlaySpatial(invalid);
 
     AudioMixer rotated;
     listener.forward[2] = -1.0f;
