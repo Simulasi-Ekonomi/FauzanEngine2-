@@ -14,6 +14,8 @@ struct VerticalSliceGateReceipt {
  bool assetsValid=false;
  bool resourcesValid=false;
  bool replicationValid=false;
+ bool sceneECSRevisionValid=false;
+ bool sceneMeshRegistryValid=false;
  bool tickAccepted=false;
  uint32_t sceneEntities=0;
  uint32_t ecsEntities=0;
