@@ -54,6 +54,9 @@ public:
     void SetRotZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotZ); }
     void SetMeshID(EntityID id, uint32_t v) { SetComponentValue(id, v, &ArchetypeChunk::meshID); }
     [[nodiscard]] size_t EntityCount() const { return entityToChunk_.size(); }
+    [[nodiscard]] bool TryGetPosition(EntityID id, float& x, float& y, float& z) const;
+    [[nodiscard]] bool TryGetVelocity(EntityID id, float& x, float& y, float& z) const;
+    [[nodiscard]] bool TryGetRotation(EntityID id, float& x, float& y, float& z) const;
     void SetRadius(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::radius); }
     void SetInvMass(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::invMass); }
     [[nodiscard]] bool HasEntity(EntityID id) const { return entityToChunk_.contains(id); }
