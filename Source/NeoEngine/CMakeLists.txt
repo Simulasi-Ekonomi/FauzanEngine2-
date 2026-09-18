@@ -88,6 +88,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/RuntimeClock.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
+    Runtime/CanonicalRuntimeWorld.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
     Runtime/TextureStaging.cpp
@@ -202,6 +203,9 @@ function(add_xpbd_executable target_name source_file)
     target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
 endfunction()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
+    add_xpbd_executable(canonical_runtime_world_smoke ../../Tests/Runtime/canonical_runtime_world_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_frame_contract_smoke.cpp")
     add_xpbd_executable(runtime_frame_contract_smoke ../../Tests/Runtime/runtime_frame_contract_smoke.cpp)
 endif()
