@@ -344,3 +344,7 @@ add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehe
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/archetype_manager_smoke.cpp")
     add_xpbd_executable(archetype_manager_smoke ../../Tests/Runtime/archetype_manager_smoke.cpp)
 endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/archetype_manager_component_migration_smoke.cpp")
+    add_xpbd_executable(archetype_manager_component_migration_smoke ../../Tests/Runtime/archetype_manager_component_migration_smoke.cpp)
+endif()
