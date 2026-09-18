@@ -140,6 +140,9 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/RouteRootMotionAdapter.cpp
     Runtime/InputMotionBridge.cpp
     Animation/SkeletalAnimationController.cpp
+    Animation/SkeletalPoseClip.cpp
+    Animation/Bone.cpp
+    Core/Math/Mat4_Transform.cpp
     Animation/SkeletalPosePlayer.cpp
     Animation/Skeleton.cpp
     Animation/Skinning.cpp
