@@ -25,10 +25,10 @@ enum class CanonicalWorldError : uint8_t {
 
 struct CanonicalEntity {
     SceneEntity scene{};
-    EntityID physics = 0xFFFFFFFFU;
+    EntityID ecs = 0xFFFFFFFFU;
     uint32_t componentMask = 0U;
     CanonicalTransformAuthority authority = CanonicalTransformAuthority::Scene;
-    bool hasPhysics = false;
+    bool hasECS = false;
     bool active = false;
 };
 
@@ -83,6 +83,7 @@ private:
     bool ValidateEntity(const CanonicalEntity& entity) const;
     bool SyncSceneToPhysics();
     bool ReadBackPhysicsToScene();
+    static bool IsPhysicsBody(uint32_t componentMask);
 
     SceneWorld scene_;
     ArchetypeManager ecs_;
