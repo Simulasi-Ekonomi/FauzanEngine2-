@@ -99,7 +99,6 @@ public:
     SceneMeshAdapter* SceneMeshes() { return m_SceneMeshes.get(); }
     const SceneMeshAdapter* SceneMeshes() const { return m_SceneMeshes.get(); }
     bool RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material);
-    bool RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material, const CpuTextureResource* texture);
     RenderCamera* SceneCamera() { return m_SceneCamera.get(); }
     const RenderCamera* SceneCamera() const { return m_SceneCamera.get(); }
     Vulkan3DRenderer* VulkanRenderer() { return m_VulkanRenderer.get(); }
