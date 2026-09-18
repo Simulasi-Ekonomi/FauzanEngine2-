@@ -90,6 +90,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/SceneECSBridge.cpp
+    Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
     Runtime/TextureStaging.cpp
