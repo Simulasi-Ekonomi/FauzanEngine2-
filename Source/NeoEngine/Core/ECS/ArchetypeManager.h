@@ -44,9 +44,16 @@ public:
     void DestroyEntity(EntityID id);
 
     void SetPosX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posX); }
+    void SetPosY(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posY); }
     void SetPosZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posZ); }
     void SetVelX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::velX); }
+    void SetVelY(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::velY); }
     void SetVelZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::velZ); }
+    void SetRotX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotX); }
+    void SetRotY(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotY); }
+    void SetRotZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotZ); }
+    void SetMeshID(EntityID id, uint32_t v) { SetComponentValue(id, v, &ArchetypeChunk::meshID); }
+    [[nodiscard]] size_t EntityCount() const { return entityToChunk_.size(); }
     void SetRadius(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::radius); }
     void SetInvMass(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::invMass); }
     [[nodiscard]] bool HasEntity(EntityID id) const { return entityToChunk_.contains(id); }
