@@ -17,8 +17,9 @@ bool SceneECSBridge::Rebuild(SceneWorld& scene, ArchetypeManager& ecs) {
   const auto old=map_.find(key);
   const EntityID id=old==map_.end()?ecs.CreateEntity(COMP_POSITION|COMP_ROTATION):old->second;
   if(id==std::numeric_limits<EntityID>::max()||!ecs.HasEntity(id)) return false;
-  ecs.SetPosX(id,t->x); ecs.SetPosZ(id,t->z);
-  if(old==map_.end()) ecs.SetVelX(id,0.0F);
+  ecs.SetPosX(id,t->x); ecs.SetPosY(id,t->y); ecs.SetPosZ(id,t->z);
+  ecs.SetRotX(id,t->rx); ecs.SetRotY(id,t->ry); ecs.SetRotZ(id,t->rz);
+  if(old==map_.end()) { ecs.SetVelX(id,0.0F); ecs.SetVelZ(id,0.0F); }
   next.emplace(key,id);
  }
  for(const auto& [key,id]:map_) if(!next.contains(key)&&ecs.HasEntity(id)) ecs.DestroyEntity(id);
