@@ -124,7 +124,8 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
                                       Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA) {
     if (!renderer.Ready()) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
     const RenderCameraConfig& config = camera.Config();
-    if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F || config.farPlane <= config.nearPlane) {
+    if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F ||
+        config.farPlane <= config.nearPlane) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
     }
@@ -135,28 +136,57 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         return false;
     }
 
-    for (const SceneMeshInstance& instance : meshes.Instances()) {
-        const Transform3* transform = world.GetTransform(instance.entity);
-        if (!transform) continue;
+    struct Batch {
+        size_t first = 0U;
+        std::vector<size_t> instances;
+    };
+    std::vector<Batch> batches;
+    batches.reserve(meshes.Instances().size());
+
+    for (size_t i = 0U; i < meshes.Instances().size(); ++i) {
+        const SceneMeshInstance& instance = meshes.Instances()[i];
         if (instance.vertices.empty() || instance.indices.empty() || instance.indices.size() % 3U != 0U) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;
         }
+        const Transform3* transform = world.GetTransform(instance.entity);
+        if (!transform) continue;
 
-        const Mat4 model = MakeModel(*transform);
+        size_t batchIndex = batches.size();
+        if (!instance.sourceAssetId.empty()) {
+            for (size_t b = 0U; b < batches.size(); ++b) {
+                const SceneMeshInstance& first = meshes.Instances()[batches[b].first];
+                if (first.sourceAssetId == instance.sourceAssetId &&
+                    first.sourceHash == instance.sourceHash &&
+                    first.vertices.size() == instance.vertices.size() &&
+                    first.indices.size() == instance.indices.size()) {
+                    batchIndex = b;
+                    break;
+                }
+            }
+        }
+        if (batchIndex == batches.size()) {
+            batches.push_back({i, {}});
+        }
+        batches[batchIndex].instances.push_back(i);
+    }
+
+    for (const Batch& batch : batches) {
+        const SceneMeshInstance& first = meshes.Instances()[batch.first];
         std::vector<Vulkan3DVertex> vertices;
-        vertices.reserve(instance.vertices.size());
-        for (const MeshVertex& vertex : instance.vertices) {
-            const RenderPoint3 position = TransformPoint(model, vertex.position);
-            const RenderPoint3 normal = TransformDirection(model, vertex.normal);
-            vertices.push_back(Vulkan3DVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v});
+        vertices.reserve(first.vertices.size());
+        for (const MeshVertex& vertex : first.vertices) {
+            vertices.push_back(Vulkan3DVertex{
+                vertex.position.x, vertex.position.y, vertex.position.z,
+                vertex.normal.x, vertex.normal.y, vertex.normal.z,
+                vertex.u, vertex.v});
         }
 
         std::vector<uint32_t> indices;
-        indices.reserve(instance.indices.size());
-        for (uint16_t index : instance.indices) {
-            if (index >= instance.vertices.size()) {
+        indices.reserve(first.indices.size());
+        for (uint16_t index : first.indices) {
+            if (index >= first.vertices.size()) {
                 lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
                 renderer.EndFrame();
                 return false;
@@ -164,7 +194,17 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             indices.push_back(static_cast<uint32_t>(index));
         }
 
-        if (!renderer.DrawIndexed(vertices, indices, viewProjection.v.data())) {
+        std::vector<float> transforms;
+        transforms.reserve(batch.instances.size() * 16U);
+        for (const size_t instanceIndex : batch.instances) {
+            const Transform3* transform = world.GetTransform(meshes.Instances()[instanceIndex].entity);
+            if (!transform) continue;
+            const Mat4 model = MakeModel(*transform);
+            transforms.insert(transforms.end(), model.v.begin(), model.v.end());
+        }
+
+        if (transforms.empty() ||
+            !renderer.DrawIndexedInstancedWithViewProjection(vertices, indices, transforms, viewProjection.v.data())) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;
