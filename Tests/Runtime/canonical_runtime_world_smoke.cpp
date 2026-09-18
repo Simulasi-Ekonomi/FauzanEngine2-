@@ -12,8 +12,8 @@ int main() {
     assert(world.CreateEntity({2.0F, 0.0F, 3.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F},
                               COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER,
                               CanonicalTransformAuthority::Scene, sceneActor));
-    assert(sceneActor.hasPhysics);
-    assert(world.ECS().HasEntity(sceneActor.physics));
+    assert(sceneActor.hasECS);
+    assert(world.ECS().HasEntity(sceneActor.ecs));
     assert(world.Scene().GetTransform(sceneActor.scene) != nullptr);
 
     const uint64_t revisionBefore = world.ECS().GetPhysicsRevision();
