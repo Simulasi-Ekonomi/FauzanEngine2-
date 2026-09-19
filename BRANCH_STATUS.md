@@ -4,7 +4,7 @@
 - Branch: `p3-editor-android-production-night`
 - PR: #71 — `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
 - Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
-- Last code checkpoint: `140449a41cbd04c09e74c7294a9d0e27b8264183`
+- Last code checkpoint: `5d917773bf17617c3689deb88e48e11dc2c63c45`
 - Latest documentation checkpoint: `97041be67e347a02b80754731edbc8731b91281b`
 - This status update is the latest handoff checkpoint.
 - Main merge: **NOT AUTHORIZED / DO NOT MERGE**
@@ -27,6 +27,7 @@ These percentages are roadmap completion indicators, not production certificatio
 - SceneWorld → SceneECSBridge → ArchetypeManager synchronization.
 - Incremental Scene→ECS transform sync with rotation and scale.
 - ECS transform sourcing in active Vulkan 3D runtime path.
+- ECS-authoritative 64-bit mesh/material asset identity synchronization and Vulkan identity validation.
 - Archetype component migration preserves position/velocity/collider/mesh/rotation/scale data.
 - Runtime vertical-slice gate and smoke.
 - XPBD total-step wall-clock instrumentation.
@@ -49,17 +50,17 @@ Commit `140449a41cbd04c09e74c7294a9d0e27b8264183` passed:
 Documentation commits after that code checkpoint do not change engine behavior.
 
 ## Important unresolved gaps
-### 1. ECS mesh/material identity is not yet authoritative
-`ArchetypeManager` contains `COMP_MESH` and `meshID`, but `SceneECSBridge` currently creates entities with only `COMP_POSITION | COMP_ROTATION`.
+### 1. ECS mesh/material identity is now authoritative at the runtime binding boundary
+ECS now carries the existing staging `sourceHash` values as 64-bit mesh/material identity fields. `SceneECSBridge` synchronizes those identities from the existing `SceneMeshAdapter` bindings, and the active Vulkan path rejects an instance when ECS identity does not match the staged resource identity.
 
-The active Vulkan renderer still obtains mesh geometry/material identity from `SceneMeshAdapter` and only obtains transforms from ECS.
+The actual geometry/material CPU resource remains owned by the existing staging/adapter path; no duplicate asset registry was introduced and no 64-bit hash was truncated to 32 bits.
 
 Therefore:
 - **Transform:** ECS-authoritative on the active Vulkan path.
-- **Mesh/material identity:** SceneMeshAdapter-authoritative.
-- **ECS meshID:** existing but not integrated into the active renderer path.
+- **Mesh/material identity:** ECS-authoritative at the runtime binding/validation boundary.
+- **Geometry/material payload:** existing staging/SceneMeshAdapter resource owner.
 
-Do not fix this by truncating a 64-bit asset hash into a 32-bit ID or by inventing a second resource registry. First audit the existing AssetRegistry/AssetResourceManager/SceneMeshAdapter contracts and choose an existing stable identity mechanism if one exists.
+This is implemented but still requires CI/device runtime verification.
 
 ### 2. XPBD performance target
 Acceptance target remains:
@@ -76,12 +77,11 @@ Palette buffer and shader foundation exist. Actual descriptor/vertex-input/pipel
 CI APK passes, but device matrix/install/run/Vulkan driver/device-loss/suspend-resume evidence remains pending.
 
 ## Exact next action
-1. Audit the actual existing asset identity contracts: `AssetRegistry`, `AssetResourceManager`, `SceneMeshAdapter`, `SceneRenderAdapter`, and all active mesh/material identity fields.
-2. Determine whether an existing stable mesh/material identity can safely become ECS-authoritative.
-3. If yes, integrate with exact existing contracts and add a focused smoke test.
-4. If no, document the boundary and continue P0/P1 without creating a duplicate registry.
-5. Re-run CI after any code change.
-6. Keep main untouched and do not claim Termux/device verification.
+1. Poll CI for code checkpoint `5d917773bf17617c3689deb88e48e11dc2c63c45` and repair any compile/test regression.
+2. Complete GPU skinning integration audit: the current active Vulkan pipeline still uses `neo_mesh.vert.spv`; `neo_skinned_mesh.vert` is foundation-only until descriptor, vertex-input, shader build, and runtime execution are wired and verified.
+3. Continue P1 asset/animation pipeline integration without creating duplicate registries.
+4. Then advance P2 XPBD proof and P3 Android/device evidence.
+5. Keep main untouched and do not claim Termux/device verification.
 
 ## Room continuation rule
 A new room must start from:
