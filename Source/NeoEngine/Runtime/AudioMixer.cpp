@@ -100,12 +100,13 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     Voice voice;
     voice.id = params.id;
     voice.samples = params.mono;
-    voice.gain = static_cast<uint16_t>(scaledGain);
+    voice.gain = params.gainQ8;
     voice.pan = pan;
     voice.pitch = params.pitch;
     voice.position[0] = params.position[0];
     voice.position[1] = params.position[1];
     voice.position[2] = params.position[2];
+    voice.attenuation = params.attenuation;
     voice.looping = params.looping;
     voice.spatialized = params.spatialized;
     m_Voices.push_back(std::move(voice));
@@ -174,13 +175,17 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                 const float dy = voice.position[1] - m_Listener.position[1];
                 const float dz = voice.position[2] - m_Listener.position[2];
                 const float distance = std::sqrt(dx * dx + dy * dy + dz * dz);
-                const float minD = 1.0f;
-                const float maxD = 100.0f;
+                const float minD = std::max(0.001f, voice.attenuation.minDistance);
+                const float maxD = std::max(minD + 0.001f, voice.attenuation.maxDistance);
+                const float minVolume = std::clamp(voice.attenuation.minVolume, 0.0f, 1.0f);
                 float attenuation = 1.0f;
-                if (distance >= maxD) attenuation = 0.0f;
+                if (distance >= maxD) attenuation = minVolume;
                 else if (distance > minD) {
                     const float t = (distance - minD) / (maxD - minD);
-                    attenuation = 1.0f - t;
+                    if (voice.attenuation.model == AudioAttenuationModel::Linear) attenuation = 1.0f - t;
+                    else if (voice.attenuation.model == AudioAttenuationModel::Logarithmic) attenuation = 1.0f - std::log10(1.0f + 9.0f * t);
+                    else attenuation = 1.0f / (1.0f + t * t * (maxD / minD));
+                    attenuation = std::max(minVolume, attenuation);
                 }
                 dynamicGain *= attenuation;
                 if (distance > 0.001f) {
