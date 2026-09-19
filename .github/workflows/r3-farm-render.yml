@@ -41,8 +41,9 @@ jobs:
 
       - name: Build and run Release smoke under Xvfb
         run: |
-          cmake --build build/r3-release --target farm_vulkan_textured_present_smoke -j2
+          cmake --build build/r3-release --target farm_vulkan_textured_present_smoke neo_runtime_vulkan_integration_smoke -j2
           xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-release/farm_vulkan_textured_present_smoke
+          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-release/neo_runtime_vulkan_integration_smoke
 
       - name: Configure AddressSanitizer
         run: |
@@ -55,5 +56,6 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
         run: |
-          cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke -j2
+          cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke neo_runtime_vulkan_integration_smoke -j2
           xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-asan/farm_vulkan_textured_present_smoke
+          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-asan/neo_runtime_vulkan_integration_smoke
