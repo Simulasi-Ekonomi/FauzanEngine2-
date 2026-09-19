@@ -1,4 +1,6 @@
 #include "Vulkan3DRenderer.h"
+#include "Runtime/VulkanDescriptorManager.h"
+#include "Animation/GPUSkinningPaletteBuffer.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -19,6 +21,13 @@ namespace {
 #endif
 struct GpuVertex { float position[3]; float normal[3]; float uv[2]; };
 struct GpuInstance { float transform[16]; };
+struct GpuSkinnedVertex {
+    float position[3];
+    float normal[3];
+    float uv[2];
+    uint32_t boneIndices[4];
+    float boneWeights[4];
+};
 struct Buffer { VkBuffer handle = VK_NULL_HANDLE; VkDeviceMemory memory = VK_NULL_HANDLE; };
 struct BufferArena { Buffer buffer{}; VkDeviceSize capacity = 0; VkDeviceSize used = 0; void* mapped = nullptr; };
 struct Frame {
@@ -68,11 +77,16 @@ struct Vulkan3DRenderer::Impl {
     SDL_Window* window=nullptr; VkInstance instance=VK_NULL_HANDLE; VkSurfaceKHR surface=VK_NULL_HANDLE; VkPhysicalDevice physical=VK_NULL_HANDLE; VkDevice device=VK_NULL_HANDLE;
     VkQueue graphicsQueue=VK_NULL_HANDLE; uint32_t graphicsFamily=UINT32_MAX; VkQueue presentQueue=VK_NULL_HANDLE; uint32_t presentFamily=UINT32_MAX;
     VkSwapchainKHR swapchain=VK_NULL_HANDLE; VkFormat swapchainFormat=VK_FORMAT_UNDEFINED; VkExtent2D extent{}; std::vector<VkImage> swapchainImages; std::vector<VkImageView> swapchainViews; std::vector<VkFramebuffer> framebuffers;
-    VkRenderPass renderPass=VK_NULL_HANDLE; VkPipelineLayout pipelineLayout=VK_NULL_HANDLE; VkPipeline pipeline=VK_NULL_HANDLE; VkCommandPool commandPool=VK_NULL_HANDLE;
+    VkRenderPass renderPass=VK_NULL_HANDLE; VkPipelineLayout pipelineLayout=VK_NULL_HANDLE; VkPipeline pipeline=VK_NULL_HANDLE;
+    VkPipelineLayout skinnedPipelineLayout=VK_NULL_HANDLE; VkPipeline skinnedPipeline=VK_NULL_HANDLE;
+    VulkanDescriptorManager skinDescriptors{};
+    GPUSkinningPaletteBuffer skinPalette{};
+    VkDescriptorSet skinDescriptorSet=VK_NULL_HANDLE;
+    VkCommandPool commandPool=VK_NULL_HANDLE;
     VkImage depthImage=VK_NULL_HANDLE; VkDeviceMemory depthMemory=VK_NULL_HANDLE; VkImageView depthView=VK_NULL_HANDLE; VkFormat depthFormat=VK_FORMAT_D32_SFLOAT;
     std::array<Frame,2> frames{}; uint32_t frameSlot=0; uint32_t acquiredImageIndex=0; bool frameBegun=false;
-    void DestroySwapchainResources(){if(!device)return;vkDeviceWaitIdle(device);for(auto f:framebuffers)vkDestroyFramebuffer(device,f,nullptr);framebuffers.clear();if(pipeline)vkDestroyPipeline(device,pipeline,nullptr);pipeline=VK_NULL_HANDLE;if(pipelineLayout)vkDestroyPipelineLayout(device,pipelineLayout,nullptr);pipelineLayout=VK_NULL_HANDLE;if(renderPass)vkDestroyRenderPass(device,renderPass,nullptr);renderPass=VK_NULL_HANDLE;if(depthView)vkDestroyImageView(device,depthView,nullptr);depthView=VK_NULL_HANDLE;if(depthImage)vkDestroyImage(device,depthImage,nullptr);depthImage=VK_NULL_HANDLE;if(depthMemory)vkFreeMemory(device,depthMemory,nullptr);depthMemory=VK_NULL_HANDLE;for(auto v:swapchainViews)vkDestroyImageView(device,v,nullptr);swapchainViews.clear();swapchainImages.clear();if(swapchain)vkDestroySwapchainKHR(device,swapchain,nullptr);swapchain=VK_NULL_HANDLE;}
-    void Destroy(){if(device)vkDeviceWaitIdle(device);for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}if(commandPool)vkDestroyCommandPool(device,commandPool,nullptr);if(device)vkDestroyDevice(device,nullptr);if(surface&&instance)vkDestroySurfaceKHR(instance,surface,nullptr);if(instance)vkDestroyInstance(instance,nullptr);if(window)SDL_DestroyWindow(window);SDL_QuitSubSystem(SDL_INIT_VIDEO);SDL_Quit();*this={};}
+    void DestroySwapchainResources(){if(!device)return;vkDeviceWaitIdle(device);for(auto f:framebuffers)vkDestroyFramebuffer(device,f,nullptr);framebuffers.clear();if(pipeline)vkDestroyPipeline(device,pipeline,nullptr);pipeline=VK_NULL_HANDLE;if(pipelineLayout)vkDestroyPipelineLayout(device,pipelineLayout,nullptr);pipelineLayout=VK_NULL_HANDLE;if(skinnedPipeline)vkDestroyPipeline(device,skinnedPipeline,nullptr);skinnedPipeline=VK_NULL_HANDLE;if(skinnedPipelineLayout)vkDestroyPipelineLayout(device,skinnedPipelineLayout,nullptr);skinnedPipelineLayout=VK_NULL_HANDLE;if(renderPass)vkDestroyRenderPass(device,renderPass,nullptr);renderPass=VK_NULL_HANDLE;if(depthView)vkDestroyImageView(device,depthView,nullptr);depthView=VK_NULL_HANDLE;if(depthImage)vkDestroyImage(device,depthImage,nullptr);depthImage=VK_NULL_HANDLE;if(depthMemory)vkFreeMemory(device,depthMemory,nullptr);depthMemory=VK_NULL_HANDLE;for(auto v:swapchainViews)vkDestroyImageView(device,v,nullptr);swapchainViews.clear();swapchainImages.clear();if(swapchain)vkDestroySwapchainKHR(device,swapchain,nullptr);swapchain=VK_NULL_HANDLE;}
+    void Destroy(){if(device)vkDeviceWaitIdle(device);for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();skinPalette.Destroy();skinDescriptors.Destroy();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}if(commandPool)vkDestroyCommandPool(device,commandPool,nullptr);if(device)vkDestroyDevice(device,nullptr);if(surface&&instance)vkDestroySurfaceKHR(instance,surface,nullptr);if(instance)vkDestroyInstance(instance,nullptr);if(window)SDL_DestroyWindow(window);SDL_QuitSubSystem(SDL_INIT_VIDEO);SDL_Quit();*this={};}
 };
 Vulkan3DRenderer::~Vulkan3DRenderer(){Reset();}
 bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* title){
