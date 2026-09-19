@@ -1,0 +1,94 @@
+name: P0 canonical runtime integration
+
+on:
+  push:
+    branches:
+      - main
+      - p3-pr44-advanced-port
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Runtime/p0_runtime_physics_integration_smoke.cpp'
+      - '.github/workflows/p0-runtime-integration.yml'
+  pull_request:
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Runtime/p0_runtime_physics_integration_smoke.cpp'
+      - '.github/workflows/p0-runtime-integration.yml'
+  workflow_dispatch:
+
+jobs:
+  p0-runner-diagnostic:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Runner provisioning diagnostic
+        run: |
+          echo "runner=${RUNNER_NAME}"
+          echo "os=${RUNNER_OS}"
+          echo "arch=${RUNNER_ARCH}"
+          uname -a
+
+  p0-runtime:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools ninja-build
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@main
+        with:
+          version: 3.4.16
+          install-linux-dependencies: true
+
+      - name: Verify canonical runtime scope
+        run: |
+          chmod +x tools/verify_canonical_runtime_scope.sh tools/canonical_runtime_scope_smoke.sh
+          tools/verify_canonical_runtime_scope.sh
+          tools/canonical_runtime_scope_smoke.sh
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/p0-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run P0 Release smoke matrix
+        run: |
+          set -e
+          targets=(
+            canonical_runtime_world_smoke
+            item_serial_tracker_smoke
+            neo_runtime_ecs_integration_smoke
+            p0_runtime_physics_integration_smoke
+            runtime_frame_contract_smoke
+            renderer_capability_smoke
+          )
+          cmake --build build/p0-release --target "${targets[@]}" -j2
+          for target in "${targets[@]}"; do
+            echo "=== RUN $target ==="
+            "./build/p0-release/$target"
+          done
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/p0-asan -G Ninja             -DCMAKE_BUILD_TYPE=Debug             '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer'             '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run P0 ASAN smoke matrix
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+        run: |
+          set -e
+          targets=(
+            canonical_runtime_world_smoke
+            item_serial_tracker_smoke
+            neo_runtime_ecs_integration_smoke
+            p0_runtime_physics_integration_smoke
+            runtime_frame_contract_smoke
+            renderer_capability_smoke
+          )
+          cmake --build build/p0-asan --target "${targets[@]}" -j2
+          for target in "${targets[@]}"; do
+            echo "=== RUN $target ==="
+            "./build/p0-asan/$target"
+          done

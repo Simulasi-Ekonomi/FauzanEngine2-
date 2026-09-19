@@ -75,6 +75,8 @@ add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}" "${NEO_SKINNED_MESH_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
+    Core/ECS/ArchetypeManager.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
     Runtime/AtomicSaveFile.cpp
     Runtime/PBRMaterial.cpp
     Runtime/BRDFLut.cpp
@@ -93,6 +95,11 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
+    Runtime/RendererCapability.cpp
+    Runtime/GameplayPhysicsBody.cpp
+    Runtime/GameplayPhysicsForceAccumulator.cpp
+    Runtime/GameplayPhysicsQuery.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
     Runtime/RuntimeVerticalSliceGate.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
@@ -101,8 +108,6 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/SceneECSBridge.cpp
-    Core/ECS/ArchetypeManager.cpp
-    Physics/V5/XPBDPhysicsSystem.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -225,8 +230,17 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Physics/physics_step_measurement_smoke.cpp")
     add_xpbd_executable(physics_step_measurement_smoke ../../Tests/Physics/physics_step_measurement_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/item_serial_tracker_smoke.cpp")
+    add_xpbd_executable(item_serial_tracker_smoke ../../Tests/Runtime/item_serial_tracker_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/renderer_capability_smoke.cpp")
+    add_xpbd_executable(renderer_capability_smoke ../../Tests/Runtime/renderer_capability_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp")
     add_xpbd_executable(neo_runtime_ecs_integration_smoke ../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/p0_runtime_physics_integration_smoke.cpp")
+    add_xpbd_executable(p0_runtime_physics_integration_smoke ../../Tests/Runtime/p0_runtime_physics_integration_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_frame_contract_smoke.cpp")
     add_xpbd_executable(runtime_frame_contract_smoke ../../Tests/Runtime/runtime_frame_contract_smoke.cpp)
@@ -258,6 +272,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp")
     add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_vulkan_integration_smoke.cpp")
+    add_xpbd_executable(neo_runtime_vulkan_integration_smoke ../../Tests/Runtime/neo_runtime_vulkan_integration_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")

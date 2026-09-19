@@ -66,6 +66,33 @@ bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ
     return true;
 }
 
+bool SdlAudioBridge::UpdateVoicePosition(uint32_t id, const float position[3]) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    SDL_LockAudioStream(stream_);
+    const bool ok = mixer_.UpdateVoicePosition(id, position);
+    SDL_UnlockAudioStream(stream_);
+    if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    return ok;
+}
+
+bool SdlAudioBridge::UpdateVoicePitch(uint32_t id, float pitch) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    SDL_LockAudioStream(stream_);
+    const bool ok = mixer_.UpdateVoicePitch(id, pitch);
+    SDL_UnlockAudioStream(stream_);
+    if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    return ok;
+}
+
+bool SdlAudioBridge::UpdateVoiceGain(uint32_t id, uint16_t gainQ8) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    SDL_LockAudioStream(stream_);
+    const bool ok = mixer_.UpdateVoiceGain(id, gainQ8);
+    SDL_UnlockAudioStream(stream_);
+    if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    return ok;
+}
+
 uint16_t SdlAudioBridge::QueuedVoiceCount() const {
     if (stream_ == nullptr) return 0;
     SDL_LockAudioStream(stream_);

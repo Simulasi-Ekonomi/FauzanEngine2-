@@ -16,7 +16,6 @@ on:
       - 'Tests/Systems/trust_safety_smoke.cpp'
       - '.github/workflows/r10-security-privacy.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
@@ -36,24 +35,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+          sudo apt-get install -y libvulkan-dev glslang-tools ninja-build libjsoncpp-dev libglm-dev libcurl4-openssl-dev
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@main
+        with:
+          version: 3.4.16
+          install-linux-dependencies: true
 
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/r10-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build and run Release boundary smokes
         run: |
-          cmake --build build/r10-release --target runtime_persistence_smoke atomic_save_file_smoke farm_telemetry_smoke authoritative_command_gate_smoke trust_safety_smoke -j2
-          ./build/r10-release/runtime_persistence_smoke
-          ./build/r10-release/atomic_save_file_smoke
-          ./build/r10-release/farm_telemetry_smoke
-          ./build/r10-release/authoritative_command_gate_smoke
-          ./build/r10-release/trust_safety_smoke
+          cmake --build build/r10-release --target r10_security_privacy_100_smoke -j2
+          ./build/r10-release/r10_security_privacy_100_smoke
 
       - name: Configure AddressSanitizer
         run: |
@@ -66,9 +67,5 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1
         run: |
-          cmake --build build/r10-asan --target runtime_persistence_smoke atomic_save_file_smoke farm_telemetry_smoke authoritative_command_gate_smoke trust_safety_smoke -j2
-          ./build/r10-asan/runtime_persistence_smoke
-          ./build/r10-asan/atomic_save_file_smoke
-          ./build/r10-asan/farm_telemetry_smoke
-          ./build/r10-asan/authoritative_command_gate_smoke
-          ./build/r10-asan/trust_safety_smoke
+          cmake --build build/r10-asan --target r10_security_privacy_100_smoke -j2
+          ./build/r10-asan/r10_security_privacy_100_smoke

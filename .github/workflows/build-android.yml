@@ -13,10 +13,10 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v6
       with:
         java-version: '17'
         distribution: 'temurin'
@@ -31,9 +31,9 @@ jobs:
         sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        node-version: '24'
         cache: 'npm'
         cache-dependency-path: editor/package-lock.json
 
@@ -46,7 +46,7 @@ jobs:
         cp -r dist/* ../android/app/src/main/assets/editor/
 
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+      uses: gradle/actions/setup-gradle@v6
       with:
         gradle-version: '8.4'
 
@@ -56,7 +56,7 @@ jobs:
         gradle assembleDebug --no-daemon
 
     - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: NeoEngine-Debug-APK
         path: android/app/build/outputs/apk/debug/app-debug.apk
@@ -68,10 +68,10 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v6
       with:
         java-version: '17'
         distribution: 'temurin'
@@ -86,9 +86,9 @@ jobs:
         sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        node-version: '24'
         cache: 'npm'
         cache-dependency-path: editor/package-lock.json
 
@@ -101,7 +101,7 @@ jobs:
         cp -r dist/* ../android/app/src/main/assets/editor/
 
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+      uses: gradle/actions/setup-gradle@v6
       with:
         gradle-version: '8.4'
 
@@ -111,7 +111,7 @@ jobs:
         gradle assembleRelease --no-daemon
 
     - name: Upload Release APK
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: NeoEngine-Release-APK
         path: android/app/build/outputs/apk/release/app-release*.apk

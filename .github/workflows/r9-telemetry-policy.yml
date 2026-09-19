@@ -10,7 +10,6 @@ on:
       - 'Tests/Systems/telemetry_outbox_smoke.cpp'
       - '.github/workflows/r9-telemetry-policy.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
       - 'Source/NeoEngine/Systems/TelemetryOutbox.*'
@@ -24,21 +23,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+          sudo apt-get install -y libvulkan-dev glslang-tools ninja-build libjsoncpp-dev libglm-dev libcurl4-openssl-dev
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@main
+        with:
+          version: 3.4.16
+          install-linux-dependencies: true
 
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/r9-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build and run Release smokes
         run: |
-          cmake --build build/r9-release --target farm_telemetry_smoke telemetry_outbox_smoke -j2
-          ./build/r9-release/farm_telemetry_smoke
-          ./build/r9-release/telemetry_outbox_smoke
+          cmake --build build/r9-release --target r9_live_ops_telemetry_100_smoke -j2
+          ./build/r9-release/r9_live_ops_telemetry_100_smoke
 
       - name: Configure AddressSanitizer
         run: |
@@ -51,6 +55,5 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1
         run: |
-          cmake --build build/r9-asan --target farm_telemetry_smoke telemetry_outbox_smoke -j2
-          ./build/r9-asan/farm_telemetry_smoke
-          ./build/r9-asan/telemetry_outbox_smoke
+          cmake --build build/r9-asan --target r9_live_ops_telemetry_100_smoke -j2
+          ./build/r9-asan/r9_live_ops_telemetry_100_smoke

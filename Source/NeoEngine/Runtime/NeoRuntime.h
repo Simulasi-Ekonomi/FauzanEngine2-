@@ -2,6 +2,10 @@
 #include "AssetRegistry.h"
 #include "SceneWorld.h"
 #include "Core/ECS/ArchetypeManager.h"
+#include "Physics/V5/XPBDPhysicsSystem.h"
+#include "GameplayPhysicsBody.h"
+#include "GameplayPhysicsForceAccumulator.h"
+#include "ScenePhysicsPoseSync.h"
 #include "SceneECSBridge.h"
 #include "SoftwareRenderer.h"
 #include "Vulkan3DRenderer.h"
@@ -11,6 +15,7 @@
 #include "SoftwareSurfacePresenter.h"
 #include "RuntimeClock.h"
 #include "RuntimeTimeSystem.h"
+#include "RuntimeFrameContract.h"
 #include "RuntimeTimerQueue.h"
 #include "RuntimePersistence.h"
 #include "ActorComponentWorld.h"
@@ -40,7 +45,7 @@ namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
 enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
-struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; };
+struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeFrameToken frameToken{}; RuntimeFrameStage frameStage = RuntimeFrameStage::Failed; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; bool hasVulkanRenderReceipt = false; Vulkan3DFrameStats vulkanRender{}; uint32_t physicsBodyCount = 0U; uint32_t physicsCollisionTests = 0U; size_t physicsManifoldCount = 0U; uint64_t physicsStepMicroseconds = 0U; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
 struct RuntimeConfig {
     uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32;
@@ -92,6 +97,9 @@ public:
     const WorldAuthoring* AuthoringWorld() const { return m_AuthoringWorld.get(); }
     ArchetypeManager* ECS() { return m_ECS.get(); }
     const ArchetypeManager* ECS() const { return m_ECS.get(); }
+    XPBDPhysicsSystem* Physics() { return m_Physics.get(); }
+    const ScenePhysicsPoseSync& PhysicsPoseSync() const { return m_PhysicsPoseSync; }
+    const XPBDPhysicsSystem* Physics() const { return m_Physics.get(); }
     const SceneECSBridgeReceipt& SceneECS() const { return m_SceneECSBridge.LastReceipt(); }
     EntityID SceneECSId(SceneEntity entity) const { return m_SceneECSBridge.ECSId(entity); }
     SceneWorld* Scene() { return m_Scene.get(); }
@@ -99,6 +107,10 @@ public:
     SceneMeshAdapter* SceneMeshes() { return m_SceneMeshes.get(); }
     const SceneMeshAdapter* SceneMeshes() const { return m_SceneMeshes.get(); }
     bool RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material);
+    bool CreatePhysicsCircleBody(SceneEntity sceneEntity, const GameplayCircleBodyConfig& config, EntityID& physicsEntity);
+    bool DestroyPhysicsBody(SceneEntity sceneEntity);
+    bool ApplyPhysicsForce(SceneEntity sceneEntity, float forceX, float forceZ);
+    bool ClearPhysicsForces(SceneEntity sceneEntity);
     RenderCamera* SceneCamera() { return m_SceneCamera.get(); }
     const RenderCamera* SceneCamera() const { return m_SceneCamera.get(); }
     Vulkan3DRenderer* VulkanRenderer() { return m_VulkanRenderer.get(); }
@@ -167,6 +179,10 @@ private:
     std::unique_ptr<MovementAuthorityGate> m_MotionAuthority;
     std::unique_ptr<SceneWorld> m_Scene;
     std::unique_ptr<ArchetypeManager> m_ECS;
+    std::unique_ptr<XPBDPhysicsSystem> m_Physics;
+    GameplayPhysicsBodyBuilder m_PhysicsBodies;
+    GameplayPhysicsForceAccumulator m_PhysicsForces;
+    ScenePhysicsPoseSync m_PhysicsPoseSync;
     SceneECSBridge m_SceneECSBridge;
     std::unique_ptr<SceneMeshAdapter> m_SceneMeshes;
     std::unique_ptr<RenderCamera> m_SceneCamera;
