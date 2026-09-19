@@ -207,12 +207,12 @@ bool NeoRuntime::Tick() {
     RuntimeFrameContract frameContract;
     if (!frameContract.Begin(m_Clock->Snapshot().frameCount, m_SceneECSBridge.LastReceipt().revision)) { m_LastError = RuntimeError::InvalidState; return false; }
     const auto failFrame = [&]() -> bool { frameContract.Fail(); return false; };
-    if (!frameContract.Advance(RuntimeFrameStage::InputSnapshot)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     std::vector<RuntimeTimerFire> fires;
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     if (m_Scene != nullptr && !m_Scene->UpdateTransforms()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (m_Input != nullptr) m_Input->BeginFrame();
+    if (!frameContract.Advance(RuntimeFrameStage::InputSnapshot)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     std::vector<RuntimeTimeEvent> timeEvents;
     uint32_t simulatedTicks = 0U;
     if (m_Time == nullptr || !m_Time->AdvanceFixedTicks(m_FixedTicksPerFrame, timeEvents, simulatedTicks)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return failFrame(); }
@@ -238,6 +238,10 @@ bool NeoRuntime::Tick() {
         m_LastFrameReceipt.dispatchedEventCount = eventCount;
         m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
         m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount(); m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
+        m_LastFrameReceipt.frameToken = frameContract.Token();
+        m_LastFrameReceipt.frameStage = frameContract.Stage();
+        m_LastFrameReceipt.hasVulkanRenderReceipt = m_EnableVulkan3DRenderer && m_VulkanRenderer != nullptr;
+        if (m_LastFrameReceipt.hasVulkanRenderReceipt) m_LastFrameReceipt.vulkanRender = m_VulkanRenderer->LastFrameStats();
         m_HasFrameReceipt = true;
         m_LastError = RuntimeError::None;
         return true;
