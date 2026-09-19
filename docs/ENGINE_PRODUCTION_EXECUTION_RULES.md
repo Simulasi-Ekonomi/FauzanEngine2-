@@ -299,6 +299,16 @@ Record:
 - ASAN result;
 - artifacts/logs where required.
 
+## 6.8 Current dependency baseline — mandatory
+
+The repository CI baseline is **Node.js 24.x LTS + SDL3 3.4.16**.
+
+All active workflows/tests consuming these dependencies must use the same baseline. Node 20 and SDL 3.4.14 are retired from the active CI baseline and must not be restored as isolated fixes.
+
+See `docs/CI_RUNTIME_DEPENDENCY_BASELINE_2026-09.md` for the complete handoff record.
+
+A future dependency migration requires a complete active-workflow/test-surface update and an explicit update of that baseline document. Never downgrade a single workflow to hide a compatibility failure.
+
 ## 7. Current critical CI precedent
 
 The R3 Vulkan workflow demonstrates the intended pattern:
