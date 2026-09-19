@@ -261,6 +261,93 @@ bool Vulkan3DRenderer::DrawIndexedInstancedWithViewProjection(std::span<const Vu
     return true;
 }
 
+bool Vulkan3DRenderer::DrawIndexedSkinnedInstancedWithViewProjection(
+    std::span<const Vulkan3DSkinnedVertex> vertices,
+    std::span<const uint32_t> indices,
+    std::span<const float> modelTransforms4x4,
+    std::span<const Mat4> bonePalette,
+    const float* viewProjection4x4) {
+    if (!impl_ || !impl_->frameBegun || vertices.empty() || indices.empty() ||
+        modelTransforms4x4.empty() || bonePalette.empty() || viewProjection4x4 == nullptr ||
+        (modelTransforms4x4.size() % 16U) != 0U || indices.size() % 3U != 0U ||
+        bonePalette.size() > GPUSkinningPaletteBuffer::kMaxBones) {
+        lastError_ = Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
+    if (vertices.size() > 1000000U || indices.size() > 3000000U) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    const size_t n = modelTransforms4x4.size() / 16U;
+    if (n == 0U || n > 1000000U || n > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    if (!impl_->skinPalette.UploadPalette(std::vector<Mat4>(bonePalette.begin(), bonePalette.end()))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+
+    Frame& f = impl_->frames[impl_->frameSlot];
+    const VkDeviceSize vb = vertices.size() * sizeof(GpuSkinnedVertex);
+    const VkDeviceSize ib = indices.size() * sizeof(uint32_t);
+    const VkDeviceSize eb = n * sizeof(GpuInstance);
+    const VkDeviceSize vr = f.vertexArena.used + vb;
+    const VkDeviceSize ir = f.indexArena.used + ib;
+    const VkDeviceSize er = f.instanceArena.used + eb;
+    if (vr > f.vertexArena.capacity && (f.vertexArena.used ||
+        !EnsureArena(impl_->physical, impl_->device, f.vertexArena, vr, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+    if (ir > f.indexArena.capacity && (f.indexArena.used ||
+        !EnsureArena(impl_->physical, impl_->device, f.indexArena, ir, VK_BUFFER_USAGE_INDEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+    if (er > f.instanceArena.capacity && (f.instanceArena.used ||
+        !EnsureArena(impl_->physical, impl_->device, f.instanceArena, er, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+
+    auto* dst = reinterpret_cast<GpuSkinnedVertex*>(
+        static_cast<std::byte*>(f.vertexArena.mapped) + f.vertexArena.used);
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        const Vulkan3DSkinnedVertex& src = vertices[i];
+        dst[i] = {{src.px,src.py,src.pz},{src.nx,src.ny,src.nz},{src.u,src.v},
+                  {src.bone0,src.bone1,src.bone2,src.bone3},
+                  {src.weight0,src.weight1,src.weight2,src.weight3}};
+    }
+    std::memcpy(static_cast<std::byte*>(f.indexArena.mapped) + f.indexArena.used,
+                indices.data(), static_cast<size_t>(ib));
+    std::memcpy(static_cast<std::byte*>(f.instanceArena.mapped) + f.instanceArena.used,
+                modelTransforms4x4.data(), static_cast<size_t>(eb));
+
+    vkCmdBindPipeline(f.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->skinnedPipeline);
+    vkCmdBindDescriptorSets(f.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            impl_->skinnedPipelineLayout, 0U, 1U,
+                            &impl_->skinDescriptorSet, 0U, nullptr);
+    vkCmdPushConstants(f.commandBuffer, impl_->skinnedPipelineLayout,
+                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16U,
+                       viewProjection4x4);
+    VkDeviceSize offsets[] = {f.vertexArena.used, f.instanceArena.used};
+    VkBuffer buffers[] = {f.vertexArena.buffer.handle, f.instanceArena.buffer.handle};
+    vkCmdBindVertexBuffers(f.commandBuffer, 0U, 2U, buffers, offsets);
+    vkCmdBindIndexBuffer(f.commandBuffer, f.indexArena.buffer.handle,
+                         f.indexArena.used, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(f.commandBuffer, static_cast<uint32_t>(indices.size()),
+                     static_cast<uint32_t>(n), 0, 0, 0);
+
+    f.vertexArena.used = vr;
+    f.indexArena.used = ir;
+    f.instanceArena.used = er;
+    stats_.vertexCount += static_cast<uint32_t>(vertices.size());
+    stats_.indexCount += static_cast<uint32_t>(indices.size());
+
+    // Restore the canonical static-mesh pipeline so mixed static/skinned draws
+    // remain valid within the same frame.
+    vkCmdBindPipeline(f.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipeline);
+    return true;
+}
+
 bool Vulkan3DRenderer::EndFrame(){if(!impl_||!impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];vkCmdEndRenderPass(f.commandBuffer);if(vkEndCommandBuffer(f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPipelineStageFlags stage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&f.imageAvailable;submit.pWaitDstStageMask=&stage;submit.commandBufferCount=1;submit.pCommandBuffers=&f.commandBuffer;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&f.renderFinished;VkResult s=vkQueueSubmit(impl_->graphicsQueue,1,&submit,f.fence);if(s!=VK_SUCCESS){lastError_=s==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPresentInfoKHR p{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};p.waitSemaphoreCount=1;p.pWaitSemaphores=&f.renderFinished;p.swapchainCount=1;p.pSwapchains=&impl_->swapchain;p.pImageIndices=&impl_->acquiredImageIndex;VkResult presented=vkQueuePresentKHR(impl_->presentQueue,&p);impl_->frameBegun=false;impl_->frameSlot=(impl_->frameSlot+1U)%2U;stats_.frameIndex++;if(presented==VK_ERROR_OUT_OF_DATE_KHR||presented==VK_SUBOPTIMAL_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(presented==VK_ERROR_DEVICE_LOST){lastError_=Vulkan3DRendererError::DeviceLost;return false;}if(presented!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}lastError_=Vulkan3DRendererError::None;return true;}
 void Vulkan3DRenderer::Reset(){ready_=false;if(impl_){impl_->Destroy();delete impl_;impl_=nullptr;}stats_={};lastError_=Vulkan3DRendererError::None;}
 } // namespace NeoEngine
