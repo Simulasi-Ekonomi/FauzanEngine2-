@@ -120,6 +120,75 @@ bool Vulkan3DRenderer::Resize(uint32_t width,uint32_t height){
     VkAttachmentDescription at[2]{};at[0].format=impl_->swapchainFormat;at[0].samples=VK_SAMPLE_COUNT_1_BIT;at[0].loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;at[0].storeOp=VK_ATTACHMENT_STORE_OP_STORE;at[0].initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;at[0].finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;at[1].format=impl_->depthFormat;at[1].samples=VK_SAMPLE_COUNT_1_BIT;at[1].loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;at[1].storeOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;at[1].initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;at[1].finalLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;VkAttachmentReference cr{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},drref{1,VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};VkSubpassDescription sub{};sub.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;sub.colorAttachmentCount=1;sub.pColorAttachments=&cr;sub.pDepthStencilAttachment=&drref;VkSubpassDependency dep{};dep.srcSubpass=VK_SUBPASS_EXTERNAL;dep.dstSubpass=0;dep.srcStageMask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;dep.dstStageMask=dep.srcStageMask;dep.dstAccessMask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;VkRenderPassCreateInfo rp{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};rp.attachmentCount=2;rp.pAttachments=at;rp.subpassCount=1;rp.pSubpasses=&sub;rp.dependencyCount=1;rp.pDependencies=&dep;if(vkCreateRenderPass(impl_->device,&rp,nullptr,&impl_->renderPass)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}
     auto vc=ReadSpirv(NEO_SHADER_DIR "/neo_mesh.vert.spv"),fcodes=ReadSpirv(NEO_SHADER_DIR "/neo_mesh.frag.spv");VkShaderModule vert=CreateShader(impl_->device,vc),frag=CreateShader(impl_->device,fcodes);if(!vert||!frag){if(vert)vkDestroyShaderModule(impl_->device,vert,nullptr);if(frag)vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::ShaderUnavailable;return false;}VkPipelineShaderStageCreateInfo stages[2]{};stages[0]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[0].stage=VK_SHADER_STAGE_VERTEX_BIT;stages[0].module=vert;stages[0].pName="main";stages[1]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT;stages[1].module=frag;stages[1].pName="main";
     VkVertexInputBindingDescription bindings[2]{};bindings[0]={0,(uint32_t)sizeof(GpuVertex),VK_VERTEX_INPUT_RATE_VERTEX};bindings[1]={1,(uint32_t)sizeof(GpuInstance),VK_VERTEX_INPUT_RATE_INSTANCE};VkVertexInputAttributeDescription attrs[7]{{0,0,VK_FORMAT_R32G32B32_SFLOAT,0},{1,0,VK_FORMAT_R32G32B32_SFLOAT,12},{2,0,VK_FORMAT_R32G32_SFLOAT,24},{3,1,VK_FORMAT_R32G32B32A32_SFLOAT,0},{4,1,VK_FORMAT_R32G32B32A32_SFLOAT,16},{5,1,VK_FORMAT_R32G32B32A32_SFLOAT,32},{6,1,VK_FORMAT_R32G32B32A32_SFLOAT,48}};VkPipelineVertexInputStateCreateInfo input{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};input.vertexBindingDescriptionCount=2;input.pVertexBindingDescriptions=bindings;input.vertexAttributeDescriptionCount=7;input.pVertexAttributeDescriptions=attrs;VkPipelineInputAssemblyStateCreateInfo assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;VkPipelineViewportStateCreateInfo viewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};viewport.viewportCount=1;viewport.scissorCount=1;VkPipelineRasterizationStateCreateInfo raster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};raster.polygonMode=VK_POLYGON_MODE_FILL;raster.cullMode=VK_CULL_MODE_BACK_BIT;raster.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE;raster.lineWidth=1.0F;VkPipelineMultisampleStateCreateInfo ms{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};ms.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;VkPipelineDepthStencilStateCreateInfo ds{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};ds.depthTestEnable=VK_TRUE;ds.depthWriteEnable=VK_TRUE;ds.depthCompareOp=VK_COMPARE_OP_LESS;VkPipelineColorBlendAttachmentState ba{};ba.colorWriteMask=0xF;VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};blend.attachmentCount=1;blend.pAttachments=&ba;VkDynamicState dyns[2]{VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR};VkPipelineDynamicStateCreateInfo dyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};dyn.dynamicStateCount=2;dyn.pDynamicStates=dyns;VkPushConstantRange push{};push.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;push.size=sizeof(float)*16U;VkPipelineLayoutCreateInfo layout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};layout.pushConstantRangeCount=1;layout.pPushConstantRanges=&push;if(vkCreatePipelineLayout(impl_->device,&layout,nullptr,&impl_->pipelineLayout)!=VK_SUCCESS){vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::PipelineFailure;return false;}VkGraphicsPipelineCreateInfo pi{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};pi.stageCount=2;pi.pStages=stages;pi.pVertexInputState=&input;pi.pInputAssemblyState=&assembly;pi.pViewportState=&viewport;pi.pRasterizationState=&raster;pi.pMultisampleState=&ms;pi.pDepthStencilState=&ds;pi.pColorBlendState=&blend;pi.pDynamicState=&dyn;pi.layout=impl_->pipelineLayout;pi.renderPass=impl_->renderPass;if(vkCreateGraphicsPipelines(impl_->device,VK_NULL_HANDLE,1,&pi,nullptr,&impl_->pipeline)!=VK_SUCCESS){vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::PipelineFailure;return false;}vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);
+
+    auto svc=ReadSpirv(NEO_SHADER_DIR "/neo_skinned_mesh.vert.spv");
+    VkShaderModule skinVert=CreateShader(impl_->device,svc);
+    VkShaderModule skinFrag=CreateShader(impl_->device,fcodes);
+    if (!skinVert || !skinFrag) {
+        if (skinVert) vkDestroyShaderModule(impl_->device,skinVert,nullptr);
+        if (skinFrag) vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+        lastError_=Vulkan3DRendererError::ShaderUnavailable; return false;
+    }
+    VkPipelineShaderStageCreateInfo skinStages[2]{};
+    skinStages[0]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    skinStages[0].stage=VK_SHADER_STAGE_VERTEX_BIT; skinStages[0].module=skinVert; skinStages[0].pName="main";
+    skinStages[1]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    skinStages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT; skinStages[1].module=skinFrag; skinStages[1].pName="main";
+
+    VkVertexInputBindingDescription skinBindings[2]{};
+    skinBindings[0]={0,(uint32_t)sizeof(GpuSkinnedVertex),VK_VERTEX_INPUT_RATE_VERTEX};
+    skinBindings[1]={1,(uint32_t)sizeof(GpuInstance),VK_VERTEX_INPUT_RATE_INSTANCE};
+    VkVertexInputAttributeDescription skinAttrs[11]{
+        {0,0,VK_FORMAT_R32G32B32_SFLOAT,0},
+        {1,0,VK_FORMAT_R32G32B32_SFLOAT,12},
+        {2,0,VK_FORMAT_R32G32_SFLOAT,24},
+        {3,0,VK_FORMAT_R32G32B32A32_UINT,32},
+        {4,0,VK_FORMAT_R32G32B32A32_SFLOAT,48},
+        {5,1,VK_FORMAT_R32G32B32A32_SFLOAT,0},
+        {6,1,VK_FORMAT_R32G32B32A32_SFLOAT,16},
+        {7,1,VK_FORMAT_R32G32B32A32_SFLOAT,32},
+        {8,1,VK_FORMAT_R32G32B32A32_SFLOAT,48}
+    };
+    VkPipelineVertexInputStateCreateInfo skinInput{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    skinInput.vertexBindingDescriptionCount=2; skinInput.pVertexBindingDescriptions=skinBindings;
+    skinInput.vertexAttributeDescriptionCount=9; skinInput.pVertexAttributeDescriptions=skinAttrs;
+    VkPipelineInputAssemblyStateCreateInfo skinAssembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    skinAssembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    VkPipelineViewportStateCreateInfo skinViewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    skinViewport.viewportCount=1; skinViewport.scissorCount=1;
+    VkPipelineRasterizationStateCreateInfo skinRaster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    skinRaster.polygonMode=VK_POLYGON_MODE_FILL; skinRaster.cullMode=VK_CULL_MODE_BACK_BIT;
+    skinRaster.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE; skinRaster.lineWidth=1.0F;
+    VkPipelineMultisampleStateCreateInfo skinMs{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+    skinMs.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
+    VkPipelineDepthStencilStateCreateInfo skinDs{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+    skinDs.depthTestEnable=VK_TRUE; skinDs.depthWriteEnable=VK_TRUE; skinDs.depthCompareOp=VK_COMPARE_OP_LESS;
+    VkPipelineColorBlendAttachmentState skinBa{}; skinBa.colorWriteMask=0xF;
+    VkPipelineColorBlendStateCreateInfo skinBlend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    skinBlend.attachmentCount=1; skinBlend.pAttachments=&skinBa;
+    VkPipelineDynamicStateCreateInfo skinDyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+    VkDynamicState skinDyns[2]{VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR};
+    skinDyn.dynamicStateCount=2; skinDyn.pDynamicStates=skinDyns;
+    VkPushConstantRange skinPush{}; skinPush.stageFlags=VK_SHADER_STAGE_VERTEX_BIT; skinPush.size=sizeof(float)*16U;
+    VkDescriptorSetLayout skinSetLayout=impl_->skinDescriptors.GetLayout();
+    VkPipelineLayoutCreateInfo skinLayout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    skinLayout.setLayoutCount=1; skinLayout.pSetLayouts=&skinSetLayout;
+    skinLayout.pushConstantRangeCount=1; skinLayout.pPushConstantRanges=&skinPush;
+    if(vkCreatePipelineLayout(impl_->device,&skinLayout,nullptr,&impl_->skinnedPipelineLayout)!=VK_SUCCESS){
+        vkDestroyShaderModule(impl_->device,skinVert,nullptr); vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+        lastError_=Vulkan3DRendererError::PipelineFailure; return false;
+    }
+    VkGraphicsPipelineCreateInfo skinPi{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    skinPi.stageCount=2; skinPi.pStages=skinStages; skinPi.pVertexInputState=&skinInput; skinPi.pInputAssemblyState=&skinAssembly;
+    skinPi.pViewportState=&skinViewport; skinPi.pRasterizationState=&skinRaster; skinPi.pMultisampleState=&skinMs;
+    skinPi.pDepthStencilState=&skinDs; skinPi.pColorBlendState=&skinBlend; skinPi.pDynamicState=&skinDyn;
+    skinPi.layout=impl_->skinnedPipelineLayout; skinPi.renderPass=impl_->renderPass;
+    if(vkCreateGraphicsPipelines(impl_->device,VK_NULL_HANDLE,1,&skinPi,nullptr,&impl_->skinnedPipeline)!=VK_SUCCESS){
+        vkDestroyShaderModule(impl_->device,skinVert,nullptr); vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+        lastError_=Vulkan3DRendererError::PipelineFailure; return false;
+    }
+    vkDestroyShaderModule(impl_->device,skinVert,nullptr); vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+
     impl_->framebuffers.resize(impl_->swapchainViews.size());for(size_t i=0;i<impl_->swapchainViews.size();++i){VkImageView a[]={impl_->swapchainViews[i],impl_->depthView};VkFramebufferCreateInfo fb{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};fb.renderPass=impl_->renderPass;fb.attachmentCount=2;fb.pAttachments=a;fb.width=extent.width;fb.height=extent.height;fb.layers=1;if(vkCreateFramebuffer(impl_->device,&fb,nullptr,&impl_->framebuffers[i])!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}}stats_.width=extent.width;stats_.height=extent.height;return true;
 }
 bool Vulkan3DRenderer::BeginFrame(float r,float g,float b,float a){if(!ready_||!impl_||impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];VkResult wait=vkWaitForFences(impl_->device,1,&f.fence,VK_TRUE,UINT64_MAX);if(wait!=VK_SUCCESS){lastError_=wait==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}VkResult acq=vkAcquireNextImageKHR(impl_->device,impl_->swapchain,UINT64_MAX,f.imageAvailable,VK_NULL_HANDLE,&impl_->acquiredImageIndex);if(acq==VK_ERROR_OUT_OF_DATE_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(acq!=VK_SUCCESS&&acq!=VK_SUBOPTIMAL_KHR){lastError_=acq==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}vkResetFences(impl_->device,1,&f.fence);vkResetCommandBuffer(f.commandBuffer,0);f.vertexArena.used=f.indexArena.used=f.instanceArena.used=0;VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(f.commandBuffer,&begin)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}VkClearValue clear[2]{};clear[0].color={{r,g,b,a}};clear[1].depthStencil={1,0};VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};pass.renderPass=impl_->renderPass;pass.framebuffer=impl_->framebuffers[impl_->acquiredImageIndex];pass.renderArea.extent=impl_->extent;pass.clearValueCount=2;pass.pClearValues=clear;vkCmdBeginRenderPass(f.commandBuffer,&pass,VK_SUBPASS_CONTENTS_INLINE);VkViewport vp{0,0,(float)impl_->extent.width,(float)impl_->extent.height,0,1};VkRect2D sc{{0,0},impl_->extent};vkCmdSetViewport(f.commandBuffer,0,1,&vp);vkCmdSetScissor(f.commandBuffer,0,1,&sc);vkCmdBindPipeline(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipeline);stats_.vertexCount=stats_.indexCount=0;impl_->frameBegun=true;return true;}
