@@ -7,7 +7,7 @@
 # missing classified file, a duplicate path, or an accidental admission of a
 # non-active path to XPBD_RUNTIME_SOURCES as a hard failure.
 
-active_fail_closed_legacy|Core/EngineLoop.cpp
+non_active_fail_closed_legacy|Core/EngineLoop.cpp
 non_active_legacy|AI/OpenCodeIntegration.cpp
 non_active_experimental|AI/V4/AIAgent.h
 non_active_experimental|AI/V4/AILearning.h
