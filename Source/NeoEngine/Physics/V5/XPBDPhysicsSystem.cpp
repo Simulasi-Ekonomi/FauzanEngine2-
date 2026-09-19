@@ -1453,11 +1453,16 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
     };
     if (m_TimingEnabled) m_StepTimingStats = {};
-    const auto buildFlatStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
+    const auto totalStarted = Clock::now();
+    const auto buildFlatStarted = m_TimingEnabled ? totalStarted : Clock::time_point{};
     BuildFlatArrays(em);
     if (m_TimingEnabled) m_StepTimingStats.buildFlatMs = millisSince(buildFlatStarted);
     const size_t totalEntities = m_activeFlatEntities;
-    if (totalEntities == 0) { m_LastStepElapsedMicroseconds = 0U; return; }
+    if (totalEntities == 0) {
+        m_LastStepElapsedMicroseconds = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - totalStarted).count());
+        if (m_TimingEnabled) m_StepTimingStats.totalMs = static_cast<double>(m_LastStepElapsedMicroseconds) / 1000.0;
+        return;
+    }
     const size_t requiredWorkers = std::min(std::max(JobSystem::Get().NumWorkers(), 1UL), MAX_WORKER_THREADS);
     for (size_t worker = 0; worker < requiredWorkers; ++worker) {
         if (m_ThreadDeltas[worker].size() < totalEntities)
