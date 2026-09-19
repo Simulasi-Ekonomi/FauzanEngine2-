@@ -39,7 +39,7 @@ jobs:
           sudo apt-get install -y libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools ninja-build
 
       - name: Install SDL3
-        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739be7e0886d149a5e47
+        uses: libsdl-org/setup-sdl@main
         with:
           version: 3.4.16
           install-linux-dependencies: true
