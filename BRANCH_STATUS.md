@@ -4,12 +4,16 @@
 - Branch: `p3-editor-android-production-night`
 - PR: #71 — `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
 - Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
-- Current branch HEAD: `c2df50300e488936cb777bf9a543f8c988f4af30`
+- Current branch HEAD: `c054b67d64833df417db17028911d8617cbd9df8` (documentation synchronization checkpoint)
+- Code checkpoint: `c2df50300e488936cb777bf9a543f8c988f4af30`
 - Latest branch commit: `fix: link Vulkan GPU buffer into runtime library`
 - Main merge: **NOT AUTHORIZED / DO NOT MERGE**
 - Termux/device verification: **UNVERIFIED — TERMUX REQUIRED**
 - PR CI merge-ref tested: `1564142adff56d98a490c79856830c52010a378b`
 - Current CI state: **PARTIAL / BLOCKED** — all listed workflows passed except `Renderer 3D Vulkan Smoke`.
+
+## Documentation synchronization
+Core status/control documents have been synchronized to the current code/CI evidence: `AI_HANDOVER_PROTOCOL.md`, `README.md`, `docs/ROADMAP.md`, `AGENTS.md`, `docs/AI_ENGINE_WORK_STANDARD.md`, `docs/R5_ASSET_STREAMING_PLAN.md`, `docs/R6_PBR_MATERIALS_PLAN.md`, `docs/ENGINE_STATUS_SEPTEMBER_2026.md`, and `docs/PRODUCTION_ROADMAP_P0_P3.md`.
 
 ## CI evidence for current checkpoint
 For PR #71 merge-ref `1564142`:
