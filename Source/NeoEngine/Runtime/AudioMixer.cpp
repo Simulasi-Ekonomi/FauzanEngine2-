@@ -42,7 +42,7 @@ bool AudioMixer::Play(uint32_t id, std::vector<int16_t> samples, uint16_t gainQ8
 }
 
 bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
-    if (params.id == 0 || params.mono.empty() || params.mono.size() > kMaxSamplesPerVoice || params.gainQ8 == 0) return false;
+    if (params.id == 0 || params.mono.empty() || params.mono.size() > kMaxSamplesPerVoice || params.gainQ8 == 0 || !std::isfinite(params.pitch) || params.pitch <= 0.001f || params.pitch > 8.0f) return false;
     for (const auto& voice : m_Voices) if (voice.id == params.id) return false;
     if (m_Voices.size() >= kMaxVoices) return false;
     for (float x : params.position) if (!std::isfinite(x)) return false;
