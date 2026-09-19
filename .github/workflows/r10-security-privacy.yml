@@ -40,7 +40,7 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev glslang-tools ninja-build libjsoncpp-dev
+          sudo apt-get install -y libvulkan-dev glslang-tools ninja-build libjsoncpp-dev libglm-dev
 
       - name: Install SDL3
         uses: libsdl-org/setup-sdl@main
