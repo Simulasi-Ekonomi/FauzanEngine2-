@@ -91,8 +91,7 @@ int main() {
     }
 
     std::printf("P0_PHYSICS_SMOKE: PASS before=%f after=%f bodies=%u step_us=%llu\n",
-                beforeX, after == nullptr ? 0.0F : after->x,
-                receipt == nullptr ? 0U : receipt->physicsBodyCount,
-                static_cast<unsigned long long>(receipt == nullptr ? 0U : receipt->physicsStepMicroseconds));
+                beforeX, finalX, finalBodies,
+                static_cast<unsigned long long>(finalStepUs));
     return 0;
 }
