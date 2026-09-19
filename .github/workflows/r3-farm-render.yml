@@ -59,6 +59,9 @@ jobs:
           fi
           echo "R3_RELEASE_FARM_STATUS=${farm_status}"
           echo "R3_RELEASE_RUNTIME_STATUS=${runtime_status}"
+          echo "build_status=${build_status}" >> "$GITHUB_OUTPUT"
+          echo "farm_status=${farm_status}" >> "$GITHUB_OUTPUT"
+          echo "runtime_status=${runtime_status}" >> "$GITHUB_OUTPUT"
           if [ "$build_status" -ne 0 ] || [ "$farm_status" -ne 0 ] || [ "$runtime_status" -ne 0 ]; then
             exit 1
           fi
@@ -82,8 +85,11 @@ jobs:
       - name: Enforce R3 smoke results
         if: always()
         run: |
+          echo "R3_RELEASE_BUILD_STATUS=${{ steps.release_smoke.outputs.build_status }}"
+          echo "R3_RELEASE_FARM_STATUS=${{ steps.release_smoke.outputs.farm_status }}"
+          echo "R3_RELEASE_RUNTIME_STATUS=${{ steps.release_smoke.outputs.runtime_status }}"
           echo "R3_RELEASE_STEP=${{ steps.release_smoke.outcome }}"
           echo "R3_ASAN_STEP=${{ steps.asan_smoke.outcome }}"
-          if [ "${{ steps.release_smoke.outcome }}" != "success" ] || [ "${{ steps.asan_smoke.outcome }}" != "success" ]; then
+          if [ "${{ steps.release_smoke.outputs.build_status }}" != "0" ] || [ "${{ steps.release_smoke.outputs.farm_status }}" != "0" ] || [ "${{ steps.release_smoke.outputs.runtime_status }}" != "0" ] || [ "${{ steps.asan_smoke.outcome }}" != "success" ]; then
             exit 1
           fi
