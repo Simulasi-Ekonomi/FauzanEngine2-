@@ -2,7 +2,9 @@ name: R3 Farm renderer path
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - p3-pr44-advanced-port
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
