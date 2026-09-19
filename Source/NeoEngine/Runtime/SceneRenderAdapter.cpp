@@ -100,12 +100,13 @@ bool MakeECSModel(const SceneMeshInstance& instance, const ArchetypeManager& ecs
 
     float x = 0.0F, y = 0.0F, z = 0.0F;
     float rx = 0.0F, ry = 0.0F, rz = 0.0F;
-    if (!ecs.TryGetPosition(ecsId, x, y, z) || !ecs.TryGetRotation(ecsId, rx, ry, rz)) return false;
+    float sx = 1.0F, sy = 1.0F, sz = 1.0F;
+    if (!ecs.TryGetPosition(ecsId, x, y, z) || !ecs.TryGetRotation(ecsId, rx, ry, rz) || !ecs.TryGetScale(ecsId, sx, sy, sz)) return false;
 
     Transform3 transform{};
     transform.x = x; transform.y = y; transform.z = z;
     transform.rx = rx; transform.ry = ry; transform.rz = rz;
-    transform.sx = 1.0F; transform.sy = 1.0F; transform.sz = 1.0F;
+    transform.sx = sx; transform.sy = sy; transform.sz = sz;
     model = MakeModel(transform);
     return true;
 }
