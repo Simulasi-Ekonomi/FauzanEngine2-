@@ -31,11 +31,13 @@ void main() {
 
     mat4 instanceTransform = mat4(instanceM0, instanceM1, instanceM2, instanceM3);
     vec4 skinnedPosition = skin * vec4(inPosition, 1.0);
-    vec3 skinnedNormal = normalize(mat3(skin) * inNormal);
+    mat3 skinNormalMatrix = transpose(inverse(mat3(skin)));
+    vec3 skinnedNormal = normalize(skinNormalMatrix * inNormal);
     vec4 worldPosition = instanceTransform * skinnedPosition;
 
     gl_Position = transform.mvp * worldPosition;
     outWorldPosition = worldPosition.xyz;
-    outNormal = normalize(mat3(instanceTransform) * skinnedNormal);
+    mat3 instanceNormalMatrix = transpose(inverse(mat3(instanceTransform)));
+    outNormal = normalize(instanceNormalMatrix * skinnedNormal);
     outUV = inUV;
 }
