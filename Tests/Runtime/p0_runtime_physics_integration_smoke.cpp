@@ -1,5 +1,4 @@
 #include "Runtime/NeoRuntime.h"
-#include "Runtime/GameplayPhysicsBody.h"
 
 #include <cmath>
 #include <cstdio>
@@ -21,63 +20,75 @@ int main() {
         return 2;
     }
 
-    GameplayPhysicsBodyBuilder bodies;
-    EntityID body = 0U;
-    if (!bodies.CreateCircleBody(*runtime.ECS(),
-                                 {GameplayPhysicsBodyType::Dynamic, 0.0F, 0.0F,
-                                  1.0F, 0.0F, 0.25F, 1.0F},
-                                 body)) {
-        std::fprintf(stderr, "P0_PHYSICS_SMOKE: body creation failed\n");
+    SceneEntity actor{};
+    if (!runtime.Scene()->Create(actor) ||
+        !runtime.Scene()->SetTransform(actor, {0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: scene actor creation failed\n");
         runtime.Shutdown();
         return 3;
     }
 
-    float beforeX = 0.0F;
-    bool foundBefore = false;
-    for (ArchetypeChunk* chunk : runtime.ECS()->GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
-        for (size_t i = 0U; i < chunk->count; ++i) {
-            if (chunk->entities[i] == body) {
-                beforeX = chunk->posX[i];
-                foundBefore = true;
-            }
-        }
-    }
-    if (!foundBefore) {
-        std::fprintf(stderr, "P0_PHYSICS_SMOKE: body missing before tick\n");
+    EntityID physicsBody = 0U;
+    const GameplayCircleBodyConfig bodyConfig{
+        GameplayPhysicsBodyType::Dynamic, 0.0F, 0.0F, 1.0F, 0.0F, 0.25F, 1.0F
+    };
+    if (!runtime.CreatePhysicsCircleBody(actor, bodyConfig, physicsBody) || physicsBody == 0U) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: scene physics binding failed\n");
         runtime.Shutdown();
         return 4;
     }
-
-    if (!runtime.Tick()) {
-        std::fprintf(stderr, "P0_PHYSICS_SMOKE: canonical runtime tick failed\n");
+    if (!runtime.PhysicsPoseSync().IsPhysicsAuthoritative(actor)) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: dynamic body is not physics authoritative\n");
         runtime.Shutdown();
         return 5;
     }
 
-    float afterX = beforeX;
-    bool foundAfter = false;
-    for (ArchetypeChunk* chunk : runtime.ECS()->GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
-        for (size_t i = 0U; i < chunk->count; ++i) {
-            if (chunk->entities[i] == body) {
-                afterX = chunk->posX[i];
-                foundAfter = true;
-            }
-        }
-    }
-
-    if (!foundAfter || !std::isfinite(afterX) || !(afterX > beforeX)) {
-        std::fprintf(stderr, "P0_PHYSICS_SMOKE: XPBD did not advance canonical ECS body (%f -> %f)\n",
-                     beforeX, afterX);
+    const Transform3* before = runtime.Scene()->GetTransform(actor);
+    if (before == nullptr || !std::isfinite(before->x)) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: scene pose missing before tick\n");
         runtime.Shutdown();
         return 6;
+    }
+    const float beforeX = before->x;
+
+    if (!runtime.Tick()) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: canonical runtime tick failed\n");
+        runtime.Shutdown();
+        return 7;
+    }
+
+    const Transform3* after = runtime.Scene()->GetTransform(actor);
+    const NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
+    if (after == nullptr || receipt == nullptr || !std::isfinite(after->x) ||
+        !(after->x > beforeX) || receipt->physicsBodyCount != 1U ||
+        receipt->physicsStepMicroseconds == 0U) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: physics did not propagate SceneWorld pose (%f -> %f), bodies=%u step_us=%llu\n",
+                     beforeX, after == nullptr ? 0.0F : after->x,
+                     receipt == nullptr ? 0U : receipt->physicsBodyCount,
+                     static_cast<unsigned long long>(receipt == nullptr ? 0U : receipt->physicsStepMicroseconds));
+        runtime.Shutdown();
+        return 8;
+    }
+
+    if (!runtime.DestroyPhysicsBody(actor)) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: physics body destruction failed\n");
+        runtime.Shutdown();
+        return 9;
+    }
+    if (runtime.PhysicsPoseSync().BindingCount() != 0U) {
+        std::fprintf(stderr, "P0_PHYSICS_SMOKE: physics binding leaked after destroy\n");
+        runtime.Shutdown();
+        return 10;
     }
 
     if (!runtime.Shutdown()) {
         std::fprintf(stderr, "P0_PHYSICS_SMOKE: shutdown failed\n");
-        return 7;
+        return 11;
     }
 
-    std::printf("P0_PHYSICS_SMOKE: PASS before=%f after=%f manifolds=%zu\n",
-                beforeX, afterX, runtime.Physics() == nullptr ? 0U : runtime.Physics()->GetManifoldCount());
+    std::printf("P0_PHYSICS_SMOKE: PASS before=%f after=%f bodies=%u step_us=%llu\n",
+                beforeX, after == nullptr ? 0.0F : after->x,
+                receipt == nullptr ? 0U : receipt->physicsBodyCount,
+                static_cast<unsigned long long>(receipt == nullptr ? 0U : receipt->physicsStepMicroseconds));
     return 0;
 }
