@@ -46,6 +46,7 @@ int main() {
     std::string response;
     assert(agent.Execute(R"({"operation":"select","actorId":42})", session, assets, response));
     assert(session.SelectedActorId() == 42);
+    assert(session.SelectedActorIds().size() == 1 && session.SelectedActorIds()[0] == 42);
 
     const std::string fullTransform = R"({"operation":"transform","actorId":42,"transform":{"x":3,"y":4,"z":5,"rx":6,"ry":7,"rz":8,"sx":2,"sy":3,"sz":4}})";
     assert(agent.Execute(fullTransform, session, assets, response));
