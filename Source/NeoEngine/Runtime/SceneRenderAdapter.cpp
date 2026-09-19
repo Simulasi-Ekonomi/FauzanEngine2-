@@ -93,20 +93,21 @@ Mat4 MakeModel(const Transform3& transform) {
     return model;
 }
 
-RenderPoint3 TransformPoint(const Mat4& matrix, RenderPoint3 point) {
-    return {
-        matrix.v[0] * point.x + matrix.v[4] * point.y + matrix.v[8] * point.z + matrix.v[12],
-        matrix.v[1] * point.x + matrix.v[5] * point.y + matrix.v[9] * point.z + matrix.v[13],
-        matrix.v[2] * point.x + matrix.v[6] * point.y + matrix.v[10] * point.z + matrix.v[14]
-    };
-}
+bool MakeECSModel(const SceneMeshInstance& instance, const ArchetypeManager& ecs,
+                  const SceneECSBridge& sceneECS, Mat4& model) {
+    const EntityID ecsId = sceneECS.ECSId(instance.entity);
+    if (!ecs.HasEntity(ecsId)) return false;
 
-RenderPoint3 TransformDirection(const Mat4& matrix, RenderPoint3 value) {
-    return Normalize({
-        matrix.v[0] * value.x + matrix.v[4] * value.y + matrix.v[8] * value.z,
-        matrix.v[1] * value.x + matrix.v[5] * value.y + matrix.v[9] * value.z,
-        matrix.v[2] * value.x + matrix.v[6] * value.y + matrix.v[10] * value.z
-    });
+    float x = 0.0F, y = 0.0F, z = 0.0F;
+    float rx = 0.0F, ry = 0.0F, rz = 0.0F;
+    if (!ecs.TryGetPosition(ecsId, x, y, z) || !ecs.TryGetRotation(ecsId, rx, ry, rz)) return false;
+
+    Transform3 transform = *static_cast<const Transform3*>(nullptr);
+    transform.x = x; transform.y = y; transform.z = z;
+    transform.rx = rx; transform.ry = ry; transform.rz = rz;
+    transform.sx = 1.0F; transform.sy = 1.0F; transform.sz = 1.0F;
+    model = MakeModel(transform);
+    return true;
 }
 
 } // namespace
@@ -121,11 +122,16 @@ bool SceneRenderAdapter::Draw(const SceneWorld& world, SceneMeshAdapter& meshes,
 }
 
 bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAdapter& meshes, RenderCamera& camera,
-                                      Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA) {
+                                      Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA,
+                                      const ArchetypeManager* ecs, const SceneECSBridge* sceneECS) {
     if (!renderer.Ready()) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
     const RenderCameraConfig& config = camera.Config();
     if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F ||
         config.farPlane <= config.nearPlane) {
+        lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+        return false;
+    }
+    if ((ecs == nullptr) != (sceneECS == nullptr)) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
     }
@@ -136,10 +142,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         return false;
     }
 
-    struct Batch {
-        size_t first = 0U;
-        std::vector<size_t> instances;
-    };
+    struct Batch { size_t first = 0U; std::vector<size_t> instances; };
     std::vector<Batch> batches;
     batches.reserve(meshes.Instances().size());
 
@@ -150,8 +153,19 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             renderer.EndFrame();
             return false;
         }
-        const Transform3* transform = world.GetTransform(instance.entity);
-        if (!transform) continue;
+
+        Mat4 model{};
+        if (ecs != nullptr) {
+            if (!MakeECSModel(instance, *ecs, *sceneECS, model)) {
+                lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                renderer.EndFrame();
+                return false;
+            }
+        } else {
+            const Transform3* transform = world.GetTransform(instance.entity);
+            if (!transform) continue;
+            model = MakeModel(*transform);
+        }
 
         size_t batchIndex = batches.size();
         if (!instance.sourceAssetId.empty() && instance.sourceHash != 0U) {
@@ -168,9 +182,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
                 }
             }
         }
-        if (batchIndex == batches.size()) {
-            batches.push_back({i, {}});
-        }
+        if (batchIndex == batches.size()) batches.push_back({i, {}});
         batches[batchIndex].instances.push_back(i);
     }
 
@@ -199,9 +211,18 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         std::vector<float> transforms;
         transforms.reserve(batch.instances.size() * 16U);
         for (const size_t instanceIndex : batch.instances) {
-            const Transform3* transform = world.GetTransform(meshes.Instances()[instanceIndex].entity);
-            if (!transform) continue;
-            const Mat4 model = MakeModel(*transform);
+            Mat4 model{};
+            if (ecs != nullptr) {
+                if (!MakeECSModel(meshes.Instances()[instanceIndex], *ecs, *sceneECS, model)) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+            } else {
+                const Transform3* transform = world.GetTransform(meshes.Instances()[instanceIndex].entity);
+                if (!transform) continue;
+                model = MakeModel(*transform);
+            }
             transforms.insert(transforms.end(), model.v.begin(), model.v.end());
         }
 
