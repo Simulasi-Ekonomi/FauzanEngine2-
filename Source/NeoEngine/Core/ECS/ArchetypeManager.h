@@ -33,6 +33,9 @@ struct ArchetypeChunk {
     float* rotX = nullptr;
     float* rotY = nullptr;
     float* rotZ = nullptr;
+    float* scaleX = nullptr;
+    float* scaleY = nullptr;
+    float* scaleZ = nullptr;
 };
 
 class ArchetypeManager {
@@ -57,6 +60,7 @@ public:
     [[nodiscard]] bool TryGetPosition(EntityID id, float& x, float& y, float& z) const;
     [[nodiscard]] bool TryGetVelocity(EntityID id, float& x, float& y, float& z) const;
     [[nodiscard]] bool TryGetRotation(EntityID id, float& x, float& y, float& z) const;
+    [[nodiscard]] bool TryGetScale(EntityID id, float& x, float& y, float& z) const;
     void SetRadius(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::radius); }
     void SetInvMass(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::invMass); }
     [[nodiscard]] bool HasEntity(EntityID id) const { return entityToChunk_.contains(id); }
@@ -67,6 +71,7 @@ public:
     void MarkPhysicsDirty() { ++physicsRevision_; }
     void SetComponentMask(EntityID id, uint32_t componentMask);
     void SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz);
+    void SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz, float sx, float sy, float sz);
     uint64_t GetPhysicsRevision() const { return physicsRevision_; }
 
     template<typename... Args>
