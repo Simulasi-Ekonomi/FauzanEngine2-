@@ -45,6 +45,59 @@ bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& mesh,
     MeshMaterial surface=material.material;surface.texture=texture;
     SceneMeshInstance instance{entity,mesh.vertices,mesh.indices,surface};instance.sourceAssetId=mesh.assetId;instance.sourceHash=mesh.sourceHash;instance.sourceMaterialAssetId=material.assetId;instance.sourceMaterialName=material.materialName;instance.sourceMaterialHash=material.sourceHash;return Add(std::move(instance));
 }
+bool SceneMeshAdapter::BindSkeletalAnimation(SceneEntity entity,const Skeleton& skeleton,const SkeletalPoseClip& clip,SkeletalPosePlaybackMode mode,const std::vector<VertexWeight>& weights) {
+    const auto found = std::find_if(instances_.begin(), instances_.end(), [entity](const SceneMeshInstance& instance) { return instance.entity == entity; });
+    if (found == instances_.end()) { lastError_ = SceneMeshAdapterError::MissingInstance; return false; }
+    if (weights.size() != found->vertices.size() || weights.size() > Skinning::kMaxVertices || skeleton.GetBoneCount() == 0U || skeleton.GetBoneCount() > Skeleton::kMaxBones) {
+        lastError_ = SceneMeshAdapterError::InvalidMesh; return false;
+    }
+    for (const VertexWeight& weight : weights) {
+        float sum = 0.0F;
+        for (size_t i = 0U; i < 4U; ++i) {
+            if (!std::isfinite(weight.weights[i]) || weight.weights[i] < 0.0F) { lastError_ = SceneMeshAdapterError::InvalidMesh; return false; }
+            if (weight.boneIDs[i] < 0) {
+                if (weight.weights[i] != 0.0F) { lastError_ = SceneMeshAdapterError::InvalidMesh; return false; }
+            } else if (static_cast<size_t>(weight.boneIDs[i]) >= skeleton.GetBoneCount()) {
+                lastError_ = SceneMeshAdapterError::InvalidMesh; return false;
+            }
+            sum += weight.weights[i];
+        }
+        if (!std::isfinite(sum) || std::fabs(sum - 1.0F) > 0.0001F) { lastError_ = SceneMeshAdapterError::InvalidMesh; return false; }
+    }
+    SkeletalAnimationController candidateController;
+    if (!candidateController.Initialize(skeleton, clip, mode)) { lastError_ = SceneMeshAdapterError::InvalidMesh; return false; }
+    std::vector<Mat4> candidatePalette;
+    if (!candidateController.Advance(0.0F, candidatePalette) || candidatePalette.size() != skeleton.GetBoneCount()) {
+        lastError_ = SceneMeshAdapterError::InvalidMesh; return false;
+    }
+    found->skinWeights = weights;
+    found->skeletalAnimation = std::move(candidateController);
+    found->skeletalPalette = std::move(candidatePalette);
+    lastError_ = SceneMeshAdapterError::None;
+    return true;
+}
+
+bool SceneMeshAdapter::AdvanceSkeletalAnimations(const float deltaSeconds) {
+    if (!std::isfinite(deltaSeconds) || deltaSeconds < 0.0F || deltaSeconds > 1.0F) {
+        lastError_ = SceneMeshAdapterError::InvalidMesh; return false;
+    }
+    struct Candidate { size_t index = 0U; SkeletalAnimationController controller{}; std::vector<Mat4> palette{}; };
+    std::vector<Candidate> candidates;
+    candidates.reserve(instances_.size());
+    for (size_t i = 0U; i < instances_.size(); ++i) {
+        if (!instances_[i].skeletalAnimation.has_value()) continue;
+        Candidate candidate{i, *instances_[i].skeletalAnimation, {}};
+        if (!candidate.controller.Advance(deltaSeconds, candidate.palette)) { lastError_ = SceneMeshAdapterError::InvalidMesh; return false; }
+        candidates.push_back(std::move(candidate));
+    }
+    for (Candidate& candidate : candidates) {
+        instances_[candidate.index].skeletalAnimation = std::move(candidate.controller);
+        instances_[candidate.index].skeletalPalette = std::move(candidate.palette);
+    }
+    lastError_ = SceneMeshAdapterError::None;
+    return true;
+}
+
 bool SceneMeshAdapter::RefreshStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material){
     if(resource.assetId.empty()||resource.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
     const auto found=std::find_if(instances_.begin(),instances_.end(),[entity](const SceneMeshInstance& instance){return instance.entity==entity;});
