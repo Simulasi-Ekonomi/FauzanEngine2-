@@ -198,6 +198,11 @@ set(XPBD_RUNTIME_SOURCES
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
+# Keep canonical ECS/XPBD runtime ownership explicit across PR merge resolution.
+target_sources(NeoEngineRuntime PRIVATE
+    Core/ECS/ArchetypeManager.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
+)
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
