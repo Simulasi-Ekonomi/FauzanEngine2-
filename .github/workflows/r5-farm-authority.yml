@@ -9,7 +9,6 @@ on:
       - 'Tests/Systems/authority_loopback_transport_smoke.cpp'
       - '.github/workflows/r5-farm-authority.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/Farm/farm_authoritative_session_loopback_smoke.cpp'
