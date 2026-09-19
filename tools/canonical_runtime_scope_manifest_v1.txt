@@ -31,7 +31,6 @@ non_active_legacy|Core/Memory/MemoryPool.h
 non_active_experimental|ECS/V4/FauzanECSSystems.h
 non_active_legacy|Platform/Android/AndroidPlatform.cpp
 non_active_fail_closed_legacy|Rendering/RHI/Vulkan/VulkanRHI.cpp
-non_active_legacy|Rendering/Rendering/FrameGraph/FrameGraph.h
 active_enum_marker|Runtime/RendererCapability.h
 non_active_legacy|Streaming/StreamManager.h
 third_party_upstream_marker|ThirdParty/tiny_obj_loader.h
