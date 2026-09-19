@@ -171,6 +171,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
     Systems/FarmCommerceCheckpointFile.cpp
+    Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmWorldTool.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -329,11 +330,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_entitlement_smoke.cpp")
     add_xpbd_executable(farm_commerce_entitlement_smoke ../../Tests/Farm/farm_commerce_entitlement_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp")
     add_xpbd_executable(farm_commerce_checkpoint_smoke ../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_service_smoke.cpp")
     add_xpbd_executable(farm_authoritative_service_smoke ../../Tests/Farm/farm_authoritative_service_smoke.cpp)
 endif()
