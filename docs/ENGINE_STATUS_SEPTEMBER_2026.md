@@ -1,3 +1,10 @@
+
+
+---
+
+## CURRENT STATUS OVERRIDE — 2026-09-19
+Authoritative current checkpoint: branch `p3-editor-android-production-night`, code `c2df50300e488936cb777bf9a543f8c988f4af30`, main baseline `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`, PR #71. PR merge-ref `1564142` currently has Renderer 3D Vulkan Smoke **FAIL** at native link with unresolved `VulkanGPUBuffer`, `VulkanDescriptorManager`, and `GPUSkinningPaletteBuffer`; the other named PR workflows reported by the current CI query are **PASS**. Termux/device is **UNVERIFIED — TERMUX REQUIRED**. XPBD 100K bodies / 200K collision tests / strictly <5 ms is **not benchmark-proven**. P0–P4 are all mandatory 100% targets; no current phase is certified 100%.
+
 # FauzanEngine2 Status Report
 **Date:** September 5, 2026  
 **Current Milestone:** R4 COMPLETE  
