@@ -40,6 +40,8 @@ jobs:
         run: cmake -S Source/NeoEngine -B build/r3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build and run Release smoke under Xvfb
+        id: release_smoke
+        continue-on-error: true
         run: |
           set +e
           cmake --build build/r3-release --target farm_vulkan_textured_present_smoke neo_runtime_vulkan_integration_smoke -j2
@@ -67,9 +69,19 @@ jobs:
             '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
 
       - name: Build and run ASAN smoke under Xvfb
+        id: asan_smoke
         env:
           ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
         run: |
           cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke neo_runtime_vulkan_integration_smoke -j2
           xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-asan/farm_vulkan_textured_present_smoke
           xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-asan/neo_runtime_vulkan_integration_smoke
+
+      - name: Enforce R3 smoke results
+        if: always()
+        run: |
+          echo "R3_RELEASE_STEP=${{ steps.release_smoke.outcome }}"
+          echo "R3_ASAN_STEP=${{ steps.asan_smoke.outcome }}"
+          if [ "${{ steps.release_smoke.outcome }}" != "success" ] || [ "${{ steps.asan_smoke.outcome }}" != "success" ]; then
+            exit 1
+          fi
