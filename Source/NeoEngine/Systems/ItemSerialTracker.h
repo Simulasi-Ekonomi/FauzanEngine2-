@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <mutex>
 #include <random>
 #include <chrono>
@@ -86,7 +87,7 @@ public:
                            const std::string& toId, const std::string& toName, const std::string& method);
 
 private:
-    std::unordered_map<std::string, SerialNumber> m_Registry;
+    std::map<std::string, SerialNumber> m_Registry;
     std::vector<std::string> m_PendingVerification;
     std::string m_ServerURL = "https://api.fauzanengine.com/verify-item";
     std::string m_ServerPublicKey;
