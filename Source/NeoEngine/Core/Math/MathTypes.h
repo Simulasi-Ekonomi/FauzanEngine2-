@@ -1,12 +1,3 @@
 #pragma once
 
-namespace NeoEngine {
-
-
-struct Mat4
-{
-    float m[16];
-};
-
-}
-
+#include "Mat4.h"
