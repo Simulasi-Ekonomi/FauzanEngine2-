@@ -120,7 +120,9 @@ bool ItemSerialTracker::VerifyWithServer(const std::string& serialNumber) {
     m_PendingVerification.erase(
         std::remove(m_PendingVerification.begin(), m_PendingVerification.end(), serialNumber),
         m_PendingVerification.end());
-    if (m_OnVerified) m_OnVerified(serialNumber);
+    const auto callback = m_OnVerified;
+    // Never execute user callbacks while holding the tracker mutex.
+    if (callback) callback(serialNumber);
     return true;
 }
 
