@@ -12,7 +12,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
  receipt.ecsEntities=runtime.SceneECS().ecsCount;
  receipt.sceneECSConsistent=runtime.SceneECS().sceneCount==receipt.sceneEntities &&
                               runtime.SceneECS().ecsCount==receipt.sceneEntities;
- receipt.sceneECSRevisionValid=runtime.SceneECS().ecsRevision==runtime.ECS()->GetPhysicsRevision();
+ receipt.sceneECSRevisionValid=runtime.SceneECS().revision==runtime.ECS()->GetPhysicsRevision();
  if(!receipt.sceneECSConsistent){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
  if(!receipt.sceneECSRevisionValid){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  receipt.sceneMeshRegistryValid=runtime.SceneMeshes()!=nullptr;
