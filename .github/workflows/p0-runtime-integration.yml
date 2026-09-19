@@ -53,37 +53,42 @@ jobs:
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/p0-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build and run Release smoke
-        id: release_smoke
-        continue-on-error: true
+      - name: Build and run P0 Release smoke matrix
         run: |
-          set +e
-          cmake --build build/p0-release --target p0_runtime_physics_integration_smoke -j2
-          build_status=$?
-          if [ "$build_status" -eq 0 ]; then
-            ./build/p0-release/p0_runtime_physics_integration_smoke
-            smoke_status=$?
-          else
-            smoke_status=1
-          fi
-          echo "build_status=$build_status" >> "$GITHUB_OUTPUT"
-          echo "smoke_status=$smoke_status" >> "$GITHUB_OUTPUT"
-          if [ "$build_status" -ne 0 ] || [ "$smoke_status" -ne 0 ]; then exit 1; fi
-
-      - name: Diagnose Release crash
-        if: steps.release_smoke.outputs.smoke_status != '0'
-        run: |
-          set +e
-          gdb -batch -ex run -ex bt --args ./build/p0-release/p0_runtime_physics_integration_smoke
-          exit 0
+          set -e
+          targets=(
+            canonical_runtime_world_smoke
+            item_serial_tracker_smoke
+            neo_runtime_ecs_integration_smoke
+            p0_runtime_physics_integration_smoke
+            runtime_frame_contract_smoke
+            renderer_capability_smoke
+          )
+          cmake --build build/p0-release --target "${targets[@]}" -j2
+          for target in "${targets[@]}"; do
+            echo "=== RUN $target ==="
+            "./build/p0-release/$target"
+          done
 
       - name: Configure AddressSanitizer
         run: |
           cmake -S Source/NeoEngine -B build/p0-asan -G Ninja             -DCMAKE_BUILD_TYPE=Debug             '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer'             '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
 
-      - name: Build and run ASAN smoke
+      - name: Build and run P0 ASAN smoke matrix
         env:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
         run: |
-          cmake --build build/p0-asan --target p0_runtime_physics_integration_smoke -j2
-          ./build/p0-asan/p0_runtime_physics_integration_smoke
+          set -e
+          targets=(
+            canonical_runtime_world_smoke
+            item_serial_tracker_smoke
+            neo_runtime_ecs_integration_smoke
+            p0_runtime_physics_integration_smoke
+            runtime_frame_contract_smoke
+            renderer_capability_smoke
+          )
+          cmake --build build/p0-asan --target "${targets[@]}" -j2
+          for target in "${targets[@]}"; do
+            echo "=== RUN $target ==="
+            "./build/p0-asan/$target"
+          done
