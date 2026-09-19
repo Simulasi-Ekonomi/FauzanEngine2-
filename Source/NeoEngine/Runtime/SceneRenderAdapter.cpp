@@ -93,6 +93,19 @@ Mat4 MakeModel(const Transform3& transform) {
     return model;
 }
 
+bool ValidateECSAssetIdentity(const SceneMeshInstance& instance, const ArchetypeManager& ecs,
+                               const SceneECSBridge& sceneECS) {
+    const EntityID ecsId = sceneECS.ECSId(instance.entity);
+    if (!ecs.HasEntity(ecsId) || (ecs.GetComponentMask(ecsId) & COMP_MESH) == 0U) return false;
+    uint64_t meshHash = 0U;
+    uint64_t materialHash = 0U;
+    if (!ecs.TryGetMeshAssetIdentity(ecsId, meshHash, materialHash)) return false;
+    if (instance.sourceHash == 0U || meshHash != instance.sourceHash) return false;
+    if (!instance.sourceMaterialAssetId.empty() &&
+        (instance.sourceMaterialHash == 0U || materialHash != instance.sourceMaterialHash)) return false;
+    return true;
+}
+
 bool MakeECSModel(const SceneMeshInstance& instance, const ArchetypeManager& ecs,
                   const SceneECSBridge& sceneECS, Mat4& model) {
     const EntityID ecsId = sceneECS.ECSId(instance.entity);
@@ -157,7 +170,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
 
         Mat4 model{};
         if (ecs != nullptr) {
-            if (!MakeECSModel(instance, *ecs, *sceneECS, model)) {
+            if (!ValidateECSAssetIdentity(instance, *ecs, *sceneECS) || !MakeECSModel(instance, *ecs, *sceneECS, model)) {
                 lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
                 renderer.EndFrame();
                 return false;
@@ -214,7 +227,8 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         for (const size_t instanceIndex : batch.instances) {
             Mat4 model{};
             if (ecs != nullptr) {
-                if (!MakeECSModel(meshes.Instances()[instanceIndex], *ecs, *sceneECS, model)) {
+                if (!ValidateECSAssetIdentity(meshes.Instances()[instanceIndex], *ecs, *sceneECS) ||
+                    !MakeECSModel(meshes.Instances()[instanceIndex], *ecs, *sceneECS, model)) {
                     lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
                     renderer.EndFrame();
                     return false;
