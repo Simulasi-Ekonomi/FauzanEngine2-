@@ -20,7 +20,6 @@ on:
       - 'Tests/Runtime/editor_subsystem_smoke.cpp'
       - '.github/workflows/r4-input-audio.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/Runtime/SdlAudioBridge.*'
       - 'Source/NeoEngine/Runtime/SdlInputBridge.*'
