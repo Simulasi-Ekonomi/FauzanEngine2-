@@ -31,6 +31,8 @@ private:
      size_t cursor=0;
      uint16_t gain=256;
      float pan=0.0f;
+     float pitch=1.0f;
+     float position[3]{0.0f,0.0f,0.0f};
      bool looping=false;
      bool spatialized=false;
  };
