@@ -1,6 +1,7 @@
 #pragma once
 #include "Core/ECS/ArchetypeManager.h"
 #include "SceneWorld.h"
+#include "SceneMeshAdapter.h"
 #include <cstdint>
 #include <unordered_map>
 namespace NeoEngine {
@@ -9,6 +10,7 @@ class SceneECSBridge {
 public:
  bool Rebuild(SceneWorld& scene, ArchetypeManager& ecs);
  bool Sync(SceneWorld& scene, ArchetypeManager& ecs);
+ bool Sync(SceneWorld& scene, ArchetypeManager& ecs, const SceneMeshAdapter& meshes);
  const SceneECSBridgeReceipt& LastReceipt() const { return receipt_; }
  EntityID ECSId(SceneEntity entity) const;
 private:
