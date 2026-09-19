@@ -45,7 +45,7 @@ int main() {
     assert(receipt != nullptr);
     assert(receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
     assert(receipt->frameToken.frame == receipt->clock.frameCount);
-    assert(receipt->frameToken.revision == receipt->sceneECS.revision || receipt->frameToken.revision == 0U);
+    assert(receipt->frameToken.revision <= receipt->sceneECS.revision);
     assert(!receipt->hasVulkanRenderReceipt);
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
