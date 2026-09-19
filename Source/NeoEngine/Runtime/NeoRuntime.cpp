@@ -79,6 +79,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     authoringWorldConfig.seed = config.authoringWorldSeed;
     if (!authoringWorld->Generate(authoringWorldConfig) || !authoringWorld->BindScene(*scene)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto ecs = std::make_unique<ArchetypeManager>();
+    auto physics = std::make_unique<XPBDPhysicsSystem>();
     auto sceneMeshes = std::make_unique<SceneMeshAdapter>();
     SceneECSBridge sceneECSBridge;
     if (!sceneECSBridge.Rebuild(*scene, *ecs)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
@@ -180,6 +181,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
     m_ECS = std::move(ecs);
+    m_Physics = std::move(physics);
     m_SceneMeshes = std::move(sceneMeshes);
     m_SceneECSBridge = std::move(sceneECSBridge);
     m_SceneCameraConfig = config.sceneCamera;
@@ -261,6 +263,8 @@ bool NeoRuntime::Tick() {
     if (!frameContract.Advance(RuntimeFrameStage::Simulation)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!m_ECS || !m_SceneMeshes || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (!m_Physics) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    m_Physics->Step(*m_ECS, m_Clock->Snapshot().scaledDeltaSeconds);
     if (!m_SceneMeshes->AdvanceSkeletalAnimations(m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!frameContract.Advance(RuntimeFrameStage::SceneSnapshot)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
@@ -519,6 +523,7 @@ bool NeoRuntime::Shutdown() {
     m_LastCurriculumEvents.clear();
     m_AuthoringWorld.reset();
     m_Scene.reset();
+    m_Physics.reset();
     m_ECS.reset();
     m_Assets.reset();
     m_FarmAuthority.reset();
