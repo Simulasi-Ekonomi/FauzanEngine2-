@@ -12,7 +12,7 @@ struct SpatialVoiceParams { uint32_t id=0; std::vector<int16_t> mono; bool spati
 class AudioMixer {
 public:
  static constexpr size_t kMaxVoices=32,kMaxSamplesPerVoice=480000;
- // The fourth parameter is additive: existing callers retain the original API
+ // The optional looping/pitch parameters are additive: existing callers retain the original API
  // behavior while components can request looping without forcing spatialization.
  bool Play(uint32_t id,std::vector<int16_t> mono,uint16_t gainQ8=256,bool looping=false,float pitch=1.0f);
  bool PlaySpatial(const SpatialVoiceParams& params);
@@ -29,6 +29,7 @@ private:
      uint32_t id=0;
      std::vector<int16_t> samples;
      size_t cursor=0;
+     double cursorSubframe=0.0;
      uint16_t gain=256;
      float pan=0.0f;
      float pitch=1.0f;
