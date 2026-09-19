@@ -47,6 +47,7 @@ int main() {
     spatial.SetPosition(2.0f, 0.0f, 0.0f);
     spatial.SetLooping(true);
     spatial.SetPitch(0.75f);
+    assert(!([&] { SpatialVoiceParams invalid; invalid.id = 3; invalid.mono = decodedSamples; invalid.pitch = 0.0f; return mixer.PlaySpatial(invalid); })());
     assert(spatial.Play(mixer));
     mixer.Mix(64, output);
     assert(output.size() == 128 && mixer.ActiveVoices() == 1);
