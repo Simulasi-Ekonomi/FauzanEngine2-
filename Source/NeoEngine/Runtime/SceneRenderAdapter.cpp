@@ -10,10 +10,10 @@
 
 namespace NeoEngine {
 namespace {
-struct Mat4 { std::array<float, 16> v{}; };
+struct RenderMat4 { std::array<float, 16> v{}; };
 
-Mat4 Multiply(const Mat4& a, const Mat4& b) {
-    Mat4 out{};
+RenderMat4 Multiply(const RenderMat4& a, const RenderMat4& b) {
+    RenderMat4 out{};
     for (int column = 0; column < 4; ++column) {
         for (int row = 0; row < 4; ++row) {
             float value = 0.0F;
@@ -30,11 +30,11 @@ RenderPoint3 Normalize(RenderPoint3 value) {
     return {value.x / length, value.y / length, value.z / length};
 }
 
-Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3 up) {
+RenderMat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3 up) {
     const RenderPoint3 forward = Normalize(config.forward);
     right = Normalize(right);
     up = Normalize(up);
-    Mat4 view{};
+    RenderMat4 view{};
     view.v = {
         right.x, up.x, forward.x, 0.0F,
         right.y, up.y, forward.y, 0.0F,
@@ -47,8 +47,8 @@ Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3
     return view;
 }
 
-Mat4 MakeProjection(const RenderCameraConfig& config) {
-    Mat4 projection{};
+RenderMat4 MakeProjection(const RenderCameraConfig& config) {
+    RenderMat4 projection{};
     if (config.mode == RenderCameraMode::Orthographic) {
         const float halfHeight = std::max(0.001F, config.orthographicHalfHeight);
         const float aspect = std::max(0.001F, config.aspect);
@@ -79,11 +79,11 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
     return projection;
 }
 
-Mat4 MakeModel(const Transform3& transform) {
+RenderMat4 MakeModel(const Transform3& transform) {
     const float cx = std::cos(transform.rx), sx = std::sin(transform.rx);
     const float cy = std::cos(transform.ry), sy = std::sin(transform.ry);
     const float cz = std::cos(transform.rz), sz = std::sin(transform.rz);
-    Mat4 model{};
+    RenderMat4 model{};
     model.v = {
         (cz * cy) * transform.sx, (sz * cy) * transform.sx, (-sy) * transform.sx, 0.0F,
         (cz * sy * sx - sz * cx) * transform.sy, (sz * sy * sx + cz * cx) * transform.sy, (cy * sx) * transform.sy, 0.0F,
@@ -107,7 +107,7 @@ bool ValidateECSAssetIdentity(const SceneMeshInstance& instance, const Archetype
 }
 
 bool MakeECSModel(const SceneMeshInstance& instance, const ArchetypeManager& ecs,
-                  const SceneECSBridge& sceneECS, Mat4& model) {
+                  const SceneECSBridge& sceneECS, RenderMat4& model) {
     const EntityID ecsId = sceneECS.ECSId(instance.entity);
     if (!ecs.HasEntity(ecsId)) return false;
 
@@ -150,7 +150,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         return false;
     }
 
-    const Mat4 viewProjection = Multiply(MakeProjection(config), MakeView(config, camera.Right(), camera.Up()));
+    const RenderMat4 viewProjection = Multiply(MakeProjection(config), MakeView(config, camera.Right(), camera.Up()));
     if (!renderer.BeginFrame(clearR, clearG, clearB, clearA)) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
@@ -168,7 +168,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             return false;
         }
 
-        Mat4 model{};
+        RenderMat4 model{};
         if (ecs != nullptr) {
             if (!ValidateECSAssetIdentity(instance, *ecs, *sceneECS) || !MakeECSModel(instance, *ecs, *sceneECS, model)) {
                 lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
@@ -237,7 +237,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
                 }
                 indices.push_back(static_cast<uint32_t>(index));
             }
-            Mat4 model{};
+            RenderMat4 model{};
             if (ecs != nullptr) {
                 if (!ValidateECSAssetIdentity(first, *ecs, *sceneECS) || !MakeECSModel(first, *ecs, *sceneECS, model)) {
                     lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
@@ -253,7 +253,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
                 }
                 model = MakeModel(*transform);
             }
-            const std::span<const Mat4> palette(first.skeletalPalette.data(), first.skeletalPalette.size());
+            const std::span<const NeoEngine::Mat4> palette(first.skeletalPalette.data(), first.skeletalPalette.size());
             if (!renderer.DrawIndexedSkinnedInstancedWithViewProjection(
                     vertices, indices, std::span<const float>(model.v.data(), model.v.size()), palette,
                     viewProjection.v.data())) {
@@ -286,7 +286,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         std::vector<float> transforms;
         transforms.reserve(batch.instances.size() * 16U);
         for (const size_t instanceIndex : batch.instances) {
-            Mat4 model{};
+            RenderMat4 model{};
             if (ecs != nullptr) {
                 if (!ValidateECSAssetIdentity(meshes.Instances()[instanceIndex], *ecs, *sceneECS) ||
                     !MakeECSModel(meshes.Instances()[instanceIndex], *ecs, *sceneECS, model)) {
