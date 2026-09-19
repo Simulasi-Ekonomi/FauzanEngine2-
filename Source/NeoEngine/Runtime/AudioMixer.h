@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class AudioAttenuationModel : uint8_t { Linear, InverseSquare };
+enum class AudioAttenuationModel : uint8_t { Linear, InverseSquare, Logarithmic };
 struct AudioAttenuation { AudioAttenuationModel model = AudioAttenuationModel::InverseSquare; float minDistance = 1.0f; float maxDistance = 100.0f; float minVolume = 0.0f; };
 struct AudioListener { float position[3]{0,0,0}; float forward[3]{0,0,1}; float up[3]{0,1,0}; };
 struct SpatialVoiceParams { uint32_t id=0; std::vector<int16_t> mono; bool spatialized=false; float position[3]{0,0,0}; AudioAttenuation attenuation{}; uint16_t gainQ8=256; bool looping=false; float pitch=1.0f; };
