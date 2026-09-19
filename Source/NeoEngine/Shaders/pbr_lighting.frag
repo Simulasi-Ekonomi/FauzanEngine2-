@@ -85,6 +85,7 @@ vec3 BuildNormalFromMap(vec3 geometricNormal) {
     vec3 bitangent = -dp1 * duv2.x + dp2 * duv1.x;
     float tangentLength = length(tangent);
     float bitangentLength = length(bitangent);
+    float handedness = (duv1.x * duv2.y - duv1.y * duv2.x) < 0.0 ? -1.0 : 1.0;
 
     if (tangentLength <= EPSILON || bitangentLength <= EPSILON) {
         vec3 reference = abs(n.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
@@ -92,7 +93,7 @@ vec3 BuildNormalFromMap(vec3 geometricNormal) {
         bitangent = normalize(cross(n, tangent));
     } else {
         tangent = normalize(tangent - n * dot(n, tangent));
-        bitangent = normalize(cross(n, tangent));
+        bitangent = normalize(cross(n, tangent)) * handedness;
     }
 
     vec3 tangentNormal = texture(normalMap, inUV).xyz * 2.0 - 1.0;
