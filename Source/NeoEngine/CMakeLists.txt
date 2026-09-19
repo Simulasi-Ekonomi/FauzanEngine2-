@@ -351,6 +351,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gpu_skinning_palette_
     add_xpbd_executable(gpu_skinning_palette_buffer_smoke ../../Tests/Runtime/gpu_skinning_palette_buffer_smoke.cpp)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/scene_mesh_animation_binding_smoke.cpp")
+    add_xpbd_executable(scene_mesh_animation_binding_smoke ../../Tests/Rendering/scene_mesh_animation_binding_smoke.cpp)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/archetype_manager_smoke.cpp")
     add_xpbd_executable(archetype_manager_smoke ../../Tests/Runtime/archetype_manager_smoke.cpp)
 endif()
