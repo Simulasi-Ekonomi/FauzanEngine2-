@@ -36,7 +36,7 @@ std::string SceneResult(const char* operation, const EditorSceneSession& session
     Json::Value root(Json::objectValue);
     root["ok"] = true;
     root["operation"] = operation;
-    root["revision"] = Json::UInt64(session.HierarchySnapshot().empty() ? 0U : session.HierarchySnapshot().size());
+    root["revision"] = Json::UInt64(session.Document().revision);
     root["actorCount"] = Json::UInt64(session.HierarchySnapshot().size());
     root["selectedActorId"] = session.SelectedActorId();
     Json::Value actors(Json::arrayValue);
