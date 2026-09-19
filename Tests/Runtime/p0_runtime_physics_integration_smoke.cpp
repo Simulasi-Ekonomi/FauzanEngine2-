@@ -70,6 +70,10 @@ int main() {
         return 8;
     }
 
+    const float finalX = after->x;
+    const uint32_t finalBodies = receipt->physicsBodyCount;
+    const uint64_t finalStepUs = receipt->physicsStepMicroseconds;
+
     if (!runtime.DestroyPhysicsBody(actor)) {
         std::fprintf(stderr, "P0_PHYSICS_SMOKE: physics body destruction failed\n");
         runtime.Shutdown();
