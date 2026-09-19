@@ -2,6 +2,7 @@
 #include "AssetRegistry.h"
 #include "SceneWorld.h"
 #include "Core/ECS/ArchetypeManager.h"
+#include "Physics/V5/XPBDPhysicsSystem.h"
 #include "SceneECSBridge.h"
 #include "SoftwareRenderer.h"
 #include "Vulkan3DRenderer.h"
@@ -93,6 +94,8 @@ public:
     const WorldAuthoring* AuthoringWorld() const { return m_AuthoringWorld.get(); }
     ArchetypeManager* ECS() { return m_ECS.get(); }
     const ArchetypeManager* ECS() const { return m_ECS.get(); }
+    XPBDPhysicsSystem* Physics() { return m_Physics.get(); }
+    const XPBDPhysicsSystem* Physics() const { return m_Physics.get(); }
     const SceneECSBridgeReceipt& SceneECS() const { return m_SceneECSBridge.LastReceipt(); }
     EntityID SceneECSId(SceneEntity entity) const { return m_SceneECSBridge.ECSId(entity); }
     SceneWorld* Scene() { return m_Scene.get(); }
@@ -168,6 +171,7 @@ private:
     std::unique_ptr<MovementAuthorityGate> m_MotionAuthority;
     std::unique_ptr<SceneWorld> m_Scene;
     std::unique_ptr<ArchetypeManager> m_ECS;
+    std::unique_ptr<XPBDPhysicsSystem> m_Physics;
     SceneECSBridge m_SceneECSBridge;
     std::unique_ptr<SceneMeshAdapter> m_SceneMeshes;
     std::unique_ptr<RenderCamera> m_SceneCamera;
