@@ -3,6 +3,7 @@
 #include "Runtime/MaterialStaging.h"
 #include <cassert>
 #include <limits>
+#include <cstdio>
 
 int main() {
     using namespace NeoEngine;
@@ -21,7 +22,9 @@ int main() {
     config.sceneCamera.nearPlane = 0.1F;
     config.sceneCamera.farPlane = 100.0F;
 
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: initialize\n");
     assert(runtime.Initialize(config));
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: initialized\n");
     const auto entities = runtime.Scene()->AliveEntities();
     assert(!entities.empty());
 
@@ -41,12 +44,15 @@ int main() {
     material.sourceHash = 0x8877665544332211ULL;
 
     assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: staged\n");
 
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: tick\n");
     if (!runtime.Tick()) {
         runtime.Shutdown();
         return 2;
     }
 
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: tick returned\n");
     const NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
     assert(receipt != nullptr);
     assert(receipt->frameStage == RuntimeFrameStage::Completed);
@@ -57,6 +63,8 @@ int main() {
     assert(runtime.VulkanRenderer() != nullptr);
     assert(runtime.VulkanRenderer()->Ready());
 
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: shutdown\n");
     assert(runtime.Shutdown());
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: shutdown returned\n");
     return 0;
 }
