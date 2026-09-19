@@ -167,14 +167,43 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
             const int32_t s0 = voice.samples[idx0];
             const int32_t s1 = voice.samples[idx1];
             const int32_t interpolated = static_cast<int32_t>(std::llround(static_cast<double>(s0) + frac * static_cast<double>(s1 - s0)));
-            const int64_t sample = static_cast<int64_t>(interpolated) * voice.gain / 256;
+            float dynamicGain = static_cast<float>(voice.gain) / 256.0f;
+            float dynamicPan = voice.pan;
+            if (voice.spatialized) {
+                const float dx = voice.position[0] - m_Listener.position[0];
+                const float dy = voice.position[1] - m_Listener.position[1];
+                const float dz = voice.position[2] - m_Listener.position[2];
+                const float distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+                const float minD = 1.0f;
+                const float maxD = 100.0f;
+                float attenuation = 1.0f;
+                if (distance >= maxD) attenuation = 0.0f;
+                else if (distance > minD) {
+                    const float t = (distance - minD) / (maxD - minD);
+                    attenuation = 1.0f - t;
+                }
+                dynamicGain *= attenuation;
+                if (distance > 0.001f) {
+                    float forward[3]{m_Listener.forward[0], m_Listener.forward[1], m_Listener.forward[2]};
+                    float up[3]{m_Listener.up[0], m_Listener.up[1], m_Listener.up[2]};
+                    if (Normalize3(forward) && Normalize3(up)) {
+                        const float fu = Dot3(forward, up);
+                        up[0] -= forward[0] * fu; up[1] -= forward[1] * fu; up[2] -= forward[2] * fu;
+                        if (Normalize3(up)) {
+                            const float rightAxis[3]{up[1]*forward[2]-up[2]*forward[1], up[2]*forward[0]-up[0]*forward[2], up[0]*forward[1]-up[1]*forward[0]};
+                            dynamicPan = std::clamp((dx*rightAxis[0]+dy*rightAxis[1]+dz*rightAxis[2])/distance, -1.0f, 1.0f);
+                        }
+                    }
+                }
+            }
+            const int64_t sample = static_cast<int64_t>(std::llround(static_cast<double>(interpolated) * dynamicGain));
             voice.cursorSubframe += voice.pitch;
             voice.cursor = static_cast<size_t>(voice.cursorSubframe);
             if (!voice.spatialized) {
                 left += sample;
                 right += sample;
             } else {
-                const float pan = std::clamp(voice.pan, -1.0f, 1.0f);
+                const float pan = std::clamp(dynamicPan, -1.0f, 1.0f);
                 constexpr float kHalfPi = 1.57079632679489661923f;
                 const float angle = (pan + 1.0f) * 0.5f * kHalfPi;
                 const float leftGain = std::cos(angle);
