@@ -41,9 +41,23 @@ jobs:
 
       - name: Build and run Release smoke under Xvfb
         run: |
+          set +e
           cmake --build build/r3-release --target farm_vulkan_textured_present_smoke neo_runtime_vulkan_integration_smoke -j2
-          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-release/farm_vulkan_textured_present_smoke
-          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-release/neo_runtime_vulkan_integration_smoke
+          build_status=$?
+          if [ "$build_status" -eq 0 ]; then
+            xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-release/farm_vulkan_textured_present_smoke
+            farm_status=$?
+            xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-release/neo_runtime_vulkan_integration_smoke
+            runtime_status=$?
+          else
+            farm_status=1
+            runtime_status=1
+          fi
+          echo "R3_RELEASE_FARM_STATUS=${farm_status}"
+          echo "R3_RELEASE_RUNTIME_STATUS=${runtime_status}"
+          if [ "$build_status" -ne 0 ] || [ "$farm_status" -ne 0 ] || [ "$runtime_status" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Configure AddressSanitizer
         run: |
