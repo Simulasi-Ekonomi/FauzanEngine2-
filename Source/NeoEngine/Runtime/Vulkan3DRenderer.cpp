@@ -13,6 +13,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <cmath>
 
 namespace NeoEngine {
 namespace {
@@ -282,6 +283,17 @@ bool Vulkan3DRenderer::DrawIndexedSkinnedInstancedWithViewProjection(
     if (n == 0U || n > 1000000U || n > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
         lastError_ = Vulkan3DRendererError::BufferFailure;
         return false;
+    }
+    for (const Vulkan3DSkinnedVertex& vertex : vertices) {
+        if (vertex.bone0 >= bonePalette.size() || vertex.bone1 >= bonePalette.size() ||
+            vertex.bone2 >= bonePalette.size() || vertex.bone3 >= bonePalette.size() ||
+            !std::isfinite(vertex.weight0) || !std::isfinite(vertex.weight1) ||
+            !std::isfinite(vertex.weight2) || !std::isfinite(vertex.weight3) ||
+            vertex.weight0 < 0.0F || vertex.weight1 < 0.0F ||
+            vertex.weight2 < 0.0F || vertex.weight3 < 0.0F) {
+            lastError_ = Vulkan3DRendererError::BufferFailure;
+            return false;
+        }
     }
     if (!impl_->skinPalette.UploadPalette(std::vector<Mat4>(bonePalette.begin(), bonePalette.end()))) {
         lastError_ = Vulkan3DRendererError::BufferFailure;
