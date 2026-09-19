@@ -8,7 +8,6 @@ on:
       - 'tools/android_release_signing_guard_smoke.sh'
       - '.github/workflows/r11-android-signing-guard.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'android/app/build.gradle'
       - 'tools/android_release_signing_guard_smoke.sh'
