@@ -1,4 +1,6 @@
 #include "Runtime/NeoRuntime.h"
+#include "Runtime/MeshStaging.h"
+#include "Runtime/MaterialStaging.h"
 #include <cassert>
 #include <limits>
 
