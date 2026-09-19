@@ -88,6 +88,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/Vulkan3DRenderer.cpp
+    Runtime/VulkanDescriptorManager.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
