@@ -5,7 +5,8 @@
 - PR: #71 — `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
 - Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
 - Last code checkpoint: `140449a41cbd04c09e74c7294a9d0e27b8264183`
-- Latest documentation checkpoint: `112fd47a182c8f6b435509bdffd19a68c23b0b07`
+- Latest documentation checkpoint: `97041be67e347a02b80754731edbc8731b91281b`
+- This status update is the latest handoff checkpoint.
 - Main merge: **NOT AUTHORIZED / DO NOT MERGE**
 - Termux/device verification: **UNVERIFIED — TERMUX REQUIRED**
 
@@ -31,16 +32,21 @@ These percentages are roadmap completion indicators, not production certificatio
 - XPBD total-step wall-clock instrumentation.
 - GPU skinning palette buffer foundation and initial Vulkan GLSL skinning shader.
 - Required CMake registrations and R2 closure fixes.
-- Current CI checkpoint `140449a4` passed:
-  - CI Lint & Type Check
-  - Renderer 3D Vulkan Smoke
-  - PBR Validation
-  - Build Android APK
-  - R1 Canonical Game Tool
-  - R2 canonical Farm loop
-  - R3 Farm renderer path
-  - R5 Farm authority reconnect
-  - R6 Farm fraud trust
+- Cross-room handover protocol and branch checkpoint documentation are now present.
+
+## CI evidence — exact code checkpoint
+Commit `140449a41cbd04c09e74c7294a9d0e27b8264183` passed:
+- CI Lint & Type Check
+- Renderer 3D Vulkan Smoke
+- PBR Validation
+- Build Android APK
+- R1 Canonical Game Tool
+- R2 canonical Farm loop
+- R3 Farm renderer path
+- R5 Farm authority reconnect
+- R6 Farm fraud trust
+
+Documentation commits after that code checkpoint do not change engine behavior.
 
 ## Important unresolved gaps
 ### 1. ECS mesh/material identity is not yet authoritative
@@ -70,7 +76,7 @@ Palette buffer and shader foundation exist. Actual descriptor/vertex-input/pipel
 CI APK passes, but device matrix/install/run/Vulkan driver/device-loss/suspend-resume evidence remains pending.
 
 ## Exact next action
-1. Audit `AssetRegistry`, `AssetResourceManager`, `SceneMeshAdapter`, `SceneRenderAdapter`, and existing asset identity fields.
+1. Audit the actual existing asset identity contracts: `AssetRegistry`, `AssetResourceManager`, `SceneMeshAdapter`, `SceneRenderAdapter`, and all active mesh/material identity fields.
 2. Determine whether an existing stable mesh/material identity can safely become ECS-authoritative.
 3. If yes, integrate with exact existing contracts and add a focused smoke test.
 4. If no, document the boundary and continue P0/P1 without creating a duplicate registry.
@@ -78,7 +84,13 @@ CI APK passes, but device matrix/install/run/Vulkan driver/device-loss/suspend-r
 6. Keep main untouched and do not claim Termux/device verification.
 
 ## Room continuation rule
-A new room must start from this file, verify the branch HEAD, inspect the exact current files, then continue from **Exact next action**. Do not rely on an older chat summary if repository evidence differs.
+A new room must start from:
+1. `AGENTS.md`
+2. `docs/AI_ENGINE_WORK_STANDARD.md`
+3. `AI_HANDOVER_PROTOCOL.md`
+4. this `BRANCH_STATUS.md)
+
+Then verify the branch HEAD and PR state, inspect the exact current files, and continue from **Exact next action**. Do not rely on an older chat summary if repository evidence differs.
 
 ## User engineering constraints
 - No destructive rewrites.
@@ -87,3 +99,4 @@ A new room must start from this file, verify the branch HEAD, inspect the exact 
 - No downgrade/simplification of intended engine capability.
 - No invented paths or APIs.
 - No merge to main without explicit user authorization.
+- Workflow: READ → ANALYZE → EDIT → BUILD/CI → TEST → BENCHMARK → REVIEW → APPROVE → COMMIT → PUSH.
