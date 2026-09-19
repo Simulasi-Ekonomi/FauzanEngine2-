@@ -11,6 +11,7 @@
 #include "SoftwareSurfacePresenter.h"
 #include "RuntimeClock.h"
 #include "RuntimeTimeSystem.h"
+#include "RuntimeFrameContract.h"
 #include "RuntimeTimerQueue.h"
 #include "RuntimePersistence.h"
 #include "ActorComponentWorld.h"
@@ -40,7 +41,7 @@ namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
 enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
-struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; };
+struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeFrameToken frameToken{}; RuntimeFrameStage frameStage = RuntimeFrameStage::Failed; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; bool hasVulkanRenderReceipt = false; Vulkan3DFrameStats vulkanRender{}; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
 struct RuntimeConfig {
     uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32;
