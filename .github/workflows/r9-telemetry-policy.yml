@@ -10,7 +10,6 @@ on:
       - 'Tests/Systems/telemetry_outbox_smoke.cpp'
       - '.github/workflows/r9-telemetry-policy.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
       - 'Source/NeoEngine/Systems/TelemetryOutbox.*'
