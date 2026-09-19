@@ -1,8 +1,6 @@
 #include "Runtime/NeoRuntime.h"
 #include "Runtime/MeshStaging.h"
 #include "Runtime/MaterialStaging.h"
-#include <cassert>
-#include <limits>
 #include <cstdio>
 
 int main() {
@@ -23,12 +21,24 @@ int main() {
     config.sceneCamera.farPlane = 100.0F;
 
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: initialize\n");
-    assert(runtime.Initialize(config));
+    if (!runtime.Initialize(config)) {
+        std::fprintf(stderr, "NEO_VULKAN_SMOKE: initialize failed error=%u\n",
+                     static_cast<unsigned>(runtime.LastError()));
+        return 1;
+    }
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: initialized\n");
-    std::fprintf(stderr, "NEO_VULKAN_SMOKE: scene query\\n");
+
+    const auto fail = [&runtime](const char* reason) {
+        std::fprintf(stderr, "NEO_VULKAN_SMOKE: validation failed: %s\n", reason);
+        runtime.Shutdown();
+        return 2;
+    };
+
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: scene query\n");
+    if (runtime.Scene() == nullptr) return fail("scene is null");
     const auto entities = runtime.Scene()->AliveEntities();
-    std::fprintf(stderr, "NEO_VULKAN_SMOKE: scene query returned\\n");
-    assert(!entities.empty());
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: scene query returned\n");
+    if (entities.empty()) return fail("scene has no entities");
 
     CpuMeshResource mesh{};
     mesh.assetId = "canonical.runtime.vulkan.mesh";
@@ -45,28 +55,37 @@ int main() {
     material.materialName = "canonical";
     material.sourceHash = 0x8877665544332211ULL;
 
-    assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
+    if (runtime.SceneMeshes() == nullptr ||
+        !runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material)) {
+        return fail("scene mesh staging failed");
+    }
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: staged\n");
 
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: tick\n");
     if (!runtime.Tick()) {
+        std::fprintf(stderr, "NEO_VULKAN_SMOKE: tick failed error=%u\n",
+                     static_cast<unsigned>(runtime.LastError()));
         runtime.Shutdown();
         return 2;
     }
 
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: tick returned\n");
     const NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
-    assert(receipt != nullptr);
-    assert(receipt->frameStage == RuntimeFrameStage::Completed);
-    assert(receipt->hasVulkanRenderReceipt);
-    assert(receipt->vulkanRender.vertexCount == 3U);
-    assert(receipt->vulkanRender.indexCount == 3U);
-    assert(receipt->vulkanRender.frameIndex > 0U);
-    assert(runtime.VulkanRenderer() != nullptr);
-    assert(runtime.VulkanRenderer()->Ready());
+    if (receipt == nullptr) return fail("frame receipt is null");
+    if (receipt->frameStage != RuntimeFrameStage::Completed) return fail("frame did not complete");
+    if (!receipt->hasVulkanRenderReceipt) return fail("Vulkan render receipt missing");
+    if (receipt->vulkanRender.vertexCount != 3U) return fail("unexpected Vulkan vertex count");
+    if (receipt->vulkanRender.indexCount != 3U) return fail("unexpected Vulkan index count");
+    if (receipt->vulkanRender.frameIndex == 0U) return fail("Vulkan frame index did not advance");
+    if (runtime.VulkanRenderer() == nullptr) return fail("Vulkan renderer is null");
+    if (!runtime.VulkanRenderer()->Ready()) return fail("Vulkan renderer is not ready");
 
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: shutdown\n");
-    assert(runtime.Shutdown());
+    if (!runtime.Shutdown()) {
+        std::fprintf(stderr, "NEO_VULKAN_SMOKE: shutdown failed error=%u\n",
+                     static_cast<unsigned>(runtime.LastError()));
+        return 3;
+    }
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: shutdown returned\n");
     return 0;
 }
