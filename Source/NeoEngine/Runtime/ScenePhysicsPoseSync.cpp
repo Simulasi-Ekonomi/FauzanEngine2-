@@ -81,9 +81,6 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
 
     for (const Binding& binding : bindings_) {
         if (!binding.physicsAuthoritative) continue;
-        GameplayPhysicsBodySnapshot snapshot{};
-        // SnapshotCircleBody is deliberately not used here to avoid coupling this
-        // bridge to the body-builder ownership contract. Read canonical ECS data.
         bool found = false;
         for (ArchetypeChunk* chunk : entities.GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
             for (size_t index = 0U; index < chunk->count; ++index) {
