@@ -25,8 +25,8 @@ bool Normalize3(float v[3]) {
 
 } // namespace
 
-bool AudioMixer::Play(uint32_t id, std::vector<int16_t> samples, uint16_t gainQ8, bool looping) {
-    if (id == 0 || samples.empty() || samples.size() > kMaxSamplesPerVoice || gainQ8 == 0) return false;
+bool AudioMixer::Play(uint32_t id, std::vector<int16_t> samples, uint16_t gainQ8, bool looping, float pitch) {
+    if (id == 0 || samples.empty() || samples.size() > kMaxSamplesPerVoice || gainQ8 == 0 || !std::isfinite(pitch) || pitch <= 0.001f || pitch > 8.0f) return false;
     for (const auto& voice : m_Voices) if (voice.id == id) return false;
     if (m_Voices.size() >= kMaxVoices) return false;
 
@@ -35,6 +35,7 @@ bool AudioMixer::Play(uint32_t id, std::vector<int16_t> samples, uint16_t gainQ8
     voice.samples = std::move(samples);
     voice.gain = gainQ8;
     voice.looping = looping;
+    voice.pitch = pitch;
     voice.spatialized = false;
     m_Voices.push_back(std::move(voice));
     return true;
@@ -101,7 +102,7 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     voice.samples = params.mono;
     voice.gain = static_cast<uint16_t>(scaledGain);
     voice.pan = pan;
-    voice.pitch = 1.0f;
+    voice.pitch = params.pitch;
     voice.position[0] = params.position[0];
     voice.position[1] = params.position[1];
     voice.position[2] = params.position[2];
