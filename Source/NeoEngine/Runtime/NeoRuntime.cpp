@@ -264,7 +264,9 @@ bool NeoRuntime::Tick() {
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!m_ECS || !m_SceneMeshes || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!m_Physics) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (!m_PhysicsPoseSync.Sync(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     m_Physics->Step(*m_ECS, m_Clock->Snapshot().scaledDeltaSeconds);
+    if (!m_PhysicsPoseSync.SyncFromPhysics(*m_Scene, *m_ECS) || !m_Scene->UpdateTransforms() || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!m_SceneMeshes->AdvanceSkeletalAnimations(m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!frameContract.Advance(RuntimeFrameStage::SceneSnapshot)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
@@ -286,6 +288,10 @@ bool NeoRuntime::Tick() {
     m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
     m_LastFrameReceipt.farmPlayerInput = farmPlayerInputReceipt; m_LastFrameReceipt.hasFarmPlayerInputReceipt = hasFarmPlayerInput; m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
     m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
+    m_LastFrameReceipt.physicsBodyCount = m_Physics == nullptr ? 0U : m_Physics->GetLastStepBodyCount();
+    m_LastFrameReceipt.physicsCollisionTests = m_Physics == nullptr ? 0U : m_Physics->GetLastStepCollisionTests();
+    m_LastFrameReceipt.physicsManifoldCount = m_Physics == nullptr ? 0U : m_Physics->GetManifoldCount();
+    m_LastFrameReceipt.physicsStepMicroseconds = m_Physics == nullptr ? 0U : m_Physics->GetLastStepElapsedMicroseconds();
     m_LastFrameReceipt.frameToken = frameContract.Token();
     m_LastFrameReceipt.frameStage = frameContract.Stage();
     m_LastFrameReceipt.hasVulkanRenderReceipt = m_EnableVulkan3DRenderer && m_VulkanRenderer != nullptr;
@@ -319,6 +325,57 @@ bool NeoRuntime::RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mes
     return true;
 }
 
+
+bool NeoRuntime::CreatePhysicsCircleBody(SceneEntity sceneEntity, const GameplayCircleBodyConfig& config, EntityID& physicsEntity) {
+    physicsEntity = 0U;
+    if (m_State != RuntimeState::Initialized || !m_Scene || !m_ECS || !m_Physics) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    const Transform3* transform = m_Scene->GetTransform(sceneEntity);
+    if (transform == nullptr) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    if (m_PhysicsPoseSync.IsPhysicsAuthoritative(sceneEntity)) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    GameplayCircleBodyConfig candidate = config;
+    candidate.positionX = transform->x;
+    candidate.positionZ = transform->z;
+    if (!m_PhysicsBodies.CreateCircleBody(*m_ECS, candidate, physicsEntity)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    const bool physicsAuthoritative = candidate.type == GameplayPhysicsBodyType::Dynamic;
+    if (!m_PhysicsPoseSync.Bind(sceneEntity, physicsEntity, physicsAuthoritative)) {
+        m_ECS->DestroyEntity(physicsEntity);
+        physicsEntity = 0U;
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::DestroyPhysicsBody(SceneEntity sceneEntity) {
+    if (m_State != RuntimeState::Initialized || !m_ECS) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    EntityID physicsEntity = 0U;
+    if (!m_PhysicsPoseSync.GetPhysicsEntity(sceneEntity, physicsEntity)) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_ECS->DestroyEntity(physicsEntity) || !m_PhysicsPoseSync.Unbind(sceneEntity)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
 
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
