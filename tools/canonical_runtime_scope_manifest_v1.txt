@@ -21,16 +21,13 @@ non_active_legacy|Core/ECS/LiveEditorAuto.h
 non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorFull.h
 non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorUltimate2.h
 non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorUltimate3.h
-non_active_legacy|Core/ECS/NeoEngineEditor/LiveEditorUltimate4.h
-non_active_legacy|Core/ECS/UltimateEditorSystem.h
+non_active_legacy|Core/ECS/NeoEngineEditor/UltimateEditorSystem.h
 non_active_legacy|Core/ECS/UltimateReactive.h
 non_active_legacy|Core/Math/Transform.h
 non_active_legacy|Core/Memory/Memory/MemoryManager.cpp
 non_active_legacy|Core/Memory/Memory/MemoryPool.h
 non_active_legacy|Core/Memory/MemoryPool.h
 non_active_experimental|ECS/V4/FauzanECSSystems.h
-non_active_legacy|Platform/Android/AndroidPlatform.cpp
-non_active_fail_closed_legacy|Rendering/RHI/Vulkan/VulkanRHI.cpp
 active_enum_marker|Runtime/RendererCapability.h
 non_active_legacy|Streaming/StreamManager.h
 third_party_upstream_marker|ThirdParty/tiny_obj_loader.h
