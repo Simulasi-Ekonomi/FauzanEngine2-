@@ -18,6 +18,7 @@ public:
     // Physics-authoritative binding for dynamic bodies.
     bool Bind(SceneEntity sceneEntity, EntityID physicsEntity, bool physicsAuthoritative);
     bool Unbind(SceneEntity sceneEntity);
+    bool GetPhysicsEntity(SceneEntity sceneEntity, EntityID& physicsEntity) const;
     bool Sync(const SceneWorld& world, ArchetypeManager& entities);
     bool SyncFromPhysics(SceneWorld& world, ArchetypeManager& entities);
     [[nodiscard]] bool IsPhysicsAuthoritative(SceneEntity sceneEntity) const;
