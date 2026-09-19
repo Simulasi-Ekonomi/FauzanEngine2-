@@ -4,7 +4,7 @@
 - Branch: `p3-editor-android-production-night`
 - PR: #71 — `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
 - Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
-- Last code checkpoint: `5d917773bf17617c3689deb88e48e11dc2c63c45`
+- Last code checkpoint: `27fc172c92ec30f8408cde7189385a4da0a01e7d`
 - Latest documentation checkpoint: `97041be67e347a02b80754731edbc8731b91281b`
 - This status update is the latest handoff checkpoint.
 - Main merge: **NOT AUTHORIZED / DO NOT MERGE**
@@ -78,7 +78,7 @@ CI APK passes, but device matrix/install/run/Vulkan driver/device-loss/suspend-r
 
 ## Exact next action
 1. Poll CI for code checkpoint `5d917773bf17617c3689deb88e48e11dc2c63c45` and repair any compile/test regression.
-2. Complete GPU skinning integration audit: the current active Vulkan pipeline still uses `neo_mesh.vert.spv`; `neo_skinned_mesh.vert` is foundation-only until descriptor, vertex-input, shader build, and runtime execution are wired and verified.
+2. Verify the new GPU skinning path through CI/device execution. The skinned pipeline now has descriptor-set palette binding, matching vertex inputs, shader generation, and a dedicated renderer draw API; active SceneMeshAdapter character data is still not wired into this draw path.
 3. Continue P1 asset/animation pipeline integration without creating duplicate registries.
 4. Then advance P2 XPBD proof and P3 Android/device evidence.
 5. Keep main untouched and do not claim Termux/device verification.
