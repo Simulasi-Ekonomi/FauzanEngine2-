@@ -10,7 +10,7 @@ This file is the canonical operating protocol for ChatGPT/Claude/other coding ro
 - Main is the protected baseline. Do not merge to main unless the user explicitly authorizes it.
 - Current active work branch: `p3-editor-android-production-night`
 - Current PR: #71 — `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
-- Current code checkpoint: `140449a41cbd04c09e74c7294a9d0e27b8264183`
+- Current code checkpoint: `c2df50300e488936cb777bf9a543f8c988f4af30`
 - Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
 
 ## Non-negotiable engineering rules
@@ -108,3 +108,4 @@ When a room reaches a context/tool limit:
 - GPU skinning palette buffer/shader foundation exists, but full pipeline binding/runtime proof is not complete.
 - `ECSGPUBridge::DispatchCompute()` is legacy/non-active; do not turn it into a fake parallel GPU architecture without an active integration point.
 - Current CI checkpoint `140449a4` passed the listed repository workflows; Termux/device runtime remains separate evidence.
+\n\n## CURRENT P0-P4 STATUS — 2026-09-19\nP0–P4 are all mandatory 100% targets. Current branch remains incomplete. PR #71 merge-ref `1564142` has Renderer 3D Vulkan Smoke FAIL at native link with unresolved VulkanGPUBuffer/VulkanDescriptorManager/GPUSkinningPaletteBuffer. Termux/device is UNVERIFIED — TERMUX REQUIRED. XPBD 100K/200K/<5 ms is not benchmark-proven.\n
