@@ -4,11 +4,12 @@
 - Branch: `p3-editor-android-production-night`
 - PR: #71 — `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
 - Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
-- Last code checkpoint: `cb4e20c77c8c013ad1212aed709de7405c1f472a`
-- Latest documentation checkpoint: `97041be67e347a02b80754731edbc8731b91281b`
-- This status update is the latest handoff checkpoint.
+- Latest code checkpoint: `a0b41b391da5a075a215a6572b5a3d4cdb2be45f`
+- Previous checkpoint: `66bd9aebb35f1618442e61a201bb34ea4f804466`
+- Latest CI for previous checkpoint exposed a renderer compile regression; fixed in `a0b41b3`.
 - Main merge: **NOT AUTHORIZED / DO NOT MERGE**
 - Termux/device verification: **UNVERIFIED — TERMUX REQUIRED**
+- Latest CI for `a0b41b3`: workflow runs have not appeared yet; **CI PENDING**.
 
 ## Progress
 These percentages are roadmap completion indicators, not production certification.
@@ -16,13 +17,20 @@ These percentages are roadmap completion indicators, not production certificatio
 | Roadmap | Progress | Evidence state |
 |---|---:|---|
 | P0 Canonical Runtime & ECS | 85% | IMPLEMENTED-UNVERIFIED for runtime/device portions |
-| P1 Renderer + Asset + Animation | 30% | IMPLEMENTED-UNVERIFIED; CI queued on latest checkpoint |
-| P2 Physics + Gameplay + Networking | 20% | physics timing instrumentation; target performance CONTRACT-ONLY |
+| P1 Renderer + Asset + Animation | 30% | IMPLEMENTED-UNVERIFIED; active animation wiring is in branch |
+| P2 Physics + Gameplay + Networking | 20% | timing instrumentation; target performance CONTRACT-ONLY |
 | P3 Editor + Audio + Android + Services | 15% | mixed existing foundation + CI |
 | P4 Production Certification | 0% | not started |
 | **Overall branch work** | **46%** | roadmap work in progress |
 
-## What is complete on this branch
+## Latest repair
+Commit `a0b41b391da5a075a215a6572b5a3d4cdb2be45f` fixes the compile regression introduced when animation headers exposed the canonical `NeoEngine::Mat4` to `SceneRenderAdapter.cpp`.
+
+The renderer adapter already had a private local matrix type named `Mat4`. That became ambiguous with the canonical animation/runtime `Mat4`. The fix renames the renderer-local type to `RenderMat4` and keeps the animation palette explicitly typed as `NeoEngine::Mat4`.
+
+No renderer behavior or original function was removed.
+
+## Current implemented work
 - Canonical `NeoRuntime` ECS ownership.
 - SceneWorld → SceneECSBridge → ArchetypeManager synchronization.
 - Incremental Scene→ECS transform sync with rotation and scale.
@@ -31,37 +39,32 @@ These percentages are roadmap completion indicators, not production certificatio
 - Archetype component migration preserves position/velocity/collider/mesh/rotation/scale data.
 - Runtime vertical-slice gate and smoke.
 - XPBD total-step wall-clock instrumentation.
-- GPU skinning palette buffer foundation and initial Vulkan GLSL skinning shader.
-- SceneMeshAdapter skeletal binding now owns validated four-influence weights plus SkeletalAnimationController/palette state, and NeoRuntime advances bound animations before the ECS/render boundary.
-- Required CMake registrations and R2 closure fixes.
-- Cross-room handover protocol and branch checkpoint documentation are now present.
+- GPU skinning palette buffer foundation and Vulkan skinning pipeline/shader.
+- SceneMeshAdapter skeletal binding owns validated four-influence weights plus SkeletalAnimationController/palette state.
+- NeoRuntime advances bound animations before render extraction.
+- Active Vulkan adapter routes a bound mesh into the skinned draw API.
+- Required CMake registrations and Farm/R2 closure fixes.
+- Cross-room handover protocol and branch checkpoint documentation.
 
-## CI evidence — exact code checkpoint
-Commit `140449a41cbd04c09e74c7294a9d0e27b8264183` passed:
-- CI Lint & Type Check
-- Renderer 3D Vulkan Smoke
-- PBR Validation
-- Build Android APK
-- R1 Canonical Game Tool
-- R2 canonical Farm loop
-- R3 Farm renderer path
-- R5 Farm authority reconnect
-- R6 Farm fraud trust
+## CI diagnosis for `66bd9aebb35f1618442e61a201bb34ea4f804466`
+PBR, lint/type-check, and Android APK passed.
 
-Documentation commits after that code checkpoint do not change engine behavior.
+Renderer 3D Vulkan, R1, R2, R3, R5, and R6 failed during native build because `SceneRenderAdapter.cpp` had an ambiguous local `Mat4` after the canonical `Mat4` was unified through `MathTypes.h`.
+
+The decisive compiler error was:
+`reference to ‘Mat4’ is ambiguous`
+with candidates:
+- `NeoEngine::{anonymous}::Mat4`
+- canonical `NeoEngine::Mat4`
+
+This was repaired in `a0b41b3`. The failure was compile-time; it did not establish a runtime rendering defect.
 
 ## Important unresolved gaps
-### 1. ECS mesh/material identity is now authoritative at the runtime binding boundary
-ECS now carries the existing staging `sourceHash` values as 64-bit mesh/material identity fields. `SceneECSBridge` synchronizes those identities from the existing `SceneMeshAdapter` bindings, and the active Vulkan path rejects an instance when ECS identity does not match the staged resource identity.
+### 1. GPU skinning
+Implemented through:
+`Skeleton/SkeletalAnimationController → SceneMeshAdapter palette/weights → Vulkan skinned draw`.
 
-The actual geometry/material CPU resource remains owned by the existing staging/adapter path; no duplicate asset registry was introduced and no 64-bit hash was truncated to 32 bits.
-
-Therefore:
-- **Transform:** ECS-authoritative on the active Vulkan path.
-- **Mesh/material identity:** ECS-authoritative at the runtime binding/validation boundary.
-- **Geometry/material payload:** existing staging/SceneMeshAdapter resource owner.
-
-This is implemented but still requires CI/device runtime verification.
+Still unverified on CI after `a0b41b3`, and unverified on Termux/device. Animation batching and LOD are still future P1 work.
 
 ### 2. XPBD performance target
 Acceptance target remains:
@@ -69,19 +72,16 @@ Acceptance target remains:
 - 200,000 collision tests
 - strictly <5 ms
 
-Timing instrumentation exists. The target is **not proven** until an actual benchmark produces the required workload and measured wall time.
+Instrumentation exists. The target is **not proven** until an actual benchmark produces the required workload and measured wall time.
 
-### 3. GPU skinning
-The renderer now has a dedicated skinned draw path, and SceneMeshAdapter can bind a validated Skeleton/Clip/VertexWeight set, maintain a SkeletalAnimationController + palette, and advance it from NeoRuntime. The active Vulkan adapter routes a bound instance into the skinned draw API. Descriptor/vertex-input/pipeline/shader compatibility and actual device execution remain unverified.
-
-### 4. Android
+### 3. Android
 CI APK passes, but device matrix/install/run/Vulkan driver/device-loss/suspend-resume evidence remains pending.
 
 ## Exact next action
-1. Poll CI for checkpoint `cb4e20c77c8c013ad1212aed709de7405c1f472a` and repair any compile/test regression.
-2. If CI is green, continue P1 animation production work: animation batching/LOD and asset/import binding without duplicate registries.
-3. Then advance P2 XPBD proof toward the exact 100K bodies / 200K collision tests / <5 ms benchmark.
-4. Advance P3 Android/device evidence after code paths are stable.
+1. Wait/poll CI for `a0b41b391da5a075a215a6572b5a3d4cdb2be45f`.
+2. Repair the next compile/test regression if any.
+3. Once CI is green, continue P1 animation production: batching/LOD and production asset/import binding without duplicate registries.
+4. Then advance P2 XPBD proof toward the exact 100K bodies / 200K collision tests / <5 ms benchmark.
 5. Keep main untouched and do not claim Termux/device verification.
 
 ## Room continuation rule
@@ -89,9 +89,9 @@ A new room must start from:
 1. `AGENTS.md`
 2. `docs/AI_ENGINE_WORK_STANDARD.md`
 3. `AI_HANDOVER_PROTOCOL.md`
-4. this `BRANCH_STATUS.md)
+4. this `BRANCH_STATUS.md`
 
-Then verify the branch HEAD and PR state, inspect the exact current files, and continue from **Exact next action**. Do not rely on an older chat summary if repository evidence differs.
+Then verify branch HEAD and PR state, inspect exact current files, and continue from **Exact next action**. Do not rely on older chat summary if repository evidence differs.
 
 ## User engineering constraints
 - No destructive rewrites.
