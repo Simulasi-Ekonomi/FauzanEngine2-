@@ -17,8 +17,7 @@ bool SceneECSBridge::Rebuild(SceneWorld& scene, ArchetypeManager& ecs) {
   const auto old=map_.find(key);
   const EntityID id=old==map_.end()?ecs.CreateEntity(COMP_POSITION|COMP_ROTATION):old->second;
   if(id==std::numeric_limits<EntityID>::max()||!ecs.HasEntity(id)) return false;
-  ecs.SetPosX(id,t->x); ecs.SetPosY(id,t->y); ecs.SetPosZ(id,t->z);
-  ecs.SetRotX(id,t->rx); ecs.SetRotY(id,t->ry); ecs.SetRotZ(id,t->rz);
+  ecs.SetTransform(id,t->x,t->y,t->z,t->rx,t->ry,t->rz);
   if(old==map_.end()) { ecs.SetVelX(id,0.0F); ecs.SetVelZ(id,0.0F); }
   next.emplace(key,id);
  }
@@ -39,8 +38,7 @@ bool SceneECSBridge::Sync(SceneWorld& scene, ArchetypeManager& ecs) {
   const Transform3* t=scene.GetTransform(entity);
   if(it==map_.end()||t==nullptr||!ecs.HasEntity(it->second)) return Rebuild(scene,ecs);
   const EntityID id=it->second;
-  ecs.SetPosX(id,t->x); ecs.SetPosY(id,t->y); ecs.SetPosZ(id,t->z);
-  ecs.SetRotX(id,t->rx); ecs.SetRotY(id,t->ry); ecs.SetRotZ(id,t->rz);
+  ecs.SetTransform(id,t->x,t->y,t->z,t->rx,t->ry,t->rz);
  }
  receipt_.sceneCount=static_cast<uint32_t>(entities.size());
  receipt_.ecsCount=static_cast<uint32_t>(map_.size());
