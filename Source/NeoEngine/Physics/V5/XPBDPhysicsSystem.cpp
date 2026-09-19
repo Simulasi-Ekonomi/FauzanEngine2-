@@ -1517,7 +1517,7 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         CCDPass(simulationDt);
         if (m_BVHRoot != -1) QueryBVHPairsIterative(m_BVHRoot, m_BVHRoot);
     }
-    if (m_TimingEnabled) m_StepTimingStats.broadphaseMs += millisSince(integrateStarted) - m_StepTimingStats.integrateMs;
+    if (m_TimingEnabled) m_StepTimingStats.broadphaseMs += millisSince(broadphaseStarted) - m_StepTimingStats.broadphaseMs;
         
     if (m_GPUBroadphase) GPUBroadphaseQuery();
 
