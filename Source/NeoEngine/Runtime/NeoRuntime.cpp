@@ -265,6 +265,7 @@ bool NeoRuntime::Tick() {
     if (!m_ECS || !m_SceneMeshes || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!m_Physics) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!m_PhysicsPoseSync.Sync(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (!m_PhysicsForces.Integrate(*m_ECS, m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     m_Physics->Step(*m_ECS, m_Clock->Snapshot().scaledDeltaSeconds);
     if (!m_PhysicsPoseSync.SyncFromPhysics(*m_Scene, *m_ECS) || !m_Scene->UpdateTransforms() || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (!m_SceneMeshes->AdvanceSkeletalAnimations(m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
@@ -376,6 +377,42 @@ bool NeoRuntime::DestroyPhysicsBody(SceneEntity sceneEntity) {
     m_ECS->DestroyEntity(physicsEntity);
     if (!m_PhysicsPoseSync.Unbind(sceneEntity)) {
         m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::ApplyPhysicsForce(SceneEntity sceneEntity, float forceX, float forceZ) {
+    if (m_State != RuntimeState::Initialized || !m_Scene || !m_ECS || !m_Physics) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    EntityID physicsEntity = 0U;
+    if (!m_PhysicsPoseSync.GetPhysicsEntity(sceneEntity, physicsEntity)) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_PhysicsForces.ApplyForce(*m_ECS, physicsEntity, forceX, forceZ)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::ClearPhysicsForces(SceneEntity sceneEntity) {
+    if (m_State != RuntimeState::Initialized || !m_ECS) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    EntityID physicsEntity = 0U;
+    if (!m_PhysicsPoseSync.GetPhysicsEntity(sceneEntity, physicsEntity)) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_PhysicsForces.Clear(physicsEntity)) {
+        m_LastError = RuntimeError::InvalidState;
         return false;
     }
     m_LastError = RuntimeError::None;
