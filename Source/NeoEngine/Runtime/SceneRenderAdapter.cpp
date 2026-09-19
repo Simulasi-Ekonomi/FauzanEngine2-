@@ -102,7 +102,7 @@ bool MakeECSModel(const SceneMeshInstance& instance, const ArchetypeManager& ecs
     float rx = 0.0F, ry = 0.0F, rz = 0.0F;
     if (!ecs.TryGetPosition(ecsId, x, y, z) || !ecs.TryGetRotation(ecsId, rx, ry, rz)) return false;
 
-    Transform3 transform = *static_cast<const Transform3*>(nullptr);
+    Transform3 transform{};
     transform.x = x; transform.y = y; transform.z = z;
     transform.rx = rx; transform.ry = ry; transform.rz = rz;
     transform.sx = 1.0F; transform.sy = 1.0F; transform.sz = 1.0F;
