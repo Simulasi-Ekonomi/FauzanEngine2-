@@ -75,7 +75,7 @@ bool ScenePhysicsPoseSync::Sync(const SceneWorld& world, ArchetypeManager& entit
 }
 
 bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& entities) {
-    struct Candidate { SceneEntity scene{}; float x = 0.0F; float z = 0.0F; };
+    struct Candidate { SceneEntity scene{}; Transform3 transform{}; };
     std::vector<Candidate> candidates;
     candidates.reserve(bindings_.size());
 
@@ -94,7 +94,19 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
                     lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose;
                     return false;
                 }
-                candidates.push_back({binding.scene, x, z});
+                const Transform3* current = world.GetTransform(binding.scene);
+                if (current == nullptr) {
+                    lastError_ = ScenePhysicsPoseSyncError::MissingWorldTransform;
+                    return false;
+                }
+                Transform3 next = *current;
+                next.x = x;
+                next.z = z;
+                if (!std::isfinite(next.x) || !std::isfinite(next.z)) {
+                    lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose;
+                    return false;
+                }
+                candidates.push_back({binding.scene, next});
                 found = true;
                 break;
             }
@@ -107,19 +119,7 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
     }
 
     for (const Candidate& pose : candidates) {
-        const Transform3* current = world.GetTransform(pose.scene);
-        if (current == nullptr) {
-            lastError_ = ScenePhysicsPoseSyncError::MissingWorldTransform;
-            return false;
-        }
-        Transform3 next = *current;
-        next.x = pose.x;
-        next.z = pose.z;
-        if (!std::isfinite(next.x) || !std::isfinite(next.z)) {
-            lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose;
-            return false;
-        }
-        if (!world.SetTransform(pose.scene, next)) {
+        if (!world.SetTransform(pose.scene, pose.transform)) {
             lastError_ = ScenePhysicsPoseSyncError::InvalidTransform;
             return false;
         }
