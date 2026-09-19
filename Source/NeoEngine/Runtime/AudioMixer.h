@@ -16,6 +16,9 @@ public:
  // behavior while components can request looping without forcing spatialization.
  bool Play(uint32_t id,std::vector<int16_t> mono,uint16_t gainQ8=256,bool looping=false);
  bool PlaySpatial(const SpatialVoiceParams& params);
+    bool UpdateVoicePosition(uint32_t id, const float position[3]);
+    bool UpdateVoicePitch(uint32_t id, float pitch);
+    bool UpdateVoiceGain(uint32_t id, uint16_t gainQ8);
  bool Stop(uint32_t id);
  void Clear();
  void SetListener(const AudioListener& listener){m_Listener=listener;}
