@@ -38,7 +38,7 @@ bool SceneECSBridge::Sync(SceneWorld& scene, ArchetypeManager& ecs) {
   const Transform3* t=scene.GetTransform(entity);
   if(it==map_.end()||t==nullptr||!ecs.HasEntity(it->second)) return Rebuild(scene,ecs);
   const EntityID id=it->second;
-  ecs.SetTransform(id,t->x,t->y,t->z,t->rx,t->ry,t->rz);
+  ecs.SetTransform(id,t->x,t->y,t->z,t->rx,t->ry,t->rz,t->sx,t->sy,t->sz);
  }
  receipt_.sceneCount=static_cast<uint32_t>(entities.size());
  receipt_.ecsCount=static_cast<uint32_t>(map_.size());
