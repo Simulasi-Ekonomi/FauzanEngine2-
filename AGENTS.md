@@ -133,3 +133,42 @@ Every agent that changes the repository must leave enough information for the ne
 - PR number when applicable.
 
 The authoritative long-form procedure is `docs/AI_ENGINE_WORK_STANDARD.md`.
+
+
+## Cross-room continuation and branch percentage (mandatory)
+
+The repository is worked on across multiple ChatGPT/Claude/agent rooms. Chat history is not authoritative; the branch checkpoint is.
+
+Before changing code in any active work branch:
+1. Read `AI_HANDOVER_PROTOCOL.md`.
+2. Read the branch's `BRANCH_STATUS.md`.
+3. Verify the branch HEAD and PR state from GitHub.
+4. Inspect the exact current source at that HEAD.
+5. Continue from the branch status's `NEXT` item only after confirming it still matches the code.
+
+Every active work branch MUST contain `BRANCH_STATUS.md` with:
+- branch name;
+- base/main SHA;
+- current HEAD;
+- PR number;
+- overall progress %;
+- P0/P1/P2/P3/P4 progress %;
+- exact completed work;
+- exact verification evidence;
+- explicit UNVERIFIED layers;
+- concrete unresolved gaps;
+- one exact next action.
+
+Percentages are roadmap progress indicators, not claims of production readiness. Code that is implemented but not runtime/device tested remains IMPLEMENTED-UNVERIFIED. Acceptance APIs/tests without target measurements remain CONTRACT-ONLY.
+
+When a room reaches its context/tool limit, the agent must commit completed work to the active branch, update `BRANCH_STATUS.md`, and leave the branch in a directly continuable state. The next room must not reconstruct the task from memory or older chat when repository evidence is newer.
+
+Status labels:
+- `VERIFIED-CI`
+- `VERIFIED-TERMUX`
+- `VERIFIED-BENCH`
+- `IMPLEMENTED-UNVERIFIED`
+- `CONTRACT-ONLY`
+- `BLOCKED`
+
+Current detailed checkpoint and percentages are maintained in `BRANCH_STATUS.md`.
