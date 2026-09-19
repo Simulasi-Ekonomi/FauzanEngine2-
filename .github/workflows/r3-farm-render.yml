@@ -8,7 +8,6 @@ on:
       - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
       - '.github/workflows/r3-farm-render.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
