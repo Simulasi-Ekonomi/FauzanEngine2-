@@ -74,8 +74,6 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
         }
     }
 
-    const float scaledGain = std::clamp(static_cast<float>(params.gainQ8) * attenuation, 0.0f, 65535.0f);
-
     float pan = 0.0f;
     if (params.spatialized && distance > 0.001f) {
         float forward[3]{m_Listener.forward[0], m_Listener.forward[1], m_Listener.forward[2]};
