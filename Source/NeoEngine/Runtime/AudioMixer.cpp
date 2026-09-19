@@ -154,12 +154,12 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
         int64_t right = 0;
         for (auto& voice : m_Voices) {
             if (voice.samples.empty()) continue;
-            if (voice.cursor >= voice.samples.size()) {
-                if (voice.looping) voice.cursor = 0;
+            if (voice.cursorSubframe >= static_cast<double>(voice.samples.size())) {
+                if (voice.looping) voice.cursorSubframe = std::fmod(voice.cursorSubframe, static_cast<double>(voice.samples.size()));
                 else continue;
             }
 
-            const double position = static_cast<double>(voice.cursor);
+            const double position = voice.cursorSubframe;
             const size_t idx0 = static_cast<size_t>(position);
             const size_t idx1 = idx0 + 1U < voice.samples.size() ? idx0 + 1U : (voice.looping ? 0U : idx0);
             const double frac = position - static_cast<double>(idx0);
@@ -167,6 +167,8 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
             const int32_t s1 = voice.samples[idx1];
             const int32_t interpolated = static_cast<int32_t>(std::llround(static_cast<double>(s0) + frac * static_cast<double>(s1 - s0)));
             const int64_t sample = static_cast<int64_t>(interpolated) * voice.gain / 256;
+            voice.cursorSubframe += voice.pitch;
+            voice.cursor = static_cast<size_t>(voice.cursorSubframe);
             if (!voice.spatialized) {
                 left += sample;
                 right += sample;
@@ -184,7 +186,7 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
         out[f * 2U + 1U] = static_cast<int16_t>(std::clamp<int64_t>(right, -32768, 32767));
     }
     m_Voices.erase(std::remove_if(m_Voices.begin(), m_Voices.end(), [](const auto& voice) {
-        return !voice.looping && voice.cursor >= voice.samples.size();
+        return !voice.looping && voice.cursorSubframe >= static_cast<double>(voice.samples.size());
     }), m_Voices.end());
 }
 
