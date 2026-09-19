@@ -4,7 +4,7 @@
 - Branch: `p3-editor-android-production-night`
 - PR: #71 — `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
 - Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
-- Last code checkpoint: `27fc172c92ec30f8408cde7189385a4da0a01e7d`
+- Last code checkpoint: `cb4e20c77c8c013ad1212aed709de7405c1f472a`
 - Latest documentation checkpoint: `97041be67e347a02b80754731edbc8731b91281b`
 - This status update is the latest handoff checkpoint.
 - Main merge: **NOT AUTHORIZED / DO NOT MERGE**
@@ -16,11 +16,11 @@ These percentages are roadmap completion indicators, not production certificatio
 | Roadmap | Progress | Evidence state |
 |---|---:|---|
 | P0 Canonical Runtime & ECS | 85% | IMPLEMENTED-UNVERIFIED for runtime/device portions |
-| P1 Renderer + Asset + Animation | 25% | mixed CI + IMPLEMENTED-UNVERIFIED |
+| P1 Renderer + Asset + Animation | 30% | IMPLEMENTED-UNVERIFIED; CI queued on latest checkpoint |
 | P2 Physics + Gameplay + Networking | 20% | physics timing instrumentation; target performance CONTRACT-ONLY |
 | P3 Editor + Audio + Android + Services | 15% | mixed existing foundation + CI |
 | P4 Production Certification | 0% | not started |
-| **Overall branch work** | **45%** | roadmap work in progress |
+| **Overall branch work** | **46%** | roadmap work in progress |
 
 ## What is complete on this branch
 - Canonical `NeoRuntime` ECS ownership.
@@ -32,6 +32,7 @@ These percentages are roadmap completion indicators, not production certificatio
 - Runtime vertical-slice gate and smoke.
 - XPBD total-step wall-clock instrumentation.
 - GPU skinning palette buffer foundation and initial Vulkan GLSL skinning shader.
+- SceneMeshAdapter skeletal binding now owns validated four-influence weights plus SkeletalAnimationController/palette state, and NeoRuntime advances bound animations before the ECS/render boundary.
 - Required CMake registrations and R2 closure fixes.
 - Cross-room handover protocol and branch checkpoint documentation are now present.
 
@@ -71,16 +72,16 @@ Acceptance target remains:
 Timing instrumentation exists. The target is **not proven** until an actual benchmark produces the required workload and measured wall time.
 
 ### 3. GPU skinning
-Palette buffer and shader foundation exist. Actual descriptor/vertex-input/pipeline/push-constant compatibility and device execution remain unverified.
+The renderer now has a dedicated skinned draw path, and SceneMeshAdapter can bind a validated Skeleton/Clip/VertexWeight set, maintain a SkeletalAnimationController + palette, and advance it from NeoRuntime. The active Vulkan adapter routes a bound instance into the skinned draw API. Descriptor/vertex-input/pipeline/shader compatibility and actual device execution remain unverified.
 
 ### 4. Android
 CI APK passes, but device matrix/install/run/Vulkan driver/device-loss/suspend-resume evidence remains pending.
 
 ## Exact next action
-1. Poll CI for code checkpoint `5d917773bf17617c3689deb88e48e11dc2c63c45` and repair any compile/test regression.
-2. Verify the new GPU skinning path through CI/device execution. The skinned pipeline now has descriptor-set palette binding, matching vertex inputs, shader generation, and a dedicated renderer draw API; active SceneMeshAdapter character data is still not wired into this draw path.
-3. Continue P1 asset/animation pipeline integration without creating duplicate registries.
-4. Then advance P2 XPBD proof and P3 Android/device evidence.
+1. Poll CI for checkpoint `cb4e20c77c8c013ad1212aed709de7405c1f472a` and repair any compile/test regression.
+2. If CI is green, continue P1 animation production work: animation batching/LOD and asset/import binding without duplicate registries.
+3. Then advance P2 XPBD proof toward the exact 100K bodies / 200K collision tests / <5 ms benchmark.
+4. Advance P3 Android/device evidence after code paths are stable.
 5. Keep main untouched and do not claim Termux/device verification.
 
 ## Room continuation rule
