@@ -8,7 +8,6 @@ on:
       - 'tools/launch_readiness_guard_smoke.sh'
       - '.github/workflows/r12-launch-readiness-guard.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'release_readiness_matrix.md'
       - 'tools/launch_readiness_guard_smoke.sh'
