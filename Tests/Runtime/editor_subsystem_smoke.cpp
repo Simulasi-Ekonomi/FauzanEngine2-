@@ -73,13 +73,13 @@ int main() {
     assert(session.LastError() == EditorSceneSessionError::DuplicateActorId);
 
     EditorSceneActor selfParent = child;
-    selfParent.id = 44;
+    selfParent.id = 45;
     selfParent.parentId = 44;
     assert(!session.AddActor(selfParent, assets));
     assert(session.LastError() == EditorSceneSessionError::InvalidHierarchy);
 
     EditorSceneActor missingParent = child;
-    missingParent.id = 45;
+    missingParent.id = 46;
     missingParent.parentId = 999;
     assert(!session.AddActor(missingParent, assets));
     assert(session.LastError() == EditorSceneSessionError::UnknownActor);
