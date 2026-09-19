@@ -32,7 +32,7 @@ int main() {
     const GameplayCircleBodyConfig bodyConfig{
         GameplayPhysicsBodyType::Dynamic, 0.0F, 0.0F, 1.0F, 0.0F, 0.25F, 1.0F
     };
-    if (!runtime.CreatePhysicsCircleBody(actor, bodyConfig, physicsBody) || physicsBody == 0U) {
+    if (!runtime.CreatePhysicsCircleBody(actor, bodyConfig, physicsBody)) {
         std::fprintf(stderr, "P0_PHYSICS_SMOKE: scene physics binding failed\n");
         runtime.Shutdown();
         return 4;
