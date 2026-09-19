@@ -299,6 +299,19 @@ Record:
 - ASAN result;
 - artifacts/logs where required.
 
+## 6.8 Current dependency baseline — mandatory
+
+As of September 2026, the active CI baseline is:
+
+- **Node.js 24.x LTS** for explicit JavaScript tooling.
+- **SDL3 3.4.16** for the canonical SDL dependency.
+- Node-24-compatible GitHub Action generations must be used across the active workflow surface.
+- A dependency migration must be applied consistently to all active workflows/tests that consume that dependency.
+
+The detailed baseline is recorded in `docs/CI_RUNTIME_DEPENDENCY_BASELINE_2026-09.md`.
+
+**Do not downgrade one workflow independently to make a failure disappear.** If a compatibility problem is discovered, diagnose and repair the affected layer while preserving the repository-wide baseline. Any future dependency migration must update the complete active CI/test surface and this baseline document.
+
 ## 7. Current critical CI precedent
 
 The R3 Vulkan workflow demonstrates the intended pattern:
