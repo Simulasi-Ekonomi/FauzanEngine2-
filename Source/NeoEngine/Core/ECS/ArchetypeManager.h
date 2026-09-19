@@ -33,6 +33,11 @@ struct ArchetypeChunk {
     float* rotX = nullptr;
     float* rotY = nullptr;
     float* rotZ = nullptr;
+    float* scaleX = nullptr;
+    float* scaleY = nullptr;
+    float* scaleZ = nullptr;
+    uint64_t* meshAssetHash = nullptr;
+    uint64_t* materialAssetHash = nullptr;
 };
 
 class ArchetypeManager {
@@ -44,9 +49,23 @@ public:
     void DestroyEntity(EntityID id);
 
     void SetPosX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posX); }
+    void SetPosY(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posY); }
     void SetPosZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::posZ); }
     void SetVelX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::velX); }
+    void SetVelY(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::velY); }
     void SetVelZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::velZ); }
+    void SetRotX(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotX); }
+    void SetRotY(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotY); }
+    void SetRotZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotZ); }
+    void SetMeshID(EntityID id, uint32_t v) { SetComponentValue(id, v, &ArchetypeChunk::meshID); }
+    void SetMeshAssetIdentity(EntityID id, uint64_t meshHash, uint64_t materialHash);
+    [[nodiscard]] bool TryGetMeshAssetIdentity(EntityID id, uint64_t& meshHash, uint64_t& materialHash) const;
+    [[nodiscard]] uint32_t GetComponentMask(EntityID id) const;
+    [[nodiscard]] size_t EntityCount() const { return entityToChunk_.size(); }
+    [[nodiscard]] bool TryGetPosition(EntityID id, float& x, float& y, float& z) const;
+    [[nodiscard]] bool TryGetVelocity(EntityID id, float& x, float& y, float& z) const;
+    [[nodiscard]] bool TryGetRotation(EntityID id, float& x, float& y, float& z) const;
+    [[nodiscard]] bool TryGetScale(EntityID id, float& x, float& y, float& z) const;
     void SetRadius(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::radius); }
     void SetInvMass(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::invMass); }
     [[nodiscard]] bool HasEntity(EntityID id) const { return entityToChunk_.contains(id); }
@@ -55,6 +74,9 @@ public:
         return it != entityToChunk_.end() && it->second != nullptr && it->second->posX != nullptr;
     }
     void MarkPhysicsDirty() { ++physicsRevision_; }
+    void SetComponentMask(EntityID id, uint32_t componentMask);
+    void SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz);
+    void SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz, float sx, float sy, float sz);
     uint64_t GetPhysicsRevision() const { return physicsRevision_; }
 
     template<typename... Args>

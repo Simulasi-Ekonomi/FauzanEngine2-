@@ -4,6 +4,7 @@
 #include <span>
 
 #include <vulkan/vulkan.h>
+#include "Core/Math/Mat4.h"
 
 namespace NeoEngine {
 
@@ -11,6 +12,14 @@ struct Vulkan3DVertex {
     float px = 0.0F, py = 0.0F, pz = 0.0F;
     float nx = 0.0F, ny = 0.0F, nz = 1.0F;
     float u = 0.0F, v = 0.0F;
+};
+
+struct Vulkan3DSkinnedVertex {
+    float px = 0.0F, py = 0.0F, pz = 0.0F;
+    float nx = 0.0F, ny = 0.0F, nz = 1.0F;
+    float u = 0.0F, v = 0.0F;
+    uint32_t bone0 = 0U, bone1 = 0U, bone2 = 0U, bone3 = 0U;
+    float weight0 = 1.0F, weight1 = 0.0F, weight2 = 0.0F, weight3 = 0.0F;
 };
 
 struct Vulkan3DFrameStats {
@@ -53,6 +62,19 @@ public:
     bool DrawIndexedInstanced(std::span<const Vulkan3DVertex> vertices,
                               std::span<const uint32_t> indices,
                               std::span<const float> modelViewProjections4x4);
+    // R3 scene path: instance matrices are model transforms and one shared view-projection is pushed once.
+    bool DrawIndexedInstancedWithViewProjection(std::span<const Vulkan3DVertex> vertices,
+                                                std::span<const uint32_t> indices,
+                                                std::span<const float> modelTransforms4x4,
+                                                const float* viewProjection4x4);
+
+    // GPU skinning path: bone palette is uploaded once per draw and consumed by the skinned vertex shader.
+    bool DrawIndexedSkinnedInstancedWithViewProjection(
+        std::span<const Vulkan3DSkinnedVertex> vertices,
+        std::span<const uint32_t> indices,
+        std::span<const float> modelTransforms4x4,
+        std::span<const Mat4> bonePalette,
+        const float* viewProjection4x4);
 
     bool EndFrame();
     void Reset();

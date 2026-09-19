@@ -1,4 +1,6 @@
 #include "Vulkan3DRenderer.h"
+#include "Runtime/VulkanDescriptorManager.h"
+#include "Animation/GPUSkinningPaletteBuffer.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -11,6 +13,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <cmath>
 
 namespace NeoEngine {
 namespace {
@@ -19,6 +22,13 @@ namespace {
 #endif
 struct GpuVertex { float position[3]; float normal[3]; float uv[2]; };
 struct GpuInstance { float transform[16]; };
+struct GpuSkinnedVertex {
+    float position[3];
+    float normal[3];
+    float uv[2];
+    uint32_t boneIndices[4];
+    float boneWeights[4];
+};
 struct Buffer { VkBuffer handle = VK_NULL_HANDLE; VkDeviceMemory memory = VK_NULL_HANDLE; };
 struct BufferArena { Buffer buffer{}; VkDeviceSize capacity = 0; VkDeviceSize used = 0; void* mapped = nullptr; };
 struct Frame {
@@ -68,11 +78,16 @@ struct Vulkan3DRenderer::Impl {
     SDL_Window* window=nullptr; VkInstance instance=VK_NULL_HANDLE; VkSurfaceKHR surface=VK_NULL_HANDLE; VkPhysicalDevice physical=VK_NULL_HANDLE; VkDevice device=VK_NULL_HANDLE;
     VkQueue graphicsQueue=VK_NULL_HANDLE; uint32_t graphicsFamily=UINT32_MAX; VkQueue presentQueue=VK_NULL_HANDLE; uint32_t presentFamily=UINT32_MAX;
     VkSwapchainKHR swapchain=VK_NULL_HANDLE; VkFormat swapchainFormat=VK_FORMAT_UNDEFINED; VkExtent2D extent{}; std::vector<VkImage> swapchainImages; std::vector<VkImageView> swapchainViews; std::vector<VkFramebuffer> framebuffers;
-    VkRenderPass renderPass=VK_NULL_HANDLE; VkPipelineLayout pipelineLayout=VK_NULL_HANDLE; VkPipeline pipeline=VK_NULL_HANDLE; VkCommandPool commandPool=VK_NULL_HANDLE;
+    VkRenderPass renderPass=VK_NULL_HANDLE; VkPipelineLayout pipelineLayout=VK_NULL_HANDLE; VkPipeline pipeline=VK_NULL_HANDLE;
+    VkPipelineLayout skinnedPipelineLayout=VK_NULL_HANDLE; VkPipeline skinnedPipeline=VK_NULL_HANDLE;
+    VulkanDescriptorManager skinDescriptors{};
+    GPUSkinningPaletteBuffer skinPalette{};
+    VkDescriptorSet skinDescriptorSet=VK_NULL_HANDLE;
+    VkCommandPool commandPool=VK_NULL_HANDLE;
     VkImage depthImage=VK_NULL_HANDLE; VkDeviceMemory depthMemory=VK_NULL_HANDLE; VkImageView depthView=VK_NULL_HANDLE; VkFormat depthFormat=VK_FORMAT_D32_SFLOAT;
     std::array<Frame,2> frames{}; uint32_t frameSlot=0; uint32_t acquiredImageIndex=0; bool frameBegun=false;
-    void DestroySwapchainResources(){if(!device)return;vkDeviceWaitIdle(device);for(auto f:framebuffers)vkDestroyFramebuffer(device,f,nullptr);framebuffers.clear();if(pipeline)vkDestroyPipeline(device,pipeline,nullptr);pipeline=VK_NULL_HANDLE;if(pipelineLayout)vkDestroyPipelineLayout(device,pipelineLayout,nullptr);pipelineLayout=VK_NULL_HANDLE;if(renderPass)vkDestroyRenderPass(device,renderPass,nullptr);renderPass=VK_NULL_HANDLE;if(depthView)vkDestroyImageView(device,depthView,nullptr);depthView=VK_NULL_HANDLE;if(depthImage)vkDestroyImage(device,depthImage,nullptr);depthImage=VK_NULL_HANDLE;if(depthMemory)vkFreeMemory(device,depthMemory,nullptr);depthMemory=VK_NULL_HANDLE;for(auto v:swapchainViews)vkDestroyImageView(device,v,nullptr);swapchainViews.clear();swapchainImages.clear();if(swapchain)vkDestroySwapchainKHR(device,swapchain,nullptr);swapchain=VK_NULL_HANDLE;}
-    void Destroy(){if(device)vkDeviceWaitIdle(device);for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}if(commandPool)vkDestroyCommandPool(device,commandPool,nullptr);if(device)vkDestroyDevice(device,nullptr);if(surface&&instance)vkDestroySurfaceKHR(instance,surface,nullptr);if(instance)vkDestroyInstance(instance,nullptr);if(window)SDL_DestroyWindow(window);SDL_QuitSubSystem(SDL_INIT_VIDEO);SDL_Quit();*this={};}
+    void DestroySwapchainResources(){if(!device)return;vkDeviceWaitIdle(device);for(auto f:framebuffers)vkDestroyFramebuffer(device,f,nullptr);framebuffers.clear();if(pipeline)vkDestroyPipeline(device,pipeline,nullptr);pipeline=VK_NULL_HANDLE;if(pipelineLayout)vkDestroyPipelineLayout(device,pipelineLayout,nullptr);pipelineLayout=VK_NULL_HANDLE;if(skinnedPipeline)vkDestroyPipeline(device,skinnedPipeline,nullptr);skinnedPipeline=VK_NULL_HANDLE;if(skinnedPipelineLayout)vkDestroyPipelineLayout(device,skinnedPipelineLayout,nullptr);skinnedPipelineLayout=VK_NULL_HANDLE;if(renderPass)vkDestroyRenderPass(device,renderPass,nullptr);renderPass=VK_NULL_HANDLE;if(depthView)vkDestroyImageView(device,depthView,nullptr);depthView=VK_NULL_HANDLE;if(depthImage)vkDestroyImage(device,depthImage,nullptr);depthImage=VK_NULL_HANDLE;if(depthMemory)vkFreeMemory(device,depthMemory,nullptr);depthMemory=VK_NULL_HANDLE;for(auto v:swapchainViews)vkDestroyImageView(device,v,nullptr);swapchainViews.clear();swapchainImages.clear();if(swapchain)vkDestroySwapchainKHR(device,swapchain,nullptr);swapchain=VK_NULL_HANDLE;}
+    void Destroy(){if(device)vkDeviceWaitIdle(device);for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();skinPalette.Destroy();skinDescriptors.Destroy();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}if(commandPool)vkDestroyCommandPool(device,commandPool,nullptr);if(device)vkDestroyDevice(device,nullptr);if(surface&&instance)vkDestroySurfaceKHR(instance,surface,nullptr);if(instance)vkDestroyInstance(instance,nullptr);if(window)SDL_DestroyWindow(window);SDL_QuitSubSystem(SDL_INIT_VIDEO);SDL_Quit();*this={};}
 };
 Vulkan3DRenderer::~Vulkan3DRenderer(){Reset();}
 bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* title){
@@ -83,6 +98,20 @@ bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* tit
     uint32_t deviceCount=0;if(vkEnumeratePhysicalDevices(impl->instance,&deviceCount,nullptr)!=VK_SUCCESS||deviceCount==0){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}std::vector<VkPhysicalDevice> devices(deviceCount);if(vkEnumeratePhysicalDevices(impl->instance,&deviceCount,devices.data())!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}
     for(auto device:devices){if(!HasExtension(device,VK_KHR_SWAPCHAIN_EXTENSION_NAME))continue;uint32_t n=0;vkGetPhysicalDeviceQueueFamilyProperties(device,&n,nullptr);std::vector<VkQueueFamilyProperties> fam(n);vkGetPhysicalDeviceQueueFamilyProperties(device,&n,fam.data());uint32_t g=UINT32_MAX,p=UINT32_MAX;for(uint32_t i=0;i<n;++i){VkBool32 present=VK_FALSE;if(vkGetPhysicalDeviceSurfaceSupportKHR(device,i,impl->surface,&present)!=VK_SUCCESS)continue;if((fam[i].queueFlags&VK_QUEUE_GRAPHICS_BIT)&&g==UINT32_MAX)g=i;if(present&&p==UINT32_MAX)p=i;}if(g!=UINT32_MAX&&p!=UINT32_MAX){impl->physical=device;impl->graphicsFamily=g;impl->presentFamily=p;break;}}
     if(!impl->physical){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}std::vector<VkDeviceQueueCreateInfo> queues;float priority=1.0F;VkDeviceQueueCreateInfo gq{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};gq.queueFamilyIndex=impl->graphicsFamily;gq.queueCount=1;gq.pQueuePriorities=&priority;queues.push_back(gq);if(impl->presentFamily!=impl->graphicsFamily){VkDeviceQueueCreateInfo pq{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};pq.queueFamilyIndex=impl->presentFamily;pq.queueCount=1;pq.pQueuePriorities=&priority;queues.push_back(pq);}const char* ext=VK_KHR_SWAPCHAIN_EXTENSION_NAME;VkPhysicalDeviceFeatures features{};VkDeviceCreateInfo di{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};di.queueCreateInfoCount=(uint32_t)queues.size();di.pQueueCreateInfos=queues.data();di.enabledExtensionCount=1;di.ppEnabledExtensionNames=&ext;di.pEnabledFeatures=&features;if(vkCreateDevice(impl->physical,&di,nullptr,&impl->device)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}vkGetDeviceQueue(impl->device,impl->graphicsFamily,0,&impl->graphicsQueue);vkGetDeviceQueue(impl->device,impl->presentFamily,0,&impl->presentQueue);
+    const std::vector<DescriptorLayoutBindingInfo> skinBindings = {
+        {0U, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1U}
+    };
+    if (!impl->skinDescriptors.Initialize(impl->device, skinBindings, 2U) ||
+        !impl->skinPalette.Initialize(impl->device, impl->physical)) {
+        lastError_=Vulkan3DRendererError::VulkanFailure; impl->Destroy(); return false;
+    }
+    impl->skinDescriptorSet = impl->skinDescriptors.AllocateSet();
+    if (impl->skinDescriptorSet == VK_NULL_HANDLE) {
+        lastError_=Vulkan3DRendererError::VulkanFailure; impl->Destroy(); return false;
+    }
+    impl->skinDescriptors.UpdateBufferBinding(impl->skinDescriptorSet, 0U,
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, impl->skinPalette.GetBuffer(), 0U,
+        static_cast<VkDeviceSize>(sizeof(Mat4) * GPUSkinningPaletteBuffer::kMaxBones));
     VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};pool.queueFamilyIndex=impl->graphicsFamily;pool.flags=VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;if(vkCreateCommandPool(impl->device,&pool,nullptr,&impl->commandPool)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}for(auto& f:impl->frames){VkSemaphoreCreateInfo s{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};VkFenceCreateInfo fence{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};fence.flags=VK_FENCE_CREATE_SIGNALED_BIT;if(vkCreateSemaphore(impl->device,&s,nullptr,&f.imageAvailable)!=VK_SUCCESS||vkCreateSemaphore(impl->device,&s,nullptr,&f.renderFinished)!=VK_SUCCESS||vkCreateFence(impl->device,&fence,nullptr,&f.fence)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}VkCommandBufferAllocateInfo a{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};a.commandPool=impl->commandPool;a.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;a.commandBufferCount=1;if(vkAllocateCommandBuffers(impl->device,&a,&f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}}
     impl_=impl.release();if(!Resize(width,height)){Reset();return false;}ready_=true;lastError_=Vulkan3DRendererError::None;return true;
 }
@@ -92,6 +121,75 @@ bool Vulkan3DRenderer::Resize(uint32_t width,uint32_t height){
     VkAttachmentDescription at[2]{};at[0].format=impl_->swapchainFormat;at[0].samples=VK_SAMPLE_COUNT_1_BIT;at[0].loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;at[0].storeOp=VK_ATTACHMENT_STORE_OP_STORE;at[0].initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;at[0].finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;at[1].format=impl_->depthFormat;at[1].samples=VK_SAMPLE_COUNT_1_BIT;at[1].loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;at[1].storeOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;at[1].initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;at[1].finalLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;VkAttachmentReference cr{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},drref{1,VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};VkSubpassDescription sub{};sub.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;sub.colorAttachmentCount=1;sub.pColorAttachments=&cr;sub.pDepthStencilAttachment=&drref;VkSubpassDependency dep{};dep.srcSubpass=VK_SUBPASS_EXTERNAL;dep.dstSubpass=0;dep.srcStageMask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;dep.dstStageMask=dep.srcStageMask;dep.dstAccessMask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;VkRenderPassCreateInfo rp{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};rp.attachmentCount=2;rp.pAttachments=at;rp.subpassCount=1;rp.pSubpasses=&sub;rp.dependencyCount=1;rp.pDependencies=&dep;if(vkCreateRenderPass(impl_->device,&rp,nullptr,&impl_->renderPass)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}
     auto vc=ReadSpirv(NEO_SHADER_DIR "/neo_mesh.vert.spv"),fcodes=ReadSpirv(NEO_SHADER_DIR "/neo_mesh.frag.spv");VkShaderModule vert=CreateShader(impl_->device,vc),frag=CreateShader(impl_->device,fcodes);if(!vert||!frag){if(vert)vkDestroyShaderModule(impl_->device,vert,nullptr);if(frag)vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::ShaderUnavailable;return false;}VkPipelineShaderStageCreateInfo stages[2]{};stages[0]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[0].stage=VK_SHADER_STAGE_VERTEX_BIT;stages[0].module=vert;stages[0].pName="main";stages[1]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT;stages[1].module=frag;stages[1].pName="main";
     VkVertexInputBindingDescription bindings[2]{};bindings[0]={0,(uint32_t)sizeof(GpuVertex),VK_VERTEX_INPUT_RATE_VERTEX};bindings[1]={1,(uint32_t)sizeof(GpuInstance),VK_VERTEX_INPUT_RATE_INSTANCE};VkVertexInputAttributeDescription attrs[7]{{0,0,VK_FORMAT_R32G32B32_SFLOAT,0},{1,0,VK_FORMAT_R32G32B32_SFLOAT,12},{2,0,VK_FORMAT_R32G32_SFLOAT,24},{3,1,VK_FORMAT_R32G32B32A32_SFLOAT,0},{4,1,VK_FORMAT_R32G32B32A32_SFLOAT,16},{5,1,VK_FORMAT_R32G32B32A32_SFLOAT,32},{6,1,VK_FORMAT_R32G32B32A32_SFLOAT,48}};VkPipelineVertexInputStateCreateInfo input{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};input.vertexBindingDescriptionCount=2;input.pVertexBindingDescriptions=bindings;input.vertexAttributeDescriptionCount=7;input.pVertexAttributeDescriptions=attrs;VkPipelineInputAssemblyStateCreateInfo assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;VkPipelineViewportStateCreateInfo viewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};viewport.viewportCount=1;viewport.scissorCount=1;VkPipelineRasterizationStateCreateInfo raster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};raster.polygonMode=VK_POLYGON_MODE_FILL;raster.cullMode=VK_CULL_MODE_BACK_BIT;raster.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE;raster.lineWidth=1.0F;VkPipelineMultisampleStateCreateInfo ms{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};ms.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;VkPipelineDepthStencilStateCreateInfo ds{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};ds.depthTestEnable=VK_TRUE;ds.depthWriteEnable=VK_TRUE;ds.depthCompareOp=VK_COMPARE_OP_LESS;VkPipelineColorBlendAttachmentState ba{};ba.colorWriteMask=0xF;VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};blend.attachmentCount=1;blend.pAttachments=&ba;VkDynamicState dyns[2]{VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR};VkPipelineDynamicStateCreateInfo dyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};dyn.dynamicStateCount=2;dyn.pDynamicStates=dyns;VkPushConstantRange push{};push.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;push.size=sizeof(float)*16U;VkPipelineLayoutCreateInfo layout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};layout.pushConstantRangeCount=1;layout.pPushConstantRanges=&push;if(vkCreatePipelineLayout(impl_->device,&layout,nullptr,&impl_->pipelineLayout)!=VK_SUCCESS){vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::PipelineFailure;return false;}VkGraphicsPipelineCreateInfo pi{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};pi.stageCount=2;pi.pStages=stages;pi.pVertexInputState=&input;pi.pInputAssemblyState=&assembly;pi.pViewportState=&viewport;pi.pRasterizationState=&raster;pi.pMultisampleState=&ms;pi.pDepthStencilState=&ds;pi.pColorBlendState=&blend;pi.pDynamicState=&dyn;pi.layout=impl_->pipelineLayout;pi.renderPass=impl_->renderPass;if(vkCreateGraphicsPipelines(impl_->device,VK_NULL_HANDLE,1,&pi,nullptr,&impl_->pipeline)!=VK_SUCCESS){vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::PipelineFailure;return false;}vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);
+
+    auto svc=ReadSpirv(NEO_SHADER_DIR "/neo_skinned_mesh.vert.spv");
+    VkShaderModule skinVert=CreateShader(impl_->device,svc);
+    VkShaderModule skinFrag=CreateShader(impl_->device,fcodes);
+    if (!skinVert || !skinFrag) {
+        if (skinVert) vkDestroyShaderModule(impl_->device,skinVert,nullptr);
+        if (skinFrag) vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+        lastError_=Vulkan3DRendererError::ShaderUnavailable; return false;
+    }
+    VkPipelineShaderStageCreateInfo skinStages[2]{};
+    skinStages[0]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    skinStages[0].stage=VK_SHADER_STAGE_VERTEX_BIT; skinStages[0].module=skinVert; skinStages[0].pName="main";
+    skinStages[1]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    skinStages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT; skinStages[1].module=skinFrag; skinStages[1].pName="main";
+
+    VkVertexInputBindingDescription skinBindings[2]{};
+    skinBindings[0]={0,(uint32_t)sizeof(GpuSkinnedVertex),VK_VERTEX_INPUT_RATE_VERTEX};
+    skinBindings[1]={1,(uint32_t)sizeof(GpuInstance),VK_VERTEX_INPUT_RATE_INSTANCE};
+    VkVertexInputAttributeDescription skinAttrs[11]{
+        {0,0,VK_FORMAT_R32G32B32_SFLOAT,0},
+        {1,0,VK_FORMAT_R32G32B32_SFLOAT,12},
+        {2,0,VK_FORMAT_R32G32_SFLOAT,24},
+        {3,0,VK_FORMAT_R32G32B32A32_UINT,32},
+        {4,0,VK_FORMAT_R32G32B32A32_SFLOAT,48},
+        {5,1,VK_FORMAT_R32G32B32A32_SFLOAT,0},
+        {6,1,VK_FORMAT_R32G32B32A32_SFLOAT,16},
+        {7,1,VK_FORMAT_R32G32B32A32_SFLOAT,32},
+        {8,1,VK_FORMAT_R32G32B32A32_SFLOAT,48}
+    };
+    VkPipelineVertexInputStateCreateInfo skinInput{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    skinInput.vertexBindingDescriptionCount=2; skinInput.pVertexBindingDescriptions=skinBindings;
+    skinInput.vertexAttributeDescriptionCount=9; skinInput.pVertexAttributeDescriptions=skinAttrs;
+    VkPipelineInputAssemblyStateCreateInfo skinAssembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    skinAssembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    VkPipelineViewportStateCreateInfo skinViewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    skinViewport.viewportCount=1; skinViewport.scissorCount=1;
+    VkPipelineRasterizationStateCreateInfo skinRaster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    skinRaster.polygonMode=VK_POLYGON_MODE_FILL; skinRaster.cullMode=VK_CULL_MODE_BACK_BIT;
+    skinRaster.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE; skinRaster.lineWidth=1.0F;
+    VkPipelineMultisampleStateCreateInfo skinMs{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+    skinMs.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
+    VkPipelineDepthStencilStateCreateInfo skinDs{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+    skinDs.depthTestEnable=VK_TRUE; skinDs.depthWriteEnable=VK_TRUE; skinDs.depthCompareOp=VK_COMPARE_OP_LESS;
+    VkPipelineColorBlendAttachmentState skinBa{}; skinBa.colorWriteMask=0xF;
+    VkPipelineColorBlendStateCreateInfo skinBlend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    skinBlend.attachmentCount=1; skinBlend.pAttachments=&skinBa;
+    VkPipelineDynamicStateCreateInfo skinDyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+    VkDynamicState skinDyns[2]{VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR};
+    skinDyn.dynamicStateCount=2; skinDyn.pDynamicStates=skinDyns;
+    VkPushConstantRange skinPush{}; skinPush.stageFlags=VK_SHADER_STAGE_VERTEX_BIT; skinPush.size=sizeof(float)*16U;
+    VkDescriptorSetLayout skinSetLayout=impl_->skinDescriptors.GetLayout();
+    VkPipelineLayoutCreateInfo skinLayout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    skinLayout.setLayoutCount=1; skinLayout.pSetLayouts=&skinSetLayout;
+    skinLayout.pushConstantRangeCount=1; skinLayout.pPushConstantRanges=&skinPush;
+    if(vkCreatePipelineLayout(impl_->device,&skinLayout,nullptr,&impl_->skinnedPipelineLayout)!=VK_SUCCESS){
+        vkDestroyShaderModule(impl_->device,skinVert,nullptr); vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+        lastError_=Vulkan3DRendererError::PipelineFailure; return false;
+    }
+    VkGraphicsPipelineCreateInfo skinPi{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    skinPi.stageCount=2; skinPi.pStages=skinStages; skinPi.pVertexInputState=&skinInput; skinPi.pInputAssemblyState=&skinAssembly;
+    skinPi.pViewportState=&skinViewport; skinPi.pRasterizationState=&skinRaster; skinPi.pMultisampleState=&skinMs;
+    skinPi.pDepthStencilState=&skinDs; skinPi.pColorBlendState=&skinBlend; skinPi.pDynamicState=&skinDyn;
+    skinPi.layout=impl_->skinnedPipelineLayout; skinPi.renderPass=impl_->renderPass;
+    if(vkCreateGraphicsPipelines(impl_->device,VK_NULL_HANDLE,1,&skinPi,nullptr,&impl_->skinnedPipeline)!=VK_SUCCESS){
+        vkDestroyShaderModule(impl_->device,skinVert,nullptr); vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+        lastError_=Vulkan3DRendererError::PipelineFailure; return false;
+    }
+    vkDestroyShaderModule(impl_->device,skinVert,nullptr); vkDestroyShaderModule(impl_->device,skinFrag,nullptr);
+
     impl_->framebuffers.resize(impl_->swapchainViews.size());for(size_t i=0;i<impl_->swapchainViews.size();++i){VkImageView a[]={impl_->swapchainViews[i],impl_->depthView};VkFramebufferCreateInfo fb{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};fb.renderPass=impl_->renderPass;fb.attachmentCount=2;fb.pAttachments=a;fb.width=extent.width;fb.height=extent.height;fb.layers=1;if(vkCreateFramebuffer(impl_->device,&fb,nullptr,&impl_->framebuffers[i])!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}}stats_.width=extent.width;stats_.height=extent.height;return true;
 }
 bool Vulkan3DRenderer::BeginFrame(float r,float g,float b,float a){if(!ready_||!impl_||impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];VkResult wait=vkWaitForFences(impl_->device,1,&f.fence,VK_TRUE,UINT64_MAX);if(wait!=VK_SUCCESS){lastError_=wait==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}VkResult acq=vkAcquireNextImageKHR(impl_->device,impl_->swapchain,UINT64_MAX,f.imageAvailable,VK_NULL_HANDLE,&impl_->acquiredImageIndex);if(acq==VK_ERROR_OUT_OF_DATE_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(acq!=VK_SUCCESS&&acq!=VK_SUBOPTIMAL_KHR){lastError_=acq==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}vkResetFences(impl_->device,1,&f.fence);vkResetCommandBuffer(f.commandBuffer,0);f.vertexArena.used=f.indexArena.used=f.instanceArena.used=0;VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(f.commandBuffer,&begin)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}VkClearValue clear[2]{};clear[0].color={{r,g,b,a}};clear[1].depthStencil={1,0};VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};pass.renderPass=impl_->renderPass;pass.framebuffer=impl_->framebuffers[impl_->acquiredImageIndex];pass.renderArea.extent=impl_->extent;pass.clearValueCount=2;pass.pClearValues=clear;vkCmdBeginRenderPass(f.commandBuffer,&pass,VK_SUBPASS_CONTENTS_INLINE);VkViewport vp{0,0,(float)impl_->extent.width,(float)impl_->extent.height,0,1};VkRect2D sc{{0,0},impl_->extent};vkCmdSetViewport(f.commandBuffer,0,1,&vp);vkCmdSetScissor(f.commandBuffer,0,1,&sc);vkCmdBindPipeline(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipeline);stats_.vertexCount=stats_.indexCount=0;impl_->frameBegun=true;return true;}
@@ -100,8 +198,166 @@ bool Vulkan3DRenderer::DrawIndexed(std::span<const Vulkan3DVertex> vertices,std:
     if(!impl_||!impl_->frameBegun||vertices.empty()||indices.empty()||!mvp||indices.size()%3U!=0U){lastError_=Vulkan3DRendererError::FrameFailure;return false;}if(vertices.size()>1000000U||indices.size()>3000000U){lastError_=Vulkan3DRendererError::BufferFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];VkDeviceSize vb=vertices.size()*sizeof(GpuVertex),ib=indices.size()*sizeof(uint32_t),instb=sizeof(GpuInstance);VkDeviceSize vr=f.vertexArena.used+vb,ir=f.indexArena.used+ib,er=f.instanceArena.used+instb;if(vr>f.vertexArena.capacity&&(f.vertexArena.used||!EnsureArena(impl_->physical,impl_->device,f.vertexArena,vr,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}if(ir>f.indexArena.capacity&&(f.indexArena.used||!EnsureArena(impl_->physical,impl_->device,f.indexArena,ir,VK_BUFFER_USAGE_INDEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}if(er>f.instanceArena.capacity&&(f.instanceArena.used||!EnsureArena(impl_->physical,impl_->device,f.instanceArena,er,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}auto* dst=reinterpret_cast<GpuVertex*>(static_cast<std::byte*>(f.vertexArena.mapped)+f.vertexArena.used);for(size_t i=0;i<vertices.size();++i)dst[i]={{vertices[i].px,vertices[i].py,vertices[i].pz},{vertices[i].nx,vertices[i].ny,vertices[i].nz},{vertices[i].u,vertices[i].v}};std::memcpy(static_cast<std::byte*>(f.indexArena.mapped)+f.indexArena.used,indices.data(),(size_t)ib);std::memcpy(static_cast<std::byte*>(f.instanceArena.mapped)+f.instanceArena.used,kIdentityMatrix.data(),sizeof(GpuInstance));VkDeviceSize offs[]={f.vertexArena.used,f.instanceArena.used};VkBuffer bufs[]={f.vertexArena.buffer.handle,f.instanceArena.buffer.handle};vkCmdPushConstants(f.commandBuffer,impl_->pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(float)*16U,mvp);vkCmdBindVertexBuffers(f.commandBuffer,0,2,bufs,offs);vkCmdBindIndexBuffer(f.commandBuffer,f.indexArena.buffer.handle,f.indexArena.used,VK_INDEX_TYPE_UINT32);vkCmdDrawIndexed(f.commandBuffer,(uint32_t)indices.size(),1,0,0,0);f.vertexArena.used=vr;f.indexArena.used=ir;f.instanceArena.used=er;stats_.vertexCount+=(uint32_t)vertices.size();stats_.indexCount+=(uint32_t)indices.size();return true;
 }
 
-bool Vulkan3DRenderer::DrawIndexedInstanced(std::span<const Vulkan3DVertex> vertices,std::span<const uint32_t> indices,std::span<const float> transforms){
-    if(!impl_||!impl_->frameBegun||vertices.empty()||indices.empty()||transforms.empty()||(transforms.size()%16U)!=0U||indices.size()%3U!=0U){lastError_=Vulkan3DRendererError::FrameFailure;return false;}if(vertices.size()>1000000U||indices.size()>3000000U){lastError_=Vulkan3DRendererError::BufferFailure;return false;}size_t n=transforms.size()/16U;if(n>1000000U||n>static_cast<size_t>(std::numeric_limits<uint32_t>::max())){lastError_=Vulkan3DRendererError::BufferFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];VkDeviceSize vb=vertices.size()*sizeof(GpuVertex),ib=indices.size()*sizeof(uint32_t),eb=n*sizeof(GpuInstance);VkDeviceSize vr=f.vertexArena.used+vb,ir=f.indexArena.used+ib,er=f.instanceArena.used+eb;if(vr>f.vertexArena.capacity&&(f.vertexArena.used||!EnsureArena(impl_->physical,impl_->device,f.vertexArena,vr,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}if(ir>f.indexArena.capacity&&(f.indexArena.used||!EnsureArena(impl_->physical,impl_->device,f.indexArena,ir,VK_BUFFER_USAGE_INDEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}if(er>f.instanceArena.capacity&&(f.instanceArena.used||!EnsureArena(impl_->physical,impl_->device,f.instanceArena,er,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}auto* dst=reinterpret_cast<GpuVertex*>(static_cast<std::byte*>(f.vertexArena.mapped)+f.vertexArena.used);for(size_t i=0;i<vertices.size();++i)dst[i]={{vertices[i].px,vertices[i].py,vertices[i].pz},{vertices[i].nx,vertices[i].ny,vertices[i].nz},{vertices[i].u,vertices[i].v}};std::memcpy(static_cast<std::byte*>(f.indexArena.mapped)+f.indexArena.used,indices.data(),(size_t)ib);std::memcpy(static_cast<std::byte*>(f.instanceArena.mapped)+f.instanceArena.used,transforms.data(),(size_t)eb);VkDeviceSize offs[]={f.vertexArena.used,f.instanceArena.used};VkBuffer bufs[]={f.vertexArena.buffer.handle,f.instanceArena.buffer.handle};vkCmdPushConstants(f.commandBuffer,impl_->pipelineLayout,VK_SHADER_STAGE_VERTEX_BIT,0,sizeof(float)*16U,kIdentityMatrix.data());vkCmdBindVertexBuffers(f.commandBuffer,0,2,bufs,offs);vkCmdBindIndexBuffer(f.commandBuffer,f.indexArena.buffer.handle,f.indexArena.used,VK_INDEX_TYPE_UINT32);vkCmdDrawIndexed(f.commandBuffer,(uint32_t)indices.size(),(uint32_t)n,0,0,0);f.vertexArena.used=vr;f.indexArena.used=ir;f.instanceArena.used=er;stats_.vertexCount+=(uint32_t)vertices.size();stats_.indexCount+=(uint32_t)indices.size();return true;
+bool Vulkan3DRenderer::DrawIndexedInstanced(std::span<const Vulkan3DVertex> vertices,std::span<const uint32_t> indices,std::span<const float> transforms) {
+    return DrawIndexedInstancedWithViewProjection(vertices, indices, transforms, kIdentityMatrix.data());
+}
+
+bool Vulkan3DRenderer::DrawIndexedInstancedWithViewProjection(std::span<const Vulkan3DVertex> vertices,
+                                                               std::span<const uint32_t> indices,
+                                                               std::span<const float> transforms,
+                                                               const float* viewProjection4x4) {
+    if (!impl_ || !impl_->frameBegun || vertices.empty() || indices.empty() || transforms.empty() ||
+        (transforms.size() % 16U) != 0U || indices.size() % 3U != 0U || viewProjection4x4 == nullptr) {
+        lastError_ = Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
+    if (vertices.size() > 1000000U || indices.size() > 3000000U) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    const size_t n = transforms.size() / 16U;
+    if (n > 1000000U || n > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+
+    Frame& f = impl_->frames[impl_->frameSlot];
+    const VkDeviceSize vb = vertices.size() * sizeof(GpuVertex);
+    const VkDeviceSize ib = indices.size() * sizeof(uint32_t);
+    const VkDeviceSize eb = n * sizeof(GpuInstance);
+    const VkDeviceSize vr = f.vertexArena.used + vb;
+    const VkDeviceSize ir = f.indexArena.used + ib;
+    const VkDeviceSize er = f.instanceArena.used + eb;
+    if (vr > f.vertexArena.capacity && (f.vertexArena.used || !EnsureArena(impl_->physical, impl_->device, f.vertexArena, vr, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+    if (ir > f.indexArena.capacity && (f.indexArena.used || !EnsureArena(impl_->physical, impl_->device, f.indexArena, ir, VK_BUFFER_USAGE_INDEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+    if (er > f.instanceArena.capacity && (f.instanceArena.used || !EnsureArena(impl_->physical, impl_->device, f.instanceArena, er, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+
+    auto* dst = reinterpret_cast<GpuVertex*>(static_cast<std::byte*>(f.vertexArena.mapped) + f.vertexArena.used);
+    for (size_t i = 0; i < vertices.size(); ++i)
+        dst[i] = {{vertices[i].px, vertices[i].py, vertices[i].pz},
+                  {vertices[i].nx, vertices[i].ny, vertices[i].nz},
+                  {vertices[i].u, vertices[i].v}};
+    std::memcpy(static_cast<std::byte*>(f.indexArena.mapped) + f.indexArena.used, indices.data(), static_cast<size_t>(ib));
+    std::memcpy(static_cast<std::byte*>(f.instanceArena.mapped) + f.instanceArena.used, transforms.data(), static_cast<size_t>(eb));
+
+    VkDeviceSize offs[] = {f.vertexArena.used, f.instanceArena.used};
+    VkBuffer bufs[] = {f.vertexArena.buffer.handle, f.instanceArena.buffer.handle};
+    vkCmdPushConstants(f.commandBuffer, impl_->pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
+                       0, sizeof(float) * 16U, viewProjection4x4);
+    vkCmdBindVertexBuffers(f.commandBuffer, 0, 2, bufs, offs);
+    vkCmdBindIndexBuffer(f.commandBuffer, f.indexArena.buffer.handle, f.indexArena.used, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(f.commandBuffer, static_cast<uint32_t>(indices.size()), static_cast<uint32_t>(n), 0, 0, 0);
+
+    f.vertexArena.used = vr;
+    f.indexArena.used = ir;
+    f.instanceArena.used = er;
+    stats_.vertexCount += static_cast<uint32_t>(vertices.size());
+    stats_.indexCount += static_cast<uint32_t>(indices.size());
+    return true;
+}
+
+bool Vulkan3DRenderer::DrawIndexedSkinnedInstancedWithViewProjection(
+    std::span<const Vulkan3DSkinnedVertex> vertices,
+    std::span<const uint32_t> indices,
+    std::span<const float> modelTransforms4x4,
+    std::span<const Mat4> bonePalette,
+    const float* viewProjection4x4) {
+    if (!impl_ || !impl_->frameBegun || vertices.empty() || indices.empty() ||
+        modelTransforms4x4.empty() || bonePalette.empty() || viewProjection4x4 == nullptr ||
+        (modelTransforms4x4.size() % 16U) != 0U || indices.size() % 3U != 0U ||
+        bonePalette.size() > GPUSkinningPaletteBuffer::kMaxBones) {
+        lastError_ = Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
+    if (vertices.size() > 1000000U || indices.size() > 3000000U) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    const size_t n = modelTransforms4x4.size() / 16U;
+    if (n == 0U || n > 1000000U || n > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    for (const Vulkan3DSkinnedVertex& vertex : vertices) {
+        if (vertex.bone0 >= bonePalette.size() || vertex.bone1 >= bonePalette.size() ||
+            vertex.bone2 >= bonePalette.size() || vertex.bone3 >= bonePalette.size() ||
+            !std::isfinite(vertex.weight0) || !std::isfinite(vertex.weight1) ||
+            !std::isfinite(vertex.weight2) || !std::isfinite(vertex.weight3) ||
+            vertex.weight0 < 0.0F || vertex.weight1 < 0.0F ||
+            vertex.weight2 < 0.0F || vertex.weight3 < 0.0F) {
+            lastError_ = Vulkan3DRendererError::BufferFailure;
+            return false;
+        }
+    }
+    if (!impl_->skinPalette.UploadPalette(std::vector<Mat4>(bonePalette.begin(), bonePalette.end()))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+
+    Frame& f = impl_->frames[impl_->frameSlot];
+    const VkDeviceSize vb = vertices.size() * sizeof(GpuSkinnedVertex);
+    const VkDeviceSize ib = indices.size() * sizeof(uint32_t);
+    const VkDeviceSize eb = n * sizeof(GpuInstance);
+    const VkDeviceSize vr = f.vertexArena.used + vb;
+    const VkDeviceSize ir = f.indexArena.used + ib;
+    const VkDeviceSize er = f.instanceArena.used + eb;
+    if (vr > f.vertexArena.capacity && (f.vertexArena.used ||
+        !EnsureArena(impl_->physical, impl_->device, f.vertexArena, vr, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+    if (ir > f.indexArena.capacity && (f.indexArena.used ||
+        !EnsureArena(impl_->physical, impl_->device, f.indexArena, ir, VK_BUFFER_USAGE_INDEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+    if (er > f.instanceArena.capacity && (f.instanceArena.used ||
+        !EnsureArena(impl_->physical, impl_->device, f.instanceArena, er, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))) {
+        lastError_ = Vulkan3DRendererError::BufferFailure; return false;
+    }
+
+    auto* dst = reinterpret_cast<GpuSkinnedVertex*>(
+        static_cast<std::byte*>(f.vertexArena.mapped) + f.vertexArena.used);
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        const Vulkan3DSkinnedVertex& src = vertices[i];
+        dst[i] = {{src.px,src.py,src.pz},{src.nx,src.ny,src.nz},{src.u,src.v},
+                  {src.bone0,src.bone1,src.bone2,src.bone3},
+                  {src.weight0,src.weight1,src.weight2,src.weight3}};
+    }
+    std::memcpy(static_cast<std::byte*>(f.indexArena.mapped) + f.indexArena.used,
+                indices.data(), static_cast<size_t>(ib));
+    std::memcpy(static_cast<std::byte*>(f.instanceArena.mapped) + f.instanceArena.used,
+                modelTransforms4x4.data(), static_cast<size_t>(eb));
+
+    vkCmdBindPipeline(f.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->skinnedPipeline);
+    vkCmdBindDescriptorSets(f.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            impl_->skinnedPipelineLayout, 0U, 1U,
+                            &impl_->skinDescriptorSet, 0U, nullptr);
+    vkCmdPushConstants(f.commandBuffer, impl_->skinnedPipelineLayout,
+                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(float) * 16U,
+                       viewProjection4x4);
+    VkDeviceSize offsets[] = {f.vertexArena.used, f.instanceArena.used};
+    VkBuffer buffers[] = {f.vertexArena.buffer.handle, f.instanceArena.buffer.handle};
+    vkCmdBindVertexBuffers(f.commandBuffer, 0U, 2U, buffers, offsets);
+    vkCmdBindIndexBuffer(f.commandBuffer, f.indexArena.buffer.handle,
+                         f.indexArena.used, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(f.commandBuffer, static_cast<uint32_t>(indices.size()),
+                     static_cast<uint32_t>(n), 0, 0, 0);
+
+    f.vertexArena.used = vr;
+    f.indexArena.used = ir;
+    f.instanceArena.used = er;
+    stats_.vertexCount += static_cast<uint32_t>(vertices.size());
+    stats_.indexCount += static_cast<uint32_t>(indices.size());
+
+    // Restore the canonical static-mesh pipeline so mixed static/skinned draws
+    // remain valid within the same frame.
+    vkCmdBindPipeline(f.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipeline);
+    return true;
 }
 
 bool Vulkan3DRenderer::EndFrame(){if(!impl_||!impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];vkCmdEndRenderPass(f.commandBuffer);if(vkEndCommandBuffer(f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPipelineStageFlags stage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&f.imageAvailable;submit.pWaitDstStageMask=&stage;submit.commandBufferCount=1;submit.pCommandBuffers=&f.commandBuffer;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&f.renderFinished;VkResult s=vkQueueSubmit(impl_->graphicsQueue,1,&submit,f.fence);if(s!=VK_SUCCESS){lastError_=s==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPresentInfoKHR p{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};p.waitSemaphoreCount=1;p.pWaitSemaphores=&f.renderFinished;p.swapchainCount=1;p.pSwapchains=&impl_->swapchain;p.pImageIndices=&impl_->acquiredImageIndex;VkResult presented=vkQueuePresentKHR(impl_->presentQueue,&p);impl_->frameBegun=false;impl_->frameSlot=(impl_->frameSlot+1U)%2U;stats_.frameIndex++;if(presented==VK_ERROR_OUT_OF_DATE_KHR||presented==VK_SUBOPTIMAL_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(presented==VK_ERROR_DEVICE_LOST){lastError_=Vulkan3DRendererError::DeviceLost;return false;}if(presented!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}lastError_=Vulkan3DRendererError::None;return true;}

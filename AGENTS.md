@@ -133,3 +133,47 @@ Every agent that changes the repository must leave enough information for the ne
 - PR number when applicable.
 
 The authoritative long-form procedure is `docs/AI_ENGINE_WORK_STANDARD.md`.
+
+
+## Cross-room continuation and branch percentage (mandatory)
+
+The repository is worked on across multiple ChatGPT/Claude/agent rooms. Chat history is not authoritative; the branch checkpoint is.
+
+Before changing code in any active work branch:
+1. Read `AI_HANDOVER_PROTOCOL.md`.
+2. Read the branch's `BRANCH_STATUS.md`.
+3. Verify the branch HEAD and PR state from GitHub.
+4. Inspect the exact current source at that HEAD.
+5. Continue from the branch status's `NEXT` item only after confirming it still matches the code.
+
+Every active work branch MUST contain `BRANCH_STATUS.md` with:
+- branch name;
+- base/main SHA;
+- current HEAD;
+- PR number;
+- overall progress %;
+- P0/P1/P2/P3/P4 progress %;
+- exact completed work;
+- exact verification evidence;
+- explicit UNVERIFIED layers;
+- concrete unresolved gaps;
+- one exact next action.
+
+Percentages are roadmap progress indicators, not claims of production readiness. Code that is implemented but not runtime/device tested remains IMPLEMENTED-UNVERIFIED. Acceptance APIs/tests without target measurements remain CONTRACT-ONLY.
+
+When a room reaches its context/tool limit, the agent must commit completed work to the active branch, update `BRANCH_STATUS.md`, and leave the branch in a directly continuable state. The next room must not reconstruct the task from memory or older chat when repository evidence is newer.
+
+Status labels:
+- `VERIFIED-CI`
+- `VERIFIED-TERMUX`
+- `VERIFIED-BENCH`
+- `IMPLEMENTED-UNVERIFIED`
+- `CONTRACT-ONLY`
+- `BLOCKED`
+
+Current detailed checkpoint and percentages are maintained in `BRANCH_STATUS.md`.
+
+
+## Current repository checkpoint — 2026-09-19
+
+The active work branch is `p3-editor-android-production-night` at code checkpoint `c2df50300e488936cb777bf9a543f8c988f4af30`, PR #71, based on main `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`. PR merge-ref `1564142` currently has Renderer 3D Vulkan Smoke **FAIL** at native link with unresolved `VulkanGPUBuffer`, `VulkanDescriptorManager`, and `GPUSkinningPaletteBuffer`; the other named workflows are currently reported PASS. Termux/device is **UNVERIFIED — TERMUX REQUIRED**. XPBD 100K/200K/<5 ms is not benchmark-proven. P0–P4 are all mandatory 100% targets; do not mark any phase 100% from source presence or contract-only evidence.

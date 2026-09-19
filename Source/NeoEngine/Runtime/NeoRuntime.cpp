@@ -78,6 +78,10 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     authoringWorldConfig.side = config.authoringWorldSide;
     authoringWorldConfig.seed = config.authoringWorldSeed;
     if (!authoringWorld->Generate(authoringWorldConfig) || !authoringWorld->BindScene(*scene)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto ecs = std::make_unique<ArchetypeManager>();
+    auto sceneMeshes = std::make_unique<SceneMeshAdapter>();
+    SceneECSBridge sceneECSBridge;
+    if (!sceneECSBridge.Rebuild(*scene, *ecs)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto actors = std::make_unique<ActorComponentWorld>(*scene);
     auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId);
     auto curriculum = std::unique_ptr<CurriculumSystem>{};
@@ -175,6 +179,9 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_RouteMotionEntity_ = routeMotionEntity;
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
+    m_ECS = std::move(ecs);
+    m_SceneMeshes = std::move(sceneMeshes);
+    m_SceneECSBridge = std::move(sceneECSBridge);
     m_SceneCameraConfig = config.sceneCamera;
     m_RenderWidth = config.renderWidth;
     m_RenderHeight = config.renderHeight;
@@ -200,6 +207,7 @@ bool NeoRuntime::Tick() {
     std::vector<RuntimeTimerFire> fires;
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (m_Scene != nullptr && !m_Scene->UpdateTransforms()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (m_Input != nullptr) m_Input->BeginFrame();
     std::vector<RuntimeTimeEvent> timeEvents;
     uint32_t simulatedTicks = 0U;
@@ -217,7 +225,7 @@ bool NeoRuntime::Tick() {
         if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return false; }
         m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), {}, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
         m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
-        m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
+        m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount(); m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
         m_HasFrameReceipt = true;
         m_LastError = RuntimeError::None;
         return true;
@@ -236,6 +244,8 @@ bool NeoRuntime::Tick() {
     if (hasFarmPlayerInput) farmPlayerInputReceipt = m_FarmPlayerInput->LastReceipt();
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (!m_ECS || !m_SceneMeshes || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (!m_SceneMeshes->AdvanceSkeletalAnimations(m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
     CurriculumProgressReceipt curriculumReceipt{};
     m_LastCurriculumEvents.clear();
@@ -267,6 +277,14 @@ bool NeoRuntime::BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet) {
     m_LastError = RuntimeError::None;
     return true;
 }
+
+bool NeoRuntime::RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material) {
+    if (m_State != RuntimeState::Initialized || !m_SceneMeshes) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!m_SceneMeshes->RefreshStaged(entity, mesh, material)) { m_LastError = RuntimeError::RenderFailed; return false; }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
@@ -471,6 +489,7 @@ bool NeoRuntime::Shutdown() {
     m_LastCurriculumEvents.clear();
     m_AuthoringWorld.reset();
     m_Scene.reset();
+    m_ECS.reset();
     m_Assets.reset();
     m_FarmAuthority.reset();
     m_FarmWorld.reset();

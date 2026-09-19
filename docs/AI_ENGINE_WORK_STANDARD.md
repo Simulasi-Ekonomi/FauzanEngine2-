@@ -408,3 +408,71 @@ This format is intentionally factual. Do not substitute confidence or optimism f
 > **The objective is not to make the repository look complete. The objective is to make the engine actually work.**
 
 When a test conflicts with the intended production capability, repair the implementation or the test contract correctly. Never lower the engine's target just to obtain a green check.
+
+
+## 23. Cross-room continuation protocol
+
+This repository is intentionally continued across multiple AI rooms. Chat history is not the authoritative state; the repository checkpoint is.
+
+Every active work branch MUST contain `BRANCH_STATUS.md`. The branch status is a compact, machine-readable-for-humans checkpoint containing:
+- branch and base/main SHA;
+- current HEAD;
+- PR;
+- overall progress percentage;
+- P0/P1/P2/P3/P4 percentages;
+- completed work;
+- exact verification evidence;
+- explicit unverified layers;
+- unresolved gaps;
+- one exact next action.
+
+The repository-level operating rules are in `AI_HANDOVER_PROTOCOL.md`.
+
+### New-room startup sequence
+
+1. Read `AGENTS.md`.
+2. Read `docs/AI_ENGINE_WORK_STANDARD.md`.
+3. Read `AI_HANDOVER_PROTOCOL.md`.
+4. Read `BRANCH_STATUS.md` on the active branch.
+5. Verify the actual branch HEAD and PR state.
+6. Inspect the exact current implementation at that HEAD.
+7. Confirm the status file's NEXT item is still valid.
+8. Continue only from verified repository evidence.
+
+Never reconstruct a current task from an old chat summary when the branch contains newer evidence.
+
+### Context-limit handoff
+
+When a room is near its context/tool limit:
+1. finish the safe unit of work;
+2. commit completed work to the active branch;
+3. update `BRANCH_STATUS.md` with the new HEAD and exact state;
+4. record CI/test evidence and all unverified layers;
+5. record exactly one next blocking action;
+6. leave main untouched.
+
+The next room should be able to continue without asking the user to repeat the previous room's work.
+
+## 24. Percentage semantics
+
+Percentages are roadmap completion indicators, not claims of production readiness.
+
+- Increase a percentage only when real work has been implemented and/or verified.
+- CI alone does not prove device/runtime behavior.
+- An implemented but untested feature is `IMPLEMENTED-UNVERIFIED`.
+- An acceptance API/test without the required measured target is `CONTRACT-ONLY`.
+- A benchmark target is not complete until the real workload and threshold are measured.
+- Keep the percentages in `BRANCH_STATUS.md`, not scattered across chat messages.
+
+Required evidence labels:
+- `VERIFIED-CI`
+- `VERIFIED-TERMUX`
+- `VERIFIED-BENCH`
+- `IMPLEMENTED-UNVERIFIED`
+- `CONTRACT-ONLY`
+- `BLOCKED`
+
+
+## Current repository checkpoint — 2026-09-19
+
+Authoritative branch checkpoint: `p3-editor-android-production-night` / `c2df50300e488936cb777bf9a543f8c988f4af30`, PR #71, main baseline `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`. Current PR merge-ref `1564142` has Renderer 3D Vulkan Smoke **FAIL** at native link for `VulkanGPUBuffer`, `VulkanDescriptorManager`, and `GPUSkinningPaletteBuffer`. Termux/device remains **UNVERIFIED — TERMUX REQUIRED** and XPBD 100K/200K/<5 ms remains unproven. P0–P4 are mandatory 100% completion gates.

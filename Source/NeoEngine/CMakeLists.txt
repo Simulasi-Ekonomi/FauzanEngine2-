@@ -18,6 +18,7 @@ set(NEO_TEXTURE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.vert.spv")
 set(NEO_TEXTURE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.frag.spv")
 set(NEO_TRIANGLE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.vert.spv")
 set(NEO_TRIANGLE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.frag.spv")
+set(NEO_SKINNED_MESH_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_skinned_mesh.vert.spv")
 
 add_custom_command(
     OUTPUT "${NEO_MESH_VERT_SPV}"
@@ -61,10 +62,17 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.frag"
     VERBATIM
 )
+add_custom_command(
+    OUTPUT "${NEO_SKINNED_MESH_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_skinned_mesh.vert" -o "${NEO_SKINNED_MESH_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_skinned_mesh.vert"
+    VERBATIM
+)
 add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
     "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
-    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}")
+    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}" "${NEO_SKINNED_MESH_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
@@ -80,14 +88,22 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/Vulkan3DRenderer.cpp
+    Runtime/VulkanGPUBuffer.cpp
+    Runtime/VulkanDescriptorManager.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
+    Runtime/RuntimeVerticalSliceGate.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
     Runtime/RuntimeClock.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
+    Runtime/CanonicalRuntimeWorld.cpp
+    Runtime/SceneECSBridge.cpp
+    Core/ECS/ArchetypeManager.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
+    Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
     Runtime/TextureStaging.cpp
@@ -157,6 +173,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
     Systems/FarmCommerceCheckpointFile.cpp
+    Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmWorldTool.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -202,6 +219,15 @@ function(add_xpbd_executable target_name source_file)
     target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
 endfunction()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
+    add_xpbd_executable(canonical_runtime_world_smoke ../../Tests/Runtime/canonical_runtime_world_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Physics/physics_step_measurement_smoke.cpp")
+    add_xpbd_executable(physics_step_measurement_smoke ../../Tests/Physics/physics_step_measurement_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp")
+    add_xpbd_executable(neo_runtime_ecs_integration_smoke ../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_frame_contract_smoke.cpp")
     add_xpbd_executable(runtime_frame_contract_smoke ../../Tests/Runtime/runtime_frame_contract_smoke.cpp)
 endif()
@@ -291,6 +317,12 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp")
     add_xpbd_executable(neo_runtime_farm_vertical_slice_smoke ../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp")
+    add_xpbd_executable(neo_runtime_farm_progress_file_smoke ../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_balance_profile_smoke.cpp")
+    add_xpbd_executable(farm_balance_profile_smoke ../../Tests/Farm/farm_balance_profile_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp")
     add_xpbd_executable(farm_authoritative_session_loopback_smoke ../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp)
 endif()
@@ -300,11 +332,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_entitlement_smoke.cpp")
     add_xpbd_executable(farm_commerce_entitlement_smoke ../../Tests/Farm/farm_commerce_entitlement_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp")
     add_xpbd_executable(farm_commerce_checkpoint_smoke ../../Tests/Farm/farm_commerce_checkpoint_smoke.cpp)
 endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_service_smoke.cpp")
     add_xpbd_executable(farm_authoritative_service_smoke ../../Tests/Farm/farm_authoritative_service_smoke.cpp)
 endif()
@@ -317,3 +347,19 @@ add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence
 add_xpbd_executable(r9_live_ops_telemetry_100_smoke ../../Tests/r9_live_ops_telemetry_100_smoke.cpp)
 add_xpbd_executable(r10_security_privacy_100_smoke ../../Tests/r10_security_privacy_100_smoke.cpp)
 add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehensive_engine_verification_smoke.cpp)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gpu_skinning_palette_buffer_smoke.cpp")
+    add_xpbd_executable(gpu_skinning_palette_buffer_smoke ../../Tests/Runtime/gpu_skinning_palette_buffer_smoke.cpp)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/scene_mesh_animation_binding_smoke.cpp")
+    add_xpbd_executable(scene_mesh_animation_binding_smoke ../../Tests/Rendering/scene_mesh_animation_binding_smoke.cpp)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/archetype_manager_smoke.cpp")
+    add_xpbd_executable(archetype_manager_smoke ../../Tests/Runtime/archetype_manager_smoke.cpp)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/archetype_manager_component_migration_smoke.cpp")
+    add_xpbd_executable(archetype_manager_component_migration_smoke ../../Tests/Runtime/archetype_manager_component_migration_smoke.cpp)
+endif()

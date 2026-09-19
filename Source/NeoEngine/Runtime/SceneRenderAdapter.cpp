@@ -10,10 +10,10 @@
 
 namespace NeoEngine {
 namespace {
-struct Mat4 { std::array<float, 16> v{}; };
+struct RenderMat4 { std::array<float, 16> v{}; };
 
-Mat4 Multiply(const Mat4& a, const Mat4& b) {
-    Mat4 out{};
+RenderMat4 Multiply(const RenderMat4& a, const RenderMat4& b) {
+    RenderMat4 out{};
     for (int column = 0; column < 4; ++column) {
         for (int row = 0; row < 4; ++row) {
             float value = 0.0F;
@@ -30,11 +30,11 @@ RenderPoint3 Normalize(RenderPoint3 value) {
     return {value.x / length, value.y / length, value.z / length};
 }
 
-Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3 up) {
+RenderMat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3 up) {
     const RenderPoint3 forward = Normalize(config.forward);
     right = Normalize(right);
     up = Normalize(up);
-    Mat4 view{};
+    RenderMat4 view{};
     view.v = {
         right.x, up.x, forward.x, 0.0F,
         right.y, up.y, forward.y, 0.0F,
@@ -47,8 +47,8 @@ Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3
     return view;
 }
 
-Mat4 MakeProjection(const RenderCameraConfig& config) {
-    Mat4 projection{};
+RenderMat4 MakeProjection(const RenderCameraConfig& config) {
+    RenderMat4 projection{};
     if (config.mode == RenderCameraMode::Orthographic) {
         const float halfHeight = std::max(0.001F, config.orthographicHalfHeight);
         const float aspect = std::max(0.001F, config.aspect);
@@ -79,11 +79,11 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
     return projection;
 }
 
-Mat4 MakeModel(const Transform3& transform) {
+RenderMat4 MakeModel(const Transform3& transform) {
     const float cx = std::cos(transform.rx), sx = std::sin(transform.rx);
     const float cy = std::cos(transform.ry), sy = std::sin(transform.ry);
     const float cz = std::cos(transform.rz), sz = std::sin(transform.rz);
-    Mat4 model{};
+    RenderMat4 model{};
     model.v = {
         (cz * cy) * transform.sx, (sz * cy) * transform.sx, (-sy) * transform.sx, 0.0F,
         (cz * sy * sx - sz * cx) * transform.sy, (sz * sy * sx + cz * cx) * transform.sy, (cy * sx) * transform.sy, 0.0F,
@@ -93,20 +93,35 @@ Mat4 MakeModel(const Transform3& transform) {
     return model;
 }
 
-RenderPoint3 TransformPoint(const Mat4& matrix, RenderPoint3 point) {
-    return {
-        matrix.v[0] * point.x + matrix.v[4] * point.y + matrix.v[8] * point.z + matrix.v[12],
-        matrix.v[1] * point.x + matrix.v[5] * point.y + matrix.v[9] * point.z + matrix.v[13],
-        matrix.v[2] * point.x + matrix.v[6] * point.y + matrix.v[10] * point.z + matrix.v[14]
-    };
+bool ValidateECSAssetIdentity(const SceneMeshInstance& instance, const ArchetypeManager& ecs,
+                               const SceneECSBridge& sceneECS) {
+    const EntityID ecsId = sceneECS.ECSId(instance.entity);
+    if (!ecs.HasEntity(ecsId) || (ecs.GetComponentMask(ecsId) & COMP_MESH) == 0U) return false;
+    uint64_t meshHash = 0U;
+    uint64_t materialHash = 0U;
+    if (!ecs.TryGetMeshAssetIdentity(ecsId, meshHash, materialHash)) return false;
+    if (instance.sourceHash == 0U || meshHash != instance.sourceHash) return false;
+    if (!instance.sourceMaterialAssetId.empty() &&
+        (instance.sourceMaterialHash == 0U || materialHash != instance.sourceMaterialHash)) return false;
+    return true;
 }
 
-RenderPoint3 TransformDirection(const Mat4& matrix, RenderPoint3 value) {
-    return Normalize({
-        matrix.v[0] * value.x + matrix.v[4] * value.y + matrix.v[8] * value.z,
-        matrix.v[1] * value.x + matrix.v[5] * value.y + matrix.v[9] * value.z,
-        matrix.v[2] * value.x + matrix.v[6] * value.y + matrix.v[10] * value.z
-    });
+bool MakeECSModel(const SceneMeshInstance& instance, const ArchetypeManager& ecs,
+                  const SceneECSBridge& sceneECS, RenderMat4& model) {
+    const EntityID ecsId = sceneECS.ECSId(instance.entity);
+    if (!ecs.HasEntity(ecsId)) return false;
+
+    float x = 0.0F, y = 0.0F, z = 0.0F;
+    float rx = 0.0F, ry = 0.0F, rz = 0.0F;
+    float sx = 1.0F, sy = 1.0F, sz = 1.0F;
+    if (!ecs.TryGetPosition(ecsId, x, y, z) || !ecs.TryGetRotation(ecsId, rx, ry, rz) || !ecs.TryGetScale(ecsId, sx, sy, sz)) return false;
+
+    Transform3 transform{};
+    transform.x = x; transform.y = y; transform.z = z;
+    transform.rx = rx; transform.ry = ry; transform.rz = rz;
+    transform.sx = sx; transform.sy = sy; transform.sz = sz;
+    model = MakeModel(transform);
+    return true;
 }
 
 } // namespace
@@ -121,42 +136,146 @@ bool SceneRenderAdapter::Draw(const SceneWorld& world, SceneMeshAdapter& meshes,
 }
 
 bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAdapter& meshes, RenderCamera& camera,
-                                      Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA) {
+                                      Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA,
+                                      const ArchetypeManager* ecs, const SceneECSBridge* sceneECS) {
     if (!renderer.Ready()) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
     const RenderCameraConfig& config = camera.Config();
-    if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F || config.farPlane <= config.nearPlane) {
+    if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F ||
+        config.farPlane <= config.nearPlane) {
+        lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+        return false;
+    }
+    if ((ecs == nullptr) != (sceneECS == nullptr)) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
     }
 
-    const Mat4 viewProjection = Multiply(MakeProjection(config), MakeView(config, camera.Right(), camera.Up()));
+    const RenderMat4 viewProjection = Multiply(MakeProjection(config), MakeView(config, camera.Right(), camera.Up()));
     if (!renderer.BeginFrame(clearR, clearG, clearB, clearA)) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
     }
 
-    for (const SceneMeshInstance& instance : meshes.Instances()) {
-        const Transform3* transform = world.GetTransform(instance.entity);
-        if (!transform) continue;
+    struct Batch { size_t first = 0U; std::vector<size_t> instances; };
+    std::vector<Batch> batches;
+    batches.reserve(meshes.Instances().size());
+
+    for (size_t i = 0U; i < meshes.Instances().size(); ++i) {
+        const SceneMeshInstance& instance = meshes.Instances()[i];
         if (instance.vertices.empty() || instance.indices.empty() || instance.indices.size() % 3U != 0U) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;
         }
 
-        const Mat4 model = MakeModel(*transform);
+        RenderMat4 model{};
+        if (ecs != nullptr) {
+            if (!ValidateECSAssetIdentity(instance, *ecs, *sceneECS) || !MakeECSModel(instance, *ecs, *sceneECS, model)) {
+                lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                renderer.EndFrame();
+                return false;
+            }
+        } else {
+            const Transform3* transform = world.GetTransform(instance.entity);
+            if (!transform) continue;
+            model = MakeModel(*transform);
+        }
+
+        size_t batchIndex = batches.size();
+        if (!instance.sourceAssetId.empty() && instance.sourceHash != 0U) {
+            for (size_t b = 0U; b < batches.size(); ++b) {
+                const SceneMeshInstance& first = meshes.Instances()[batches[b].first];
+                if (first.sourceAssetId == instance.sourceAssetId &&
+                    first.sourceHash == instance.sourceHash &&
+                    first.sourceMaterialAssetId == instance.sourceMaterialAssetId &&
+                    first.sourceMaterialHash == instance.sourceMaterialHash &&
+                    first.vertices.size() == instance.vertices.size() &&
+                    first.indices.size() == instance.indices.size()) {
+                    batchIndex = b;
+                    break;
+                }
+            }
+        }
+        if (batchIndex == batches.size()) batches.push_back({i, {}});
+        batches[batchIndex].instances.push_back(i);
+    }
+
+    for (const Batch& batch : batches) {
+        const SceneMeshInstance& first = meshes.Instances()[batch.first];
+        if (first.skeletalAnimation.has_value()) {
+            if (batch.instances.size() != 1U || first.skinWeights.size() != first.vertices.size() ||
+                first.skeletalPalette.empty()) {
+                lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                renderer.EndFrame();
+                return false;
+            }
+            std::vector<Vulkan3DSkinnedVertex> vertices;
+            vertices.reserve(first.vertices.size());
+            for (size_t vertexIndex = 0U; vertexIndex < first.vertices.size(); ++vertexIndex) {
+                const MeshVertex& vertex = first.vertices[vertexIndex];
+                const VertexWeight& weight = first.skinWeights[vertexIndex];
+                if (weight.boneIDs[0] < 0 || weight.boneIDs[1] < 0 || weight.boneIDs[2] < 0 || weight.boneIDs[3] < 0) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+                vertices.push_back(Vulkan3DSkinnedVertex{
+                    vertex.position.x, vertex.position.y, vertex.position.z,
+                    vertex.normal.x, vertex.normal.y, vertex.normal.z,
+                    vertex.u, vertex.v,
+                    static_cast<uint32_t>(weight.boneIDs[0]), static_cast<uint32_t>(weight.boneIDs[1]),
+                    static_cast<uint32_t>(weight.boneIDs[2]), static_cast<uint32_t>(weight.boneIDs[3]),
+                    weight.weights[0], weight.weights[1], weight.weights[2], weight.weights[3]});
+            }
+            std::vector<uint32_t> indices;
+            indices.reserve(first.indices.size());
+            for (uint16_t index : first.indices) {
+                if (index >= first.vertices.size()) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+                indices.push_back(static_cast<uint32_t>(index));
+            }
+            RenderMat4 model{};
+            if (ecs != nullptr) {
+                if (!ValidateECSAssetIdentity(first, *ecs, *sceneECS) || !MakeECSModel(first, *ecs, *sceneECS, model)) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+            } else {
+                const Transform3* transform = world.GetTransform(first.entity);
+                if (!transform) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+                model = MakeModel(*transform);
+            }
+            const std::span<const NeoEngine::Mat4> palette(first.skeletalPalette.data(), first.skeletalPalette.size());
+            if (!renderer.DrawIndexedSkinnedInstancedWithViewProjection(
+                    vertices, indices, std::span<const float>(model.v.data(), model.v.size()), palette,
+                    viewProjection.v.data())) {
+                lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                renderer.EndFrame();
+                return false;
+            }
+            continue;
+        }
         std::vector<Vulkan3DVertex> vertices;
-        vertices.reserve(instance.vertices.size());
-        for (const MeshVertex& vertex : instance.vertices) {
-            const RenderPoint3 position = TransformPoint(model, vertex.position);
-            const RenderPoint3 normal = TransformDirection(model, vertex.normal);
-            vertices.push_back(Vulkan3DVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v});
+        vertices.reserve(first.vertices.size());
+        for (const MeshVertex& vertex : first.vertices) {
+            vertices.push_back(Vulkan3DVertex{
+                vertex.position.x, vertex.position.y, vertex.position.z,
+                vertex.normal.x, vertex.normal.y, vertex.normal.z,
+                vertex.u, vertex.v});
         }
 
         std::vector<uint32_t> indices;
-        indices.reserve(instance.indices.size());
-        for (uint16_t index : instance.indices) {
-            if (index >= instance.vertices.size()) {
+        indices.reserve(first.indices.size());
+        for (uint16_t index : first.indices) {
+            if (index >= first.vertices.size()) {
                 lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
                 renderer.EndFrame();
                 return false;
@@ -164,7 +283,27 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             indices.push_back(static_cast<uint32_t>(index));
         }
 
-        if (!renderer.DrawIndexed(vertices, indices, viewProjection.v.data())) {
+        std::vector<float> transforms;
+        transforms.reserve(batch.instances.size() * 16U);
+        for (const size_t instanceIndex : batch.instances) {
+            RenderMat4 model{};
+            if (ecs != nullptr) {
+                if (!ValidateECSAssetIdentity(meshes.Instances()[instanceIndex], *ecs, *sceneECS) ||
+                    !MakeECSModel(meshes.Instances()[instanceIndex], *ecs, *sceneECS, model)) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+            } else {
+                const Transform3* transform = world.GetTransform(meshes.Instances()[instanceIndex].entity);
+                if (!transform) continue;
+                model = MakeModel(*transform);
+            }
+            transforms.insert(transforms.end(), model.v.begin(), model.v.end());
+        }
+
+        if (transforms.empty() ||
+            !renderer.DrawIndexedInstancedWithViewProjection(vertices, indices, transforms, viewProjection.v.data())) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;

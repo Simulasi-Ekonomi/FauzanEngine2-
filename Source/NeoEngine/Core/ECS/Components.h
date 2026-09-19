@@ -25,6 +25,8 @@ struct ColliderComponent {
 
 struct MeshComponent {
     std::vector<uint32_t> meshID;
+    std::vector<uint64_t> meshAssetHash;
+    std::vector<uint64_t> materialAssetHash;
 };
 
 struct RotationComponent {

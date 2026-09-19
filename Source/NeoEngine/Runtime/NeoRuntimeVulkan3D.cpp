@@ -14,8 +14,6 @@ bool NeoRuntime::RenderScene3D() {
     const uint16_t width = std::max<uint16_t>(1U, m_RenderWidth);
     const uint16_t height = std::max<uint16_t>(1U, m_RenderHeight);
 
-    if (!m_SceneMeshes)
-        m_SceneMeshes = std::make_unique<SceneMeshAdapter>();
 
     if (!m_SceneRenderAdapter)
         m_SceneRenderAdapter = std::make_unique<SceneRenderAdapter>();
@@ -55,7 +53,9 @@ bool NeoRuntime::RenderScene3D() {
             *m_Scene,
             *m_SceneMeshes,
             *m_SceneCamera,
-            *m_VulkanRenderer)) {
+            *m_VulkanRenderer,
+            0.03F, 0.03F, 0.05F, 1.0F,
+            m_ECS.get(), &m_SceneECSBridge)) {
         m_LastError = RuntimeError::Vulkan3DRenderFailed;
         return false;
     }

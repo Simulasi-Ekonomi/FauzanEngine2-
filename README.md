@@ -1,37 +1,69 @@
-# FauzanEngine — Canonical NeoEngine Baseline
+# FauzanEngine2- — Canonical NeoEngine Status
 
-This repository currently documents and tests a **limited C++ engine/backend foundation** for lightweight-to-medium game foundations, with Farm/economy simulation as a principal future use case. The canonical C++ source is `Source/NeoEngine`; canonical executable evidence is in `Tests`.
+FauzanEngine2- is a production-oriented C++23 3D game-engine project targeting ECS/Scene, gameplay, physics, animation, audio, Vulkan/GPU rendering and Android.
 
-> **Status: NOT production-ready and NOT AAA-ready.** The project intentionally makes no claim of shipped-game, renderer, editor, Android, agent autonomy, multiplayer, anti-cheat, payments, or deployment readiness.
+**Current state: work in progress; not certified production-ready or AAA-ready.**
 
-## Verified baseline
+## Current checkpoint — 2026-09-19
+- Active branch: `p3-editor-android-production-night`
+- PR #71: `WIP: P0-P3 canonical runtime, renderer, physics, Android integration`
+- Code checkpoint: `c2df50300e488936cb777bf9a543f8c988f4af30`
+- Main baseline: `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`
+- Main: protected; do not merge without explicit authorization.
+- Termux/device: **UNVERIFIED — TERMUX REQUIRED**.
 
-The current scope includes fail-closed CPU-side skeleton hierarchy/bind/inverse-bind/palette evaluation, position-and-normal CPU skinning, typed TRS clips and player ownership, skeletal root-motion application, route intent/receipt, a single transform-writer adapter, movement authority gating, and a deliberately constrained opt-in NeoRuntime skeletal route.
+## Current implemented areas
+- Canonical `NeoRuntime` ECS ownership and Scene↔ECS bridge.
+- Incremental transform synchronization including rotation and scale.
+- ECS-authoritative 64-bit mesh/material asset identity.
+- Runtime vertical-slice gate.
+- XPBD timing instrumentation.
+- Vulkan 3D renderer/PBR infrastructure and GPU skinning foundation.
+- SceneMeshAdapter skeletal binding with validated weights and animation controller/palette state.
+- Asset streaming GPU ownership/resident-budget repair in the current lineage.
+- Android build path and Farm/runtime CI gates.
 
-| Area | Boundary |
+## Current CI
+PR #71 merge-ref `1564142adff56d98a490c79856830c52010a378b`:
+- PASS: Lint & Type Check
+- PASS: PBR Validation
+- PASS: R6 Farm fraud trust
+- PASS: R5 Farm authority reconnect
+- PASS: R1 Canonical Game Tool
+- PASS: R2 canonical Farm loop
+- PASS: Build Android APK
+- PASS: R3 Farm renderer path
+- FAIL: Renderer 3D Vulkan Smoke — native link
+
+The failing link reports unresolved `VulkanGPUBuffer`, `VulkanDescriptorManager`, and `GPUSkinningPaletteBuffer`. This is a CMake/source-registration closure defect, not runtime or benchmark evidence.
+
+## P0–P4 100% target
+P0, P1, P2, P3 and P4 must each reach 100%.
+
+| Phase | 100% means |
 |---|---|
-| Skeletal route | One straight, two-cell, clamp-only segment; default off and exclusive with static kinematic route mode. |
-| Transform writes | Guarded skeletal root motion is the sole writer on the skeletal-route path. |
-| Metadata | Cardinal one-cell clip validation and a snapshot registry of at most four clips; no multi-segment transition runtime. |
-| Verification | Direct smoke executables in Release and AddressSanitizer; broad non-Vulkan suite excludes `vulkan_*` and `sdl_audio_bridge_smoke`. |
-| Readiness | [`production_backend_readiness.md`](production_backend_readiness.md) remains **NOT PASSED**. |
+| P0 | Canonical ECS/Scene/Physics/Animation/Renderer ownership, lifecycle, synchronization and regression evidence complete. |
+| P1 | Production Vulkan/GPU path, complete asset import/upload/hot-reload/LOD, PBR/lighting/shadows, render graph/device recovery and batched GPU animation complete and verified. |
+| P2 | Production XPBD/gameplay/networking complete, including 100K bodies, ≥200K collision tests and measured step time strictly <5 ms. |
+| P3 | Editor/PIE/authoring, audio, Android/device/release pipeline and production service boundaries complete and verified. |
+| P4 | Final sanitizer/stress/long-run/device-loss/reconnect/GPU-failure/reproducible-build/signing/migration/crash-recovery/release certification complete. |
 
-## Repository guide
+## Current roadmap indicators
+| Phase | Progress |
+|---|---:|
+| P0 | 85% |
+| P1 | 30% |
+| P2 | 20% |
+| P3 | 15% |
+| P4 | 0% |
 
-| Path | Purpose |
-|---|---|
-| `Source/NeoEngine/` | Canonical C++23/CMake engine source. |
-| `Tests/` | Canonical executable smoke evidence. |
-| `Source/NeoEngine/CMakeLists.txt` | Canonical target and smoke registration. |
-| `docs/README.md` | Documentation map plus reproducible build/test commands. |
-| `GITHUB_PREPARATION.md` | Storage checklist and staging boundary. |
-| `todo.md` | Historical work log and deferred work. |
-| `*_contract.md` | Explicit contracts that prevent unsafe feature expansion. |
+These are roadmap indicators, not readiness claims.
 
-## Build and test
+## Canonical paths
+- Source: `Source/NeoEngine/`
+- Tests: `Tests/`
+- CMake: `Source/NeoEngine/CMakeLists.txt`
+- Termux: `~/FauzanEngine2-`
 
-The maintained local build directories are `/home/ubuntu/work/fauzan_engine/build/neoengine` for Release and `/home/ubuntu/work/fauzan_engine/build/neoengine_asan` for AddressSanitizer. Build and direct-smoke commands are maintained in [`docs/README.md`](docs/README.md).
-
-## Explicitly deferred
-
-No feature expansion is authorized in this stabilization checkpoint. Multi-segment routing, root rotation, kinematic fallback/delta blending, NPC locomotion, steering, collision/physics coupling, renderer binding, GPU skinning, prediction, multiplayer, Android packaging, deployment, and production readiness remain deferred.
+## Next action
+Repair the Vulkan 3D smoke linker closure without deleting/bypassing renderer or animation functionality; rerun CI; then continue P1/P2/P3/P4 closure.

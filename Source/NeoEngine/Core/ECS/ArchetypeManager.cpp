@@ -17,6 +17,8 @@ ArchetypeManager::~ArchetypeManager() {
         delete[] chunk.radius; delete[] chunk.invMass;
         delete[] chunk.meshID;
         delete[] chunk.rotX; delete[] chunk.rotY; delete[] chunk.rotZ;
+        delete[] chunk.scaleX; delete[] chunk.scaleY; delete[] chunk.scaleZ;
+        delete[] chunk.meshAssetHash; delete[] chunk.materialAssetHash;
         chunk = {};
     }
 }
@@ -47,6 +49,11 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
     std::unique_ptr<float[]> rotX;
     std::unique_ptr<float[]> rotY;
     std::unique_ptr<float[]> rotZ;
+    std::unique_ptr<float[]> scaleX;
+    std::unique_ptr<float[]> scaleY;
+    std::unique_ptr<float[]> scaleZ;
+    std::unique_ptr<uint64_t[]> meshAssetHash;
+    std::unique_ptr<uint64_t[]> materialAssetHash;
 
     if (componentMask & COMP_POSITION) {
         posX = std::make_unique<float[]>(capacity);
@@ -64,11 +71,16 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
     }
     if (componentMask & COMP_MESH) {
         meshID = std::make_unique<uint32_t[]>(capacity);
+        meshAssetHash = std::make_unique<uint64_t[]>(capacity);
+        materialAssetHash = std::make_unique<uint64_t[]>(capacity);
     }
     if (componentMask & COMP_ROTATION) {
         rotX = std::make_unique<float[]>(capacity);
         rotY = std::make_unique<float[]>(capacity);
         rotZ = std::make_unique<float[]>(capacity);
+        scaleX = std::make_unique<float[]>(capacity);
+        scaleY = std::make_unique<float[]>(capacity);
+        scaleZ = std::make_unique<float[]>(capacity);
     }
 
     newChunk.entities = entities.release();
@@ -81,9 +93,14 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
     newChunk.radius = radius.release();
     newChunk.invMass = invMass.release();
     newChunk.meshID = meshID.release();
+    newChunk.meshAssetHash = meshAssetHash.release();
+    newChunk.materialAssetHash = materialAssetHash.release();
     newChunk.rotX = rotX.release();
     newChunk.rotY = rotY.release();
     newChunk.rotZ = rotZ.release();
+    newChunk.scaleX = scaleX.release();
+    newChunk.scaleY = scaleY.release();
+    newChunk.scaleZ = scaleZ.release();
 
     try {
         chunks_.push_back(newChunk);
@@ -93,7 +110,9 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
         delete[] newChunk.velX; delete[] newChunk.velY; delete[] newChunk.velZ;
         delete[] newChunk.radius; delete[] newChunk.invMass;
         delete[] newChunk.meshID;
+        delete[] newChunk.meshAssetHash; delete[] newChunk.materialAssetHash;
         delete[] newChunk.rotX; delete[] newChunk.rotY; delete[] newChunk.rotZ;
+        delete[] newChunk.scaleX; delete[] newChunk.scaleY; delete[] newChunk.scaleZ;
         throw;
     }
 
@@ -128,11 +147,16 @@ EntityID ArchetypeManager::CreateEntity(uint32_t componentMask) {
     }
     if (componentMask & COMP_MESH) {
         chunk->meshID[idx] = 0;
+        chunk->meshAssetHash[idx] = 0U;
+        chunk->materialAssetHash[idx] = 0U;
     }
     if (componentMask & COMP_ROTATION) {
         chunk->rotX[idx] = 0.0f;
         chunk->rotY[idx] = 0.0f;
         chunk->rotZ[idx] = 0.0f;
+        chunk->scaleX[idx] = 1.0f;
+        chunk->scaleY[idx] = 1.0f;
+        chunk->scaleZ[idx] = 1.0f;
     }
 
     try {
@@ -152,6 +176,92 @@ EntityID ArchetypeManager::CreateEntity(uint32_t componentMask) {
     ++chunk->count;
     MarkPhysicsDirty();
     return id;
+}
+
+void ArchetypeManager::SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz) {
+    SetTransform(id, x, y, z, rx, ry, rz, 1.0F, 1.0F, 1.0F);
+}
+
+void ArchetypeManager::SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz, float sx, float sy, float sz) {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return;
+    ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count) return;
+    bool changed = false;
+    if (chunk->posX && chunk->posY && chunk->posZ) {
+        changed = chunk->posX[index] != x || chunk->posY[index] != y || chunk->posZ[index] != z;
+        chunk->posX[index] = x; chunk->posY[index] = y; chunk->posZ[index] = z;
+    }
+    if (chunk->rotX && chunk->rotY && chunk->rotZ) {
+        changed = changed || chunk->rotX[index] != rx || chunk->rotY[index] != ry || chunk->rotZ[index] != rz;
+        chunk->rotX[index] = rx; chunk->rotY[index] = ry; chunk->rotZ[index] = rz;
+        if (chunk->scaleX && chunk->scaleY && chunk->scaleZ) {
+            changed = changed || chunk->scaleX[index] != sx || chunk->scaleY[index] != sy || chunk->scaleZ[index] != sz;
+            chunk->scaleX[index] = sx; chunk->scaleY[index] = sy; chunk->scaleZ[index] = sz;
+        }
+    }
+    if (changed) MarkPhysicsDirty();
+}
+
+void ArchetypeManager::SetComponentMask(EntityID id, uint32_t componentMask) {
+    const auto it = entityToChunk_.find(id);
+    const auto idx = entityToIndex_.find(id);
+    if (it == entityToChunk_.end() || idx == entityToIndex_.end() || it->second == nullptr) return;
+    if (it->second->componentMask == componentMask) return;
+    const size_t oldIndex = idx->second;
+    ArchetypeChunk* oldChunk = it->second;
+    ArchetypeChunk* newChunk = FindOrCreateChunk(componentMask);
+    if (newChunk == nullptr) return;
+    if (newChunk == oldChunk) return;
+    if (newChunk->count >= newChunk->capacity) return;
+    const size_t newIndex = newChunk->count++;
+    newChunk->entities[newIndex] = id;
+    if (newChunk->posX && oldChunk->posX) newChunk->posX[newIndex] = oldChunk->posX[oldIndex];
+    if (newChunk->posY && oldChunk->posY) newChunk->posY[newIndex] = oldChunk->posY[oldIndex];
+    if (newChunk->posZ && oldChunk->posZ) newChunk->posZ[newIndex] = oldChunk->posZ[oldIndex];
+    if (newChunk->velX && oldChunk->velX) newChunk->velX[newIndex] = oldChunk->velX[oldIndex];
+    if (newChunk->velY && oldChunk->velY) newChunk->velY[newIndex] = oldChunk->velY[oldIndex];
+    if (newChunk->velZ && oldChunk->velZ) newChunk->velZ[newIndex] = oldChunk->velZ[oldIndex];
+    if (newChunk->radius && oldChunk->radius) newChunk->radius[newIndex] = oldChunk->radius[oldIndex];
+    if (newChunk->invMass && oldChunk->invMass) newChunk->invMass[newIndex] = oldChunk->invMass[oldIndex];
+    if (newChunk->meshID && oldChunk->meshID) newChunk->meshID[newIndex] = oldChunk->meshID[oldIndex];
+    if (newChunk->meshAssetHash && oldChunk->meshAssetHash) newChunk->meshAssetHash[newIndex] = oldChunk->meshAssetHash[oldIndex];
+    if (newChunk->materialAssetHash && oldChunk->materialAssetHash) newChunk->materialAssetHash[newIndex] = oldChunk->materialAssetHash[oldIndex];
+    if (newChunk->rotX && oldChunk->rotX) newChunk->rotX[newIndex] = oldChunk->rotX[oldIndex];
+    if (newChunk->rotY && oldChunk->rotY) newChunk->rotY[newIndex] = oldChunk->rotY[oldIndex];
+    if (newChunk->rotZ && oldChunk->rotZ) newChunk->rotZ[newIndex] = oldChunk->rotZ[oldIndex];
+    if (newChunk->scaleX && oldChunk->scaleX) newChunk->scaleX[newIndex] = oldChunk->scaleX[oldIndex];
+    if (newChunk->scaleY && oldChunk->scaleY) newChunk->scaleY[newIndex] = oldChunk->scaleY[oldIndex];
+    if (newChunk->scaleZ && oldChunk->scaleZ) newChunk->scaleZ[newIndex] = oldChunk->scaleZ[oldIndex];
+    const size_t last = oldChunk->count - 1U;
+    if (oldIndex != last) {
+        const EntityID moved = oldChunk->entities[last];
+        oldChunk->entities[oldIndex] = moved;
+        if (oldChunk->posX) oldChunk->posX[oldIndex] = oldChunk->posX[last];
+        if (oldChunk->posY) oldChunk->posY[oldIndex] = oldChunk->posY[last];
+        if (oldChunk->posZ) oldChunk->posZ[oldIndex] = oldChunk->posZ[last];
+        if (oldChunk->velX) oldChunk->velX[oldIndex] = oldChunk->velX[last];
+        if (oldChunk->velY) oldChunk->velY[oldIndex] = oldChunk->velY[last];
+        if (oldChunk->velZ) oldChunk->velZ[oldIndex] = oldChunk->velZ[last];
+        if (oldChunk->radius) oldChunk->radius[oldIndex] = oldChunk->radius[last];
+        if (oldChunk->invMass) oldChunk->invMass[oldIndex] = oldChunk->invMass[last];
+        if (oldChunk->meshID) oldChunk->meshID[oldIndex] = oldChunk->meshID[last];
+        if (oldChunk->meshAssetHash) oldChunk->meshAssetHash[oldIndex] = oldChunk->meshAssetHash[last];
+        if (oldChunk->materialAssetHash) oldChunk->materialAssetHash[oldIndex] = oldChunk->materialAssetHash[last];
+        if (oldChunk->rotX) oldChunk->rotX[oldIndex] = oldChunk->rotX[last];
+        if (oldChunk->rotY) oldChunk->rotY[oldIndex] = oldChunk->rotY[last];
+        if (oldChunk->rotZ) oldChunk->rotZ[oldIndex] = oldChunk->rotZ[last];
+        if (oldChunk->scaleX) oldChunk->scaleX[oldIndex] = oldChunk->scaleX[last];
+        if (oldChunk->scaleY) oldChunk->scaleY[oldIndex] = oldChunk->scaleY[last];
+        if (oldChunk->scaleZ) oldChunk->scaleZ[oldIndex] = oldChunk->scaleZ[last];
+        entityToIndex_[moved] = oldIndex;
+    }
+    oldChunk->count--;
+    entityToChunk_[id] = newChunk;
+    entityToIndex_[id] = newIndex;
+    MarkPhysicsDirty();
 }
 
 void ArchetypeManager::DestroyEntity(EntityID id) {
@@ -182,11 +292,18 @@ void ArchetypeManager::DestroyEntity(EntityID id) {
             chunk->radius[index] = chunk->radius[last];
             chunk->invMass[index] = chunk->invMass[last];
         }
-        if (chunk->componentMask & COMP_MESH) chunk->meshID[index] = chunk->meshID[last];
+        if (chunk->componentMask & COMP_MESH) {
+            chunk->meshID[index] = chunk->meshID[last];
+            chunk->meshAssetHash[index] = chunk->meshAssetHash[last];
+            chunk->materialAssetHash[index] = chunk->materialAssetHash[last];
+        }
         if (chunk->componentMask & COMP_ROTATION) {
             chunk->rotX[index] = chunk->rotX[last];
             chunk->rotY[index] = chunk->rotY[last];
             chunk->rotZ[index] = chunk->rotZ[last];
+            chunk->scaleX[index] = chunk->scaleX[last];
+            chunk->scaleY[index] = chunk->scaleY[last];
+            chunk->scaleZ[index] = chunk->scaleZ[last];
         }
         entityToIndex_[moved] = index;
     }
@@ -225,5 +342,80 @@ template std::vector<ArchetypeChunk*> ArchetypeManager::GetChunks<VelocityCompon
 template std::vector<ArchetypeChunk*> ArchetypeManager::GetChunks<ColliderComponent>();
 template std::vector<ArchetypeChunk*> ArchetypeManager::GetChunks<MeshComponent>();
 template std::vector<ArchetypeChunk*> ArchetypeManager::GetChunks<RotationComponent>();
+
+
+uint32_t ArchetypeManager::GetComponentMask(EntityID id) const {
+    const auto it = entityToChunk_.find(id);
+    return it == entityToChunk_.end() || it->second == nullptr ? 0U : it->second->componentMask;
+}
+
+void ArchetypeManager::SetMeshAssetIdentity(EntityID id, uint64_t meshHash, uint64_t materialHash) {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return;
+    ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->meshAssetHash == nullptr || chunk->materialAssetHash == nullptr) return;
+    if (chunk->meshAssetHash[index] == meshHash && chunk->materialAssetHash[index] == materialHash) return;
+    chunk->meshAssetHash[index] = meshHash;
+    chunk->materialAssetHash[index] = materialHash;
+    MarkPhysicsDirty();
+}
+
+bool ArchetypeManager::TryGetMeshAssetIdentity(EntityID id, uint64_t& meshHash, uint64_t& materialHash) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->meshAssetHash == nullptr || chunk->materialAssetHash == nullptr) return false;
+    meshHash = chunk->meshAssetHash[index];
+    materialHash = chunk->materialAssetHash[index];
+    return meshHash != 0U && materialHash != 0U;
+}
+
+bool ArchetypeManager::TryGetPosition(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->posX == nullptr || chunk->posY == nullptr || chunk->posZ == nullptr) return false;
+    x = chunk->posX[index]; y = chunk->posY[index]; z = chunk->posZ[index];
+    return true;
+}
+
+bool ArchetypeManager::TryGetScale(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->scaleX == nullptr || chunk->scaleY == nullptr || chunk->scaleZ == nullptr) return false;
+    x = chunk->scaleX[index]; y = chunk->scaleY[index]; z = chunk->scaleZ[index];
+    return true;
+}
+
+bool ArchetypeManager::TryGetVelocity(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->velX == nullptr || chunk->velY == nullptr || chunk->velZ == nullptr) return false;
+    x = chunk->velX[index]; y = chunk->velY[index]; z = chunk->velZ[index];
+    return true;
+}
+
+bool ArchetypeManager::TryGetRotation(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->rotX == nullptr || chunk->rotY == nullptr || chunk->rotZ == nullptr) return false;
+    x = chunk->rotX[index]; y = chunk->rotY[index]; z = chunk->rotZ[index];
+    return true;
+}
 
 } // namespace NeoEngine
