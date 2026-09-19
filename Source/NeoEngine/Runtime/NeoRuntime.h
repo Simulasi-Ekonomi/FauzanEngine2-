@@ -4,6 +4,7 @@
 #include "Core/ECS/ArchetypeManager.h"
 #include "Physics/V5/XPBDPhysicsSystem.h"
 #include "GameplayPhysicsBody.h"
+#include "GameplayPhysicsForceAccumulator.h"
 #include "ScenePhysicsPoseSync.h"
 #include "SceneECSBridge.h"
 #include "SoftwareRenderer.h"
@@ -108,6 +109,8 @@ public:
     bool RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material);
     bool CreatePhysicsCircleBody(SceneEntity sceneEntity, const GameplayCircleBodyConfig& config, EntityID& physicsEntity);
     bool DestroyPhysicsBody(SceneEntity sceneEntity);
+    bool ApplyPhysicsForce(SceneEntity sceneEntity, float forceX, float forceZ);
+    bool ClearPhysicsForces(SceneEntity sceneEntity);
     RenderCamera* SceneCamera() { return m_SceneCamera.get(); }
     const RenderCamera* SceneCamera() const { return m_SceneCamera.get(); }
     Vulkan3DRenderer* VulkanRenderer() { return m_VulkanRenderer.get(); }
@@ -178,6 +181,7 @@ private:
     std::unique_ptr<ArchetypeManager> m_ECS;
     std::unique_ptr<XPBDPhysicsSystem> m_Physics;
     GameplayPhysicsBodyBuilder m_PhysicsBodies;
+    GameplayPhysicsForceAccumulator m_PhysicsForces;
     ScenePhysicsPoseSync m_PhysicsPoseSync;
     SceneECSBridge m_SceneECSBridge;
     std::unique_ptr<SceneMeshAdapter> m_SceneMeshes;
