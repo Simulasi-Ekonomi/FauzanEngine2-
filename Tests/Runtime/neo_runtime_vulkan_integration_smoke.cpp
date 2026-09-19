@@ -25,7 +25,9 @@ int main() {
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: initialize\n");
     assert(runtime.Initialize(config));
     std::fprintf(stderr, "NEO_VULKAN_SMOKE: initialized\n");
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: scene query\\n");
     const auto entities = runtime.Scene()->AliveEntities();
+    std::fprintf(stderr, "NEO_VULKAN_SMOKE: scene query returned\\n");
     assert(!entities.empty());
 
     CpuMeshResource mesh{};
