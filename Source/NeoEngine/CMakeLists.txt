@@ -95,6 +95,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
+    Runtime/RendererCapability.cpp
     Runtime/GameplayPhysicsBody.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/ScenePhysicsPoseSync.cpp
