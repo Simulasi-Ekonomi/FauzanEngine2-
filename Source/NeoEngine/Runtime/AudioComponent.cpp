@@ -24,7 +24,7 @@ void AudioComponent::ClearSamples() {
 
 bool AudioComponent::Play(AudioMixer& mixer) const {
     if (voiceId_ == 0 || samples_.empty() || gainQ8_ == 0) return false;
-    if (!spatialized_) return mixer.Play(voiceId_, samples_, gainQ8_, looping_);
+    if (!spatialized_) return mixer.Play(voiceId_, samples_, gainQ8_, looping_, pitch_);
     SpatialVoiceParams params;
     params.id = voiceId_;
     params.mono = samples_;
@@ -35,6 +35,7 @@ bool AudioComponent::Play(AudioMixer& mixer) const {
     params.attenuation = attenuation_;
     params.gainQ8 = gainQ8_;
     params.looping = looping_;
+    params.pitch = pitch_;
     if (!std::isfinite(position_[0]) || !std::isfinite(position_[1]) || !std::isfinite(position_[2])) return false;
     return mixer.PlaySpatial(params);
 }
