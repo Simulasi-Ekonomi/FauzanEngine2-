@@ -369,7 +369,12 @@ bool NeoRuntime::DestroyPhysicsBody(SceneEntity sceneEntity) {
         m_LastError = RuntimeError::InvalidState;
         return false;
     }
-    if (!m_ECS->DestroyEntity(physicsEntity) || !m_PhysicsPoseSync.Unbind(sceneEntity)) {
+    if (!m_ECS->HasEntity(physicsEntity)) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    m_ECS->DestroyEntity(physicsEntity);
+    if (!m_PhysicsPoseSync.Unbind(sceneEntity)) {
         m_LastError = RuntimeError::WorldTickFailed;
         return false;
     }
