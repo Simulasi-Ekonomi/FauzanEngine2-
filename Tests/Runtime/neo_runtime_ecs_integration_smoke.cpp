@@ -41,6 +41,12 @@ int main() {
     assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
 
     assert(runtime.Tick());
+    const NeoEngine::NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
+    assert(receipt != nullptr);
+    assert(receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
+    assert(receipt->frameToken.frame == receipt->clock.frameCount);
+    assert(receipt->frameToken.revision == receipt->sceneECS.revision || receipt->frameToken.revision == 0U);
+    assert(!receipt->hasVulkanRenderReceipt);
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
     const NeoEngine::EntityID meshEcsId = runtime.SceneECSId(entities.front());
@@ -49,6 +55,11 @@ int main() {
     uint64_t meshHash=0U, materialHash=0U;
     assert(runtime.ECS()->TryGetMeshAssetIdentity(meshEcsId, meshHash, materialHash));
     assert(meshHash == mesh.sourceHash && materialHash == material.sourceHash);
+    assert(runtime.SetPaused(true));
+    assert(runtime.Tick());
+    receipt = runtime.LastFrameReceipt();
+    assert(receipt != nullptr && receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
+    assert(runtime.SetPaused(false));
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
     assert(runtime.Shutdown());
