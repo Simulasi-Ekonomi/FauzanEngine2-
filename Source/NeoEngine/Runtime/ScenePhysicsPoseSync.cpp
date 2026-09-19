@@ -129,6 +129,16 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
     return true;
 }
 
+bool ScenePhysicsPoseSync::GetPhysicsEntity(SceneEntity sceneEntity, EntityID& physicsEntity) const {
+    for (const Binding& binding : bindings_) {
+        if (binding.scene == sceneEntity) {
+            physicsEntity = binding.physics;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ScenePhysicsPoseSync::IsPhysicsAuthoritative(SceneEntity sceneEntity) const {
     for (const Binding& binding : bindings_) {
         if (binding.scene == sceneEntity) return binding.physicsAuthoritative;
