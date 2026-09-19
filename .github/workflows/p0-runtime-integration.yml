@@ -17,6 +17,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  p0-runner-diagnostic:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Runner provisioning diagnostic
+        run: |
+          echo "runner=${RUNNER_NAME}"
+          echo "os=${RUNNER_OS}"
+          echo "arch=${RUNNER_ARCH}"
+          uname -a
+
+  p0-runtime:
   p0-runtime:
     runs-on: ubuntu-24.04
     steps:
