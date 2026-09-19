@@ -10,6 +10,7 @@ on:
       - 'Source/NeoEngine/Runtime/VulkanRenderCommandRecorder.*'
       - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Shaders/neo_skinned_mesh.vert'
       - 'Source/NeoEngine/Tests/vulkan_3d_renderer_smoke.cpp'
       - 'Source/NeoEngine/Tests/vulkan_3d_batch_smoke.cpp'
       - 'Source/NeoEngine/Tests/gpu_driven_renderer_smoke.cpp'
@@ -73,6 +74,7 @@ jobs:
         run: |
           glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
           glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
+          glslangValidator -V Shaders/neo_skinned_mesh.vert -o Shaders/neo_skinned_mesh.vert.spv
 
       - name: Build smoke executables
         working-directory: Source/NeoEngine
