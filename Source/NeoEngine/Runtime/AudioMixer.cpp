@@ -159,7 +159,14 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                 else continue;
             }
 
-            const int64_t sample = static_cast<int64_t>(voice.samples[voice.cursor++]) * voice.gain / 256;
+            const double position = static_cast<double>(voice.cursor);
+            const size_t idx0 = static_cast<size_t>(position);
+            const size_t idx1 = idx0 + 1U < voice.samples.size() ? idx0 + 1U : (voice.looping ? 0U : idx0);
+            const double frac = position - static_cast<double>(idx0);
+            const int32_t s0 = voice.samples[idx0];
+            const int32_t s1 = voice.samples[idx1];
+            const int32_t interpolated = static_cast<int32_t>(std::llround(static_cast<double>(s0) + frac * static_cast<double>(s1 - s0)));
+            const int64_t sample = static_cast<int64_t>(interpolated) * voice.gain / 256;
             if (!voice.spatialized) {
                 left += sample;
                 right += sample;
