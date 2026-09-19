@@ -172,3 +172,8 @@ Status labels:
 - `BLOCKED`
 
 Current detailed checkpoint and percentages are maintained in `BRANCH_STATUS.md`.
+
+
+## Current repository checkpoint — 2026-09-19
+
+The active work branch is `p3-editor-android-production-night` at code checkpoint `c2df50300e488936cb777bf9a543f8c988f4af30`, PR #71, based on main `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`. PR merge-ref `1564142` currently has Renderer 3D Vulkan Smoke **FAIL** at native link with unresolved `VulkanGPUBuffer`, `VulkanDescriptorManager`, and `GPUSkinningPaletteBuffer`; the other named workflows are currently reported PASS. Termux/device is **UNVERIFIED — TERMUX REQUIRED**. XPBD 100K/200K/<5 ms is not benchmark-proven. P0–P4 are all mandatory 100% targets; do not mark any phase 100% from source presence or contract-only evidence.
