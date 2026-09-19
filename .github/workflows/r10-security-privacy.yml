@@ -16,7 +16,6 @@ on:
       - 'Tests/Systems/trust_safety_smoke.cpp'
       - '.github/workflows/r10-security-privacy.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
