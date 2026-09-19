@@ -7,8 +7,8 @@ on:
     paths:
       - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
       - 'Source/NeoEngine/Runtime/VulkanRenderer3D.*'
-      - 'Source/NeoEngine/Rendering/Renderer/HiZBuffer.*'
-      - 'Source/NeoEngine/Rendering/Renderer/OcclusionCulling.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/HiZBuffer.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/OcclusionCulling.*'
       - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
       - 'Source/NeoEngine/Tests/r4_occlusion_hiz_smoke.cpp'
       - '.github/workflows/r4-frustum-culling-smoke.yml'
@@ -16,8 +16,8 @@ on:
     paths:
       - 'Source/NeoEngine/Renderer/GPUFrustumCulling.*'
       - 'Source/NeoEngine/Runtime/VulkanRenderer3D.*'
-      - 'Source/NeoEngine/Rendering/Renderer/HiZBuffer.*'
-      - 'Source/NeoEngine/Rendering/Renderer/OcclusionCulling.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/HiZBuffer.*'
+      - 'Source/NeoEngine/Rendering/Rendering/Renderer/OcclusionCulling.*'
       - 'Source/NeoEngine/Tests/r4_frustum_culling_smoke.cpp'
       - 'Source/NeoEngine/Tests/r4_occlusion_hiz_smoke.cpp'
       - '.github/workflows/r4-frustum-culling-smoke.yml'
@@ -47,8 +47,8 @@ jobs:
         run: |
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
             -I. -I../../ \
-            Rendering/Renderer/HiZBuffer.cpp \
-            Rendering/Renderer/OcclusionCulling.cpp \
+            Rendering/Rendering/Renderer/HiZBuffer.cpp \
+            Rendering/Rendering/Renderer/OcclusionCulling.cpp \
             Tests/r4_occlusion_hiz_smoke.cpp \
             -o r4_occlusion_hiz_smoke
       - name: Execute Release-like HiZ occlusion smoke
@@ -81,8 +81,8 @@ jobs:
           g++ -std=c++23 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
             -Wall -Wextra -Wpedantic \
             -I. -I../../ \
-            Rendering/Renderer/HiZBuffer.cpp \
-            Rendering/Renderer/OcclusionCulling.cpp \
+            Rendering/Rendering/Renderer/HiZBuffer.cpp \
+            Rendering/Rendering/Renderer/OcclusionCulling.cpp \
             Tests/r4_occlusion_hiz_smoke.cpp \
             -o r4_occlusion_hiz_smoke_asan
       - name: Execute ASAN+UBSAN HiZ occlusion smoke
