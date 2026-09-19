@@ -154,6 +154,25 @@ EntityID ArchetypeManager::CreateEntity(uint32_t componentMask) {
     return id;
 }
 
+void ArchetypeManager::SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz) {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return;
+    ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count) return;
+    bool changed = false;
+    if (chunk->posX && chunk->posY && chunk->posZ) {
+        changed = chunk->posX[index] != x || chunk->posY[index] != y || chunk->posZ[index] != z;
+        chunk->posX[index] = x; chunk->posY[index] = y; chunk->posZ[index] = z;
+    }
+    if (chunk->rotX && chunk->rotY && chunk->rotZ) {
+        changed = changed || chunk->rotX[index] != rx || chunk->rotY[index] != ry || chunk->rotZ[index] != rz;
+        chunk->rotX[index] = rx; chunk->rotY[index] = ry; chunk->rotZ[index] = rz;
+    }
+    if (changed) MarkPhysicsDirty();
+}
+
 void ArchetypeManager::SetComponentMask(EntityID id, uint32_t componentMask) {
     const auto it = entityToChunk_.find(id);
     const auto idx = entityToIndex_.find(id);
