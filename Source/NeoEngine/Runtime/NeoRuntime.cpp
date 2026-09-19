@@ -212,7 +212,6 @@ bool NeoRuntime::Tick() {
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     if (m_Scene != nullptr && !m_Scene->UpdateTransforms()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
     if (m_Input != nullptr) m_Input->BeginFrame();
-    if (!frameContract.Advance(RuntimeFrameStage::InputSnapshot)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     std::vector<RuntimeTimeEvent> timeEvents;
     uint32_t simulatedTicks = 0U;
     if (m_Time == nullptr || !m_Time->AdvanceFixedTicks(m_FixedTicksPerFrame, timeEvents, simulatedTicks)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return failFrame(); }
