@@ -80,6 +80,9 @@ jobs:
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
             -I. -I../../ \
             Runtime/Vulkan3DRenderer.cpp \
+            Runtime/VulkanGPUBuffer.cpp \
+            Runtime/VulkanDescriptorManager.cpp \
+            Runtime/../Animation/GPUSkinningPaletteBuffer.cpp \
             Tests/vulkan_3d_renderer_smoke.cpp \
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
             $(pkg-config --cflags --libs sdl3) -lvulkan \
