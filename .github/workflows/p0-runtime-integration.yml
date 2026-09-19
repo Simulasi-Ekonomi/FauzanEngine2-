@@ -29,7 +29,7 @@ jobs:
           sudo apt-get install -y libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools ninja-build
 
       - name: Install SDL3
-        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739be7e0886d149a5e47
         with:
           version: 3.4.16
           install-linux-dependencies: true
@@ -38,9 +38,28 @@ jobs:
         run: cmake -S Source/NeoEngine -B build/p0-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build and run Release smoke
+        id: release_smoke
+        continue-on-error: true
         run: |
+          set +e
           cmake --build build/p0-release --target p0_runtime_physics_integration_smoke -j2
-          ./build/p0-release/p0_runtime_physics_integration_smoke
+          build_status=$?
+          if [ "$build_status" -eq 0 ]; then
+            ./build/p0-release/p0_runtime_physics_integration_smoke
+            smoke_status=$?
+          else
+            smoke_status=1
+          fi
+          echo "build_status=$build_status" >> "$GITHUB_OUTPUT"
+          echo "smoke_status=$smoke_status" >> "$GITHUB_OUTPUT"
+          if [ "$build_status" -ne 0 ] || [ "$smoke_status" -ne 0 ]; then exit 1; fi
+
+      - name: Diagnose Release crash
+        if: steps.release_smoke.outputs.smoke_status != '0'
+        run: |
+          set +e
+          gdb -batch -ex run -ex bt --args ./build/p0-release/p0_runtime_physics_integration_smoke
+          exit 0
 
       - name: Configure AddressSanitizer
         run: |
