@@ -8,7 +8,6 @@ on:
       - 'Tests/Farm/farm_canonical_game_tool_smoke.cpp'
       - '.github/workflows/r1-canonical-game-tool.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/Farm/farm_canonical_game_tool_smoke.cpp'
