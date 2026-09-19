@@ -49,6 +49,7 @@ public:
     bool InspectSelected(EditorSceneActor& actor) const;
     bool RenderViewport(RenderCamera& camera, SoftwareRenderer& renderer, const DirectionalLight& light);
     [[nodiscard]] const SceneWorld& World() const { return world_; }
+    [[nodiscard]] const EditorSceneDocument& Document() const { return document_; }
     [[nodiscard]] EditorSceneSessionError LastError() const { return lastError_; }
 private:
     static constexpr size_t kMaxHistory = 32;
