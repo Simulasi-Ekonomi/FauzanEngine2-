@@ -26,7 +26,7 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools ninja-build xvfb mesa-vulkan-drivers libx11-xcb1 libxcb1 libxrandr2 libxinerama1 libxcursor1 libxi6 libvulkan1 vulkan-tools libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxfixes-dev libxss-dev libxtst-dev libdrm-dev libgbm-dev libudev-dev
+          sudo apt-get install -y libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools ninja-build xvfb gdb mesa-vulkan-drivers libx11-xcb1 libxcb1 libxrandr2 libxinerama1 libxcursor1 libxi6 libvulkan1 vulkan-tools libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxfixes-dev libxss-dev libxtst-dev libdrm-dev libgbm-dev libudev-dev
           VULKAN_ICD="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name '*.json' -print | grep -E '/(lvp|lavapipe|swrast).*\.json$' | head -n 1)"
           test -n "${VULKAN_ICD}"
           echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
@@ -65,6 +65,14 @@ jobs:
           if [ "$build_status" -ne 0 ] || [ "$farm_status" -ne 0 ] || [ "$runtime_status" -ne 0 ]; then
             exit 1
           fi
+
+      - name: Diagnose Release runtime crash
+        if: steps.release_smoke.outputs.runtime_status != '0'
+        run: |
+          set +e
+          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=\${VULKAN_ICD} \\
+            gdb -batch -ex run -ex bt --args ./build/r3-release/neo_runtime_vulkan_integration_smoke
+          exit 0
 
       - name: Configure AddressSanitizer
         run: |
