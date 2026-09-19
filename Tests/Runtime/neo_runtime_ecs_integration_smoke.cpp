@@ -24,7 +24,31 @@ int main() {
     assert(sx==1.0F && sy==1.0F && sz==1.0F);
     assert(std::isfinite(x) && std::isfinite(y) && std::isfinite(z));
     assert(std::isfinite(rx) && std::isfinite(ry) && std::isfinite(rz));
+
+    NeoEngine::CpuMeshResource mesh{};
+    mesh.assetId = "smoke.mesh";
+    mesh.sourceHash = 0x1020304050607080ULL;
+    mesh.vertices = {
+        {{0.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F}, 0.0F, 0.0F},
+        {{1.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F}, 1.0F, 0.0F},
+        {{0.0F, 1.0F, 0.0F}, {0.0F, 0.0F, 1.0F}, 0.0F, 1.0F}
+    };
+    mesh.indices = {0U, 1U, 2U};
+    NeoEngine::CpuMaterialResource material{};
+    material.assetId = "smoke.material";
+    material.materialName = "default";
+    material.sourceHash = 0x9080706050403020ULL;
+    assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
+
     assert(runtime.Tick());
+    assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
+    assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
+    const NeoEngine::EntityID meshEcsId = runtime.SceneECSId(entities.front());
+    assert(meshEcsId != std::numeric_limits<NeoEngine::EntityID>::max());
+    assert((runtime.ECS()->GetComponentMask(meshEcsId) & NeoEngine::COMP_MESH) != 0U);
+    uint64_t meshHash=0U, materialHash=0U;
+    assert(runtime.ECS()->TryGetMeshAssetIdentity(meshEcsId, meshHash, materialHash));
+    assert(meshHash == mesh.sourceHash && materialHash == material.sourceHash);
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
     assert(runtime.Shutdown());
