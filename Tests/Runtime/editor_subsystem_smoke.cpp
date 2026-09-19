@@ -74,7 +74,7 @@ int main() {
 
     EditorSceneActor selfParent = child;
     selfParent.id = 45;
-    selfParent.parentId = 44;
+    selfParent.parentId = 45;
     assert(!session.AddActor(selfParent, assets));
     assert(session.LastError() == EditorSceneSessionError::InvalidHierarchy);
 
