@@ -14,7 +14,6 @@ on:
       - 'Tests/Runtime/farm_commerce_checkpoint_file_smoke.cpp'
       - '.github/workflows/r8-persistence-recovery.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
