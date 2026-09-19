@@ -21,11 +21,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build build-essential libvulkan-dev glslang-tools python3
 
-      - name: Build and install SDL 3.4.14
+      - name: Build and install SDL 3.4.16
         run: |
-          curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz
+          curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16.tar.gz
           tar -xzf /tmp/SDL3.tar.gz -C /tmp
-          cmake -S /tmp/SDL3-3.4.14 -B /tmp/sdl3-build -G Ninja \
+          cmake -S /tmp/SDL3-3.4.16 -B /tmp/sdl3-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL_TESTS=OFF
           cmake --build /tmp/sdl3-build --parallel 2
@@ -33,7 +33,7 @@ jobs:
 
       - name: Apply official SDL2 to SDL3 symbol/header migration
         run: |
-          git clone --depth 1 --branch release-3.4.14 https://github.com/libsdl-org/SDL.git /tmp/SDL-source
+          git clone --depth 1 --branch release-3.4.16 https://github.com/libsdl-org/SDL.git /tmp/SDL-source
           python3 /tmp/SDL-source/build-scripts/rename_headers.py Source Tests
           python3 /tmp/SDL-source/build-scripts/rename_symbols.py --all-symbols Source Tests
           python3 /tmp/SDL-source/build-scripts/rename_macros.py Source Tests
@@ -302,5 +302,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add Source Tests
           git diff --cached --quiet && { echo 'No migration changes detected'; exit 1; }
-          git commit -m 'feat: upgrade NeoEngine runtime from SDL2 to SDL3.4.14'
+          git commit -m 'feat: upgrade NeoEngine runtime from SDL2 to SDL3.4.16'
           git push origin upgrade/sdl3-modern
