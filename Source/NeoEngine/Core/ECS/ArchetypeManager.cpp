@@ -17,6 +17,7 @@ ArchetypeManager::~ArchetypeManager() {
         delete[] chunk.radius; delete[] chunk.invMass;
         delete[] chunk.meshID;
         delete[] chunk.rotX; delete[] chunk.rotY; delete[] chunk.rotZ;
+        delete[] chunk.scaleX; delete[] chunk.scaleY; delete[] chunk.scaleZ;
         chunk = {};
     }
 }
@@ -47,6 +48,9 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
     std::unique_ptr<float[]> rotX;
     std::unique_ptr<float[]> rotY;
     std::unique_ptr<float[]> rotZ;
+    std::unique_ptr<float[]> scaleX;
+    std::unique_ptr<float[]> scaleY;
+    std::unique_ptr<float[]> scaleZ;
 
     if (componentMask & COMP_POSITION) {
         posX = std::make_unique<float[]>(capacity);
@@ -69,6 +73,9 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
         rotX = std::make_unique<float[]>(capacity);
         rotY = std::make_unique<float[]>(capacity);
         rotZ = std::make_unique<float[]>(capacity);
+        scaleX = std::make_unique<float[]>(capacity);
+        scaleY = std::make_unique<float[]>(capacity);
+        scaleZ = std::make_unique<float[]>(capacity);
     }
 
     newChunk.entities = entities.release();
@@ -84,6 +91,9 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
     newChunk.rotX = rotX.release();
     newChunk.rotY = rotY.release();
     newChunk.rotZ = rotZ.release();
+    newChunk.scaleX = scaleX.release();
+    newChunk.scaleY = scaleY.release();
+    newChunk.scaleZ = scaleZ.release();
 
     try {
         chunks_.push_back(newChunk);
@@ -94,6 +104,7 @@ ArchetypeChunk* ArchetypeManager::FindOrCreateChunk(uint32_t componentMask) {
         delete[] newChunk.radius; delete[] newChunk.invMass;
         delete[] newChunk.meshID;
         delete[] newChunk.rotX; delete[] newChunk.rotY; delete[] newChunk.rotZ;
+        delete[] newChunk.scaleX; delete[] newChunk.scaleY; delete[] newChunk.scaleZ;
         throw;
     }
 
@@ -133,6 +144,9 @@ EntityID ArchetypeManager::CreateEntity(uint32_t componentMask) {
         chunk->rotX[idx] = 0.0f;
         chunk->rotY[idx] = 0.0f;
         chunk->rotZ[idx] = 0.0f;
+        chunk->scaleX[idx] = 1.0f;
+        chunk->scaleY[idx] = 1.0f;
+        chunk->scaleZ[idx] = 1.0f;
     }
 
     try {
@@ -155,6 +169,10 @@ EntityID ArchetypeManager::CreateEntity(uint32_t componentMask) {
 }
 
 void ArchetypeManager::SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz) {
+    SetTransform(id, x, y, z, rx, ry, rz, 1.0F, 1.0F, 1.0F);
+}
+
+void ArchetypeManager::SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz, float sx, float sy, float sz) {
     const auto chunkIt = entityToChunk_.find(id);
     const auto indexIt = entityToIndex_.find(id);
     if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return;
@@ -169,6 +187,10 @@ void ArchetypeManager::SetTransform(EntityID id, float x, float y, float z, floa
     if (chunk->rotX && chunk->rotY && chunk->rotZ) {
         changed = changed || chunk->rotX[index] != rx || chunk->rotY[index] != ry || chunk->rotZ[index] != rz;
         chunk->rotX[index] = rx; chunk->rotY[index] = ry; chunk->rotZ[index] = rz;
+        if (chunk->scaleX && chunk->scaleY && chunk->scaleZ) {
+            changed = changed || chunk->scaleX[index] != sx || chunk->scaleY[index] != sy || chunk->scaleZ[index] != sz;
+            chunk->scaleX[index] = sx; chunk->scaleY[index] = sy; chunk->scaleZ[index] = sz;
+        }
     }
     if (changed) MarkPhysicsDirty();
 }
@@ -198,6 +220,9 @@ void ArchetypeManager::SetComponentMask(EntityID id, uint32_t componentMask) {
     if (newChunk->rotX && oldChunk->rotX) newChunk->rotX[newIndex] = oldChunk->rotX[oldIndex];
     if (newChunk->rotY && oldChunk->rotY) newChunk->rotY[newIndex] = oldChunk->rotY[oldIndex];
     if (newChunk->rotZ && oldChunk->rotZ) newChunk->rotZ[newIndex] = oldChunk->rotZ[oldIndex];
+    if (newChunk->scaleX && oldChunk->scaleX) newChunk->scaleX[newIndex] = oldChunk->scaleX[oldIndex];
+    if (newChunk->scaleY && oldChunk->scaleY) newChunk->scaleY[newIndex] = oldChunk->scaleY[oldIndex];
+    if (newChunk->scaleZ && oldChunk->scaleZ) newChunk->scaleZ[newIndex] = oldChunk->scaleZ[oldIndex];
     const size_t last = oldChunk->count - 1U;
     if (oldIndex != last) {
         const EntityID moved = oldChunk->entities[last];
@@ -214,6 +239,9 @@ void ArchetypeManager::SetComponentMask(EntityID id, uint32_t componentMask) {
         if (oldChunk->rotX) oldChunk->rotX[oldIndex] = oldChunk->rotX[last];
         if (oldChunk->rotY) oldChunk->rotY[oldIndex] = oldChunk->rotY[last];
         if (oldChunk->rotZ) oldChunk->rotZ[oldIndex] = oldChunk->rotZ[last];
+        if (oldChunk->scaleX) oldChunk->scaleX[oldIndex] = oldChunk->scaleX[last];
+        if (oldChunk->scaleY) oldChunk->scaleY[oldIndex] = oldChunk->scaleY[last];
+        if (oldChunk->scaleZ) oldChunk->scaleZ[oldIndex] = oldChunk->scaleZ[last];
         entityToIndex_[moved] = oldIndex;
     }
     oldChunk->count--;
@@ -255,6 +283,9 @@ void ArchetypeManager::DestroyEntity(EntityID id) {
             chunk->rotX[index] = chunk->rotX[last];
             chunk->rotY[index] = chunk->rotY[last];
             chunk->rotZ[index] = chunk->rotZ[last];
+            chunk->scaleX[index] = chunk->scaleX[last];
+            chunk->scaleY[index] = chunk->scaleY[last];
+            chunk->scaleZ[index] = chunk->scaleZ[last];
         }
         entityToIndex_[moved] = index;
     }
@@ -303,6 +334,17 @@ bool ArchetypeManager::TryGetPosition(EntityID id, float& x, float& y, float& z)
     const size_t index = indexIt->second;
     if (index >= chunk->count || chunk->posX == nullptr || chunk->posY == nullptr || chunk->posZ == nullptr) return false;
     x = chunk->posX[index]; y = chunk->posY[index]; z = chunk->posZ[index];
+    return true;
+}
+
+bool ArchetypeManager::TryGetScale(EntityID id, float& x, float& y, float& z) const {
+    const auto chunkIt = entityToChunk_.find(id);
+    const auto indexIt = entityToIndex_.find(id);
+    if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
+    const ArchetypeChunk* chunk = chunkIt->second;
+    const size_t index = indexIt->second;
+    if (index >= chunk->count || chunk->scaleX == nullptr || chunk->scaleY == nullptr || chunk->scaleZ == nullptr) return false;
+    x = chunk->scaleX[index]; y = chunk->scaleY[index]; z = chunk->scaleZ[index];
     return true;
 }
 
