@@ -50,9 +50,9 @@ jobs:
           sudo apt-get install -y build-essential cmake libcurl4-openssl-dev libglm-dev libjsoncpp-dev libvulkan-dev glslang-tools ninja-build pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libxss-dev libxtst-dev libwayland-dev libdecor-0-dev wayland-protocols
       - name: Build and install SDL3
         run: |
-          curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz
+          curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16.tar.gz
           tar -xzf /tmp/SDL3.tar.gz -C /tmp
-          cmake -S /tmp/SDL3-3.4.14 -B /tmp/sdl3-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL_TESTS=OFF
+          cmake -S /tmp/SDL3-3.4.16 -B /tmp/sdl3-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL_TESTS=OFF
           cmake --build /tmp/sdl3-build --parallel 2
           sudo cmake --install /tmp/sdl3-build
       - name: Configure Release
