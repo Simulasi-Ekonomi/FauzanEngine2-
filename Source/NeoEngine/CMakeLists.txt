@@ -75,6 +75,8 @@ add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}" "${NEO_SKINNED_MESH_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
+    Core/ECS/ArchetypeManager.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
     Runtime/AtomicSaveFile.cpp
     Runtime/PBRMaterial.cpp
     Runtime/BRDFLut.cpp
@@ -93,6 +95,10 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
+    Runtime/SceneECSBridge.cpp
+    Runtime/GameplayPhysicsBody.cpp
+    Runtime/GameplayPhysicsQuery.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
     Runtime/RuntimeVerticalSliceGate.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
