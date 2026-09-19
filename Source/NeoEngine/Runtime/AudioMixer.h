@@ -33,6 +33,7 @@ private:
      float pan=0.0f;
      float pitch=1.0f;
      float position[3]{0.0f,0.0f,0.0f};
+     AudioAttenuation attenuation{};
      bool looping=false;
      bool spatialized=false;
  };
