@@ -101,10 +101,40 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     voice.samples = params.mono;
     voice.gain = static_cast<uint16_t>(scaledGain);
     voice.pan = pan;
+    voice.pitch = 1.0f;
+    voice.position[0] = params.position[0];
+    voice.position[1] = params.position[1];
+    voice.position[2] = params.position[2];
     voice.looping = params.looping;
     voice.spatialized = params.spatialized;
     m_Voices.push_back(std::move(voice));
     return true;
+}
+
+bool AudioMixer::UpdateVoicePosition(uint32_t id, const float position[3]) {
+    if (id == 0 || position == nullptr) return false;
+    for (float value : {position[0], position[1], position[2]}) if (!std::isfinite(value)) return false;
+    for (auto& voice : m_Voices) {
+        if (voice.id == id) {
+            voice.position[0] = position[0];
+            voice.position[1] = position[1];
+            voice.position[2] = position[2];
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AudioMixer::UpdateVoicePitch(uint32_t id, float pitch) {
+    if (id == 0 || !std::isfinite(pitch) || pitch <= 0.001f || pitch > 8.0f) return false;
+    for (auto& voice : m_Voices) if (voice.id == id) { voice.pitch = pitch; return true; }
+    return false;
+}
+
+bool AudioMixer::UpdateVoiceGain(uint32_t id, uint16_t gainQ8) {
+    if (id == 0 || gainQ8 == 0) return false;
+    for (auto& voice : m_Voices) if (voice.id == id) { voice.gain = gainQ8; return true; }
+    return false;
 }
 
 bool AudioMixer::Stop(uint32_t id) {
