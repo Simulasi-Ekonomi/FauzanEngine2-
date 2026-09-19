@@ -471,3 +471,8 @@ Required evidence labels:
 - `IMPLEMENTED-UNVERIFIED`
 - `CONTRACT-ONLY`
 - `BLOCKED`
+
+
+## Current repository checkpoint — 2026-09-19
+
+Authoritative branch checkpoint: `p3-editor-android-production-night` / `c2df50300e488936cb777bf9a543f8c988f4af30`, PR #71, main baseline `2b9bd6018fd7d36733602d8bfa0cc4d061e1a4f7`. Current PR merge-ref `1564142` has Renderer 3D Vulkan Smoke **FAIL** at native link for `VulkanGPUBuffer`, `VulkanDescriptorManager`, and `GPUSkinningPaletteBuffer`. Termux/device remains **UNVERIFIED — TERMUX REQUIRED** and XPBD 100K/200K/<5 ms remains unproven. P0–P4 are mandatory 100% completion gates.
