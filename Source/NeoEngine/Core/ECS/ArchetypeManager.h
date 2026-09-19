@@ -66,6 +66,7 @@ public:
     }
     void MarkPhysicsDirty() { ++physicsRevision_; }
     void SetComponentMask(EntityID id, uint32_t componentMask);
+    void SetTransform(EntityID id, float x, float y, float z, float rx, float ry, float rz);
     uint64_t GetPhysicsRevision() const { return physicsRevision_; }
 
     template<typename... Args>
