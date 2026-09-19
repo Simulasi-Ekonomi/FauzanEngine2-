@@ -103,25 +103,28 @@ bool ItemSerialTracker::VerifyItemSilently(const std::string& internalItemId, co
 }
 
 bool ItemSerialTracker::VerifyWithServer(const std::string& serialNumber) {
-    std::lock_guard<std::mutex> lock(m_Mutex);
-    auto it = m_Registry.find(serialNumber);
-    if (it == m_Registry.end() || it->second.consumed || it->second.contaminated) {
-        ++m_RejectedCount;
-        return false;
-    }
+    std::function<void(const std::string&)> callback;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        auto it = m_Registry.find(serialNumber);
+        if (it == m_Registry.end() || it->second.consumed || it->second.contaminated) {
+            ++m_RejectedCount;
+            return false;
+        }
 
-    // This API is the authoritative verification commit point. Network transport/signature
-    // verification is deliberately not faked here; a caller must only invoke it after its
-    // trusted authority has accepted the serial.
-    if (!it->second.verified) {
-        it->second.verified = true;
-        ++m_VerifiedCount;
+        // This API is the authoritative verification commit point. Network transport/signature
+        // verification is deliberately not faked here; a caller must only invoke it after its
+        // trusted authority has accepted the serial.
+        if (!it->second.verified) {
+            it->second.verified = true;
+            ++m_VerifiedCount;
+        }
+        m_PendingVerification.erase(
+            std::remove(m_PendingVerification.begin(), m_PendingVerification.end(), serialNumber),
+            m_PendingVerification.end());
+        callback = m_OnVerified;
     }
-    m_PendingVerification.erase(
-        std::remove(m_PendingVerification.begin(), m_PendingVerification.end(), serialNumber),
-        m_PendingVerification.end());
-    const auto callback = m_OnVerified;
-    // Never execute user callbacks while holding the tracker mutex.
+    // Callbacks are external code and must never run while the tracker mutex is held.
     if (callback) callback(serialNumber);
     return true;
 }
