@@ -36,6 +36,8 @@ struct ArchetypeChunk {
     float* scaleX = nullptr;
     float* scaleY = nullptr;
     float* scaleZ = nullptr;
+    uint64_t* meshAssetHash = nullptr;
+    uint64_t* materialAssetHash = nullptr;
 };
 
 class ArchetypeManager {
@@ -56,6 +58,9 @@ public:
     void SetRotY(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotY); }
     void SetRotZ(EntityID id, float v) { SetComponentValue(id, v, &ArchetypeChunk::rotZ); }
     void SetMeshID(EntityID id, uint32_t v) { SetComponentValue(id, v, &ArchetypeChunk::meshID); }
+    void SetMeshAssetIdentity(EntityID id, uint64_t meshHash, uint64_t materialHash);
+    [[nodiscard]] bool TryGetMeshAssetIdentity(EntityID id, uint64_t& meshHash, uint64_t& materialHash) const;
+    [[nodiscard]] uint32_t GetComponentMask(EntityID id) const;
     [[nodiscard]] size_t EntityCount() const { return entityToChunk_.size(); }
     [[nodiscard]] bool TryGetPosition(EntityID id, float& x, float& y, float& z) const;
     [[nodiscard]] bool TryGetVelocity(EntityID id, float& x, float& y, float& z) const;
