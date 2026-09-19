@@ -3,9 +3,11 @@
 #include "MeshRenderer.h"
 #include "SceneWorld.h"
 #include "TextureStaging.h"
+#include "Animation/SkeletalAnimationController.h"
 
 #include <cstdint>
 #include <deque>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,7 +15,7 @@ namespace NeoEngine {
 struct CpuMeshResource;
 struct CpuMaterialResource;
 enum class SceneMeshAdapterError : uint8_t { None, InvalidEntity, InvalidMesh, InvalidTexture, InvalidStagedResource, InvalidStagedMaterial, InvalidStagedTexture, Capacity, MissingInstance, MissingEntity, UnsupportedTransform, DrawFailed };
-struct SceneMeshInstance { SceneEntity entity{}; std::vector<MeshVertex> vertices; std::vector<uint16_t> indices; MeshMaterial material{}; float localBoundsRadius = 0.0F; std::string sourceAssetId{}; uint64_t sourceHash = 0U; std::string sourceMaterialAssetId{}; std::string sourceMaterialName{}; uint64_t sourceMaterialHash = 0U; CpuTextureResource texture{}; std::string sourceTextureAssetId{}; uint64_t sourceTextureHash = 0U; };
+struct SceneMeshInstance { SceneEntity entity{}; std::vector<MeshVertex> vertices; std::vector<uint16_t> indices; MeshMaterial material{}; float localBoundsRadius = 0.0F; std::string sourceAssetId{}; uint64_t sourceHash = 0U; std::string sourceMaterialAssetId{}; std::string sourceMaterialName{}; uint64_t sourceMaterialHash = 0U; CpuTextureResource texture{}; std::string sourceTextureAssetId{}; uint64_t sourceTextureHash = 0U; std::vector<VertexWeight> skinWeights{}; std::optional<SkeletalAnimationController> skeletalAnimation{}; std::vector<Mat4> skeletalPalette{}; };
 class SceneMeshAdapter {
 public:
     static constexpr uint16_t kMaxInstances = 64;
@@ -29,6 +31,10 @@ public:
     // Explicitly replaces a copy-on-register CPU instance only when its staged source identity matches.
     bool RefreshStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material);
     bool RefreshStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material);
+    // Binds a validated skeleton/clip and four-influence weights to an existing scene mesh instance.
+    bool BindSkeletalAnimation(SceneEntity entity,const Skeleton& skeleton,const SkeletalPoseClip& clip,SkeletalPosePlaybackMode mode,const std::vector<VertexWeight>& weights);
+    // Advances all bound animations atomically at controller/palette state level; mesh payload remains untouched.
+    bool AdvanceSkeletalAnimations(float deltaSeconds);
     // Validates the same source identity and candidate CPU instance shape as RefreshStaged without replacement.
     [[nodiscard]] bool CanRefreshStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material) const;
     [[nodiscard]] bool CanRefreshStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material) const;
