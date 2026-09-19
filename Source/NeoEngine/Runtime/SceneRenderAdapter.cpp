@@ -202,6 +202,67 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
 
     for (const Batch& batch : batches) {
         const SceneMeshInstance& first = meshes.Instances()[batch.first];
+        if (first.skeletalAnimation.has_value()) {
+            if (batch.instances.size() != 1U || first.skinWeights.size() != first.vertices.size() ||
+                first.skeletalPalette.empty()) {
+                lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                renderer.EndFrame();
+                return false;
+            }
+            std::vector<Vulkan3DSkinnedVertex> vertices;
+            vertices.reserve(first.vertices.size());
+            for (size_t vertexIndex = 0U; vertexIndex < first.vertices.size(); ++vertexIndex) {
+                const MeshVertex& vertex = first.vertices[vertexIndex];
+                const VertexWeight& weight = first.skinWeights[vertexIndex];
+                if (weight.boneIDs[0] < 0 || weight.boneIDs[1] < 0 || weight.boneIDs[2] < 0 || weight.boneIDs[3] < 0) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+                vertices.push_back(Vulkan3DSkinnedVertex{
+                    vertex.position.x, vertex.position.y, vertex.position.z,
+                    vertex.normal.x, vertex.normal.y, vertex.normal.z,
+                    vertex.u, vertex.v,
+                    static_cast<uint32_t>(weight.boneIDs[0]), static_cast<uint32_t>(weight.boneIDs[1]),
+                    static_cast<uint32_t>(weight.boneIDs[2]), static_cast<uint32_t>(weight.boneIDs[3]),
+                    weight.weights[0], weight.weights[1], weight.weights[2], weight.weights[3]});
+            }
+            std::vector<uint32_t> indices;
+            indices.reserve(first.indices.size());
+            for (uint16_t index : first.indices) {
+                if (index >= first.vertices.size()) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+                indices.push_back(static_cast<uint32_t>(index));
+            }
+            Mat4 model{};
+            if (ecs != nullptr) {
+                if (!ValidateECSAssetIdentity(first, *ecs, *sceneECS) || !MakeECSModel(first, *ecs, *sceneECS, model)) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+            } else {
+                const Transform3* transform = world.GetTransform(first.entity);
+                if (!transform) {
+                    lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                    renderer.EndFrame();
+                    return false;
+                }
+                model = MakeModel(*transform);
+            }
+            const std::span<const Mat4> palette(first.skeletalPalette.data(), first.skeletalPalette.size());
+            if (!renderer.DrawIndexedSkinnedInstancedWithViewProjection(
+                    vertices, indices, std::span<const float>(model.v.data(), model.v.size()), palette,
+                    viewProjection.v.data())) {
+                lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+                renderer.EndFrame();
+                return false;
+            }
+            continue;
+        }
         std::vector<Vulkan3DVertex> vertices;
         vertices.reserve(first.vertices.size());
         for (const MeshVertex& vertex : first.vertices) {
