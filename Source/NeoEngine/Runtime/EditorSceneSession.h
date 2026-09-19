@@ -25,11 +25,14 @@ public:
     bool ReparentActor(uint32_t actorId, uint32_t parentId, const AssetRegistry& assets);
     bool AddActor(const EditorSceneActor& actor, const AssetRegistry& assets);
     bool DeleteActor(uint32_t actorId, const AssetRegistry& assets);
+    bool DuplicateActor(uint32_t actorId, uint32_t newActorId, const AssetRegistry& assets);
+    bool UpdateActorProperties(uint32_t actorId, std::string_view name, std::string_view materialAssetId, std::string_view textureAssetId, uint32_t spriteRgba, const AssetRegistry& assets);
     bool CapturePrefab(uint32_t rootActorId, EditorScenePrefab& prefab) const;
     bool InstantiatePrefab(const EditorScenePrefab& prefab, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets);
     bool InstantiateStagedPrefab(const PrefabStagingStore& prefabs, std::string_view assetId, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets);
     bool SelectActor(uint32_t actorId);
-    void ClearSelection() { selectedActorId_ = 0U; }
+    bool MultiSelectActors(const std::vector<uint32_t>& actorIds);
+    void ClearSelection() { selectedActorId_ = 0U; selectedActorIds_.clear(); }
     bool Save(EditorSceneDocument& document) const;
     bool SaveBytes(std::vector<uint8_t>& bytes) const;
     bool RevertToSaved(const AssetRegistry& assets);
@@ -40,6 +43,7 @@ public:
     [[nodiscard]] bool CanRedo() const { return !redoHistory_.empty(); }
     [[nodiscard]] bool HasSelection() const { return selectedActorId_ != 0U; }
     [[nodiscard]] uint32_t SelectedActorId() const { return selectedActorId_; }
+    [[nodiscard]] const std::vector<uint32_t>& SelectedActorIds() const { return selectedActorIds_; }
     [[nodiscard]] std::vector<EditorSceneActor> HierarchySnapshot() const;
     bool InspectActor(uint32_t actorId, EditorSceneActor& actor) const;
     bool InspectSelected(EditorSceneActor& actor) const;
@@ -62,6 +66,7 @@ private:
     SceneSpriteAdapter sprites_{};
     SceneRenderAdapter renderer_{};
     uint32_t selectedActorId_ = 0U;
+    std::vector<uint32_t> selectedActorIds_{};
     mutable EditorSceneSessionError lastError_ = EditorSceneSessionError::InvalidDocument;
 };
 } // namespace NeoEngine
