@@ -497,7 +497,7 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     return true;
 }
 
-bool NeoRuntime::SaveTelemetryOutboxFile(const std::filesystem::path& root, const std::string& slot) {
+bool NeoRuntime::SaveTelemetryOutboxFile(const std::filesystem::path& root, std::string_view slot) {
     if (m_State != RuntimeState::Initialized) {
         m_LastError = RuntimeError::InvalidState;
         return false;
@@ -516,7 +516,7 @@ bool NeoRuntime::SaveTelemetryOutboxFile(const std::filesystem::path& root, cons
     return true;
 }
 
-bool NeoRuntime::RestoreTelemetryOutboxFile(const std::filesystem::path& root, const std::string& slot) {
+bool NeoRuntime::RestoreTelemetryOutboxFile(const std::filesystem::path& root, std::string_view slot) {
     if (m_State != RuntimeState::Initialized) {
         m_LastError = RuntimeError::InvalidState;
         return false;
