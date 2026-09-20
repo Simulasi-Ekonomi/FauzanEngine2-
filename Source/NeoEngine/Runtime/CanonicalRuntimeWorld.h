@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/ECS/ArchetypeManager.h"
+#include "Runtime/CanonicalReplicationBridge.h"
 #include "Physics/V5/XPBDPhysicsSystem.h"
 #include "Runtime/AssetRegistry.h"
 #include "Runtime/AssetResourceManager.h"
@@ -12,6 +13,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 namespace NeoEngine {
 
@@ -47,6 +49,7 @@ public:
     static constexpr uint16_t kMaxEntities = SceneWorld::kCapacity;
 
     CanonicalRuntimeWorld();
+    ~CanonicalRuntimeWorld();
     CanonicalRuntimeWorld(const CanonicalRuntimeWorld&) = delete;
     CanonicalRuntimeWorld& operator=(const CanonicalRuntimeWorld&) = delete;
 
@@ -55,6 +58,16 @@ public:
     bool DestroyEntity(CanonicalEntity entity);
     bool SetTransform(CanonicalEntity entity, const Transform3& transform);
     bool BindMesh(const SceneMeshInstance& instance);
+    bool ConfigureReplication(ReplicationRole role, uint32_t localClientId = 0U, bool allowDynamicLifecycle = true);
+    bool RegisterReplicatedEntity(CanonicalEntity entity, uint32_t networkId, uint32_t ownerId);
+    bool UnregisterReplicatedEntity(uint32_t networkId);
+    bool BuildReplicationSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot);
+    bool ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
+    bool BuildReplicationAcknowledgement(ReplicationAcknowledgement& acknowledgement) const;
+    bool ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement);
+    bool PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
+    bool InterpolateReplicatedState(ReplicationApplyReceipt& receipt);
+
 
     bool Step(float dt);
     bool RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
@@ -98,6 +111,7 @@ private:
     uint64_t frame_ = 0U;
     CanonicalFrameReceipt lastFrame_{};
     CanonicalWorldError lastError_ = CanonicalWorldError::None;
+    std::unique_ptr<CanonicalReplicationBridge> replication_;
 };
 
 } // namespace NeoEngine
