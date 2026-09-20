@@ -30,7 +30,11 @@ int main() {
         !Require(history.has(9U), "find_replacement")) return 1;
 
     ReplicationSnapshot preserved = replacement;
-    if (!Require(!history.store(ReplicationSnapshot{}), "invalid_sequence_reject") ||
+    ReplicationSnapshot stale = replacement;
+    stale.sequence = 8U;
+    if (!Require(!history.store(stale), "stale_sequence_reject") ||
+        !Require(!history.store(replacement), "duplicate_sequence_reject") ||
+        !Require(!history.store(ReplicationSnapshot{}), "invalid_sequence_reject") ||
         !Require(history.find(9U, preserved) && preserved.serverTick == 90U && preserved.states[0].stateRevision == 9U, "invalid_preserves_state")) return 1;
 
     history.clear();
