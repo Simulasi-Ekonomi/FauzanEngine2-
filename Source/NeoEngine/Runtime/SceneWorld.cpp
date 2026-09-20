@@ -29,11 +29,15 @@ bool SceneWorld::UpdateTransforms(){std::array<uint8_t,kCapacity> visiting{};for
 std::vector<uint8_t> SceneWorld::Serialize()const{std::vector<uint8_t> bytes;Put<uint32_t>(bytes,0x31574E53U);Put<uint32_t>(bytes,m_AliveCount);for(uint16_t index=0;index<kCapacity;++index)if(m_Slots[index].alive){Put(bytes,index);Put(bytes,m_Slots[index].generation);Put(bytes,m_Slots[index].parent);Put(bytes,m_Slots[index].local);}return bytes;}
 bool SceneWorld::Deserialize(const std::vector<uint8_t>& bytes){size_t offset=0;uint32_t magic=0,count=0;if(!Get(bytes,offset,magic)||!Get(bytes,offset,count)||magic!=0x31574E53U||count>kCapacity){m_LastError=SceneWorldError::Corrupt;return false;}SceneWorld parsed;for(uint32_t entry=0;entry<count;++entry){uint16_t index=0,generation=0,parent=0;Transform3 local{};if(!Get(bytes,offset,index)||!Get(bytes,offset,generation)||!Get(bytes,offset,parent)||!Get(bytes,offset,local)||index>=kCapacity||parsed.m_Slots[index].alive){m_LastError=SceneWorldError::Corrupt;return false;}if(!ValidTransform(local)){m_LastError=SceneWorldError::InvalidTransform;return false;}parsed.m_Slots[index]={generation,parent,true,true,local,{}};++parsed.m_AliveCount;}if(offset!=bytes.size()){m_LastError=SceneWorldError::Corrupt;return false;}for(uint16_t index=0;index<kCapacity;++index)if(parsed.m_Slots[index].alive&&parsed.m_Slots[index].parent!=0xFFFF&&(!parsed.m_Slots[parsed.m_Slots[index].parent].alive||parsed.m_Slots[index].parent==index)){m_LastError=SceneWorldError::Corrupt;return false;}if(!parsed.UpdateTransforms()){m_LastError=SceneWorldError::Corrupt;return false;}*this=parsed;m_LastError=SceneWorldError::None;return true;}
 std::vector<SceneEntity> SceneWorld::AliveEntities() const {
+    std::fprintf(stderr, "SCENE: AliveEntities entered\\n"); std::fflush(stderr);
     std::vector<SceneEntity> entities;
+    std::fprintf(stderr, "SCENE: AliveEntities vector constructed\\n"); std::fflush(stderr);
     entities.reserve(m_AliveCount);
+    std::fprintf(stderr, "SCENE: AliveEntities reserve complete count=%u\\n", m_AliveCount); std::fflush(stderr);
     for (uint16_t index = 0U; index < kCapacity; ++index) {
         if (m_Slots[index].alive) entities.push_back({index, m_Slots[index].generation});
     }
+    std::fprintf(stderr, "SCENE: AliveEntities loop complete size=%zu\\n", entities.size()); std::fflush(stderr);
     return entities;
 }
 } // namespace NeoEngine
