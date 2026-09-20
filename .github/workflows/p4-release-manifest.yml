@@ -1,0 +1,27 @@
+name: P4 release manifest
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - p4-release-certification-night
+
+permissions:
+  contents: read
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Generate deterministic release manifest
+        run: bash tools/release_manifest.sh p4-release-manifest.sha256
+      - name: Validate manifest format
+        run: |
+          test -s p4-release-manifest.sha256
+          grep -Fxq "FAUZANENGINE_RELEASE_MANIFEST_V1" p4-release-manifest.sha256
+          grep -Eq '^commit=[0-9a-f]{40}$' p4-release-manifest.sha256
+          grep -Eq '^tree=[0-9a-f]{40}$' p4-release-manifest.sha256
+          grep -Eq '^files=[0-9]+$' p4-release-manifest.sha256
