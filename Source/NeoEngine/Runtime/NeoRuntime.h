@@ -69,6 +69,7 @@ public:
     bool UnregisterReplicatedEntity(uint32_t networkId);
     bool BuildReplicationAcknowledgement(ReplicationAcknowledgement& acknowledgement) const;
     bool ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement);
+    bool PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
