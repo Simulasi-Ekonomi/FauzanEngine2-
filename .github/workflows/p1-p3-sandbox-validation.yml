@@ -1,6 +1,9 @@
 name: P1-P3 sandbox validation
 
 on:
+  push:
+    branches:
+      - p1-renderer-asset-animation-night
   pull_request:
     branches:
       - sandbox-p0-validation-20260920
