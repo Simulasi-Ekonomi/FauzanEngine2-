@@ -4,6 +4,8 @@
 #include "ReplicationWorld.h"
 
 #include <cstdint>
+#include <span>
+#include <vector>
 
 namespace NeoEngine {
 
@@ -13,7 +15,9 @@ enum class CanonicalReplicationBridgeError : uint8_t {
     RegistrationFailed,
     SnapshotFailed,
     ApplyFailed,
-    AcknowledgementFailed
+    AcknowledgementFailed,
+    EncodeFailed,
+    DecodeFailed
 };
 
 class CanonicalReplicationBridge {
@@ -27,6 +31,10 @@ public:
     bool ApplySnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
     bool BuildAcknowledgement(ReplicationAcknowledgement& acknowledgement) const;
     bool ApplyAcknowledgement(const ReplicationAcknowledgement& acknowledgement);
+    bool EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes);
+    bool DecodeSnapshot(std::span<const uint8_t> bytes, ReplicationSnapshot& snapshot);
+    bool EncodeAcknowledgement(const ReplicationAcknowledgement& acknowledgement, std::vector<uint8_t>& bytes);
+    bool DecodeAcknowledgement(std::span<const uint8_t> bytes, ReplicationAcknowledgement& acknowledgement);
     bool Predict(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
     bool Interpolate(ReplicationApplyReceipt& receipt);
 
