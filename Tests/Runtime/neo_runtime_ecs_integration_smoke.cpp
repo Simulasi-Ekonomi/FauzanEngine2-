@@ -11,11 +11,15 @@ int main() {
     config.farmNpcCount = 1;
     config.renderWidth = 64;
     config.renderHeight = 48;
+    std::fprintf(stderr, "SMOKE: before Initialize\n"); std::fflush(stderr);
     assert(runtime.Initialize(config));
+    std::fprintf(stderr, "SMOKE: after Initialize\n"); std::fflush(stderr);
+    std::fprintf(stderr, "SMOKE: after ECS access boundary\n"); std::fflush(stderr);
     assert(runtime.ECS() != nullptr);
     assert(runtime.Scene() != nullptr);
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
+    std::fprintf(stderr, "SMOKE: before mesh staging\n"); std::fflush(stderr);
     const auto entities = runtime.Scene()->AliveEntities();
     assert(!entities.empty());
     const NeoEngine::EntityID ecsId = runtime.SceneECSId(entities.front());
@@ -42,6 +46,7 @@ int main() {
     material.materialName = "default";
     material.sourceHash = 0x9080706050403020ULL;
     assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
+    std::fprintf(stderr, "SMOKE: after mesh staging\n"); std::fflush(stderr);
 
     std::fprintf(stderr, "SMOKE: before Tick\n"); std::fflush(stderr);
     assert(runtime.Tick());
