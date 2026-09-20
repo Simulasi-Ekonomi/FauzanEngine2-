@@ -35,7 +35,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
 
     const uint64_t requestedBytes = mipData.size();
     const uint64_t requestedMB64 = (requestedBytes + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
-    if (requestedMB64 > stagingPoolSizeMB_ ||
+    if (requestedMB64 == 0ULL || requestedMB64 > UINT32_MAX || requestedMB64 > stagingPoolSizeMB_ ||
         currentStagingUsedMB_ > stagingPoolSizeMB_ - static_cast<uint32_t>(requestedMB64)) return false;
     lastDevice_ = device;
 
@@ -80,8 +80,10 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
                                       VkBuffer vertexBuffer, VkBuffer indexBuffer) noexcept {
     if (device == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
         vertexData.empty() || indexData.empty() || vertexBuffer == VK_NULL_HANDLE || indexBuffer == VK_NULL_HANDLE) return false;
-    const uint32_t requestedMB = static_cast<uint32_t>((vertexData.size() + indexData.size() + 1024U * 1024U - 1U) / (1024U * 1024U));
-    if (requestedMB > stagingPoolSizeMB_ || currentStagingUsedMB_ > stagingPoolSizeMB_ - requestedMB) return false;
+    const uint64_t requestedBytes = static_cast<uint64_t>(vertexData.size()) + static_cast<uint64_t>(indexData.size());
+    const uint64_t requestedMB64 = (requestedBytes + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
+    if (requestedMB64 == 0ULL || requestedMB64 > UINT32_MAX || requestedMB64 > stagingPoolSizeMB_ ||
+        currentStagingUsedMB_ > stagingPoolSizeMB_ - static_cast<uint32_t>(requestedMB64)) return false;
     lastDevice_ = device;
 
     VkDeviceMemory vertexMemory = VK_NULL_HANDLE, indexMemory = VK_NULL_HANDLE;
