@@ -2,6 +2,18 @@
 
 #include <cassert>
 #include <cstdint>
+#include <type_traits>
+
+namespace {
+VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
+    if constexpr (std::is_pointer_v<VkDeviceMemory>) {
+        return reinterpret_cast<VkDeviceMemory>(value);
+    } else {
+        return static_cast<VkDeviceMemory>(value);
+    }
+}
+}
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -30,9 +42,9 @@ int main() {
     assert(queue.GetState("high") == StreamState::Uploading);
     assert(!queue.IsReady("high"));
 
-    assert(queue.CompleteUpload("high", static_cast<VkDeviceMemory>(1), 3));
+    assert(queue.CompleteUpload("high", FakeDeviceMemory(1), 3));
     assert(queue.IsReady("high"));
-    assert(queue.GetMemory("high") == static_cast<VkDeviceMemory>(1));
+    assert(queue.GetMemory("high") == FakeDeviceMemory(1));
     assert(queue.GetResidentMB() == 3);
 
     assert(queue.TryDequeue(next));
@@ -44,7 +56,7 @@ int main() {
     assert(queue.Enqueue(StreamRequest{"old", "old.obj", 2.0f, 4, 1}));
     assert(queue.TryDequeue(next));
     assert(next.id == "old");
-    assert(queue.CompleteUpload("old", static_cast<VkDeviceMemory>(2), 4));
+    assert(queue.CompleteUpload("old", FakeDeviceMemory(2), 4));
     queue.MarkAccessed("high", 20);
     queue.MarkAccessed("old", 10);
     assert(queue.GetResidentMB() == 7);
@@ -53,7 +65,7 @@ int main() {
     assert(queue.TryDequeue(next));
     assert(next.id == "over");
     // Total resident budget, not just per-allocation budget, is the contract.
-    assert(!queue.CompleteUpload("over", static_cast<VkDeviceMemory>(3), 2));
+    assert(!queue.CompleteUpload("over", FakeDeviceMemory(3), 2));
     assert(queue.GetState("over") == StreamState::Uploading);
     assert(queue.FailUpload("over"));
 
@@ -63,13 +75,13 @@ int main() {
     assert(queue.IsReady("high"));
     assert(!queue.IsReady("old"));
     assert(released.size() == 1);
-    assert(released[0] == static_cast<VkDeviceMemory>(2));
+    assert(released[0] == FakeDeviceMemory(2));
 
     assert(queue.Release("high"));
     assert(queue.GetResidentMB() == 0);
     assert(!queue.Release("high"));
     assert(released.size() == 2);
-    assert(released[1] == static_cast<VkDeviceMemory>(1));
+    assert(released[1] == FakeDeviceMemory(1));
 
     // Existing allocations retain the releaser that owned them even if the
     // queue callback is replaced later (e.g. after a Vulkan device recreation).
@@ -80,10 +92,10 @@ int main() {
     assert(ownershipQueue.Enqueue(StreamRequest{"owned", "owned.obj", 1.0f, 2, 1}));
     assert(ownershipQueue.TryDequeue(next));
     assert(next.id == "owned");
-    assert(ownershipQueue.CompleteUpload("owned", static_cast<VkDeviceMemory>(11), 2));
+    assert(ownershipQueue.CompleteUpload("owned", FakeDeviceMemory(11), 2));
     ownershipQueue.SetGpuMemoryReleaseCallback([&ownerB](VkDeviceMemory memory) { ownerB.push_back(memory); });
     assert(ownershipQueue.Release("owned"));
-    assert(ownerA.size() == 1 && ownerA[0] == static_cast<VkDeviceMemory>(11));
+    assert(ownerA.size() == 1 && ownerA[0] == FakeDeviceMemory(11));
     assert(ownerB.empty());
 
     // A throwing releaser must not make an allocation disappear or corrupt
@@ -97,13 +109,13 @@ int main() {
     });
     assert(retryQueue.Enqueue(StreamRequest{"retry", "retry.obj", 1.0f, 2, 1}));
     assert(retryQueue.TryDequeue(next));
-    assert(retryQueue.CompleteUpload("retry", static_cast<VkDeviceMemory>(12), 2));
+    assert(retryQueue.CompleteUpload("retry", FakeDeviceMemory(12), 2));
     assert(!retryQueue.Release("retry"));
     assert(retryQueue.IsReady("retry"));
-    assert(retryQueue.GetMemory("retry") == static_cast<VkDeviceMemory>(12));
+    assert(retryQueue.GetMemory("retry") == FakeDeviceMemory(12));
     assert(retryQueue.GetResidentMB() == 2);
     assert(retryQueue.Release("retry"));
-    assert(retryReleased.size() == 1 && retryReleased[0] == static_cast<VkDeviceMemory>(12));
+    assert(retryReleased.size() == 1 && retryReleased[0] == FakeDeviceMemory(12));
     assert(retryQueue.GetResidentMB() == 0);
 
     std::cout << "ASSET_STREAMING_QUEUE_SMOKE_OK\n";
