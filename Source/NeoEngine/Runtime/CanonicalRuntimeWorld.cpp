@@ -7,6 +7,8 @@ namespace NeoEngine {
 
 CanonicalRuntimeWorld::CanonicalRuntimeWorld() : resources_(assets_) {}
 
+CanonicalRuntimeWorld::~CanonicalRuntimeWorld() = default;
+
 bool CanonicalRuntimeWorld::IsPhysicsBody(uint32_t componentMask) {
     constexpr uint32_t required = COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER;
     return (componentMask & required) == required;
@@ -143,6 +145,84 @@ bool CanonicalRuntimeWorld::ReadBackPhysicsToScene() {
         }
         if (!found) { lastError_ = CanonicalWorldError::PhysicsReadbackFailed; return false; }
     }
+    return true;
+}
+
+bool CanonicalRuntimeWorld::ConfigureReplication(ReplicationRole role, uint32_t localClientId, bool allowDynamicLifecycle) {
+    auto candidate = std::make_unique<CanonicalReplicationBridge>(*this, role, localClientId, allowDynamicLifecycle);
+    if (!candidate) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    replication_ = std::move(candidate);
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::RegisterReplicatedEntity(CanonicalEntity entity, uint32_t networkId, uint32_t ownerId) {
+    if (!replication_ || !replication_->Register(entity, networkId, ownerId)) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::UnregisterReplicatedEntity(uint32_t networkId) {
+    if (!replication_ || !replication_->Unregister(networkId)) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::BuildReplicationSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot) {
+    if (!replication_ || !replication_->BuildSnapshot(serverTick, snapshot)) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
+    if (!replication_ || !replication_->ApplySnapshot(snapshot, receipt)) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::BuildReplicationAcknowledgement(ReplicationAcknowledgement& acknowledgement) const {
+    return replication_ != nullptr && replication_->BuildAcknowledgement(acknowledgement);
+}
+
+bool CanonicalRuntimeWorld::ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement) {
+    if (!replication_ || !replication_->ApplyAcknowledgement(acknowledgement)) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt) {
+    if (!replication_ || !replication_->Predict(networkId, deltaX, deltaZ, receipt)) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::InterpolateReplicatedState(ReplicationApplyReceipt& receipt) {
+    if (!replication_ || !replication_->Interpolate(receipt)) {
+        lastError_ = CanonicalWorldError::ReplicationFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
     return true;
 }
 
