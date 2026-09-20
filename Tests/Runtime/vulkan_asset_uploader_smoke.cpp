@@ -193,6 +193,133 @@ int main() {
     TEST_CHECK(uploader.GetCurrentStagingUsedMB() == 0,
                "Completed staging budget was not released");
 
+    TEST_CHECK(vkResetFences(device, 1, &fence) == VK_SUCCESS,
+               "Completion fence reset failed before texture upload");
+    TEST_CHECK(vkResetCommandBuffer(commandBuffer, 0) == VK_SUCCESS,
+               "Command buffer reset failed before texture upload");
+
+    const std::vector<uint8_t> textureData{
+        0xFF, 0x00, 0x00, 0xFF,
+        0x00, 0xFF, 0x00, 0xFF,
+        0x00, 0x00, 0xFF, 0xFF,
+        0xFF, 0xFF, 0x00, 0xFF
+    };
+    constexpr uint32_t textureWidth = 2;
+    constexpr uint32_t textureHeight = 2;
+
+    VkImage textureImage = VK_NULL_HANDLE;
+    VkDeviceMemory textureMemory = VK_NULL_HANDLE;
+    VkImageCreateInfo imageInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageInfo.extent = {textureWidth, textureHeight, 1};
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    TEST_CHECK(vkCreateImage(device, &imageInfo, nullptr, &textureImage) == VK_SUCCESS,
+               "Texture target image creation failed");
+
+    VkMemoryRequirements imageRequirements{};
+    vkGetImageMemoryRequirements(device, textureImage, &imageRequirements);
+    const uint32_t imageMemoryType = FindMemoryType(
+        physicalDevice, imageRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    TEST_CHECK(imageMemoryType != std::numeric_limits<uint32_t>::max(),
+               "Texture device-local memory type unavailable");
+
+    VkMemoryAllocateInfo imageAllocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    imageAllocation.allocationSize = imageRequirements.size;
+    imageAllocation.memoryTypeIndex = imageMemoryType;
+    TEST_CHECK(vkAllocateMemory(device, &imageAllocation, nullptr, &textureMemory) == VK_SUCCESS,
+               "Texture image memory allocation failed");
+    TEST_CHECK(vkBindImageMemory(device, textureImage, textureMemory, 0) == VK_SUCCESS,
+               "Texture image memory bind failed");
+
+    VkBuffer readbackBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory readbackMemory = VK_NULL_HANDLE;
+    TEST_CHECK(CreateBuffer(
+        device, physicalDevice, textureData.size(),
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        readbackBuffer, readbackMemory), "Texture readback buffer creation failed");
+
+    TEST_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo) == VK_SUCCESS,
+               "Texture command buffer begin failed");
+
+    VkImageMemoryBarrier toTransfer{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    toTransfer.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    toTransfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toTransfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.image = textureImage;
+    toTransfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toTransfer.subresourceRange.levelCount = 1;
+    toTransfer.subresourceRange.layerCount = 1;
+    toTransfer.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    vkCmdPipelineBarrier(commandBuffer,
+                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &toTransfer);
+
+    TEST_CHECK(uploader.UploadTexture(
+        device, commandBuffer, textureData, textureImage,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        textureWidth, textureHeight, fence), "UploadTexture failed");
+    TEST_CHECK(uploader.GetPendingUploadCount() == 1,
+               "Texture upload task was not retained until fence completion");
+
+    VkImageMemoryBarrier toReadback{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    toReadback.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toReadback.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    toReadback.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toReadback.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toReadback.image = textureImage;
+    toReadback.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toReadback.subresourceRange.levelCount = 1;
+    toReadback.subresourceRange.layerCount = 1;
+    toReadback.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    toReadback.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(commandBuffer,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &toReadback);
+
+    VkBufferImageCopy readbackRegion{};
+    readbackRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    readbackRegion.imageSubresource.layerCount = 1;
+    readbackRegion.imageExtent = {textureWidth, textureHeight, 1};
+    vkCmdCopyImageToBuffer(commandBuffer, textureImage,
+                           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           readbackBuffer, 1, &readbackRegion);
+
+    TEST_CHECK(vkEndCommandBuffer(commandBuffer) == VK_SUCCESS,
+               "Texture command buffer end failed");
+    submit.pCommandBuffers = &commandBuffer;
+    TEST_CHECK(vkQueueSubmit(queue, 1, &submit, fence) == VK_SUCCESS,
+               "Texture upload submission failed");
+    TEST_CHECK(vkWaitForFences(
+        device, 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) == VK_SUCCESS,
+        "Texture upload fence wait failed");
+
+    std::vector<uint8_t> readTextureData;
+    TEST_CHECK(ReadBuffer(device, readbackMemory, textureData.size(), readTextureData),
+               "Texture readback failed");
+    TEST_CHECK(readTextureData == textureData, "Texture upload data mismatch");
+
+    uploader.AdvanceFrame(device);
+    TEST_CHECK(uploader.GetPendingUploadCount() == 0,
+               "Completed texture staging task was not released");
+    TEST_CHECK(uploader.GetCurrentStagingUsedMB() == 0,
+               "Texture staging budget was not released");
+
+    vkFreeMemory(device, readbackMemory, nullptr);
+    vkDestroyBuffer(device, readbackBuffer, nullptr);
+    vkFreeMemory(device, textureMemory, nullptr);
+    vkDestroyImage(device, textureImage, nullptr);
+
     uploader.Shutdown(device);
     vkDestroyFence(device, fence, nullptr);
     vkFreeMemory(device, indexMemory, nullptr);
@@ -202,6 +329,6 @@ int main() {
     vkDestroyCommandPool(device, commandPool, nullptr);
     context.Reset();
 
-    std::cout << "VULKAN_ASSET_UPLOADER_OK mesh_copy=fence_backed\\n";
+    std::cout << "VULKAN_ASSET_UPLOADER_OK mesh_copy=fence_backed texture_copy=fence_backed\\n";
     return 0;
 }
