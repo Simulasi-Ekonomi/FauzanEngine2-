@@ -63,6 +63,15 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
     if (!renderer->Initialize(config.renderWidth, config.renderHeight)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto audio = std::unique_ptr<SdlAudioBridge>{};
+    if (config.enableAudio) {
+        audio = std::make_unique<SdlAudioBridge>();
+        if (!audio->Initialize(config.audioFramesPerCallback) || !audio->SetListener(config.audioListener)) {
+            m_LastError = RuntimeError::AudioFailed;
+            m_State = RuntimeState::Failed;
+            return false;
+        }
+    }
     auto surfacePresenter = std::unique_ptr<SoftwareSurfacePresenter>{};
     if (config.enableSoftwareSurfacePresentation) {
         surfacePresenter = std::make_unique<SoftwareSurfacePresenter>();
@@ -190,6 +199,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_RenderHeight = config.renderHeight;
     m_EnableVulkan3DRenderer = config.enableVulkan3DRenderer;
     m_Renderer = std::move(renderer);
+    m_Audio = std::move(audio);
     m_FarmRuntimeHud = config.enableFarmRuntimeHud ? std::make_unique<FarmRuntimeHud>() : nullptr;
     m_FarmRenderAssets.reset();
     m_FarmSpriteRenderer = std::make_unique<FarmSpriteRenderAdapter>();
@@ -420,6 +430,84 @@ bool NeoRuntime::ClearPhysicsForces(SceneEntity sceneEntity) {
     return true;
 }
 
+bool NeoRuntime::PlayAudio(const AudioComponent& component) {
+    if (m_State != RuntimeState::Initialized || !m_Audio) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!component.Play(*m_Audio)) {
+        m_LastError = RuntimeError::AudioFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::StopAudio(const AudioComponent& component) {
+    if (m_State != RuntimeState::Initialized || !m_Audio) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!component.Stop(*m_Audio)) {
+        m_LastError = RuntimeError::AudioFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::UpdateAudioPosition(uint32_t voiceId, const float position[3]) {
+    if (m_State != RuntimeState::Initialized || !m_Audio) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Audio->UpdateVoicePosition(voiceId, position)) {
+        m_LastError = RuntimeError::AudioFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::UpdateAudioPitch(uint32_t voiceId, float pitch) {
+    if (m_State != RuntimeState::Initialized || !m_Audio) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Audio->UpdateVoicePitch(voiceId, pitch)) {
+        m_LastError = RuntimeError::AudioFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::UpdateAudioGain(uint32_t voiceId, uint16_t gainQ8) {
+    if (m_State != RuntimeState::Initialized || !m_Audio) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Audio->UpdateVoiceGain(voiceId, gainQ8)) {
+        m_LastError = RuntimeError::AudioFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::SetAudioListener(const AudioListener& listener) {
+    if (m_State != RuntimeState::Initialized || !m_Audio) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Audio->SetListener(listener)) {
+        m_LastError = RuntimeError::AudioFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
     SoftwareRenderer candidate = *m_Renderer;
@@ -578,6 +666,8 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
+    if (m_Audio != nullptr) m_Audio->Reset();
+    m_Audio.reset();
     m_FarmRuntimeHud.reset();
     m_FarmRenderAssets.reset();
     m_FarmSpriteRenderer.reset();
