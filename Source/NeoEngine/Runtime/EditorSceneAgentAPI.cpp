@@ -94,9 +94,15 @@ bool EditorSceneAgentAPI::Execute(std::string_view request, EditorSceneSession& 
         actor.id = root["actorId"].asUInt(); actor.parentId = root["parentId"].asUInt();
         actor.kind = static_cast<EditorSceneActorKind>(root["kind"].asUInt()); actor.name = root["name"].asString();
         actor.assetId = root["assetId"].asString(); actor.materialAssetId = root["materialAssetId"].asString(); actor.textureAssetId = root["textureAssetId"].asString();
-        if (root.isMember("x")) actor.transform.x = root["x"].asFloat();
-        if (root.isMember("y")) actor.transform.y = root["y"].asFloat();
-        if (root.isMember("z")) actor.transform.z = root["z"].asFloat();
+        if (root.isMember("x") && (!ReadFinite(root["x"], actor.transform.x) ||
+                                  (root.isMember("y") && !ReadFinite(root["y"], actor.transform.y)) ||
+                                  (root.isMember("z") && !ReadFinite(root["z"], actor.transform.z)))) {
+            return Fail(EditorAgentError::InvalidArgument, response);
+        }
+        if (root.isMember("y") && !root.isMember("x") && !ReadFinite(root["y"], actor.transform.y))
+            return Fail(EditorAgentError::InvalidArgument, response);
+        if (root.isMember("z") && !root.isMember("x") && !ReadFinite(root["z"], actor.transform.z))
+            return Fail(EditorAgentError::InvalidArgument, response);
         if (!session.AddActor(actor, assets)) return Fail(EditorAgentError::OperationFailed, response);
         lastError_ = EditorAgentError::None; response = SceneResult("spawn", session); return true;
     }
