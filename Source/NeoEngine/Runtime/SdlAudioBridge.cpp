@@ -51,13 +51,13 @@ bool SdlAudioBridge::Initialize(uint16_t framesPerCallback) {
     return true;
 }
 
-bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8) {
+bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8, bool looping, float pitch) {
     if (stream_ == nullptr) {
         lastError_ = SdlAudioBridgeError::NotInitialized;
         return false;
     }
     SDL_LockAudioStream(stream_);
-    const bool accepted = mixer_.Play(id, std::move(mono), gainQ8);
+    const bool accepted = mixer_.Play(id, std::move(mono), gainQ8, looping, pitch);
     SDL_UnlockAudioStream(stream_);
     if (!accepted) {
         lastError_ = SdlAudioBridgeError::MixerRejected;
