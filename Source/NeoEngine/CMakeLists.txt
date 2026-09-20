@@ -187,6 +187,13 @@ set(XPBD_RUNTIME_SOURCES
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
+
+# Keep canonical ECS/XPBD translation units explicit so smoke executables cannot
+# lose their non-template symbols through an incomplete runtime source manifest.
+target_sources(NeoEngineRuntime PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/ECS/ArchetypeManager.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Physics/V5/XPBDPhysicsSystem.cpp"
+)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
 target_compile_definitions(NeoEngineRuntime PUBLIC
