@@ -1,4 +1,5 @@
 #include "CanonicalReplicationBridge.h"
+#include "CanonicalRuntimeWorld.h"
 
 namespace NeoEngine {
 
