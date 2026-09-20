@@ -6,14 +6,24 @@
 #include <mutex>
 #include <chrono>
 #include <functional>
+#include <algorithm>
 #include <curl/curl.h>
 #include <json/json.h>
+#if defined(__ANDROID__)
 #include <android/log.h>
+#else
+#include <cstdio>
+#endif
 #include "ItemSerialTracker.h"
 
 #define LOG_TAG "AntiCheat"
+#if defined(__ANDROID__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#else
+#define LOGI(...) std::fprintf(stderr, __VA_ARGS__), std::fputc('\n', stderr)
+#define LOGE(...) std::fprintf(stderr, __VA_ARGS__), std::fputc('\n', stderr)
+#endif
 
 namespace NeoEngine {
 
