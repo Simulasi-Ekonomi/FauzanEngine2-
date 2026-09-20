@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router as api_router
 from aries.game_director.routes import router as director_router
+from api.runtime_telemetry import router as runtime_telemetry_router
 
 app = FastAPI(
     title="FauzanEngine Backend",
@@ -25,6 +26,7 @@ app.add_middleware(
 
 app.include_router(api_router)
 app.include_router(director_router)
+app.include_router(runtime_telemetry_router)
 
 @app.get("/")
 async def root():
