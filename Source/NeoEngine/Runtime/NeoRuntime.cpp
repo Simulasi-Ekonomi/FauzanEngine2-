@@ -312,6 +312,19 @@ bool NeoRuntime::ApplyReplicationAcknowledgement(const ReplicationAcknowledgemen
     return true;
 }
 
+bool NeoRuntime::PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt) {
+    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Replication->PredictLocalInput(networkId, deltaX, deltaZ, receipt)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::ReplanRouteMotion() {
     if (m_State != RuntimeState::Initialized || !m_Scene || !m_RouteNavigation || !m_RouteFollower || m_RouteMotionEntity_.index == 0xFFFFU) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_UsesSkeletalRouteMotion) { m_LastError = RuntimeError::RouteReplanFailed; return false; }
