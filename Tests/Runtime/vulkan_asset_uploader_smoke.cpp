@@ -85,6 +85,16 @@ bool ReadBuffer(VkDevice device, VkDeviceMemory memory, VkDeviceSize size,
 int main() {
     std::cout << "[Smoke Test] Starting vulkan_asset_uploader_smoke...\\n";
 
+    NeoEngine::VulkanAssetUploader invalidUploader(8);
+    TEST_CHECK(!invalidUploader.Initialize(VK_NULL_HANDLE, VK_NULL_HANDLE),
+               "Uploader must reject null Vulkan handles");
+    TEST_CHECK(!invalidUploader.UploadTexture(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE,
+                                               nullptr, 0, 0),
+               "Legacy texture upload must fail closed without initialization");
+    TEST_CHECK(!invalidUploader.UploadMesh(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE,
+                                            VK_NULL_HANDLE, nullptr, 0, nullptr, 0),
+               "Legacy mesh upload must fail closed without initialization");
+
     NeoEngine::VulkanContext context;
     if (!context.Initialize()) {
         std::cout << "[INFO] VulkanContext unavailable; skipping hardware uploader smoke.\\n";
