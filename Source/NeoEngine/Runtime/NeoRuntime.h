@@ -38,6 +38,7 @@
 #include "Systems/WorldAuthoring.h"
 #include "Systems/TrustSafetySystem.h"
 #include "SdlAudioBridge.h"
+#include "AudioComponent.h"
 #include <cstdint>
 #include <memory>
 #include <vector>
