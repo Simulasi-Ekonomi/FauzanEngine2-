@@ -2,8 +2,10 @@
 #include "Rendering/Rendering/Renderer/OcclusionCulling.h"
 
 #include <cassert>
+#include <stdexcept>
 #include <cmath>
 #include <vector>
+#include <limits>
 
 int main() {
     HiZBuffer hiz(4, 4);
@@ -26,7 +28,7 @@ int main() {
     occluded.min[2] = 0.2F; occluded.max[2] = 0.5F;
     assert(culling.IsOccludedNDC(occluded, hiz));
 
-    std::vector<float> emptyDepth(16, 0.0F);
+    std::vector<float> invalidDepth(16, 0.0F);\n    invalidDepth[7] = std::numeric_limits<float>::quiet_NaN();\n    bool rejectedNonFinite = false;\n    try {\n        hiz.Build(invalidDepth);\n    } catch (const std::invalid_argument&) {\n        rejectedNonFinite = true;\n    }\n    assert(rejectedNonFinite);\n\n    std::vector<float> emptyDepth(16, 0.0F);
     hiz.BuildOcclusion(emptyDepth);
     assert(!culling.IsOccludedNDC(occluded, hiz));
 
@@ -38,4 +40,3 @@ int main() {
     return 0;
 }
 
-// Input validation contract: HiZ must reject non-finite depth samples.
