@@ -20,7 +20,7 @@ enum class CanonicalTransformAuthority : uint8_t { Scene, Physics };
 enum class CanonicalWorldError : uint8_t {
     None, Capacity, InvalidTransform, InvalidEntity, PhysicsCreationFailed,
     PhysicsSyncFailed, PhysicsStepFailed, PhysicsReadbackFailed,
-    RenderFailed, MeshBindingFailed
+    RenderFailed, MeshBindingFailed, TransformAuthorityViolation
 };
 
 struct CanonicalEntity {
@@ -55,6 +55,7 @@ public:
     bool DestroyEntity(CanonicalEntity entity);
     bool SetTransform(CanonicalEntity entity, const Transform3& transform);
     bool BindMesh(const SceneMeshInstance& instance);
+    [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
     bool RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
