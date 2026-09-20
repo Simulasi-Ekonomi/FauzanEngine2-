@@ -121,7 +121,7 @@ bool SceneRenderAdapter::Draw(const SceneWorld& world, SceneMeshAdapter& meshes,
 }
 
 bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAdapter& meshes, RenderCamera& camera,
-                                      Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA) {
+                                      Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA, const std::vector<Mat4>* skeletalPalette) {
     if (!renderer.Ready()) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
     const RenderCameraConfig& config = camera.Config();
     if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F || config.farPlane <= config.nearPlane) {
@@ -132,6 +132,12 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
     const Mat4 viewProjection = Multiply(MakeProjection(config), MakeView(config, camera.Right(), camera.Up()));
     if (!renderer.BeginFrame(clearR, clearG, clearB, clearA)) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+        return false;
+    }
+
+    if (skeletalPalette != nullptr && !skeletalPalette->empty() && !renderer.UploadSkinningPalette(*skeletalPalette)) {
+        lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+        renderer.EndFrame();
         return false;
     }
 
