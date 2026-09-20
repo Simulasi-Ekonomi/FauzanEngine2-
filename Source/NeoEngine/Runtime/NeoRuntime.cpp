@@ -58,6 +58,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!world->Initialize(*farm, *trustSafety, "runtime-farm-player", worldConfig)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto authority = std::make_unique<FarmAuthoritativeService>();
     if (!authority->Initialize(*world, *trustSafety, "runtime-farm-player", "runtime-farm-session")) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto authoritySession = std::make_unique<FarmAuthoritativeSessionHost>();
+    if (!authoritySession->Initialize(*authority)) { m_LastError = RuntimeError::AuthorityFailed; m_State = RuntimeState::Failed; return false; }
     auto assets = std::make_unique<AssetRegistry>();
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
@@ -78,6 +80,9 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     authoringWorldConfig.side = config.authoringWorldSide;
     authoringWorldConfig.seed = config.authoringWorldSeed;
     if (!authoringWorld->Generate(authoringWorldConfig) || !authoringWorld->BindScene(*scene)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto ecs = std::make_unique<ArchetypeManager>();
+    SceneECSBridge sceneECSBridge;
+    if (!sceneECSBridge.Rebuild(*scene, *ecs)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto actors = std::make_unique<ActorComponentWorld>(*scene);
     auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId);
     auto curriculum = std::unique_ptr<CurriculumSystem>{};
@@ -148,6 +153,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Farm = std::move(farm);
     m_FarmWorld = std::move(world);
     m_FarmAuthority = std::move(authority);
+    m_FarmAuthoritySession = std::move(authoritySession);
     m_Assets = std::move(assets);
     m_Resources = std::move(resources);
     m_Actors = std::move(actors);
@@ -175,6 +181,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_RouteMotionEntity_ = routeMotionEntity;
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
+    m_ECS = std::move(ecs);
+    m_SceneECSBridge = std::move(sceneECSBridge);
     m_SceneCameraConfig = config.sceneCamera;
     m_RenderWidth = config.renderWidth;
     m_RenderHeight = config.renderHeight;
@@ -192,6 +200,35 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_SurfacePresenter = std::move(surfacePresenter);
     m_LastError = RuntimeError::None;
     m_State = RuntimeState::Initialized;
+    return true;
+}
+
+bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
+                                                const FarmSessionCommand& command,
+                                                FarmAuthoritativeCommandReceipt& receipt) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
+    if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
     return true;
 }
 
@@ -217,7 +254,7 @@ bool NeoRuntime::Tick() {
         if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return false; }
         m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), {}, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
         m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
-        m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
+        m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount(); m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
         m_HasFrameReceipt = true;
         m_LastError = RuntimeError::None;
         return true;
@@ -236,6 +273,7 @@ bool NeoRuntime::Tick() {
     if (hasFarmPlayerInput) farmPlayerInputReceipt = m_FarmPlayerInput->LastReceipt();
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (!m_ECS || !m_SceneECSBridge.Rebuild(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
     CurriculumProgressReceipt curriculumReceipt{};
     m_LastCurriculumEvents.clear();
@@ -471,6 +509,7 @@ bool NeoRuntime::Shutdown() {
     m_LastCurriculumEvents.clear();
     m_AuthoringWorld.reset();
     m_Scene.reset();
+    m_ECS.reset();
     m_Assets.reset();
     m_FarmAuthority.reset();
     m_FarmWorld.reset();

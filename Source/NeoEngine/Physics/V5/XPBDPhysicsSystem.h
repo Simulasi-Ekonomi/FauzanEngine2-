@@ -178,6 +178,9 @@ public:
     bool TryGetEntityId(uint32_t flatIdx, EntityID& entityId) const;
     void SetEntityLayer(uint32_t flatIdx, CollisionMask layer);
     CollisionMask GetEntityLayer(uint32_t flatIdx) const;
+    bool IsEntityAwake(EntityID entityId) const;
+    bool WakeEntity(EntityID entityId);
+    bool SleepEntity(EntityID entityId);
 
     uint32_t AddDistanceJoint(uint32_t a, uint32_t b, float minDist, float maxDist, float stiffness=1000.0f);
     uint32_t AddFixedJoint(uint32_t a, uint32_t b, float anchorAX, float anchorAZ, float anchorBX, float anchorBZ);
