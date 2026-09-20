@@ -115,12 +115,8 @@ bool VulkanAssetUploader::WriteStagingBuffer(VkDevice device, VkDeviceMemory mem
     if (vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mapped) != VK_SUCCESS) return false;
     std::memcpy(mapped, data.data(), data.size());
 
-    VkPhysicalDeviceMemoryProperties properties{};
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice_, &properties);
-
-    // The memory type is not stored in UploadStagingAllocation, so flushing is
-    // conservatively performed for every staging write. Vulkan permits flushing
-    // coherent memory as well; this keeps the uploader correct on non-coherent heaps.
+    // Flush the full mapped allocation so host writes are visible on
+    // non-coherent memory. Mapping the whole allocation makes VK_WHOLE_SIZE valid.
     VkMappedMemoryRange range{};
     range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     range.memory = memory;
