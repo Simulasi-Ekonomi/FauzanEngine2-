@@ -59,6 +59,7 @@ public:
     bool BindMesh(const SceneMeshInstance& instance);
     bool Raycast(const GameplayRay2& ray, GameplayRayHit2& hit);
     bool OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
+    bool OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets);
     [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
