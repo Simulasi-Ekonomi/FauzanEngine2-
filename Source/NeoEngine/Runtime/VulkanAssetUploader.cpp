@@ -137,8 +137,14 @@ void VulkanAssetUploader::AttachCompletionFence(VkFence fence) noexcept {
 void VulkanAssetUploader::Flush(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE) return;
     if (vkDeviceWaitIdle(device) != VK_SUCCESS) return;
+    std::vector<VkFence> destroyedFences;
+    destroyedFences.reserve(pendingUploads_.size());
     for (const UploadTask& task : pendingUploads_) {
-        if (task.completionFence) vkDestroyFence(device, task.completionFence, nullptr);
+        if (task.completionFence != VK_NULL_HANDLE &&
+            std::find(destroyedFences.begin(), destroyedFences.end(), task.completionFence) == destroyedFences.end()) {
+            vkDestroyFence(device, task.completionFence, nullptr);
+            destroyedFences.push_back(task.completionFence);
+        }
         if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
         if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
     }
@@ -151,19 +157,28 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE) return;
     size_t write = 0;
     uint32_t residentMB = 0;
+    std::vector<VkFence> completedFences;
+    completedFences.reserve(pendingUploads_.size());
+
     for (size_t i = 0; i < pendingUploads_.size(); ++i) {
         UploadTask& task = pendingUploads_[i];
-        const bool complete = task.completionFence != VK_NULL_HANDLE &&
-                              vkGetFenceStatus(device, task.completionFence) == VK_SUCCESS;
+        const VkFence fence = task.completionFence;
+        const bool complete = fence != VK_NULL_HANDLE &&
+                              vkGetFenceStatus(device, fence) == VK_SUCCESS;
         if (complete) {
             if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
             if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
-            vkDestroyFence(device, task.completionFence, nullptr);
+            if (std::find(completedFences.begin(), completedFences.end(), fence) == completedFences.end())
+                completedFences.push_back(fence);
             continue;
         }
         pendingUploads_[write++] = task;
         residentMB += task.uploadSizeMB;
     }
+
+    for (VkFence fence : completedFences)
+        vkDestroyFence(device, fence, nullptr);
+
     pendingUploads_.resize(write);
     currentStagingUsedMB_ = residentMB;
 }
