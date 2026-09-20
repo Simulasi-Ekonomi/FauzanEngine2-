@@ -82,6 +82,12 @@ jobs:
             Runtime/Vulkan3DRenderer.cpp \
             Runtime/VulkanAssetUploader.cpp \
             Runtime/VulkanGPUBuffer.cpp \
+            Runtime/VulkanGraphicsPipeline.cpp \
+            Runtime/VulkanMeshBufferBuilder.cpp \
+            Runtime/VulkanPresentProbe.cpp \
+            Runtime/VulkanTexturedPresent.cpp \
+            Runtime/NeoRuntime.cpp \
+            Runtime/NeoRuntimeVulkan3D.cpp \
             Animation/GPUSkinningPaletteBuffer.cpp \
             Tests/vulkan_3d_renderer_smoke.cpp \
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
