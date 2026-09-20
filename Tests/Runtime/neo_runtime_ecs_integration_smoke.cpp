@@ -14,33 +14,19 @@ int main() {
     config.farmNpcCount = 1;
     config.renderWidth = 64;
     config.renderHeight = 48;
-    std::fprintf(stderr, "SMOKE: before Initialize\n"); std::fflush(stderr);
     assert(runtime.Initialize(config));
-    std::fprintf(stderr, "SMOKE: after Initialize\n"); std::fflush(stderr);
-    std::fprintf(stderr, "SMOKE: after ECS access boundary\n"); std::fflush(stderr);
     assert(runtime.ECS() != nullptr);
     assert(runtime.Scene() != nullptr);
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
-    std::fprintf(stderr, "SMOKE: before mesh staging\n"); std::fflush(stderr);
-    std::fprintf(stderr, "SMOKE: before AliveEntities\n"); std::fflush(stderr);
     const auto entities = runtime.Scene()->AliveEntities();
-    std::fprintf(stderr, "SMOKE: after AliveEntities\n"); std::fflush(stderr);
     assert(!entities.empty());
-    std::fprintf(stderr, "SMOKE: before SceneECSId\n"); std::fflush(stderr);
     const NeoEngine::EntityID ecsId = runtime.SceneECSId(entities.front());
-    std::fprintf(stderr, "SMOKE: after SceneECSId\n"); std::fflush(stderr);
     assert(ecsId != std::numeric_limits<NeoEngine::EntityID>::max());
     float x=0.0F,y=0.0F,z=0.0F,rx=0.0F,ry=0.0F,rz=0.0F,sx=0.0F,sy=0.0F,sz=0.0F;
-    std::fprintf(stderr, "SMOKE: before TryGetPosition\n"); std::fflush(stderr);
     assert(runtime.ECS()->TryGetPosition(ecsId,x,y,z));
-    std::fprintf(stderr, "SMOKE: after TryGetPosition\n"); std::fflush(stderr);
-    std::fprintf(stderr, "SMOKE: before TryGetRotation\n"); std::fflush(stderr);
     assert(runtime.ECS()->TryGetRotation(ecsId,rx,ry,rz));
-    std::fprintf(stderr, "SMOKE: after TryGetRotation\n"); std::fflush(stderr);
-    std::fprintf(stderr, "SMOKE: before TryGetScale\n"); std::fflush(stderr);
     assert(runtime.ECS()->TryGetScale(ecsId,sx,sy,sz));
-    std::fprintf(stderr, "SMOKE: after TryGetScale\n"); std::fflush(stderr);
     assert(sx==1.0F && sy==1.0F && sz==1.0F);
     assert(std::isfinite(x) && std::isfinite(y) && std::isfinite(z));
     assert(std::isfinite(rx) && std::isfinite(ry) && std::isfinite(rz));
@@ -58,10 +44,7 @@ int main() {
     material.assetId = "smoke.material";
     material.materialName = "default";
     material.sourceHash = 0x9080706050403020ULL;
-    std::fprintf(stderr, "SMOKE: before AddStaged call\n"); std::fflush(stderr);
     assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
-    std::fprintf(stderr, "SMOKE: after AddStaged call\n"); std::fflush(stderr);
-    std::fprintf(stderr, "SMOKE: after mesh staging\n"); std::fflush(stderr);
 
     NeoEngine::Skeleton skeleton;
     NeoEngine::Bone root("root", -1);
@@ -77,10 +60,7 @@ int main() {
     for (auto& weight : weights) { weight.boneIDs[0] = 0; weight.weights[0] = 1.0F; }
     if (!runtime.SceneMeshes()->BindSkeletalAnimation(entities.front(), skeleton, clip, NeoEngine::SkeletalPosePlaybackMode::Clamp, weights)) return 15;
     if (runtime.SceneMeshes()->Instances().front().skeletalPalette.size() != 1U) return 16;
-
-    std::fprintf(stderr, "SMOKE: before Tick\n"); std::fflush(stderr);
     assert(runtime.Tick());
-    std::fprintf(stderr, "SMOKE: after Tick\n"); std::fflush(stderr);
     const NeoEngine::NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
     assert(receipt != nullptr);
     assert(receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
