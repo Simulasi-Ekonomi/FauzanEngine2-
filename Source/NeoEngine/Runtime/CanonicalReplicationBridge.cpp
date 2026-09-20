@@ -10,8 +10,7 @@ CanonicalReplicationBridge::CanonicalReplicationBridge(CanonicalRuntimeWorld& wo
     : world_(world), replication_(world.Scene(), role, localClientId, allowDynamicLifecycle) {}
 
 bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_t networkId, uint32_t ownerId) {
-    CanonicalEntity canonical{};
-    if (!world_.GetEntity(entity.scene, canonical) || !canonical.active || canonical.scene != entity.scene) {
+    if (entity.scene.index == 0xFFFFU || world_.Scene().GetTransform(entity.scene) == nullptr) {
         lastError_ = CanonicalReplicationBridgeError::InvalidEntity;
         return false;
     }
