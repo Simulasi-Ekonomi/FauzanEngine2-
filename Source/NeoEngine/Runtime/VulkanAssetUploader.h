@@ -31,6 +31,12 @@ public:
     [[nodiscard]] bool UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                      const std::vector<uint8_t>& mipData,
                                      VkImage targetImage, VkImageLayout targetLayout) noexcept;
+
+    // Explicit-dimension overload; the legacy overload remains for API compatibility.
+    [[nodiscard]] bool UploadTexture(VkDevice device, VkCommandBuffer cmd,
+                                     const std::vector<uint8_t>& mipData,
+                                     VkImage targetImage, VkImageLayout targetLayout,
+                                     uint32_t width, uint32_t height) noexcept;
     
     // Upload mesh geometry (vertex + index buffers)
     [[nodiscard]] bool UploadMesh(VkDevice device, VkCommandBuffer cmd,
@@ -39,6 +45,10 @@ public:
                                   VkBuffer vertexBuffer, VkBuffer indexBuffer) noexcept;
     
     // Advance frame (cleanup completed uploads, fence waits)
+    // Associates recorded uploads with the fence used by the command submission.
+    // The fence must outlive the submission and is owned by the uploader afterwards.
+    void AttachCompletionFence(VkFence fence) noexcept;
+
     void AdvanceFrame(VkDevice device) noexcept;
     void Flush(VkDevice device) noexcept;
     
