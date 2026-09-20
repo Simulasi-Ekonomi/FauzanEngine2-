@@ -99,10 +99,7 @@ class TelemetryDurableStore:
                 "UPDATE telemetry_events SET state='acked' WHERE event_ref=? AND state='pending'",
                 ((ref,) for ref in refs),
             )
-            changed = cur.rowcount
-            if changed:
-                db.execute("DELETE FROM telemetry_events WHERE state='acked'")
-            return changed
+            return cur.rowcount
 
     def pending_count(self) -> int:
         with self._lock, self._connect() as db:
