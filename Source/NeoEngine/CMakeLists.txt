@@ -101,7 +101,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/NeoRuntime.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
-    Runtime/FarmTelemetryAdapter.cpp
+    Systems/FarmTelemetryAdapter.cpp
     Runtime/RuntimeClock.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
