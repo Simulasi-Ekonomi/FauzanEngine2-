@@ -97,6 +97,7 @@ bool AssetStreamingQueue::Release(AssetID id) noexcept {
     if (it == loadedAssets_.end()) return false;
     if (it->second.state == StreamState::Ready) {
         const uint32_t allocationMB = it->second.allocatedSizeMB;
+        if (allocationMB > residentMemoryMB_) return false;
         if (!ReleaseGpuMemoryLocked(it->second)) return false;
         residentMemoryMB_ -= allocationMB;
     }
@@ -157,6 +158,7 @@ bool AssetStreamingQueue::EvictToBudget() noexcept {
         auto it = loadedAssets_.find(id);
         if (it == loadedAssets_.end() || it->second.state != StreamState::Ready) continue;
         const uint32_t allocationMB = it->second.allocatedSizeMB;
+        if (allocationMB > residentMemoryMB_) continue;
         if (!ReleaseGpuMemoryLocked(it->second)) continue;
         residentMemoryMB_ -= allocationMB;
         loadedAssets_.erase(it);
