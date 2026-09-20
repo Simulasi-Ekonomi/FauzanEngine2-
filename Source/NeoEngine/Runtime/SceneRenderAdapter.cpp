@@ -34,7 +34,7 @@ Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3
     right = Normalize(right);
     up = Normalize(up);
     Mat4 view{};
-    view.m = {
+    view.v = {
         right.x, up.x, forward.x, 0.0F,
         right.y, up.y, forward.y, 0.0F,
         right.z, up.z, forward.z, 0.0F,
@@ -54,7 +54,7 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
         const float halfWidth = halfHeight * aspect;
         const float nearPlane = std::max(0.001F, config.nearPlane);
         const float farPlane = std::max(nearPlane + 0.001F, config.farPlane);
-        projection.m = {
+        projection.v = {
             1.0F / halfWidth, 0.0F, 0.0F, 0.0F,
             0.0F, 1.0F / halfHeight, 0.0F, 0.0F,
             0.0F, 0.0F, 1.0F / (farPlane - nearPlane), 0.0F,
@@ -69,7 +69,7 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
     const float farPlane = std::max(nearPlane + 0.001F, config.farPlane);
     const float halfFov = std::clamp(config.verticalFovDegrees, 1.0F, 179.0F) * (kPi / 360.0F);
     const float focal = 1.0F / std::tan(halfFov);
-    projection.m = {
+    projection.v = {
         focal / aspect, 0.0F, 0.0F, 0.0F,
         0.0F, focal, 0.0F, 0.0F,
         0.0F, 0.0F, farPlane / (farPlane - nearPlane), 1.0F,
@@ -83,7 +83,7 @@ Mat4 MakeModel(const Transform3& transform) {
     const float cy = std::cos(transform.ry), sy = std::sin(transform.ry);
     const float cz = std::cos(transform.rz), sz = std::sin(transform.rz);
     Mat4 model{};
-    model.m = {
+    model.v = {
         (cz * cy) * transform.sx, (sz * cy) * transform.sx, (-sy) * transform.sx, 0.0F,
         (cz * sy * sx - sz * cx) * transform.sy, (sz * sy * sx + cz * cx) * transform.sy, (cy * sx) * transform.sy, 0.0F,
         (cz * sy * cx + sz * sx) * transform.sz, (sz * sy * cx - cz * sx) * transform.sz, (cy * cx) * transform.sz, 0.0F,
