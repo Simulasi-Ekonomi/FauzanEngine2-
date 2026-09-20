@@ -60,6 +60,9 @@ public:
     bool Raycast(const GameplayRay2& ray, GameplayRayHit2& hit);
     bool OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
     bool OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets);
+    bool IsPhysicsEntityAwake(const CanonicalEntity& entity) const;
+    bool WakePhysicsEntity(const CanonicalEntity& entity);
+    bool SleepPhysicsEntity(const CanonicalEntity& entity);
     [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
