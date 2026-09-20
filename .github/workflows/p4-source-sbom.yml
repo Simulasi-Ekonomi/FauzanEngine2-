@@ -1,0 +1,31 @@
+name: P4 source SBOM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - p4-release-certification-night
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Generate source CycloneDX SBOM
+        run: python3 tools/generate_source_sbom.py
+      - name: Validate SBOM
+        run: |
+          python3 - <<'PY'
+          import json
+          with open("p4-source-sbom.json", encoding="utf-8") as f:
+              bom = json.load(f)
+          assert bom["bomFormat"] == "CycloneDX"
+          assert bom["specVersion"] == "1.5"
+          assert bom["components"]
+          print("P4_SOURCE_SBOM_VALID", len(bom["components"]))
+          PY
