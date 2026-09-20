@@ -9,6 +9,7 @@
 #include "Runtime/SceneSpriteAdapter.h"
 #include "Runtime/SceneWorld.h"
 #include "Runtime/GameplayPhysicsQuery.h"
+#include "Runtime/GameplayTriggerTracker.h"
 
 #include <array>
 #include <cstddef>
@@ -22,7 +23,8 @@ enum class CanonicalTransformAuthority : uint8_t { Scene, Physics };
 enum class CanonicalWorldError : uint8_t {
     None, Capacity, InvalidTransform, InvalidEntity, PhysicsCreationFailed,
     PhysicsSyncFailed, PhysicsStepFailed, PhysicsReadbackFailed,
-    RenderFailed, MeshBindingFailed, QueryFailed, TransformAuthorityViolation
+    RenderFailed, MeshBindingFailed, QueryFailed, TransformAuthorityViolation,
+    TriggerUpdateFailed
 };
 
 struct CanonicalEntity {
@@ -47,6 +49,7 @@ struct CanonicalFrameReceipt {
 class CanonicalRuntimeWorld {
 public:
     static constexpr uint16_t kMaxEntities = SceneWorld::kCapacity;
+    static constexpr uint8_t kMaxTriggers = 64U;
 
     CanonicalRuntimeWorld();
     CanonicalRuntimeWorld(const CanonicalRuntimeWorld&) = delete;
@@ -61,6 +64,9 @@ public:
     bool RaycastSet(const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits);
     bool OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
     bool OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets);
+    bool ConfigureTrigger(uint8_t triggerIndex, GameplayTriggerCircleConfig config);
+    bool UpdateTrigger(uint8_t triggerIndex);
+    [[nodiscard]] const GameplayTriggerDelta* TriggerDelta(uint8_t triggerIndex) const;
     bool IsPhysicsEntityAwake(const CanonicalEntity& entity) const;
     bool WakePhysicsEntity(const CanonicalEntity& entity);
     bool SleepPhysicsEntity(const CanonicalEntity& entity);
@@ -105,6 +111,8 @@ private:
     SceneSpriteAdapter sprites_;
     SceneRenderAdapter rendererAdapter_;
     std::array<Binding, kMaxBindings> bindings_{};
+    std::array<GameplayTriggerTracker, kMaxTriggers> triggers_{};
+    std::array<bool, kMaxTriggers> triggerConfigured_{};
     uint16_t bindingCount_ = 0U;
     uint64_t frame_ = 0U;
     CanonicalFrameReceipt lastFrame_{};
