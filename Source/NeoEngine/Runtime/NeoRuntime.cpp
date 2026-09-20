@@ -3,6 +3,7 @@
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
 #include "TextureStaging.h"
+#include "AtomicSaveFile.h"
 #include "Systems/AgricultureCurriculum.h"
 
 #include <limits>
@@ -259,6 +260,24 @@ bool NeoRuntime::Tick() {
     m_HasFrameReceipt = true;
     m_LastError = RuntimeError::None;
     return true;
+}
+
+bool NeoRuntime::SaveFarmProgressCheckpointFile(const std::filesystem::path& root, std::string_view slot, uint64_t revision) {
+    if (m_State != RuntimeState::Initialized) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
+    std::vector<uint8_t> bytes;
+    if (!SaveFarmProgressCheckpoint(revision, bytes) || bytes.empty() || bytes.size() > AtomicSaveFile::kMaxBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
+    AtomicSaveFileError error = AtomicSaveFileError::None;
+    if (!AtomicSaveFile::Write(root, slot, bytes, error) || !AtomicSaveFile::Flush(root, slot, error)) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::RestoreFarmProgressCheckpointFile(const std::filesystem::path& root, std::string_view slot, uint64_t& revision) {
+    if (m_State != RuntimeState::Initialized) { m_LastError = RuntimeError::CheckpointDecodeFailed; return false; }
+    std::vector<uint8_t> bytes;
+    AtomicSaveFileError error = AtomicSaveFileError::None;
+    if (!AtomicSaveFile::Read(root, slot, bytes, error) || bytes.empty() || bytes.size() > AtomicSaveFile::kMaxBytes) { m_LastError = RuntimeError::CheckpointDecodeFailed; return false; }
+    return RestoreFarmProgressCheckpoint(bytes, revision);
 }
 
 bool NeoRuntime::ReplanRouteMotion() {
