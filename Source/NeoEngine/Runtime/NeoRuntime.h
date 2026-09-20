@@ -33,6 +33,7 @@
 #include "Systems/AuthoringCatalog.h"
 #include "Systems/WorldAuthoring.h"
 #include "Systems/TrustSafetySystem.h"
+#include "Systems/TelemetryOutbox.h"
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -134,6 +135,8 @@ public:
     const SkeletalAnimationController* SkeletalRouteMotionController() const { return m_SkeletalRouteMotionController.get(); }
     MovementAuthorityGate* MotionAuthority() { return m_MotionAuthority.get(); }
     const MovementAuthorityGate* MotionAuthority() const { return m_MotionAuthority.get(); }
+    const TelemetryOutbox& Telemetry() const { return m_Telemetry; }
+    bool AcknowledgeTelemetry(const std::string& id) { return m_Telemetry.Acknowledge(id); }
 private:
     RuntimeState m_State = RuntimeState::Created;
     RuntimeError m_LastError = RuntimeError::None;
@@ -191,5 +194,6 @@ private:
     RuntimeFarmRenderReceipt m_LastFarmRenderReceipt{};
     bool m_HasFarmRenderReceipt = false;
     std::unique_ptr<SoftwareSurfacePresenter> m_SurfacePresenter;
+    TelemetryOutbox m_Telemetry{};
 };
 } // namespace NeoEngine
