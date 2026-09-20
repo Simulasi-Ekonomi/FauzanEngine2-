@@ -192,6 +192,7 @@ private:
     std::unique_ptr<TextureStagingStore> m_FarmSpriteTextures;
     NeoRuntimeFrameReceipt m_LastFrameReceipt{};
     bool m_HasFrameReceipt = false;
+    bool m_TelemetryConsentGranted = false;
     uint64_t m_RenderedFarmFrames = 0U;
     RuntimeFarmRenderReceipt m_LastFarmRenderReceipt{};
     bool m_HasFarmRenderReceipt = false;
