@@ -72,6 +72,8 @@ class TelemetryDurableStore:
             ).fetchall()
             existing_refs = {row[0] for row in existing}
             new_refs = [ref for ref in refs if ref not in existing_refs]
+            if not new_refs:
+                return 0
             pending = db.execute("SELECT COUNT(*) FROM telemetry_events WHERE state='pending'").fetchone()[0]
             if pending + len(new_refs) > self.max_events:
                 raise TelemetryStoreError("telemetry durable queue is full")
@@ -79,7 +81,8 @@ class TelemetryDurableStore:
                 "SELECT COALESCE(SUM(length(CAST(envelope_json AS BLOB))), 0) "
                 "FROM telemetry_events WHERE state='pending'"
             ).fetchone()[0]
-            if pending_bytes + len(payload.encode("utf-8")) > self.max_bytes:
+            payload_bytes = len(payload.encode("utf-8"))
+            if pending_bytes + payload_bytes * len(new_refs) > self.max_bytes:
                 raise TelemetryStoreError("telemetry durable queue byte limit exceeded")
             inserted = 0
             for ref in refs:
