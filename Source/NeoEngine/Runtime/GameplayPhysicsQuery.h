@@ -18,6 +18,7 @@ public:
     static constexpr size_t kMaxOverlapHits = 256;
     static constexpr size_t kMaxOverlapBatch = 32;
     bool Raycast(const XPBDPhysicsSystem& physics, const GameplayRay2& ray, GameplayRayHit2& hit);
+    bool RaycastSet(const XPBDPhysicsSystem& physics, const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits);
     bool OverlapCircle(const XPBDPhysicsSystem& physics, const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
     bool OverlapCircleSet(const XPBDPhysicsSystem& physics, const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets);
     [[nodiscard]] GameplayPhysicsQueryError LastError() const { return lastError_; }

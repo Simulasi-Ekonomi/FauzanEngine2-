@@ -1,6 +1,7 @@
 #pragma once
 #include "ActorCore.h"
 #include "World/NeoWorld.h"
+#include "Runtime/CanonicalRuntimeWorld.h"
 
 namespace NeoEngine {
 
@@ -12,6 +13,8 @@ public:
     NeoEditor() = default;
 
     void SetWorld(NeoWorld* world) { m_World = world; }
+    void SetCanonicalRuntimeWorld(CanonicalRuntimeWorld* world) { m_CanonicalRuntimeWorld = world; }
+    const CanonicalFrameReceipt* PhysicsInspection() const { return m_CanonicalRuntimeWorld ? &m_CanonicalRuntimeWorld->LastFrame() : nullptr; }
     void SelectActor(EntityID id) { m_SelectedId = id; }
     EntityID GetSelectedId() const { return m_SelectedId; }
 
@@ -50,6 +53,7 @@ public:
 
 private:
     NeoWorld* m_World = nullptr;
+    CanonicalRuntimeWorld* m_CanonicalRuntimeWorld = nullptr;
     EntityID m_SelectedId = INVALID_ENTITY;
     EditorMode m_Mode = EditorMode::Select;
     EditorSnap m_Snap = EditorSnap::None;
