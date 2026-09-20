@@ -214,6 +214,8 @@ function(add_xpbd_executable target_name source_file)
         ${CMAKE_CURRENT_SOURCE_DIR}/Renderer
         ${CMAKE_CURRENT_SOURCE_DIR}/Physics
         ${CMAKE_CURRENT_SOURCE_DIR}/Platform
+        ${JSONCPP_INCLUDE_DIRS}
+        ${Vulkan_INCLUDE_DIRS}
     )
     target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
     # Release disables assert(); smoke targets must retain their executable contract checks.
