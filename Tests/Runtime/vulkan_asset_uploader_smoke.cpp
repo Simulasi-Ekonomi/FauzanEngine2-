@@ -88,11 +88,11 @@ int main() {
     NeoEngine::VulkanAssetUploader invalidUploader(8);
     TEST_CHECK(!invalidUploader.Initialize(VK_NULL_HANDLE, VK_NULL_HANDLE),
                "Uploader must reject null Vulkan handles");
-    TEST_CHECK(!invalidUploader.UploadTexture(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE,
-                                               nullptr, 0, 0),
+    TEST_CHECK(!invalidUploader.UploadTexture(VK_NULL_HANDLE, VK_NULL_HANDLE, {},
+                                               VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED),
                "Legacy texture upload must fail closed without initialization");
-    TEST_CHECK(!invalidUploader.UploadMesh(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE,
-                                            VK_NULL_HANDLE, nullptr, 0, nullptr, 0),
+    TEST_CHECK(!invalidUploader.UploadMesh(VK_NULL_HANDLE, VK_NULL_HANDLE, {},
+                                            {}, VK_NULL_HANDLE, VK_NULL_HANDLE),
                "Legacy mesh upload must fail closed without initialization");
 
     NeoEngine::VulkanContext context;
