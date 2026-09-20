@@ -19,7 +19,7 @@ git ls-files -z \
   ':!dist/' \
   ':!.git/' |
 while IFS= read -r -d '' path; do
-  if [[ -f "$path" ]]; then
+  if [[ -f "$path" && ! -L "$path" ]]; then
     sha256sum -- "$path"
   fi
 done | LC_ALL=C sort -k2,2 > "$TMP"
