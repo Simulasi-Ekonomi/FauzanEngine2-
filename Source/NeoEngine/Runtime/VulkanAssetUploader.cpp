@@ -109,8 +109,10 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     std::memcpy(indexMapped, indexData.data(), indexData.size());
     vkUnmapMemory(device, vertexMemory); vkUnmapMemory(device, indexMemory);
 
-    vkCmdCopyBuffer(cmd, vertexStaging, vertexBuffer, 1, &(VkBufferCopy{0, 0, vertexData.size()}));
-    vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &(VkBufferCopy{0, 0, indexData.size()}));
+    const VkBufferCopy vertexRegion{0, 0, vertexData.size()};
+    const VkBufferCopy indexRegion{0, 0, indexData.size()};
+    vkCmdCopyBuffer(cmd, vertexStaging, vertexBuffer, 1, &vertexRegion);
+    vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &indexRegion);
 
     const uint32_t vertexMB = static_cast<uint32_t>((vertexData.size() + 1024U * 1024U - 1U) / (1024U * 1024U));
     const uint32_t indexMB = static_cast<uint32_t>((indexData.size() + 1024U * 1024U - 1U) / (1024U * 1024U));
