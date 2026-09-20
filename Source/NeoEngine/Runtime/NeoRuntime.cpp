@@ -274,7 +274,7 @@ bool NeoRuntime::Tick() {
 }
 
 bool NeoRuntime::RegisterReplicatedEntity(SceneEntity entity, uint32_t networkId, uint32_t ownerId) {
-    if (m_State != RuntimeState::Initialized || !m_Replication || !m_Scene || !m_Scene->IsAlive(entity)) {
+    if (m_State != RuntimeState::Initialized || !m_Replication || !m_Scene || m_Scene->GetTransform(entity) == nullptr) {
         m_LastError = RuntimeError::InvalidState;
         return false;
     }
