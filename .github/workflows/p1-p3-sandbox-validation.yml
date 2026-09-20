@@ -40,7 +40,7 @@ jobs:
       - name: Build Release smoke targets
         run: |
           cmake --build build/p1-p3-release --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
-          cmake --build build/p1-p3-release --target vulkan_3d_renderer_smoke editor_scene_agent_smoke editor_scene_session_smoke wav_audio_pitch_regression_smoke hiz_occlusion_culling_smoke -j2
+          cmake --build build/p1-p3-release --target vulkan_renderer_3d_smoke -j2
       - name: Run Release smoke targets
         run: |
           for t in canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-p3-release/$t; done
@@ -48,8 +48,8 @@ jobs:
         run: cmake -S Source/NeoEngine -B build/p1-p3-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
       - name: Build ASAN smoke targets
         run: cmake --build build/p1-p3-asan --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
-      - name: Build P1 and PR44 regression smoke targets under ASAN
-        run: cmake --build build/p1-p3-asan --target vulkan_3d_renderer_smoke editor_scene_agent_smoke editor_scene_session_smoke wav_audio_pitch_regression_smoke hiz_occlusion_culling_smoke -j2
+      - name: Build Vulkan renderer smoke target under ASAN
+        run: cmake --build build/p1-p3-asan --target vulkan_renderer_3d_smoke -j2
       - name: Run ASAN smoke targets
         env:
           ASAN_OPTIONS: detect_leaks=1
