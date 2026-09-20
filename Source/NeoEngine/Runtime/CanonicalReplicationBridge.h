@@ -46,7 +46,7 @@ public:
 private:
     CanonicalRuntimeWorld& world_;
     ReplicationWorld replication_;
-    CanonicalReplicationBridgeError lastError_ = CanonicalReplicationBridgeError::None;
+    mutable CanonicalReplicationBridgeError lastError_ = CanonicalReplicationBridgeError::None;
 };
 
 } // namespace NeoEngine
