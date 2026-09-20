@@ -82,7 +82,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     SceneECSBridge sceneECSBridge;
     if (!sceneECSBridge.Rebuild(*scene, *ecs)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto actors = std::make_unique<ActorComponentWorld>(*scene);
-    auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId);
+    auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId, true);
     auto curriculum = std::unique_ptr<CurriculumSystem>{};
     if (config.enableFarmCurriculum) {
         CurriculumGraph graph;
@@ -262,6 +262,32 @@ bool NeoRuntime::Tick() {
     m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
     m_LastFrameReceipt.farmPlayerInput = farmPlayerInputReceipt; m_LastFrameReceipt.hasFarmPlayerInputReceipt = hasFarmPlayerInput; m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
     m_HasFrameReceipt = true;
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::RegisterReplicatedEntity(SceneEntity entity, uint32_t networkId, uint32_t ownerId) {
+    if (m_State != RuntimeState::Initialized || !m_Replication || !m_Scene || !m_Scene->IsAlive(entity)) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Replication->RegisterEntity(entity, networkId, ownerId)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::UnregisterReplicatedEntity(uint32_t networkId) {
+    if (m_State != RuntimeState::Initialized || !m_Replication) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Replication->UnregisterEntity(networkId)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
     m_LastError = RuntimeError::None;
     return true;
 }
