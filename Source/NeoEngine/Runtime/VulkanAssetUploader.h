@@ -31,8 +31,12 @@ public:
     [[nodiscard]] bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice) noexcept;
     void Shutdown(VkDevice device) noexcept;
 
-    // Record an upload and associate its staging lifetime with the fence that will
-    // be signalled by the submission containing cmd. The caller owns queue submission.
+    // Record an upload into mip level 0 only. mipData must contain the complete
+    // tightly packed byte payload for width x height in the target image format;
+    // the uploader does not infer format or generate mip levels. The target image
+    // must already be in targetLayout, and that layout must be valid for
+    // vkCmdCopyBufferToImage. The caller owns layout transitions and queue submission.
+    // The staging lifetime is associated with the fence signalled by that submission.
     [[nodiscard]] bool UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                      const std::vector<uint8_t>& mipData,
                                      VkImage targetImage, VkImageLayout targetLayout,
@@ -58,7 +62,9 @@ public:
                                   VkBuffer vertexBuffer, VkBuffer indexBuffer) noexcept;
 
     // Poll completion fences and release only staging allocations whose GPU work
-    // has completed. No vkDeviceWaitIdle is performed here.
+    // has completed. No vkDeviceWaitIdle is performed here. Shutdown likewise
+    // does not wait for the GPU; callers must guarantee pending submissions have
+    // completed before destroying the uploader's staging resources.
     void AdvanceFrame(VkDevice device) noexcept;
 
     [[nodiscard]] uint32_t GetStagingPoolSizeMB() const noexcept { return stagingPoolSizeMB_; }
