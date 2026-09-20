@@ -22,7 +22,7 @@ enum class CanonicalTransformAuthority : uint8_t { Scene, Physics };
 enum class CanonicalWorldError : uint8_t {
     None, Capacity, InvalidTransform, InvalidEntity, PhysicsCreationFailed,
     PhysicsSyncFailed, PhysicsStepFailed, PhysicsReadbackFailed,
-    RenderFailed, MeshBindingFailed, TransformAuthorityViolation
+    RenderFailed, MeshBindingFailed, QueryFailed, TransformAuthorityViolation
 };
 
 struct CanonicalEntity {
