@@ -15,11 +15,12 @@ int main() {
     config.renderWidth = 64;
     config.renderHeight = 48;
     assert(runtime.Initialize(config));
-    assert(runtime.ECS() != nullptr);
-    assert(runtime.Scene() != nullptr);
+    if (runtime.ECS() == nullptr || runtime.Scene() == nullptr || runtime.SceneMeshes() == nullptr) return 2;
+    if (runtime.Scene()->AliveCount() > NeoEngine::SceneWorld::kCapacity) return 3;
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
     const auto entities = runtime.Scene()->AliveEntities();
+    if (entities.size() != runtime.Scene()->AliveCount()) return 4;
     assert(!entities.empty());
     const NeoEngine::EntityID ecsId = runtime.SceneECSId(entities.front());
     assert(ecsId != std::numeric_limits<NeoEngine::EntityID>::max());
