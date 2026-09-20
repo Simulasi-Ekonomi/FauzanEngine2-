@@ -72,7 +72,8 @@ add_custom_command(
 add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
     "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
-    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}")
+    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}"
+    "${NEO_GPU_INDIRECT_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
@@ -88,6 +89,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/VulkanAssetUploader.cpp
+    Runtime/VulkanGPUBuffer.cpp
     Runtime/Vulkan3DRenderer.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
