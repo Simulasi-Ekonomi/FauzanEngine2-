@@ -181,6 +181,16 @@ bool CanonicalRuntimeWorld::OverlapCircle(const GameplayOverlapCircle2& circle, 
     return false;
 }
 
+bool CanonicalRuntimeWorld::OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles,
+                                             std::vector<std::vector<EntityID>>& entitySets) {
+    if (physicsQuery_.OverlapCircleSet(physics_, circles, entitySets)) {
+        lastError_ = CanonicalWorldError::None;
+        return true;
+    }
+    lastError_ = CanonicalWorldError::QueryFailed;
+    return false;
+}
+
 bool CanonicalRuntimeWorld::Step(float dt) {
     if (bindingCount_ > kMaxBindings) {
         lastError_ = CanonicalWorldError::Capacity;
