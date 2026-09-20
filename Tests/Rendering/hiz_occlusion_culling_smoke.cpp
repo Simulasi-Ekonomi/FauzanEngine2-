@@ -37,3 +37,5 @@ int main() {
 
     return 0;
 }
+
+// Input validation contract: HiZ must reject non-finite depth samples.
