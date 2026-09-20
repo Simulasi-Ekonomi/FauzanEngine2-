@@ -135,6 +135,8 @@ int main() {
     std::vector<uint8_t> staleBytes;
     if (!ReplicationSnapshotCodec::Serialize(perEntityStale, staleBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(staleBytes, decoded, codecError) || client.ApplyServerSnapshot(decoded, apply) || client.LastError() != ReplicationError::StaleSnapshot) return 21;
     if (client.PredictLocalInput(200U, 1.0F, 0.0F, prediction) || client.LastError() != ReplicationError::OwnershipRejected) return 22;
+    if (client.PredictLocalInput(100U, std::numeric_limits<float>::quiet_NaN(), 0.0F, prediction) || client.LastError() != ReplicationError::InvalidInput) return 23;
+    if (client.PredictLocalInput(100U, 0.0F, std::numeric_limits<float>::infinity(), prediction) || client.LastError() != ReplicationError::InvalidInput) return 24;
     if (!client.PredictLocalInput(100U, 0.5F, 0.0F, prediction)) return 21;
     ReplicationSnapshot ownershipTransfer = snapshot;
     ownershipTransfer.sequence = 2U;
