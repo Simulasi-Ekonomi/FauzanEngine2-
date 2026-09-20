@@ -5,12 +5,17 @@
 #include <type_traits>
 
 namespace {
-VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
-    if constexpr (std::is_pointer_v<VkDeviceMemory>) {
-        return reinterpret_cast<VkDeviceMemory>(value);
+template <typename Handle>
+Handle FakeHandle(uintptr_t value) {
+    if constexpr (std::is_pointer_v<Handle>) {
+        return reinterpret_cast<Handle>(value);
     } else {
-        return static_cast<VkDeviceMemory>(value);
+        return static_cast<Handle>(value);
     }
+}
+
+VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
+    return FakeHandle<VkDeviceMemory>(value);
 }
 }
 #include <cstdint>
