@@ -54,6 +54,8 @@ bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
         }
         auto it = loadedAssets_.find(candidate.id);
         if (it == loadedAssets_.end() || it->second.state != StreamState::Pending) { streamQueue_.pop(); continue; }
+        // Copy the request before changing queue state so an allocation failure
+        // cannot strand the asset in Uploading while leaving its queue entry live.
         try { out = candidate; } catch (...) { return false; }
         it->second.state = StreamState::Uploading;
         streamQueue_.pop();
