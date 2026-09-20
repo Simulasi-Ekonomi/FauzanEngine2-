@@ -292,6 +292,26 @@ bool NeoRuntime::UnregisterReplicatedEntity(uint32_t networkId) {
     return true;
 }
 
+bool NeoRuntime::BuildReplicationAcknowledgement(ReplicationAcknowledgement& acknowledgement) const {
+    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
+        return false;
+    }
+    return m_Replication->BuildClientAcknowledgement(acknowledgement);
+}
+
+bool NeoRuntime::ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement) {
+    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Server) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Replication->ApplyClientAcknowledgement(acknowledgement)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::ReplanRouteMotion() {
     if (m_State != RuntimeState::Initialized || !m_Scene || !m_RouteNavigation || !m_RouteFollower || m_RouteMotionEntity_.index == 0xFFFFU) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_UsesSkeletalRouteMotion) { m_LastError = RuntimeError::RouteReplanFailed; return false; }
