@@ -20,7 +20,7 @@ for path in required_files:
     if not path.is_file():
         raise SystemExit(f"P4_RELEASE_GATE_FAIL missing={path.relative_to(ROOT)}")
 
-for pattern in ("*.keystore", "*.jks", "*.p12"):
+for pattern in ("*.keystore", "*.jks", "*.p12", "*-release-key", "*-signing-key"):
     leaked = [
         p for p in ROOT.rglob(pattern)
         if ".git" not in p.parts and "build" not in p.parts and "out" not in p.parts
@@ -28,6 +28,17 @@ for pattern in ("*.keystore", "*.jks", "*.p12"):
     if leaked:
         raise SystemExit(
             "P4_RELEASE_GATE_FAIL secret_material="
+            + ",".join(str(p.relative_to(ROOT)) for p in leaked)
+        )
+
+for forbidden_name in ("gradle.properties", "local.properties"):
+    leaked = [
+        p for p in ROOT.rglob(forbidden_name)
+        if ".git" not in p.parts and "build" not in p.parts and "out" not in p.parts
+    ]
+    if leaked:
+        raise SystemExit(
+            "P4_RELEASE_GATE_FAIL local_signing_config="
             + ",".join(str(p.relative_to(ROOT)) for p in leaked)
         )
 
