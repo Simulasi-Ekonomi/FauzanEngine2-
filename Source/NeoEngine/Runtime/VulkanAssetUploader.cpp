@@ -155,7 +155,9 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
     if (device == VK_NULL_HANDLE || device != initializedDevice_ ||
         physicalDevice_ == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE ||
         mipData.empty() || targetImage == VK_NULL_HANDLE ||
-        width == 0 || height == 0 || completionFence == VK_NULL_HANDLE) return false;
+        width == 0 || height == 0 || completionFence == VK_NULL_HANDLE ||
+        (targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+         targetLayout != VK_IMAGE_LAYOUT_GENERAL)) return false;
 
     if (!ReserveStaging(mipData.size())) return false;
 
