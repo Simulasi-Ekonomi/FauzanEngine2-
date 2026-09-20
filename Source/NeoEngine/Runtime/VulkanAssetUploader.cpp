@@ -112,7 +112,7 @@ bool VulkanAssetUploader::WriteStagingBuffer(VkDevice device, VkDeviceMemory mem
     if (device == VK_NULL_HANDLE || memory == VK_NULL_HANDLE || data.empty()) return false;
 
     void* mapped = nullptr;
-    if (vkMapMemory(device, memory, 0, data.size(), 0, &mapped) != VK_SUCCESS) return false;
+    if (vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mapped) != VK_SUCCESS) return false;
     std::memcpy(mapped, data.data(), data.size());
 
     VkPhysicalDeviceMemoryProperties properties{};
