@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import re
 from pathlib import Path
 
 ROOT = Path(subprocess.check_output(
@@ -59,6 +60,8 @@ manifest_tree = lines[2].split("=", 1)[1]
 manifest_files = int(lines[3].split("=", 1)[1])
 head_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 head_tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip()
+if not re.fullmatch(r"[0-9a-f]{40}", manifest_commit) or not re.fullmatch(r"[0-9a-f]{40}", manifest_tree):
+    raise SystemExit("P4_RELEASE_GATE_FAIL malformed git identity")
 if manifest_commit != head_commit or manifest_tree != head_tree:
     raise SystemExit("P4_RELEASE_GATE_FAIL manifest does not describe current HEAD")
 hash_lines = lines[4:]
@@ -66,7 +69,7 @@ if len(hash_lines) != manifest_files:
     raise SystemExit("P4_RELEASE_GATE_FAIL manifest file count mismatch")
 for line in hash_lines:
     parts = line.split("  ", 1)
-    if len(parts) != 2 or len(parts[0]) != 64:
+    if len(parts) != 2 or not re.fullmatch(r"[0-9a-f]{64}", parts[0]):
         raise SystemExit("P4_RELEASE_GATE_FAIL malformed manifest hash entry")
     expected, relative = parts
     path = ROOT / relative
