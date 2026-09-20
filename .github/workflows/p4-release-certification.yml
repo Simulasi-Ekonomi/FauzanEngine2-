@@ -1,0 +1,15 @@
+name: P4 release certification gate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  certification:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Run certification gate
+        run: |
+          chmod +x tools/p4_release_certification_gate.sh
+          tools/p4_release_certification_gate.sh

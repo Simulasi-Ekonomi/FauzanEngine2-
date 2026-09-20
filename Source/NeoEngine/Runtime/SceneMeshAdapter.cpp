@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include <cstdio>
 
 namespace NeoEngine {
 namespace {
@@ -29,7 +30,7 @@ SceneMeshAdapter& SceneMeshAdapter::operator=(const SceneMeshAdapter& other){if(
 SceneMeshAdapter::SceneMeshAdapter(SceneMeshAdapter&& other):instances_(std::move(other.instances_)),lastError_(other.lastError_),lastCulledCount_(other.lastCulledCount_){RebindEmbeddedTexturePointers();}
 SceneMeshAdapter& SceneMeshAdapter::operator=(SceneMeshAdapter&& other){if(this==&other)return *this;instances_=std::move(other.instances_);lastError_=other.lastError_;lastCulledCount_=other.lastCulledCount_;RebindEmbeddedTexturePointers();return *this;}
 void SceneMeshAdapter::RebindEmbeddedTexturePointers(){for(SceneMeshInstance& instance:instances_)instance.material.texture=instance.sourceTextureHash==0U?nullptr:&instance.texture;}
-bool SceneMeshAdapter::Add(SceneMeshInstance instance){if(instance.entity.index==0xFFFFU){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}if(!PrepareInstance(instance)){lastError_=instance.material.texture==nullptr?SceneMeshAdapterError::InvalidMesh:SceneMeshAdapterError::InvalidTexture;return false;}if(std::any_of(instances_.begin(),instances_.end(),[&instance](const SceneMeshInstance& other){return other.entity==instance.entity;})){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}if(instances_.size()>=kMaxInstances){lastError_=SceneMeshAdapterError::Capacity;return false;}instances_.push_back(std::move(instance));if(instances_.back().sourceTextureHash!=0U)instances_.back().material.texture=&instances_.back().texture;lastError_=SceneMeshAdapterError::None;return true;}
+bool SceneMeshAdapter::Add(SceneMeshInstance instance){std::fprintf(stderr, "SMOKE: Add entered\n"); std::fflush(stderr); if(instance.entity.index==0xFFFFU){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}std::fprintf(stderr, "SMOKE: Add before Prepare\n"); std::fflush(stderr); if(!PrepareInstance(instance)){lastError_=instance.material.texture==nullptr?SceneMeshAdapterError::InvalidMesh:SceneMeshAdapterError::InvalidTexture;return false;}std::fprintf(stderr, "SMOKE: Add after Prepare\n"); std::fflush(stderr); if(std::any_of(instances_.begin(),instances_.end(),[&instance](const SceneMeshInstance& other){return other.entity==instance.entity;})){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}if(instances_.size()>=kMaxInstances){lastError_=SceneMeshAdapterError::Capacity;return false;}std::fprintf(stderr, "SMOKE: Add before push\n"); std::fflush(stderr); instances_.push_back(std::move(instance)); std::fprintf(stderr, "SMOKE: Add after push\n"); std::fflush(stderr); if(instances_.back().sourceTextureHash!=0U)instances_.back().material.texture=&instances_.back().texture;lastError_=SceneMeshAdapterError::None;return true;}
 bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material){
     if(resource.assetId.empty()||resource.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
     SceneMeshInstance instance{entity,resource.vertices,resource.indices,material};instance.sourceAssetId=resource.assetId;instance.sourceHash=resource.sourceHash;return Add(std::move(instance));
@@ -37,7 +38,7 @@ bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& resou
 bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material){
     if(material.assetId.empty()||material.materialName.empty()||material.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedMaterial;return false;}
     if(mesh.assetId.empty()||mesh.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
-    SceneMeshInstance instance{entity,mesh.vertices,mesh.indices,material.material};instance.sourceAssetId=mesh.assetId;instance.sourceHash=mesh.sourceHash;instance.sourceMaterialAssetId=material.assetId;instance.sourceMaterialName=material.materialName;instance.sourceMaterialHash=material.sourceHash;return Add(std::move(instance));
+    std::fprintf(stderr, "SMOKE: AddStaged material overload before instance\n"); std::fflush(stderr); SceneMeshInstance instance{entity,mesh.vertices,mesh.indices,material.material}; std::fprintf(stderr, "SMOKE: AddStaged material overload after instance\n"); std::fflush(stderr); instance.sourceAssetId=mesh.assetId;instance.sourceHash=mesh.sourceHash;instance.sourceMaterialAssetId=material.assetId;instance.sourceMaterialName=material.materialName;instance.sourceMaterialHash=material.sourceHash;std::fprintf(stderr, "SMOKE: AddStaged material overload before Add\n"); std::fflush(stderr); return Add(std::move(instance));
 }
 bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material,const CpuTextureResource* texture){
     if(mesh.assetId.empty()||mesh.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
@@ -137,5 +138,18 @@ bool SceneMeshAdapter::CanRefreshStaged(SceneEntity entity,const CpuMeshResource
     SceneMeshInstance candidate{entity,mesh.vertices,mesh.indices,material.material};candidate.sourceAssetId=mesh.assetId;candidate.sourceHash=mesh.sourceHash;candidate.sourceMaterialAssetId=material.assetId;candidate.sourceMaterialName=material.materialName;candidate.sourceMaterialHash=material.sourceHash;
     return PrepareInstance(candidate);
 }
-bool SceneMeshAdapter::Draw(const SceneWorld& world,RenderCamera& camera,SoftwareRenderer& renderer,const DirectionalLight& light){lastCulledCount_=0;MeshRenderer meshRenderer;for(const SceneMeshInstance& instance:instances_){const Transform3* transform=world.GetTransform(instance.entity);if(!transform){lastError_=SceneMeshAdapterError::MissingEntity;return false;}if(!Finite(*transform)||transform->sx<=0.0F||std::fabs(transform->sx-transform->sy)>0.0001F||std::fabs(transform->sx-transform->sz)>0.0001F){lastError_=SceneMeshAdapterError::UnsupportedTransform;return false;}const RenderPoint3 translation{transform->x,transform->y,transform->z};if(!camera.SphereIntersectsFrustum(translation,instance.localBoundsRadius*transform->sx)){++lastCulledCount_;continue;}if(!meshRenderer.Draw(instance.vertices,instance.indices,{translation,transform->sx,{transform->rx,transform->ry,transform->rz}},instance.material,light,camera,renderer)){lastError_=SceneMeshAdapterError::DrawFailed;return false;}}lastError_=SceneMeshAdapterError::None;return true;}
+bool SceneMeshAdapter::Draw(const SceneWorld& world,RenderCamera& camera,SoftwareRenderer& renderer,const DirectionalLight& light){lastCulledCount_=0;MeshRenderer meshRenderer;for(const SceneMeshInstance& instance:instances_){const Transform3* transform=world.GetTransform(instance.entity);if(!transform){lastError_=SceneMeshAdapterError::MissingEntity;return false;}if(!Finite(*transform)||transform->sx<=0.0F||std::fabs(transform->sx-transform->sy)>0.0001F||std::fabs(transform->sx-transform->sz)>0.0001F){lastError_=SceneMeshAdapterError::UnsupportedTransform;return false;}const RenderPoint3 translation{transform->x,transform->y,transform->z};if(!camera.SphereIntersectsFrustum(translation,instance.localBoundsRadius*transform->sx)){++lastCulledCount_;continue;}std::vector<MeshVertex> drawVertices;
+        const std::vector<MeshVertex>* vertices = &instance.vertices;
+        if (instance.skeletalAnimation.has_value()) {
+            if (instance.skeletalPalette.empty() || instance.skinWeights.size() != instance.vertices.size()) { lastError_=SceneMeshAdapterError::InvalidMesh; return false; }
+            std::vector<float> positions; positions.reserve(instance.vertices.size()*3U);
+            std::vector<float> normals; normals.reserve(instance.vertices.size()*3U);
+            for (const MeshVertex& vertex : instance.vertices) { positions.insert(positions.end(), {vertex.position.x,vertex.position.y,vertex.position.z}); normals.insert(normals.end(), {vertex.normal.x,vertex.normal.y,vertex.normal.z}); }
+            SkinningError skinError=SkinningError::None;
+            if (!Skinning::ApplySkinningWithNormals(positions,normals,instance.skinWeights,instance.skeletalPalette,&skinError) || positions.size()!=instance.vertices.size()*3U || normals.size()!=instance.vertices.size()*3U) { lastError_=SceneMeshAdapterError::InvalidMesh; return false; }
+            drawVertices=instance.vertices;
+            for(size_t i=0;i<drawVertices.size();++i){drawVertices[i].position={positions[i*3U],positions[i*3U+1U],positions[i*3U+2U]};drawVertices[i].normal={normals[i*3U],normals[i*3U+1U],normals[i*3U+2U]};}
+            vertices=&drawVertices;
+        }
+        if(!meshRenderer.Draw(*vertices,instance.indices,{translation,transform->sx,{transform->rx,transform->ry,transform->rz}},instance.material,light,camera,renderer)){lastError_=SceneMeshAdapterError::DrawFailed;return false;}}lastError_=SceneMeshAdapterError::None;return true;}
 } // namespace NeoEngine

@@ -1,5 +1,11 @@
 #include "Runtime/NeoRuntime.h"
+#include "Runtime/MeshStaging.h"
+#include "Runtime/MaterialStaging.h"
+#include "Animation/Bone.h"
+#include "Animation/SkeletalPoseClip.h"
+#include "Animation/Skeleton.h"
 #include <cassert>
+#include <cstdio>
 #include <cmath>
 #include <limits>
 int main() {
@@ -9,11 +15,12 @@ int main() {
     config.renderWidth = 64;
     config.renderHeight = 48;
     assert(runtime.Initialize(config));
-    assert(runtime.ECS() != nullptr);
-    assert(runtime.Scene() != nullptr);
+    if (runtime.ECS() == nullptr || runtime.Scene() == nullptr || runtime.SceneMeshes() == nullptr) return 2;
+    if (runtime.Scene()->AliveCount() > NeoEngine::SceneWorld::kCapacity) return 3;
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
     const auto entities = runtime.Scene()->AliveEntities();
+    if (entities.size() != runtime.Scene()->AliveCount()) return 4;
     assert(!entities.empty());
     const NeoEngine::EntityID ecsId = runtime.SceneECSId(entities.front());
     assert(ecsId != std::numeric_limits<NeoEngine::EntityID>::max());
@@ -40,7 +47,27 @@ int main() {
     material.sourceHash = 0x9080706050403020ULL;
     assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
 
+    NeoEngine::Skeleton skeleton;
+    NeoEngine::Bone root("root", -1);
+    if (!skeleton.TryAddBone(root) || !skeleton.DeriveInverseBindPose()) return 12;
+    NeoEngine::SkeletalPoseClip clip;
+    if (!clip.Configure(1U)) return 13;
+    const std::vector<NeoEngine::SkeletalPoseKeyframe> keys{
+        {0.0F, {0.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 0.0F, 1.0F}, {1.0F, 1.0F, 1.0F}},
+        {0.5F, {0.1F, 0.0F, 0.0F}, {0.0F, 0.0F, 0.0F, 1.0F}, {1.0F, 1.0F, 1.0F}}
+    };
+    if (!clip.SetTrack(0U, keys)) return 14;
+    std::vector<NeoEngine::VertexWeight> weights(mesh.vertices.size());
+    for (auto& weight : weights) { weight.boneIDs[0] = 0; weight.weights[0] = 1.0F; }
+    if (!runtime.SceneMeshes()->BindSkeletalAnimation(entities.front(), skeleton, clip, NeoEngine::SkeletalPosePlaybackMode::Clamp, weights)) return 15;
+    if (runtime.SceneMeshes()->Instances().front().skeletalPalette.size() != 1U) return 16;
     assert(runtime.Tick());
+    const NeoEngine::NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
+    assert(receipt != nullptr);
+    assert(receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
+    assert(receipt->frameToken.frame == receipt->clock.frameCount);
+    assert(receipt->frameToken.revision <= receipt->sceneECS.revision);
+    assert(!receipt->hasVulkanRenderReceipt);
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
     const NeoEngine::EntityID meshEcsId = runtime.SceneECSId(entities.front());
@@ -49,6 +76,11 @@ int main() {
     uint64_t meshHash=0U, materialHash=0U;
     assert(runtime.ECS()->TryGetMeshAssetIdentity(meshEcsId, meshHash, materialHash));
     assert(meshHash == mesh.sourceHash && materialHash == material.sourceHash);
+    assert(runtime.SetPaused(true));
+    assert(runtime.Tick());
+    receipt = runtime.LastFrameReceipt();
+    assert(receipt != nullptr && receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
+    assert(runtime.SetPaused(false));
     assert(runtime.SceneECS().sceneCount == runtime.Scene()->AliveCount());
     assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
     assert(runtime.Shutdown());

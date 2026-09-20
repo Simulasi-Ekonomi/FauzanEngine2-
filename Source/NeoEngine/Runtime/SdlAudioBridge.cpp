@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <cmath>
 
 namespace NeoEngine {
 
@@ -50,18 +51,91 @@ bool SdlAudioBridge::Initialize(uint16_t framesPerCallback) {
     return true;
 }
 
-bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8) {
+bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8, bool looping, float pitch) {
     if (stream_ == nullptr) {
         lastError_ = SdlAudioBridgeError::NotInitialized;
         return false;
     }
     SDL_LockAudioStream(stream_);
-    const bool accepted = mixer_.Play(id, std::move(mono), gainQ8);
+    const bool accepted = mixer_.Play(id, std::move(mono), gainQ8, looping, pitch);
     SDL_UnlockAudioStream(stream_);
     if (!accepted) {
         lastError_ = SdlAudioBridgeError::MixerRejected;
         return false;
     }
+    lastError_ = SdlAudioBridgeError::None;
+    return true;
+}
+
+bool SdlAudioBridge::PlaySpatial(const SpatialVoiceParams& params) {
+    if (stream_ == nullptr) {
+        lastError_ = SdlAudioBridgeError::NotInitialized;
+        return false;
+    }
+    SDL_LockAudioStream(stream_);
+    const bool accepted = mixer_.PlaySpatial(params);
+    SDL_UnlockAudioStream(stream_);
+    if (!accepted) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
+    return accepted;
+}
+
+bool SdlAudioBridge::Stop(uint32_t id) {
+    if (stream_ == nullptr) {
+        lastError_ = SdlAudioBridgeError::NotInitialized;
+        return false;
+    }
+    SDL_LockAudioStream(stream_);
+    const bool stopped = mixer_.Stop(id);
+    SDL_UnlockAudioStream(stream_);
+    if (!stopped) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
+    return stopped;
+}
+
+bool SdlAudioBridge::UpdateVoicePosition(uint32_t id, const float position[3]) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    SDL_LockAudioStream(stream_);
+    const bool ok = mixer_.UpdateVoicePosition(id, position);
+    SDL_UnlockAudioStream(stream_);
+    if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
+    return ok;
+}
+
+bool SdlAudioBridge::UpdateVoicePitch(uint32_t id, float pitch) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    SDL_LockAudioStream(stream_);
+    const bool ok = mixer_.UpdateVoicePitch(id, pitch);
+    SDL_UnlockAudioStream(stream_);
+    if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
+    return ok;
+}
+
+bool SdlAudioBridge::UpdateVoiceGain(uint32_t id, uint16_t gainQ8) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    SDL_LockAudioStream(stream_);
+    const bool ok = mixer_.UpdateVoiceGain(id, gainQ8);
+    SDL_UnlockAudioStream(stream_);
+    if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
+    return ok;
+}
+
+bool SdlAudioBridge::SetListener(const AudioListener& listener) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    for (const float value : {listener.position[0], listener.position[1], listener.position[2],
+                              listener.forward[0], listener.forward[1], listener.forward[2],
+                              listener.up[0], listener.up[1], listener.up[2]}) {
+        if (!std::isfinite(value)) {
+            lastError_ = SdlAudioBridgeError::MixerRejected;
+            return false;
+        }
+    }
+    SDL_LockAudioStream(stream_);
+    mixer_.SetListener(listener);
+    SDL_UnlockAudioStream(stream_);
     lastError_ = SdlAudioBridgeError::None;
     return true;
 }
@@ -98,15 +172,10 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     auto* bridge = static_cast<SdlAudioBridge*>(userdata);
     if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
 
-    // Reset() takes the same SDL stream lock before destroying the stream. The
-    // callback therefore keeps the stream alive for every PutAudioStreamData call.
-    SDL_LockAudioStream(stream);
-
     constexpr size_t bytesPerFrame = sizeof(int16_t) * kStereoChannels;
     const size_t requestedBytes = static_cast<size_t>(additionalAmount);
     const size_t frames = requestedBytes / bytesPerFrame;
     if (frames == 0) {
-        SDL_UnlockAudioStream(stream);
         return;
     }
 
@@ -131,7 +200,6 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
         }
     }
 
-    SDL_UnlockAudioStream(stream);
 }
 
 } // namespace NeoEngine

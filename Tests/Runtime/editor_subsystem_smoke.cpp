@@ -46,6 +46,7 @@ int main() {
     std::string response;
     assert(agent.Execute(R"({"operation":"select","actorId":42})", session, assets, response));
     assert(session.SelectedActorId() == 42);
+    assert(session.SelectedActorIds().size() == 1 && session.SelectedActorIds()[0] == 42);
 
     const std::string fullTransform = R"({"operation":"transform","actorId":42,"transform":{"x":3,"y":4,"z":5,"rx":6,"ry":7,"rz":8,"sx":2,"sy":3,"sz":4}})";
     assert(agent.Execute(fullTransform, session, assets, response));
@@ -72,13 +73,13 @@ int main() {
     assert(session.LastError() == EditorSceneSessionError::DuplicateActorId);
 
     EditorSceneActor selfParent = child;
-    selfParent.id = 44;
-    selfParent.parentId = 44;
+    selfParent.id = 45;
+    selfParent.parentId = 45;
     assert(!session.AddActor(selfParent, assets));
     assert(session.LastError() == EditorSceneSessionError::InvalidHierarchy);
 
     EditorSceneActor missingParent = child;
-    missingParent.id = 45;
+    missingParent.id = 46;
     missingParent.parentId = 999;
     assert(!session.AddActor(missingParent, assets));
     assert(session.LastError() == EditorSceneSessionError::UnknownActor);

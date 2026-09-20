@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <vector>
 
+namespace NeoEngine { class SdlAudioBridge; }
+
 namespace NeoEngine {
 
 class AudioComponent {
@@ -30,8 +32,12 @@ public:
     [[nodiscard]] const AudioAttenuation& Attenuation() const { return attenuation_; }
     void SetLooping(bool looping) { looping_ = looping; }
     [[nodiscard]] bool IsLooping() const { return looping_; }
+    void SetPitch(float pitch) { pitch_ = pitch; }
+    [[nodiscard]] float Pitch() const { return pitch_; }
     bool Play(AudioMixer& mixer) const;
+    bool Play(SdlAudioBridge& bridge) const;
     bool Stop(AudioMixer& mixer) const;
+    bool Stop(SdlAudioBridge& bridge) const;
 
 private:
     uint32_t voiceId_ = 0;
@@ -39,6 +45,7 @@ private:
     uint16_t gainQ8_ = 256;
     bool spatialized_ = false;
     bool looping_ = false;
+    float pitch_ = 1.0f;
     float position_[3]{0.0f, 0.0f, 0.0f};
     AudioAttenuation attenuation_{};
 };

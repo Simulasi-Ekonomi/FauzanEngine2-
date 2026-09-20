@@ -35,11 +35,31 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
         offset += chunkSize;
         if ((chunkSize & 1U) != 0) { if (offset == bytes.size()) break; ++offset; }
     }
-    if (!fmtFound || !dataFound || format != 1 || channels == 0 || channels > 2 || rate == 0 || bits != 16 || dataSize % (static_cast<size_t>(channels) * 2U) != 0) return false;
-    const size_t sampleCount = dataSize / 2U;
+    if (!fmtFound || !dataFound || format != 1 || channels == 0 || channels > 2 || rate == 0 ||
+        (bits != 8 && bits != 16) || dataSize % (static_cast<size_t>(channels) * (bits / 8U)) != 0) return false;
+    const size_t bytesPerSample = bits / 8U;
+    const size_t frameBytes = static_cast<size_t>(channels) * bytesPerSample;
+    const size_t frameCount = dataSize / frameBytes;
+    const size_t sampleCount = frameCount * channels;
     if (sampleCount > std::vector<int16_t>().max_size()) return false;
-    out.sampleRate = rate; out.channels = channels; out.pcmSamples.resize(sampleCount);
-    for (size_t i = 0; i < sampleCount; ++i) out.pcmSamples[i] = static_cast<int16_t>(U16(bytes.data() + dataOffset + i * 2U));
+    out.sampleRate = rate; out.channels = channels; out.pcmSamples.resize(frameCount);
+    if (bits == 16) {
+        for (size_t frame = 0; frame < frameCount; ++frame) {
+            int32_t sum = 0;
+            for (uint16_t channel = 0; channel < channels; ++channel)
+                sum += static_cast<int16_t>(U16(bytes.data() + dataOffset + frame * frameBytes + channel * 2U));
+            out.pcmSamples[frame] = static_cast<int16_t>(sum / static_cast<int32_t>(channels));
+        }
+    } else {
+        for (size_t frame = 0; frame < frameCount; ++frame) {
+            int32_t sum = 0;
+            for (uint16_t channel = 0; channel < channels; ++channel) {
+                const uint8_t sample = bytes[dataOffset + frame * frameBytes + channel];
+                sum += (static_cast<int32_t>(sample) - 128) * 256;
+            }
+            out.pcmSamples[frame] = static_cast<int16_t>(sum / static_cast<int32_t>(channels));
+        }
+    }
     return true;
 }
 

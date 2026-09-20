@@ -9,7 +9,6 @@ on:
       - 'Tests/Systems/authority_loopback_transport_smoke.cpp'
       - '.github/workflows/r5-farm-authority.yml'
   pull_request:
-    branches: [ main ]
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/Farm/farm_authoritative_session_loopback_smoke.cpp'
@@ -22,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install native dependencies
         run: |
@@ -32,7 +31,7 @@ jobs:
       - name: Install SDL3
         uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
         with:
-          version: 3.4.14
+          version: 3.4.16
           install-linux-dependencies: true
 
       - name: Configure Release
