@@ -25,6 +25,9 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
     if (device == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
         mipData.empty() || targetImage == VK_NULL_HANDLE || targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
         return false;
+    const uint32_t requestedMB = static_cast<uint32_t>((mipData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
+    if (requestedMB > stagingPoolSizeMB_ || currentStagingUsedMB_ > stagingPoolSizeMB_ - requestedMB) return false;
+    lastDevice_ = device;
 
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
     VkBuffer stagingBuffer = AllocateStagingBuffer(device, mipData.size(), stagingMemory);
@@ -54,7 +57,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
     task.uploadSizeMB = static_cast<uint32_t>((mipData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
     pendingUploads_.push_back(task);
     currentStagingUsedMB_ += task.uploadSizeMB;
-    return currentStagingUsedMB_ <= stagingPoolSizeMB_;
+    return true;
 }
 
 bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
@@ -64,6 +67,9 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     if (device == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
         vertexData.empty() || indexData.empty() ||
         vertexBuffer == VK_NULL_HANDLE || indexBuffer == VK_NULL_HANDLE) return false;
+    const uint32_t requestedMB = static_cast<uint32_t>((vertexData.size() + indexData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
+    if (requestedMB > stagingPoolSizeMB_ || currentStagingUsedMB_ > stagingPoolSizeMB_ - requestedMB) return false;
+    lastDevice_ = device;
 
     VkDeviceMemory vertexMemory = VK_NULL_HANDLE, indexMemory = VK_NULL_HANDLE;
     VkBuffer vertexStaging = AllocateStagingBuffer(device, vertexData.size(), vertexMemory);
@@ -106,7 +112,20 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     pendingUploads_.push_back({indexStaging, indexMemory, VK_NULL_HANDLE,
                                VK_IMAGE_LAYOUT_UNDEFINED, usedMB, VK_NULL_HANDLE});
     currentStagingUsedMB_ += usedMB;
-    return currentStagingUsedMB_ <= stagingPoolSizeMB_;
+    return true;
+}
+
+void VulkanAssetUploader::Flush(VkDevice device) noexcept {
+    if (device == VK_NULL_HANDLE) return;
+    if (vkDeviceWaitIdle(device) != VK_SUCCESS) return;
+    for (const UploadTask& task : pendingUploads_) {
+        if (task.completionFence) vkDestroyFence(device, task.completionFence, nullptr);
+        if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
+        if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
+    }
+    pendingUploads_.clear();
+    currentStagingUsedMB_ = 0U;
+    lastDevice_ = device;
 }
 
 void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
