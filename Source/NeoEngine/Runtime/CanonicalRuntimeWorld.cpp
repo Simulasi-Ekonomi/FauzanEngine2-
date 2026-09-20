@@ -60,6 +60,18 @@ bool CanonicalRuntimeWorld::CreateEntity(const Transform3& transform, uint32_t c
     return true;
 }
 
+bool CanonicalRuntimeWorld::GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const {
+    if (sceneEntity.index == 0xFFFFU) return false;
+    for (uint16_t i = 0U; i < bindingCount_; ++i) {
+        const CanonicalEntity& candidate = bindings_[i].entity;
+        if (candidate.active && candidate.scene == sceneEntity) {
+            outEntity = candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool CanonicalRuntimeWorld::DestroyEntity(CanonicalEntity entity) {
     if (!ValidateEntity(entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
     if (entity.hasECS) ecs_.DestroyEntity(entity.ecs);
@@ -80,6 +92,10 @@ bool CanonicalRuntimeWorld::DestroyEntity(CanonicalEntity entity) {
 bool CanonicalRuntimeWorld::SetTransform(CanonicalEntity entity, const Transform3& transform) {
     if (!ValidateEntity(entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
     if (!ValidateTransform(transform)) { lastError_ = CanonicalWorldError::InvalidTransform; return false; }
+    if (entity.authority != CanonicalTransformAuthority::Scene) {
+        lastError_ = CanonicalWorldError::TransformAuthorityViolation;
+        return false;
+    }
     if (!scene_.SetTransform(entity.scene, transform)) { lastError_ = CanonicalWorldError::InvalidTransform; return false; }
 
     if (entity.hasECS && (entity.componentMask & COMP_POSITION) != 0U) {
@@ -91,7 +107,6 @@ bool CanonicalRuntimeWorld::SetTransform(CanonicalEntity entity, const Transform
 }
 
 bool CanonicalRuntimeWorld::BindMesh(const SceneMeshInstance& instance) {
-
     if (!scene_.GetTransform(instance.entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
     if (!meshes_.Add(instance)) { lastError_ = CanonicalWorldError::MeshBindingFailed; return false; }
     lastError_ = CanonicalWorldError::None;
@@ -101,7 +116,8 @@ bool CanonicalRuntimeWorld::BindMesh(const SceneMeshInstance& instance) {
 bool CanonicalRuntimeWorld::SyncSceneToPhysics() {
     for (uint16_t i = 0U; i < bindingCount_; ++i) {
         const CanonicalEntity& entity = bindings_[i].entity;
-        if (!entity.active || !entity.hasECS || !IsPhysicsBody(entity.componentMask) || entity.authority != CanonicalTransformAuthority::Scene) continue;
+        if (!entity.active || !entity.hasECS || !IsPhysicsBody(entity.componentMask) ||
+            entity.authority != CanonicalTransformAuthority::Scene) continue;
         const Transform3* transform = scene_.GetTransform(entity.scene);
         if (!transform || (entity.componentMask & COMP_POSITION) == 0U) {
             lastError_ = CanonicalWorldError::PhysicsSyncFailed;
@@ -117,7 +133,8 @@ bool CanonicalRuntimeWorld::ReadBackPhysicsToScene() {
     const auto chunks = ecs_.GetChunks<PositionComponent>();
     for (uint16_t bindingIndex = 0U; bindingIndex < bindingCount_; ++bindingIndex) {
         const CanonicalEntity& entity = bindings_[bindingIndex].entity;
-        if (!entity.active || !entity.hasECS || !IsPhysicsBody(entity.componentMask) || entity.authority != CanonicalTransformAuthority::Physics) continue;
+        if (!entity.active || !entity.hasECS || !IsPhysicsBody(entity.componentMask) ||
+            entity.authority != CanonicalTransformAuthority::Physics) continue;
 
         bool found = false;
         for (const ArchetypeChunk* chunk : chunks) {
@@ -165,7 +182,8 @@ bool CanonicalRuntimeWorld::Step(float dt) {
     lastFrame_.sceneEntities = scene_.AliveCount();
     lastFrame_.physicsEntities = 0U;
     for (uint16_t i = 0U; i < bindingCount_; ++i)
-        if (bindings_[i].entity.active && bindings_[i].entity.hasECS && IsPhysicsBody(bindings_[i].entity.componentMask)) ++lastFrame_.physicsEntities;
+        if (bindings_[i].entity.active && bindings_[i].entity.hasECS &&
+            IsPhysicsBody(bindings_[i].entity.componentMask)) ++lastFrame_.physicsEntities;
     lastFrame_.physicsManifolds = physics_.GetManifoldCount();
     lastFrame_.physicsContacts = physics_.GetBroadphaseStats().candidatePairs;
     lastFrame_.physicsRevision = ecs_.GetPhysicsRevision();
@@ -176,7 +194,7 @@ bool CanonicalRuntimeWorld::Step(float dt) {
 
 bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
                                             const DirectionalLight& light) {
-    if (!rendererAdapter_.Draw(scene_, meshes_, sprites, camera, renderer, light)) {
+    if (!rendererAdapter_.Draw(scene_, meshes_, sprites_, camera, renderer, light)) {
         lastError_ = CanonicalWorldError::RenderFailed;
         return false;
     }
