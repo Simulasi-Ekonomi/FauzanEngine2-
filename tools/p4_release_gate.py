@@ -122,6 +122,11 @@ for component in components:
         raise SystemExit("P4_RELEASE_GATE_FAIL missing SBOM SHA-256")
     sbom_entries[name] = sha
 if sbom_entries != manifest_entries:
-    raise SystemExit("P4_RELEASE_GATE_FAIL SBOM does not exactly match release manifest")
+    missing = sorted(set(manifest_entries) - set(sbom_entries))
+    extra = sorted(set(sbom_entries) - set(manifest_entries))
+    raise SystemExit(
+        "P4_RELEASE_GATE_FAIL SBOM does not exactly match release manifest"
+        f" missing={missing[:5]} extra={extra[:5]}"
+    )
 
 print(f"P4_RELEASE_GATE_OK files={len(bom['components'])}")
