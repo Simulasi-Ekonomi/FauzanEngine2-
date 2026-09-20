@@ -144,8 +144,19 @@ bool GPUDrivenRenderer::Execute(VkCommandBuffer cmdBuffer) {
     if (vkMapMemory(device_, indirectMemory, 0, byteCount, 0, &mapped) != VK_SUCCESS) return false;
     std::memcpy(mapped, commands.data(), static_cast<std::size_t>(byteCount));
     vkUnmapMemory(device_, indirectMemory);
-    vkCmdDrawIndexedIndirect(cmdBuffer, indirectBuffer, 0,
-                             static_cast<uint32_t>(commands.size()), sizeof(GPUIndirectCommand));
+    // Keep large indirect submissions bounded. This preserves every queued draw while
+    // avoiding a single driver submission that can exceed practical software-Vulkan limits.
+    constexpr std::size_t kMaxIndirectBatch = 2048;
+    for (std::size_t first = 0; first < commands.size(); first += kMaxIndirectBatch) {
+        const std::size_t remaining = commands.size() - first;
+        const uint32_t batchCount = static_cast<uint32_t>(std::min(remaining, kMaxIndirectBatch));
+        vkCmdDrawIndexedIndirect(
+            cmdBuffer,
+            indirectBuffer,
+            static_cast<VkDeviceSize>(first * sizeof(GPUIndirectCommand)),
+            batchCount,
+            sizeof(GPUIndirectCommand));
+    }
     commands.clear();
     return true;
 }
