@@ -164,40 +164,54 @@ bool CanonicalRuntimeWorld::ReadBackPhysicsToScene() {
 }
 
 bool CanonicalRuntimeWorld::Raycast(const GameplayRay2& ray, GameplayRayHit2& hit) {
-    if (physicsQuery_.Raycast(physics_, ray, hit)) {
-        lastError_ = CanonicalWorldError::None;
-        return true;
-    }
+    if (physicsQuery_.Raycast(physics_, ray, hit)) { lastError_ = CanonicalWorldError::None; return true; }
     lastError_ = CanonicalWorldError::QueryFailed;
     return false;
 }
 
 bool CanonicalRuntimeWorld::RaycastSet(const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits) {
-    if (physicsQuery_.RaycastSet(physics_, rays, hits)) {
-        lastError_ = CanonicalWorldError::None;
-        return true;
-    }
+    if (physicsQuery_.RaycastSet(physics_, rays, hits)) { lastError_ = CanonicalWorldError::None; return true; }
     lastError_ = CanonicalWorldError::QueryFailed;
     return false;
 }
 
 bool CanonicalRuntimeWorld::OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities) {
-    if (physicsQuery_.OverlapCircle(physics_, circle, entities)) {
-        lastError_ = CanonicalWorldError::None;
-        return true;
-    }
+    if (physicsQuery_.OverlapCircle(physics_, circle, entities)) { lastError_ = CanonicalWorldError::None; return true; }
     lastError_ = CanonicalWorldError::QueryFailed;
     return false;
 }
 
 bool CanonicalRuntimeWorld::OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles,
                                              std::vector<std::vector<EntityID>>& entitySets) {
-    if (physicsQuery_.OverlapCircleSet(physics_, circles, entitySets)) {
-        lastError_ = CanonicalWorldError::None;
-        return true;
-    }
+    if (physicsQuery_.OverlapCircleSet(physics_, circles, entitySets)) { lastError_ = CanonicalWorldError::None; return true; }
     lastError_ = CanonicalWorldError::QueryFailed;
     return false;
+}
+
+bool CanonicalRuntimeWorld::ConfigureTrigger(uint8_t triggerIndex, GameplayTriggerCircleConfig config) {
+    if (triggerIndex >= kMaxTriggers) { lastError_ = CanonicalWorldError::Capacity; return false; }
+    if (!triggers_[triggerIndex].Initialize(config)) { lastError_ = CanonicalWorldError::QueryFailed; return false; }
+    triggerConfigured_[triggerIndex] = true;
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::UpdateTrigger(uint8_t triggerIndex) {
+    if (triggerIndex >= kMaxTriggers || !triggerConfigured_[triggerIndex]) {
+        lastError_ = CanonicalWorldError::InvalidEntity;
+        return false;
+    }
+    if (!triggers_[triggerIndex].Update(physics_)) {
+        lastError_ = CanonicalWorldError::TriggerUpdateFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+const GameplayTriggerDelta* CanonicalRuntimeWorld::TriggerDelta(uint8_t triggerIndex) const {
+    if (triggerIndex >= kMaxTriggers || !triggerConfigured_[triggerIndex]) return nullptr;
+    return &triggers_[triggerIndex].LastDelta();
 }
 
 bool CanonicalRuntimeWorld::IsPhysicsEntityAwake(const CanonicalEntity& entity) const {
@@ -207,45 +221,34 @@ bool CanonicalRuntimeWorld::IsPhysicsEntityAwake(const CanonicalEntity& entity) 
 
 bool CanonicalRuntimeWorld::WakePhysicsEntity(const CanonicalEntity& entity) {
     if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
-        lastError_ = CanonicalWorldError::InvalidEntity;
-        return false;
+        lastError_ = CanonicalWorldError::InvalidEntity; return false;
     }
     if (!physics_.WakeEntity(entity.ecs)) {
-        lastError_ = CanonicalWorldError::PhysicsSyncFailed;
-        return false;
+        lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
     }
-    lastError_ = CanonicalWorldError::None;
-    return true;
+    lastError_ = CanonicalWorldError::None; return true;
 }
 
 bool CanonicalRuntimeWorld::SleepPhysicsEntity(const CanonicalEntity& entity) {
     if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
-        lastError_ = CanonicalWorldError::InvalidEntity;
-        return false;
+        lastError_ = CanonicalWorldError::InvalidEntity; return false;
     }
     if (!physics_.SleepEntity(entity.ecs)) {
-        lastError_ = CanonicalWorldError::PhysicsSyncFailed;
-        return false;
+        lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
     }
-    lastError_ = CanonicalWorldError::None;
-    return true;
+    lastError_ = CanonicalWorldError::None; return true;
 }
 
 bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntity>& entities) {
-    if (entities.empty()) {
-        lastError_ = CanonicalWorldError::InvalidEntity;
-        return false;
-    }
+    if (entities.empty()) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
     for (const CanonicalEntity& entity : entities) {
         if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
-            lastError_ = CanonicalWorldError::InvalidEntity;
-            return false;
+            lastError_ = CanonicalWorldError::InvalidEntity; return false;
         }
     }
     for (const CanonicalEntity& entity : entities) {
         if (!physics_.WakeEntity(entity.ecs)) {
-            lastError_ = CanonicalWorldError::PhysicsSyncFailed;
-            return false;
+            lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
         }
     }
     lastError_ = CanonicalWorldError::None;
@@ -253,18 +256,20 @@ bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntit
 }
 
 bool CanonicalRuntimeWorld::Step(float dt) {
-    if (bindingCount_ > kMaxBindings) {
-        lastError_ = CanonicalWorldError::Capacity;
-        return false;
-    }
-    if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) {
-        lastError_ = CanonicalWorldError::PhysicsStepFailed;
-        return false;
-    }
+    if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
+    if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) { lastError_ = CanonicalWorldError::PhysicsStepFailed; return false; }
     if (!SyncSceneToPhysics()) return false;
 
     physics_.Step(ecs_, dt);
     if (!ReadBackPhysicsToScene()) return false;
+
+    for (uint8_t triggerIndex = 0U; triggerIndex < kMaxTriggers; ++triggerIndex) {
+        if (!triggerConfigured_[triggerIndex]) continue;
+        if (!triggers_[triggerIndex].Update(physics_)) {
+            lastError_ = CanonicalWorldError::TriggerUpdateFailed;
+            return false;
+        }
+    }
 
     ++frame_;
     lastFrame_.frame = frame_;
@@ -284,8 +289,7 @@ bool CanonicalRuntimeWorld::Step(float dt) {
 bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
                                             const DirectionalLight& light) {
     if (!rendererAdapter_.Draw(scene_, meshes_, sprites_, camera, renderer, light)) {
-        lastError_ = CanonicalWorldError::RenderFailed;
-        return false;
+        lastError_ = CanonicalWorldError::RenderFailed; return false;
     }
     lastError_ = CanonicalWorldError::None;
     return true;
@@ -293,10 +297,8 @@ bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRendere
 
 bool CanonicalRuntimeWorld::RenderVulkan3D(RenderCamera& camera, Vulkan3DRenderer& renderer,
                                             float clearR, float clearG, float clearB, float clearA) {
-    if (!rendererAdapter_.DrawVulkan3D(scene_, meshes_, camera, renderer,
-                                       clearR, clearG, clearB, clearA)) {
-        lastError_ = CanonicalWorldError::RenderFailed;
-        return false;
+    if (!rendererAdapter_.DrawVulkan3D(scene_, meshes_, camera, renderer, clearR, clearG, clearB, clearA)) {
+        lastError_ = CanonicalWorldError::RenderFailed; return false;
     }
     lastError_ = CanonicalWorldError::None;
     return true;
