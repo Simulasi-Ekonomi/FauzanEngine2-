@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 int main() {
@@ -33,7 +34,8 @@ int main() {
     assert(runtime.PlayAudio(voice));
     assert(runtime.Audio()->QueuedVoiceCount() == 1U);
 
-    assert(runtime.UpdateAudioPosition(101, (const float[3]){4.0f, 0.0f, 0.0f}));
+    const float movedPosition[3]{4.0f, 0.0f, 0.0f};
+    assert(runtime.UpdateAudioPosition(101, movedPosition));
     assert(runtime.UpdateAudioPitch(101, 0.75f));
     assert(runtime.UpdateAudioGain(101, 192));
 
