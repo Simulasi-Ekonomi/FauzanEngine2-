@@ -1,4 +1,5 @@
 #include "AudioComponent.h"
+#include "SdlAudioBridge.h"
 
 #include <cmath>
 #include <utility>
@@ -40,8 +41,30 @@ bool AudioComponent::Play(AudioMixer& mixer) const {
     return mixer.PlaySpatial(params);
 }
 
+bool AudioComponent::Play(SdlAudioBridge& bridge) const {
+    if (voiceId_ == 0 || samples_.empty() || gainQ8_ == 0 ||
+        !std::isfinite(pitch_) || pitch_ <= 0.001f || pitch_ > 8.0f) return false;
+    if (!spatialized_) return bridge.Play(voiceId_, samples_, gainQ8_);
+    SpatialVoiceParams params;
+    params.id = voiceId_;
+    params.mono = samples_;
+    params.spatialized = true;
+    params.position[0] = position_[0];
+    params.position[1] = position_[1];
+    params.position[2] = position_[2];
+    params.attenuation = attenuation_;
+    params.gainQ8 = gainQ8_;
+    params.looping = looping_;
+    params.pitch = pitch_;
+    return bridge.PlaySpatial(params);
+}
+
 bool AudioComponent::Stop(AudioMixer& mixer) const {
     return voiceId_ != 0 && mixer.Stop(voiceId_);
+}
+
+bool AudioComponent::Stop(SdlAudioBridge& bridge) const {
+    return voiceId_ != 0 && bridge.Stop(voiceId_);
 }
 
 } // namespace NeoEngine
