@@ -22,11 +22,21 @@ uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeBits,
 bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                         const std::vector<uint8_t>& mipData,
                                         VkImage targetImage, VkImageLayout targetLayout) noexcept {
+    return UploadTexture(device, cmd, mipData, targetImage, targetLayout, 2048U, 2048U);
+}
+
+bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
+                                        const std::vector<uint8_t>& mipData,
+                                        VkImage targetImage, VkImageLayout targetLayout,
+                                        uint32_t width, uint32_t height) noexcept {
     if (device == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
-        mipData.empty() || targetImage == VK_NULL_HANDLE || targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+        mipData.empty() || targetImage == VK_NULL_HANDLE ||
+        targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || width == 0U || height == 0U)
         return false;
-    const uint32_t requestedMB = static_cast<uint32_t>((mipData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
-    if (requestedMB > stagingPoolSizeMB_ || currentStagingUsedMB_ > stagingPoolSizeMB_ - requestedMB) return false;
+    const uint64_t requestedBytes = mipData.size();
+    const uint64_t requestedMB64 = (requestedBytes + (1024ULL * 1024ULL - 1ULL)) / (1024ULL * 1024ULL);
+    if (requestedMB64 > stagingPoolSizeMB_ ||
+        currentStagingUsedMB_ > stagingPoolSizeMB_ - static_cast<uint32_t>(requestedMB64)) return false;
     lastDevice_ = device;
 
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
@@ -43,7 +53,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
     std::memcpy(mapped, mipData.data(), mipData.size());
     vkUnmapMemory(device, stagingMemory);
 
-    if (!CopyBufferToImage(device, cmd, stagingBuffer, targetImage, 2048, 2048)) {
+    if (!CopyBufferToImage(device, cmd, stagingBuffer, targetImage, width, height)) {
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingMemory, nullptr);
         return false;
@@ -54,7 +64,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
     task.stagingMemory = stagingMemory;
     task.targetImage = targetImage;
     task.targetLayout = targetLayout;
-    task.uploadSizeMB = static_cast<uint32_t>((mipData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
+    task.uploadSizeMB = static_cast<uint32_t>(requestedMB64);
     pendingUploads_.push_back(task);
     currentStagingUsedMB_ += task.uploadSizeMB;
     return true;
@@ -105,14 +115,23 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     vkCmdCopyBuffer(cmd, vertexStaging, vertexBuffer, 1, &vertexRegion);
     vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &indexRegion);
 
-    const uint32_t usedMB = static_cast<uint32_t>(
-        (vertexData.size() + indexData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
+    const uint32_t vertexMB = static_cast<uint32_t>(
+        (vertexData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
+    const uint32_t indexMB = static_cast<uint32_t>(
+        (indexData.size() + (1024U * 1024U - 1U)) / (1024U * 1024U));
     pendingUploads_.push_back({vertexStaging, vertexMemory, VK_NULL_HANDLE,
-                               VK_IMAGE_LAYOUT_UNDEFINED, usedMB, VK_NULL_HANDLE});
+                               VK_IMAGE_LAYOUT_UNDEFINED, vertexMB, VK_NULL_HANDLE});
     pendingUploads_.push_back({indexStaging, indexMemory, VK_NULL_HANDLE,
-                               VK_IMAGE_LAYOUT_UNDEFINED, usedMB, VK_NULL_HANDLE});
-    currentStagingUsedMB_ += usedMB;
+                               VK_IMAGE_LAYOUT_UNDEFINED, indexMB, VK_NULL_HANDLE});
+    currentStagingUsedMB_ += vertexMB + indexMB;
     return true;
+}
+
+void VulkanAssetUploader::AttachCompletionFence(VkFence fence) noexcept {
+    if (fence == VK_NULL_HANDLE || pendingUploads_.empty()) return;
+    for (UploadTask& task : pendingUploads_) {
+        if (task.completionFence == VK_NULL_HANDLE) task.completionFence = fence;
+    }
 }
 
 void VulkanAssetUploader::Flush(VkDevice device) noexcept {
@@ -137,15 +156,9 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
         const bool complete = task.completionFence != VK_NULL_HANDLE &&
                               vkGetFenceStatus(device, task.completionFence) == VK_SUCCESS;
         if (complete) {
+            if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
+            if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
             vkDestroyFence(device, task.completionFence, nullptr);
-            task.completionFence = VK_NULL_HANDLE;
-        }
-        // UploadTask instances without a completion fence remain owned by the uploader.
-        // The caller must attach the submission fence before AdvanceFrame.
-        if (task.completionFence == VK_NULL_HANDLE && task.targetImage == VK_NULL_HANDLE) {
-            // Buffer-only task cannot be safely reclaimed until its submission fence is attached.
-            pendingUploads_[write++] = task;
-            residentMB += task.uploadSizeMB;
             continue;
         }
         pendingUploads_[write++] = task;
