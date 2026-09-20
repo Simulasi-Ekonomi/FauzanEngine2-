@@ -76,6 +76,8 @@ add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_GPU_INDIRECT_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
+    Core/ECS/ArchetypeManager.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
     Runtime/AtomicSaveFile.cpp
     Runtime/PBRMaterial.cpp
     Runtime/BRDFLut.cpp
