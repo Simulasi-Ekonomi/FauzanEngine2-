@@ -29,8 +29,8 @@ inline size_t XPBDPhysicsSystem::HashIndex(uint64_t key) {
 }
 
 // Morton buffer now local
-static void RadixSortMorton(std::vector<std::pair<uint32_t,int>>& data) {
-    std::vector<std::pair<uint32_t,int>> temp(data.size());
+static void RadixSortMorton(std::vector<std::pair<uint32_t,int>>& data, std::vector<std::pair<uint32_t,int>>& temp) {
+    temp.resize(data.size());
     for (int shift = 0; shift <= 22; shift += 11) {
         size_t count[2048] = {0};
         uint32_t mask = 2047 << shift;
@@ -87,6 +87,7 @@ XPBDPhysicsSystem::XPBDPhysicsSystem() {
     m_BVHStack.reserve(4096);
     m_BroadphaseIndices.reserve(PHYS_ENTITIES_MAX);
     m_BVHSortBuffer.reserve(PHYS_ENTITIES_MAX);
+    m_BVHSortTemp.reserve(PHYS_ENTITIES_MAX);
     m_BVHSortedIndices.reserve(PHYS_ENTITIES_MAX);
     m_BVHBuildStack.reserve(PHYS_ENTITIES_MAX * 2);
     m_LeafNode.resize(PHYS_ENTITIES_MAX, -1);
@@ -293,7 +294,7 @@ void XPBDPhysicsSystem::BuildBVHMorton(std::vector<int>& indices) {
     }
     if (validCount == 0) { m_BVHRoot = -1; return; }
     m_BVHSortBuffer.resize(validCount);
-    RadixSortMorton(m_BVHSortBuffer);
+    RadixSortMorton(m_BVHSortBuffer, m_BVHSortTemp);
     m_BVHSortedIndices.resize(validCount);
     for (size_t i = 0; i < validCount; ++i) m_BVHSortedIndices[i] = m_BVHSortBuffer[i].second;
 
