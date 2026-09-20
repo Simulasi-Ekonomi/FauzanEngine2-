@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import httpx
+import json
 import pytest
 
 from telemetry_forwarder import FarmTelemetryForwarder, TelemetryForwarderError
@@ -27,7 +28,7 @@ async def test_forwarder_auth_and_server_side_bearer() -> None:
 
     async def handler(request: httpx.Request) -> httpx.Response:
         seen["authorization"] = request.headers["authorization"]
-        seen["payload"] = request.json()
+        seen["payload"] = json.loads(request.content)
         return httpx.Response(202, json={"accepted": True})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
