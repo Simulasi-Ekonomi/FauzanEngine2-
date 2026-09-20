@@ -59,6 +59,8 @@ class TelemetryDurableStore:
         return refs
 
     def enqueue(self, envelope: dict[str, Any], occurred_at_ms: int) -> int:
+        if not isinstance(occurred_at_ms, int) or occurred_at_ms < 0:
+            raise TelemetryStoreError("occurred_at_ms must be a non-negative integer")
         payload = json.dumps(envelope, separators=(",", ":"), sort_keys=True)
         if len(payload.encode("utf-8")) > self.max_bytes:
             raise TelemetryStoreError("telemetry envelope exceeds durable-store byte limit")
