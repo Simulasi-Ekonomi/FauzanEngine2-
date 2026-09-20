@@ -22,6 +22,17 @@ bool SkeletalPosePlayer::SetSpeed(const float speed) {
     speed_ = speed; lastError_ = SkeletalPosePlayerError::None; return true;
 }
 
+bool SkeletalPosePlayer::SampleCurrentPose(std::vector<Mat4>& output) const {
+    if (!hasClip_) return false;
+    std::vector<Mat4> candidate;
+    const bool sampled = mode_ == SkeletalPosePlaybackMode::Loop
+        ? clip_.SampleLooped(time_, candidate)
+        : clip_.Sample(time_, candidate);
+    if (!sampled) return false;
+    output = std::move(candidate);
+    return true;
+}
+
 bool SkeletalPosePlayer::Advance(const float deltaSeconds, std::vector<Mat4>& output) {
     if (!hasClip_) { lastError_ = SkeletalPosePlayerError::NoClip; return false; }
     if (!Finite(deltaSeconds) || deltaSeconds < 0.0F || deltaSeconds > kMaxDeltaSeconds) { lastError_ = SkeletalPosePlayerError::InvalidDelta; return false; }
