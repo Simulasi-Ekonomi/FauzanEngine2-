@@ -66,8 +66,14 @@ class TelemetryDurableStore:
         if not refs:
             return 0
         with self._lock, self._connect() as db:
+            existing = db.execute(
+                "SELECT event_ref FROM telemetry_events WHERE event_ref IN (" + ",".join("?" for _ in refs) + ")",
+                refs,
+            ).fetchall()
+            existing_refs = {row[0] for row in existing}
+            new_refs = [ref for ref in refs if ref not in existing_refs]
             pending = db.execute("SELECT COUNT(*) FROM telemetry_events WHERE state='pending'").fetchone()[0]
-            if pending + len(refs) > self.max_events:
+            if pending + len(new_refs) > self.max_events:
                 raise TelemetryStoreError("telemetry durable queue is full")
             pending_bytes = db.execute(
                 "SELECT COALESCE(SUM(length(CAST(envelope_json AS BLOB))), 0) "
