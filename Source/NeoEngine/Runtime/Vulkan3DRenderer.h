@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <span>
+#include "VulkanAssetUploader.h"
 
 #include <vulkan/vulkan.h>
 
@@ -56,6 +57,11 @@ public:
 
     bool EndFrame();
     void Reset();
+
+    // Resource-owned GPU upload path; valid only while a frame is active.
+    bool UploadTextureResource(AssetResourceManager& resources, const AssetResourceHandle& handle,
+                               VkImage targetImage, VkImageLayout targetLayout,
+                               uint32_t width, uint32_t height);
 
     [[nodiscard]] bool Ready() const { return ready_; }
     [[nodiscard]] Vulkan3DRendererError LastError() const { return lastError_; }
