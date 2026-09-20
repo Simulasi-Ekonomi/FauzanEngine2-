@@ -1,6 +1,5 @@
 #pragma once
 
-#include "CanonicalRuntimeWorld.h"
 #include "ReplicationWorld.h"
 
 #include <cstdint>
@@ -8,6 +7,8 @@
 #include <vector>
 
 namespace NeoEngine {
+
+class CanonicalRuntimeWorld;
 
 enum class CanonicalReplicationBridgeError : uint8_t {
     None,
