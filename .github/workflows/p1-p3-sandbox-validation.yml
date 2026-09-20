@@ -1,0 +1,84 @@
+name: P1-P3 sandbox validation
+
+on:
+  pull_request:
+    branches:
+      - sandbox-p0-validation-20260920
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/**'
+      - 'FauzanEngine/backend/**'
+      - 'CMakeLists.txt'
+      - 'Source/NeoEngine/CMakeLists.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SDL_VIDEODRIVER: dummy
+  SDL_AUDIODRIVER: dummy
+
+jobs:
+  release-and-asan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        with:
+          version: 3.4.14
+          install-linux-dependencies: true
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/p1-p3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build canonical P1-P3 smoke targets
+        run: |
+          cmake --build build/p1-p3-release --target             canonical_runtime_world_smoke             asset_streaming_queue_smoke             asset_resource_manager_smoke             gpu_skinning_palette_buffer_smoke             farm_telemetry_smoke             farm_authoritative_session_loopback_smoke             authority_loopback_transport_smoke             r6_anti_cheat_100_smoke             r7_economy_commerce_100_smoke             r8_persistence_recovery_100_smoke             r9_live_ops_telemetry_100_smoke             r10_security_privacy_100_smoke             -j2
+
+      - name: Run Release smoke targets
+        run: |
+          ./build/p1-p3-release/canonical_runtime_world_smoke
+          ./build/p1-p3-release/asset_streaming_queue_smoke
+          ./build/p1-p3-release/asset_resource_manager_smoke
+          ./build/p1-p3-release/gpu_skinning_palette_buffer_smoke
+          ./build/p1-p3-release/farm_telemetry_smoke
+          ./build/p1-p3-release/farm_authoritative_session_loopback_smoke
+          ./build/p1-p3-release/authority_loopback_transport_smoke
+          ./build/p1-p3-release/r6_anti_cheat_100_smoke
+          ./build/p1-p3-release/r7_economy_commerce_100_smoke
+          ./build/p1-p3-release/r8_persistence_recovery_100_smoke
+          ./build/p1-p3-release/r9_live_ops_telemetry_100_smoke
+          ./build/p1-p3-release/r10_security_privacy_100_smoke
+
+      - name: Configure ASAN
+        run: |
+          cmake -S Source/NeoEngine -B build/p1-p3-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build ASAN smoke targets
+        run: |
+          cmake --build build/p1-p3-asan --target             canonical_runtime_world_smoke             asset_streaming_queue_smoke             asset_resource_manager_smoke             gpu_skinning_palette_buffer_smoke             farm_telemetry_smoke             farm_authoritative_session_loopback_smoke             authority_loopback_transport_smoke             r6_anti_cheat_100_smoke             r7_economy_commerce_100_smoke             r8_persistence_recovery_100_smoke             r9_live_ops_telemetry_100_smoke             r10_security_privacy_100_smoke             -j2
+
+      - name: Run ASAN smoke targets
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          ./build/p1-p3-asan/canonical_runtime_world_smoke
+          ./build/p1-p3-asan/asset_streaming_queue_smoke
+          ./build/p1-p3-asan/asset_resource_manager_smoke
+          ./build/p1-p3-asan/gpu_skinning_palette_buffer_smoke
+          ./build/p1-p3-asan/farm_telemetry_smoke
+          ./build/p1-p3-asan/farm_authoritative_session_loopback_smoke
+          ./build/p1-p3-asan/authority_loopback_transport_smoke
+          ./build/p1-p3-asan/r6_anti_cheat_100_smoke
+          ./build/p1-p3-asan/r7_economy_commerce_100_smoke
+          ./build/p1-p3-asan/r8_persistence_recovery_100_smoke
+          ./build/p1-p3-asan/r9_live_ops_telemetry_100_smoke
+          ./build/p1-p3-asan/r10_security_privacy_100_smoke
