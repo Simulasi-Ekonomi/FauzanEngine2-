@@ -1,7 +1,7 @@
 #include "SceneWorld.h"
 
 #include <cmath>
-#include <cstring>
+#include <cstring>\n#include <cstdio>
 
 namespace NeoEngine {
 namespace {
