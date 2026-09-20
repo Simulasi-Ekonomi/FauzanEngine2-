@@ -18,6 +18,8 @@ jobs:
           fetch-depth: 0
       - name: Generate deterministic release manifest
         run: bash tools/release_manifest.sh p4-release-manifest.sha256
+      - name: Generate deterministic source SBOM
+        run: python3 tools/generate_source_sbom.py
       - name: Run release certification gate
         run: |
           python3 tools/p4_release_gate.py
@@ -28,3 +30,7 @@ jobs:
           grep -Eq '^commit=[0-9a-f]{40}$' p4-release-manifest.sha256
           grep -Eq '^tree=[0-9a-f]{40}$' p4-release-manifest.sha256
           grep -Eq '^files=[0-9]+$' p4-release-manifest.sha256
+      - name: Check release manifest reproducibility
+        run: |
+          bash tools/release_manifest.sh /tmp/p4-release-manifest.second.sha256
+          cmp -s p4-release-manifest.sha256 /tmp/p4-release-manifest.second.sha256
