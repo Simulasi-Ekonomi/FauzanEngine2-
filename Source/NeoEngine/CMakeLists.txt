@@ -61,6 +61,13 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_triangle.frag"
     VERBATIM
 )
+add_custom_command(
+    OUTPUT "${NEO_GPU_INDIRECT_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_gpu_indirect.vert" -o "${NEO_GPU_INDIRECT_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_gpu_indirect.vert"
+    VERBATIM
+)
 add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
     "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
