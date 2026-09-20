@@ -338,3 +338,7 @@ add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehe
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_telemetry_smoke.cpp")
     add_xpbd_executable(farm_telemetry_smoke ../../Tests/Farm/farm_telemetry_smoke.cpp)
 endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_replication_bridge_smoke.cpp")
+    add_xpbd_executable(canonical_replication_bridge_smoke ../../Tests/Runtime/canonical_replication_bridge_smoke.cpp)
+endif()
