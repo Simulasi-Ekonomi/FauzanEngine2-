@@ -239,10 +239,6 @@ bool NeoRuntime::Tick() {
         const bool routeSucceeded = m_UsesSkeletalRouteMotion ? (m_RouteNavigation != nullptr && m_SkeletalRouteMotionController != nullptr && m_RouteRootMotionAdapter != nullptr && m_MotionAuthority != nullptr && m_RouteRootMotionAdapter->Advance(m_Clock->Snapshot().scaledDeltaSeconds, *m_RouteFollower, *m_SkeletalRouteMotionController, *m_Scene, m_RouteMotionEntity_, *m_RouteNavigation, *m_MotionAuthority, m_SkeletalRoutePalette)) : (m_RouteNavigation != nullptr && m_RouteMotionController != nullptr && m_MotionAuthority != nullptr && m_RouteFollower->StepGuarded(*m_Scene, m_RouteMotionEntity_, *m_RouteMotionController, *m_RouteNavigation, m_Clock->Snapshot().scaledDeltaSeconds, *m_MotionAuthority));
         if (!routeSucceeded) { m_LastError = RuntimeError::RouteMotionFailed; m_State = RuntimeState::Failed; return false; }
     }
-    if (m_UsesSkeletalRouteMotion && m_VulkanRenderer != nullptr && !m_SkeletalRoutePalette.empty()) {
-        if (!m_VulkanRenderer->BeginFrame()) { m_LastError = RuntimeError::Vulkan3DRenderFailed; m_State = RuntimeState::Failed; return false; }
-        if (!m_VulkanRenderer->UploadSkinningPalette(m_SkeletalRoutePalette)) { m_LastError = RuntimeError::Vulkan3DRenderFailed; m_State = RuntimeState::Failed; return false; }
-    }
     ActorComponentWorldReceipt actorReceipt{};
     if (m_Actors == nullptr || !m_Actors->TickFixed(simulatedTicks, actorReceipt)) { m_LastError = RuntimeError::ActorComponentTickFailed; m_State = RuntimeState::Failed; return false; }
     FarmPlayerInputReceipt farmPlayerInputReceipt{};
