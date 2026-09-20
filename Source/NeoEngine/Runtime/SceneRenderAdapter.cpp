@@ -10,15 +10,14 @@
 
 namespace NeoEngine {
 namespace {
-struct Mat4 { std::array<float, 16> v{}; };
 
 Mat4 Multiply(const Mat4& a, const Mat4& b) {
     Mat4 out{};
     for (int column = 0; column < 4; ++column) {
         for (int row = 0; row < 4; ++row) {
             float value = 0.0F;
-            for (int k = 0; k < 4; ++k) value += a.v[k * 4 + row] * b.v[column * 4 + k];
-            out.v[column * 4 + row] = value;
+            for (int k = 0; k < 4; ++k) value += a.m[k * 4 + row] * b.m[column * 4 + k];
+            out.m[column * 4 + row] = value;
         }
     }
     return out;
@@ -35,7 +34,7 @@ Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3
     right = Normalize(right);
     up = Normalize(up);
     Mat4 view{};
-    view.v = {
+    view.m = {
         right.x, up.x, forward.x, 0.0F,
         right.y, up.y, forward.y, 0.0F,
         right.z, up.z, forward.z, 0.0F,
@@ -55,7 +54,7 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
         const float halfWidth = halfHeight * aspect;
         const float nearPlane = std::max(0.001F, config.nearPlane);
         const float farPlane = std::max(nearPlane + 0.001F, config.farPlane);
-        projection.v = {
+        projection.m = {
             1.0F / halfWidth, 0.0F, 0.0F, 0.0F,
             0.0F, 1.0F / halfHeight, 0.0F, 0.0F,
             0.0F, 0.0F, 1.0F / (farPlane - nearPlane), 0.0F,
@@ -70,7 +69,7 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
     const float farPlane = std::max(nearPlane + 0.001F, config.farPlane);
     const float halfFov = std::clamp(config.verticalFovDegrees, 1.0F, 179.0F) * (kPi / 360.0F);
     const float focal = 1.0F / std::tan(halfFov);
-    projection.v = {
+    projection.m = {
         focal / aspect, 0.0F, 0.0F, 0.0F,
         0.0F, focal, 0.0F, 0.0F,
         0.0F, 0.0F, farPlane / (farPlane - nearPlane), 1.0F,
@@ -84,7 +83,7 @@ Mat4 MakeModel(const Transform3& transform) {
     const float cy = std::cos(transform.ry), sy = std::sin(transform.ry);
     const float cz = std::cos(transform.rz), sz = std::sin(transform.rz);
     Mat4 model{};
-    model.v = {
+    model.m = {
         (cz * cy) * transform.sx, (sz * cy) * transform.sx, (-sy) * transform.sx, 0.0F,
         (cz * sy * sx - sz * cx) * transform.sy, (sz * sy * sx + cz * cx) * transform.sy, (cy * sx) * transform.sy, 0.0F,
         (cz * sy * cx + sz * sx) * transform.sz, (sz * sy * cx - cz * sx) * transform.sz, (cy * cx) * transform.sz, 0.0F,
@@ -95,17 +94,17 @@ Mat4 MakeModel(const Transform3& transform) {
 
 RenderPoint3 TransformPoint(const Mat4& matrix, RenderPoint3 point) {
     return {
-        matrix.v[0] * point.x + matrix.v[4] * point.y + matrix.v[8] * point.z + matrix.v[12],
-        matrix.v[1] * point.x + matrix.v[5] * point.y + matrix.v[9] * point.z + matrix.v[13],
-        matrix.v[2] * point.x + matrix.v[6] * point.y + matrix.v[10] * point.z + matrix.v[14]
+        matrix.m[0] * point.x + matrix.m[4] * point.y + matrix.m[8] * point.z + matrix.m[12],
+        matrix.m[1] * point.x + matrix.m[5] * point.y + matrix.m[9] * point.z + matrix.m[13],
+        matrix.m[2] * point.x + matrix.m[6] * point.y + matrix.m[10] * point.z + matrix.m[14]
     };
 }
 
 RenderPoint3 TransformDirection(const Mat4& matrix, RenderPoint3 value) {
     return Normalize({
-        matrix.v[0] * value.x + matrix.v[4] * value.y + matrix.v[8] * value.z,
-        matrix.v[1] * value.x + matrix.v[5] * value.y + matrix.v[9] * value.z,
-        matrix.v[2] * value.x + matrix.v[6] * value.y + matrix.v[10] * value.z
+        matrix.m[0] * value.x + matrix.m[4] * value.y + matrix.m[8] * value.z,
+        matrix.m[1] * value.x + matrix.m[5] * value.y + matrix.m[9] * value.z,
+        matrix.m[2] * value.x + matrix.m[6] * value.y + matrix.m[10] * value.z
     });
 }
 
@@ -156,7 +155,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         for (const MeshVertex& vertex : instance.vertices) {
             const RenderPoint3 position = TransformPoint(model, vertex.position);
             const RenderPoint3 normal = TransformDirection(model, vertex.normal);
-            Vulkan3DVertex gpuVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v};\n            gpuVertex.boneIndices = vertex.boneIndices;\n            gpuVertex.boneWeights = vertex.boneWeights;\n            vertices.push_back(gpuVertex);
+            Vulkan3DVertex gpuVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.m};\n            gpuVertex.boneIndices = vertex.boneIndices;\n            gpuVertex.boneWeights = vertex.boneWeights;\n            vertices.push_back(gpuVertex);
         }
 
         std::vector<uint32_t> indices;
@@ -170,7 +169,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             indices.push_back(static_cast<uint32_t>(index));
         }
 
-        if (!renderer.DrawIndexed(vertices, indices, viewProjection.v.data())) {
+        if (!renderer.DrawIndexed(vertices, indices, viewProjection.m)) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;
