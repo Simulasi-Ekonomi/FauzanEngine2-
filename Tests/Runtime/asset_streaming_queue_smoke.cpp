@@ -73,6 +73,7 @@ int main() {
     assert(!queue.CompleteUpload("over", FakeDeviceMemory(3), 2));
     assert(queue.GetState("over") == StreamState::Uploading);
     assert(queue.FailUpload("over"));
+    assert(queue.GetResidentMB() == 7);
 
     queue.SetMemoryBudgetMB(4);
     assert(queue.EvictToBudget());
