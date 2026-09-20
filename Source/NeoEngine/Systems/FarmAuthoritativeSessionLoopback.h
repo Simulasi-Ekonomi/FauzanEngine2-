@@ -23,6 +23,7 @@ public:
     bool Start(FarmAuthoritativeSessionHost& host, AuthorityLoopbackServer& transport,
                const FarmSessionPrincipal& serverAuthenticatedPrincipal, uint64_t serverTick, uint16_t maxConnections = 1U);
     void Stop();
+    void SetServerTick(uint64_t serverTick);
 
     [[nodiscard]] bool IsRunning() const;
     [[nodiscard]] uint16_t Port() const;
@@ -37,7 +38,7 @@ private:
     AuthorityLoopbackServer* transport_ = nullptr;
     FarmSessionPrincipal principal_{};
     uint64_t sessionHandle_ = 0U;
-    uint64_t serverTick_ = 0U;
+    std::atomic<uint64_t> serverTick_{0U};
     FarmAuthoritativeCommandReceipt lastAcceptedReceipt_{};
     bool hasAcceptedReceipt_ = false;
     bool ready_ = false;
