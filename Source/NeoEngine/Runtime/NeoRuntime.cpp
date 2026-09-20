@@ -1,4 +1,5 @@
 #include "NeoRuntime.h"
+#include "Systems/FarmTelemetryAdapter.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
@@ -276,7 +277,11 @@ bool NeoRuntime::Tick() {
     m_HasFrameReceipt = true;
     if ((m_LastFrameReceipt.clock.fixedStepCount % 60U) == 0U) {
         const std::string id = "runtime-" + std::to_string(m_LastFrameReceipt.clock.fixedStepCount);
-        (void)m_Telemetry.Enqueue(id, BuildRuntimeTelemetryJson(m_LastFrameReceipt));
+        std::string telemetryEnvelope;
+        const uint64_t occurredAtMs = m_LastFrameReceipt.clock.fixedStepCount * 16ULL;
+        if (m_FarmTelemetry.BuildWorldEnvelope(*m_Farm, *m_FarmWorld, occurredAtMs, telemetryEnvelope)) {
+            (void)m_Telemetry.Enqueue(id, std::move(telemetryEnvelope));
+        }
     }
     m_LastError = RuntimeError::None;
     return true;
