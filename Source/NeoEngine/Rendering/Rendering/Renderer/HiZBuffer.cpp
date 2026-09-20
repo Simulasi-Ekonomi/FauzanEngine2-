@@ -99,5 +99,5 @@ float HiZBuffer::SampleOcclusion(int level, int x, int y) const {
     const int height = GetHeight(level);
     if (x < 0 || y < 0 || x >= width || y >= height) return 0.0F;
     return occlusionMip_[static_cast<std::size_t>(level)]
-               [static_cast<std::size_t>(y * width + x)];
+               [static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x)];
 }
