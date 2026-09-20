@@ -480,6 +480,40 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     return true;
 }
 
+bool NeoRuntime::SaveTelemetryOutboxFile(const std::filesystem::path& root, const std::string& slot) {
+    if (m_State != RuntimeState::Initialized) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    const std::vector<uint8_t> bytes = m_Telemetry.Serialize();
+    if (bytes.empty() || bytes.size() > AtomicSaveFile::kMaxBytes) {
+        m_LastError = RuntimeError::CheckpointEncodeFailed;
+        return false;
+    }
+    AtomicSaveFileError error = AtomicSaveFileError::None;
+    if (!AtomicSaveFile::Write(root, slot, bytes, error) || !AtomicSaveFile::Flush(root, slot, error)) {
+        m_LastError = RuntimeError::CheckpointEncodeFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::RestoreTelemetryOutboxFile(const std::filesystem::path& root, const std::string& slot) {
+    if (m_State != RuntimeState::Initialized) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    std::vector<uint8_t> bytes;
+    AtomicSaveFileError error = AtomicSaveFileError::None;
+    if (!AtomicSaveFile::Read(root, slot, bytes, error) || !m_Telemetry.Deserialize(bytes)) {
+        m_LastError = RuntimeError::CheckpointDecodeFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
