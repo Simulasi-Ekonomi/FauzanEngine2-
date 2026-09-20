@@ -163,6 +163,24 @@ bool CanonicalRuntimeWorld::ReadBackPhysicsToScene() {
     return true;
 }
 
+bool CanonicalRuntimeWorld::Raycast(const GameplayRay2& ray, GameplayRayHit2& hit) {
+    if (physicsQuery_.Raycast(physics_, ray, hit)) {
+        lastError_ = CanonicalWorldError::None;
+        return true;
+    }
+    lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+    return false;
+}
+
+bool CanonicalRuntimeWorld::OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities) {
+    if (physicsQuery_.OverlapCircle(physics_, circle, entities)) {
+        lastError_ = CanonicalWorldError::None;
+        return true;
+    }
+    lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+    return false;
+}
+
 bool CanonicalRuntimeWorld::Step(float dt) {
     if (bindingCount_ > kMaxBindings) {
         lastError_ = CanonicalWorldError::Capacity;
