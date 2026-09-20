@@ -34,6 +34,7 @@
 #include "Systems/WorldAuthoring.h"
 #include "Systems/TrustSafetySystem.h"
 #include "Systems/TelemetryOutbox.h"
+#include "Systems/FarmTelemetryAdapter.h"
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -194,6 +195,7 @@ private:
     RuntimeFarmRenderReceipt m_LastFarmRenderReceipt{};
     bool m_HasFarmRenderReceipt = false;
     std::unique_ptr<SoftwareSurfacePresenter> m_SurfacePresenter;
+    FarmTelemetryAdapter m_FarmTelemetry{{"neo-runtime", "fauzan-engine", "runtime-v1", "runtime-farm-player"}};
     TelemetryOutbox m_Telemetry{};
 };
 } // namespace NeoEngine
