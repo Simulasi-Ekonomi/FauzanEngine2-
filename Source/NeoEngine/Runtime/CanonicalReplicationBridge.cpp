@@ -14,7 +14,7 @@ bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_
         lastError_ = CanonicalReplicationBridgeError::InvalidEntity;
         return false;
     }
-    if (!replication_.RegisterEntity(canonical.scene, networkId, ownerId)) {
+    if (!replication_.RegisterEntity(entity.scene, networkId, ownerId)) {
         lastError_ = CanonicalReplicationBridgeError::RegistrationFailed;
         return false;
     }
