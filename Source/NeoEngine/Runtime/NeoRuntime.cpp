@@ -162,6 +162,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
 
     m_FixedTicksPerFrame = config.fixedTicksPerFrame;
     m_TelemetryConsentGranted = config.telemetryConsentGranted;
+    m_TelemetryRetentionMs = config.telemetryRetentionMs;
     m_FarmWorldConfig = worldConfig;
     m_TrustSafety = std::move(trustSafety);
     m_Farm = std::move(farm);
@@ -243,6 +244,8 @@ bool NeoRuntime::Tick() {
         m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount(); m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
         m_HasFrameReceipt = true;
         if (m_TelemetryConsentGranted && (m_LastFrameReceipt.clock.fixedStepCount % 60U) == 0U) {
+        const uint64_t nowMs = m_LastFrameReceipt.clock.fixedStepCount * 16ULL;
+        (void)m_Telemetry.PruneOlderThan(nowMs, m_TelemetryRetentionMs);
             const std::string id = "runtime-" + std::to_string(m_LastFrameReceipt.clock.fixedStepCount);
             (void)m_Telemetry.Enqueue(id, BuildRuntimeTelemetryJson(m_LastFrameReceipt));
         }
