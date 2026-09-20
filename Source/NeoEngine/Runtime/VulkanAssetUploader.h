@@ -16,8 +16,11 @@ struct UploadTask {
 
 class VulkanAssetUploader {
 public:
-    explicit VulkanAssetUploader(uint32_t stagingPoolSizeMB = 512) noexcept 
+    explicit VulkanAssetUploader(uint32_t stagingPoolSizeMB = 512) noexcept
         : stagingPoolSizeMB_(stagingPoolSizeMB) {}
+
+    void SetPhysicalDevice(VkPhysicalDevice physicalDevice) noexcept { physicalDevice_ = physicalDevice; }
+    [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const noexcept { return physicalDevice_; }
     
     ~VulkanAssetUploader() noexcept = default;
     
@@ -52,6 +55,7 @@ private:
     uint32_t stagingPoolSizeMB_;
     uint32_t currentStagingUsedMB_ = 0;
     std::vector<UploadTask> pendingUploads_;
+    VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
 };
 
 } // namespace NeoEngine
