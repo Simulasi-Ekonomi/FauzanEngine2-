@@ -46,6 +46,9 @@ void HiZBuffer::BuildPyramid(const std::vector<float>& depth,
     if (depth.size() != expectedSize) {
         throw std::invalid_argument("HiZ depth buffer size does not match dimensions");
     }
+    if (std::any_of(depth.begin(), depth.end(), [](float value) { return !std::isfinite(value); })) {
+        throw std::invalid_argument("HiZ depth buffer contains non-finite values");
+    }
 
     pyramid[0] = depth;
     for (std::size_t level = 1; level < pyramid.size(); ++level) {
