@@ -285,6 +285,7 @@ bool NeoRuntime::Tick() {
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_ECS || !m_SceneECSBridge.Rebuild(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_FarmAuthorityLoopback != nullptr && m_FarmAuthorityLoopback->IsRunning()) m_FarmAuthorityLoopback->SetServerTick(m_Clock->Snapshot().fixedStepCount);
     if (m_Replication->Role() == ReplicationRole::Server) {
         if (!m_Replication->BuildServerSnapshot(m_Clock->Snapshot().fixedStepCount, m_LastReplicationSnapshot)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     } else if (!m_Replication->ApplyInterpolation(m_LastReplicationReceipt)) {
