@@ -76,6 +76,7 @@ jobs:
             echo "=== RUN $target ==="
             "./build/p0-release/$target"
             status=$?
+            echo "=== RESULT $target: $status ==="
             if [ "$status" -ne 0 ]; then release_status=1; fi
             done
           fi
@@ -110,6 +111,7 @@ jobs:
             echo "=== RUN $target ==="
             "./build/p0-asan/$target"
             status=$?
+            echo "=== RESULT $target: $status ==="
             if [ "$status" -ne 0 ]; then asan_status=1; fi
             done
           fi
