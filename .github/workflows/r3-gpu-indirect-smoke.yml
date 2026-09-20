@@ -87,6 +87,7 @@ jobs:
             -I. -I../../ \
             Runtime/VulkanGPUBuffer.cpp \
             Runtime/VulkanGraphicsPipeline.cpp \
+            Runtime/VulkanMeshBufferBuilder.cpp \
             ../NeoEngine/Renderer/GPUDrivenRenderer.cpp \
             Tests/r3_gpu_indirect_10k_execution_smoke.cpp \
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
