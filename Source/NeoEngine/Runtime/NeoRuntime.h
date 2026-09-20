@@ -37,13 +37,14 @@
 #include "Systems/AuthoringCatalog.h"
 #include "Systems/WorldAuthoring.h"
 #include "Systems/TrustSafetySystem.h"
+#include "SdlAudioBridge.h"
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, AudioFailed, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
 struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeFrameToken frameToken{}; RuntimeFrameStage frameStage = RuntimeFrameStage::Failed; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; bool hasVulkanRenderReceipt = false; Vulkan3DFrameStats vulkanRender{}; uint32_t physicsBodyCount = 0U; uint32_t physicsCollisionTests = 0U; size_t physicsManifoldCount = 0U; uint64_t physicsStepMicroseconds = 0U; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
@@ -51,6 +52,7 @@ struct RuntimeConfig {
     uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32;
     uint64_t authoringWorldSeed=5640001344762956868ULL; FarmBalanceProfile farmBalance{}; bool enableFarmRuntimeHud=false;
     bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true;
+    bool enableAudio=false; uint16_t audioFramesPerCallback=256; AudioListener audioListener{};
     bool enableVulkan3DRenderer=false; RenderCameraConfig sceneCamera{};
     bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false;
     bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false;
@@ -111,6 +113,14 @@ public:
     bool DestroyPhysicsBody(SceneEntity sceneEntity);
     bool ApplyPhysicsForce(SceneEntity sceneEntity, float forceX, float forceZ);
     bool ClearPhysicsForces(SceneEntity sceneEntity);
+    bool PlayAudio(const AudioComponent& component);
+    bool StopAudio(const AudioComponent& component);
+    bool UpdateAudioPosition(uint32_t voiceId, const float position[3]);
+    bool UpdateAudioPitch(uint32_t voiceId, float pitch);
+    bool UpdateAudioGain(uint32_t voiceId, uint16_t gainQ8);
+    bool SetAudioListener(const AudioListener& listener);
+    const SdlAudioBridge* Audio() const { return m_Audio.get(); }
+    SdlAudioBridge* Audio() { return m_Audio.get(); }
     RenderCamera* SceneCamera() { return m_SceneCamera.get(); }
     const RenderCamera* SceneCamera() const { return m_SceneCamera.get(); }
     Vulkan3DRenderer* VulkanRenderer() { return m_VulkanRenderer.get(); }
@@ -180,6 +190,7 @@ private:
     std::unique_ptr<SceneWorld> m_Scene;
     std::unique_ptr<ArchetypeManager> m_ECS;
     std::unique_ptr<XPBDPhysicsSystem> m_Physics;
+    std::unique_ptr<SdlAudioBridge> m_Audio;
     GameplayPhysicsBodyBuilder m_PhysicsBodies;
     GameplayPhysicsForceAccumulator m_PhysicsForces;
     ScenePhysicsPoseSync m_PhysicsPoseSync;
