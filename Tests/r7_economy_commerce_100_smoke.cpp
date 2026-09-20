@@ -22,7 +22,7 @@ int main() {
     cmd.quantity = 10;
 
     if (!ledger.Apply(catalog, cmd) || ledger.Quantity("C001") != 10 || !ledger.HasApplied("cmd_001")) return 1;
-    if (ledger.Apply(catalog, cmd) || ledger.Quantity("C001") != 10) return 1;
+    if (!ledger.Apply(catalog, cmd) || ledger.Quantity("C001") != 10 || !ledger.HasApplied("cmd_001")) return 1;
 
     std::vector<uint8_t> bytes;
     if (!ledger.Serialize(bytes) || bytes.empty()) return 1;
