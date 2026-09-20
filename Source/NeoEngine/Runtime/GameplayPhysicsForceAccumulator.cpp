@@ -1,4 +1,5 @@
 #include "GameplayPhysicsForceAccumulator.h"
+#include "GameplayPhysicsBody.h"
 
 #include <cmath>
 #include <limits>
