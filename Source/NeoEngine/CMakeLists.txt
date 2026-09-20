@@ -216,6 +216,8 @@ function(add_xpbd_executable target_name source_file)
         ${CMAKE_CURRENT_SOURCE_DIR}/Platform
     )
     target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
+    # Release disables assert(); smoke targets must retain their executable contract checks.
+    target_compile_options(${target_name} PRIVATE $<$<CONFIG:Release>:-UNDEBUG>)
 endfunction()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
