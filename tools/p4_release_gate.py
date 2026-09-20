@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -56,6 +57,13 @@ for line in hash_lines:
     parts = line.split("  ", 1)
     if len(parts) != 2 or len(parts[0]) != 64:
         raise SystemExit("P4_RELEASE_GATE_FAIL malformed manifest hash entry")
+    expected, relative = parts
+    path = ROOT / relative
+    if not path.is_file():
+        raise SystemExit(f"P4_RELEASE_GATE_FAIL missing_manifest_file={relative}")
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != expected:
+        raise SystemExit(f"P4_RELEASE_GATE_FAIL hash_mismatch={relative}")
 
 bom = json.loads(sbom.read_text(encoding="utf-8"))
 if bom.get("bomFormat") != "CycloneDX" or bom.get("specVersion") != "1.5":
