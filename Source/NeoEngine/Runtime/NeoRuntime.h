@@ -27,6 +27,8 @@
 #include "RouteRootMotionAdapter.h"
 #include "Systems/FarmSystem.h"
 #include "Systems/FarmAuthoritativeService.h"
+#include "Systems/FarmAuthoritativeSessionHost.h"
+#include "Systems/FarmAuthoritativeSessionLoopback.h"
 #include "Systems/FarmWorldTool.h"
 #include "Systems/CurriculumSystem.h"
 #include "Systems/AuthoringCatalog.h"
@@ -74,6 +76,10 @@ public:
     bool ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
     bool BuildReplicationSnapshotPacket(std::vector<uint8_t>& bytes) const;
     bool ApplyReplicationSnapshotPacket(std::span<const uint8_t> bytes, ReplicationApplyReceipt& receipt);
+    bool StartFarmAuthoritativeLoopback(const FarmSessionPrincipal& principal, uint16_t maxConnections = 1U);
+    void StopFarmAuthoritativeLoopback();
+    [[nodiscard]] uint16_t FarmAuthoritativeLoopbackPort() const;
+    [[nodiscard]] const FarmAuthoritativeSessionHost* FarmSessionHost() const { return m_FarmSessionHost.get(); }
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
@@ -148,6 +154,9 @@ private:
     std::unique_ptr<FarmSystem> m_Farm;
     std::unique_ptr<FarmWorldTool> m_FarmWorld;
     std::unique_ptr<FarmAuthoritativeService> m_FarmAuthority;
+    std::unique_ptr<FarmAuthoritativeSessionHost> m_FarmSessionHost;
+    std::unique_ptr<AuthorityLoopbackServer> m_FarmAuthorityTransport;
+    std::unique_ptr<FarmAuthoritativeSessionLoopback> m_FarmAuthorityLoopback;
     std::unique_ptr<AssetRegistry> m_Assets;
     std::unique_ptr<AssetResourceManager> m_Resources;
     std::unique_ptr<ActorComponentWorld> m_Actors;
