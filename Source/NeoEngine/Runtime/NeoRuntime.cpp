@@ -241,7 +241,7 @@ bool NeoRuntime::Tick() {
         m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
         m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount(); m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
         m_HasFrameReceipt = true;
-        if ((m_LastFrameReceipt.clock.fixedStepCount % 60U) == 0U) {
+        if (m_TelemetryConsentGranted && (m_LastFrameReceipt.clock.fixedStepCount % 60U) == 0U) {
             const std::string id = "runtime-" + std::to_string(m_LastFrameReceipt.clock.fixedStepCount);
             (void)m_Telemetry.Enqueue(id, BuildRuntimeTelemetryJson(m_LastFrameReceipt));
         }
@@ -283,6 +283,14 @@ bool NeoRuntime::Tick() {
             (void)m_Telemetry.Enqueue(id, std::move(telemetryEnvelope));
         }
     }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::SetTelemetryConsent(bool granted) {
+    if (m_State != RuntimeState::Initialized) { m_LastError = RuntimeError::InvalidState; return false; }
+    m_TelemetryConsentGranted = granted;
+    if (!granted) m_Telemetry = TelemetryOutbox{};
     m_LastError = RuntimeError::None;
     return true;
 }
