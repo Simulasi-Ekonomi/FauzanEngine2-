@@ -2,6 +2,7 @@
 #include "Runtime/MeshStaging.h"
 #include "Runtime/MaterialStaging.h"
 #include <cassert>
+#include <cstdio>
 #include <cmath>
 #include <limits>
 int main() {
@@ -42,7 +43,9 @@ int main() {
     material.sourceHash = 0x9080706050403020ULL;
     assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
 
+    std::fprintf(stderr, "SMOKE: before Tick\n"); std::fflush(stderr);
     assert(runtime.Tick());
+    std::fprintf(stderr, "SMOKE: after Tick\n"); std::fflush(stderr);
     const NeoEngine::NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
     assert(receipt != nullptr);
     assert(receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
