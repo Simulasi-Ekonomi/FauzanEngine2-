@@ -11,6 +11,8 @@ on:
       - 'Source/NeoEngine/Runtime/AudioMixer.*'
       - 'Source/NeoEngine/Runtime/WavAudioParser.*'
       - 'Source/NeoEngine/Runtime/AudioComponent.*'
+      - 'Source/NeoEngine/Runtime/NeoRuntime.*'
+      - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/EditorScene*.*'
       - 'Tests/Runtime/sdl_audio_bridge_smoke.cpp'
       - 'Tests/Runtime/sdl_input_bridge_smoke.cpp'
@@ -35,6 +37,7 @@ on:
       - 'Tests/Runtime/input_state_smoke.cpp'
       - 'Tests/Runtime/ui_input_router_smoke.cpp'
       - 'Tests/Runtime/audio_subsystem_smoke.cpp'
+      - 'Tests/Runtime/neo_runtime_audio_smoke.cpp'
       - 'Tests/Runtime/editor_subsystem_smoke.cpp'
       - '.github/workflows/r4-input-audio.yml'
   workflow_dispatch:
