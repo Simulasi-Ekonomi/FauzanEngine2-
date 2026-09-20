@@ -32,6 +32,17 @@ int main() {
     assert(snapshot.count == 1U);
     assert(snapshot.states[0].networkId == 42U);
 
+    CanonicalRuntimeWorld clientWorld;
+    CanonicalEntity clientActor{};
+    assert(clientWorld.CreateEntity({0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F},
+                                    COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER,
+                                    CanonicalTransformAuthority::Scene, clientActor));
+    assert(clientWorld.ConfigureReplication(ReplicationRole::Client, 9U, true));
+    assert(clientWorld.RegisterReplicatedEntity(clientActor, 42U, 7U));
+    ReplicationApplyReceipt clientReceipt{};
+    assert(clientWorld.ApplyReplicationSnapshot(snapshot, clientReceipt));
+    assert(clientReceipt.applied == 1U);
+
     const Transform3* sceneTransform = world.Scene().GetTransform(sceneActor.scene);
     assert(sceneTransform != nullptr);
     assert(std::isfinite(sceneTransform->x) && std::isfinite(sceneTransform->z));
