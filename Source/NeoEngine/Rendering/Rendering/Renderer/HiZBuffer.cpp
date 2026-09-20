@@ -39,7 +39,11 @@ void HiZBuffer::BuildPyramid(const std::vector<float>& depth,
                              int width,
                              int height,
                              std::vector<std::vector<float>>& pyramid) {
-    if (depth.size() != static_cast<std::size_t>(width * height)) {
+    if (width <= 0 || height <= 0) {
+        throw std::invalid_argument("HiZ pyramid dimensions must be positive");
+    }
+    const std::size_t expectedSize = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (depth.size() != expectedSize) {
         throw std::invalid_argument("HiZ depth buffer size does not match dimensions");
     }
 
