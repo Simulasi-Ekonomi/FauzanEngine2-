@@ -47,6 +47,16 @@ int main() {
     assert(agent.Execute(R"({"operation":"select","actorId":42})", session, assets, response));
     assert(session.SelectedActorId() == 42);
     assert(session.SelectedActorIds().size() == 1 && session.SelectedActorIds()[0] == 42);
+    assert(agent.Execute(R"({"operation":"duplicate","actorId":42,"newActorId":44})", session, assets, response));
+    assert(session.InspectActor(44, inspected));
+    assert(inspected.name == "Hero" && inspected.id == 44);
+    assert(agent.Execute(R"({"operation":"properties","actorId":44,"name":"HeroCopy","materialAssetId":"mat.copy","textureAssetId":"tex.copy","spriteRgba":4278255360})", session, assets, response));
+    assert(session.InspectActor(44, inspected));
+    assert(inspected.name == "HeroCopy" && inspected.materialAssetId == "mat.copy" && inspected.textureAssetId == "tex.copy");
+    assert(agent.Execute(R"({"operation":"selectMany","actorIds":[42,44]})", session, assets, response));
+    assert(session.SelectedActorIds().size() == 2 && session.SelectedActorIds()[0] == 42 && session.SelectedActorIds()[1] == 44);
+    assert(agent.Execute(R"({"operation":"query"})", session, assets, response));
+    assert(response.find("\"operation\":\"query\"") != std::string::npos);
 
     const std::string fullTransform = R"({"operation":"transform","actorId":42,"transform":{"x":3,"y":4,"z":5,"rx":6,"ry":7,"rz":8,"sx":2,"sy":3,"sz":4}})";
     assert(agent.Execute(fullTransform, session, assets, response));
