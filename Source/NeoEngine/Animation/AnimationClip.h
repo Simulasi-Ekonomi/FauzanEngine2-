@@ -2,6 +2,8 @@
 
 #include <vector>
 #include "Bone.h"
+#include <cstddef>
+#include <cstdint>
 
 namespace NeoEngine
 {
@@ -21,10 +23,11 @@ public:
     const std::vector<Keyframe>& GetFrames(int bone) const;
 
     float GetDuration() const;
+    bool Sample(int bone, float time, Mat4& out) const;
 
 private:
 
-    [[maybe_unused]] std::vector<std::vector<Keyframe>> tracks;
+    std::vector<std::vector<Keyframe>> tracks;
     float duration = 0;
 
 };
