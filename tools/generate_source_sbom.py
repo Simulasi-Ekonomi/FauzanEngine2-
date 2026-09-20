@@ -13,10 +13,8 @@ files = subprocess.check_output(
 ).split(b"\0")
 
 components = []
-for raw in files:
-    if not raw:
-        continue
-    path = raw.decode()
+tracked_paths = sorted(raw.decode() for raw in files if raw)
+for path in tracked_paths:
     full = root / path
     if not full.is_file() or full.is_symlink():
         continue
