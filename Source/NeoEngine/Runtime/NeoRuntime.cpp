@@ -145,6 +145,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
         }
     }
 
+    if (inputMotionEntity.index != 0xFFFFU && !replication->RegisterEntity(inputMotionEntity, 1U, config.replicationLocalClientId)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    if (routeMotionEntity.index != 0xFFFFU && routeMotionEntity.index != inputMotionEntity.index && !replication->RegisterEntity(routeMotionEntity, 2U, config.replicationLocalClientId)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     m_FixedTicksPerFrame = config.fixedTicksPerFrame;
     m_FarmWorldConfig = worldConfig;
     m_TrustSafety = std::move(trustSafety);
@@ -155,6 +157,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Resources = std::move(resources);
     m_Actors = std::move(actors);
     m_Replication = std::move(replication);
+    m_LastReplicationSnapshot = {};
+    m_LastReplicationReceipt = {};
     m_Authoring = std::make_unique<AuthoringCatalog>();
     m_Curriculum = std::move(curriculum);
     m_LastCurriculumEvents.clear();
@@ -242,6 +246,11 @@ bool NeoRuntime::Tick() {
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_ECS || !m_SceneECSBridge.Rebuild(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_Replication->Role() == ReplicationRole::Server) {
+        if (!m_Replication->BuildServerSnapshot(m_Clock->Snapshot().fixedStepCount, m_LastReplicationSnapshot)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    } else if (!m_Replication->ApplyInterpolation(m_LastReplicationReceipt)) {
+        m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false;
+    }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
     CurriculumProgressReceipt curriculumReceipt{};
     m_LastCurriculumEvents.clear();
