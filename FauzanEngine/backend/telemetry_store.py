@@ -65,6 +65,12 @@ class TelemetryDurableStore:
             pending = db.execute("SELECT COUNT(*) FROM telemetry_events WHERE state='pending'").fetchone()[0]
             if pending + len(refs) > self.max_events:
                 raise TelemetryStoreError("telemetry durable queue is full")
+            pending_bytes = db.execute(
+                "SELECT COALESCE(SUM(length(CAST(envelope_json AS BLOB))), 0) "
+                "FROM telemetry_events WHERE state='pending'"
+            ).fetchone()[0]
+            if pending_bytes + len(payload.encode("utf-8")) > self.max_bytes:
+                raise TelemetryStoreError("telemetry durable queue byte limit exceeded")
             inserted = 0
             for ref in refs:
                 cur = db.execute(
@@ -93,7 +99,10 @@ class TelemetryDurableStore:
                 "UPDATE telemetry_events SET state='acked' WHERE event_ref=? AND state='pending'",
                 ((ref,) for ref in refs),
             )
-            return cur.rowcount
+            changed = cur.rowcount
+            if changed:
+                db.execute("DELETE FROM telemetry_events WHERE state='acked'")
+            return changed
 
     def pending_count(self) -> int:
         with self._lock, self._connect() as db:
