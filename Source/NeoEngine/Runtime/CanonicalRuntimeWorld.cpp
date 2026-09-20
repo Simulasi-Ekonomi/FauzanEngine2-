@@ -231,6 +231,27 @@ bool CanonicalRuntimeWorld::SleepPhysicsEntity(const CanonicalEntity& entity) {
     return true;
 }
 
+bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntity>& entities) {
+    if (entities.empty()) {
+        lastError_ = CanonicalWorldError::InvalidEntity;
+        return false;
+    }
+    for (const CanonicalEntity& entity : entities) {
+        if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
+            lastError_ = CanonicalWorldError::InvalidEntity;
+            return false;
+        }
+    }
+    for (const CanonicalEntity& entity : entities) {
+        if (!physics_.WakeEntity(entity.ecs)) {
+            lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+            return false;
+        }
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
 bool CanonicalRuntimeWorld::Step(float dt) {
     if (bindingCount_ > kMaxBindings) {
         lastError_ = CanonicalWorldError::Capacity;
