@@ -1634,6 +1634,40 @@ bool XPBDPhysicsSystem::TryGetEntityId(uint32_t flatIdx, EntityID& entityId) con
     entityId = m_flatEntityIDs[flatIdx]; return true;
 }
 void XPBDPhysicsSystem::SetEntityLayer(uint32_t flatIdx, CollisionMask layer) { if (flatIdx < m_EntityLayers.size()) m_EntityLayers[flatIdx] = layer; }
+bool XPBDPhysicsSystem::IsEntityAwake(const EntityID entityId) const {
+    for (size_t i = 0; i < m_activeFlatEntities; ++i) {
+        if (m_flatEntityIDs[i] != entityId) continue;
+        return i < m_IsAwake.size() && m_IsAwake[i] != 0U;
+    }
+    return false;
+}
+
+bool XPBDPhysicsSystem::WakeEntity(const EntityID entityId) {
+    for (size_t i = 0; i < m_activeFlatEntities; ++i) {
+        if (m_flatEntityIDs[i] != entityId) continue;
+        if (i >= m_IsAwake.size()) return false;
+        m_IsAwake[i] = 1U;
+        if (i < m_IsAwakePrev.size()) m_IsAwakePrev[i] = 1U;
+        if (i < m_flatVelX.size()) m_flatVelX[i] = 0.0F;
+        if (i < m_flatVelZ.size()) m_flatVelZ[i] = 0.0F;
+        return true;
+    }
+    return false;
+}
+
+bool XPBDPhysicsSystem::SleepEntity(const EntityID entityId) {
+    for (size_t i = 0; i < m_activeFlatEntities; ++i) {
+        if (m_flatEntityIDs[i] != entityId) continue;
+        if (i >= m_IsAwake.size()) return false;
+        m_IsAwake[i] = 0U;
+        if (i < m_IsAwakePrev.size()) m_IsAwakePrev[i] = 0U;
+        if (i < m_flatVelX.size()) m_flatVelX[i] = 0.0F;
+        if (i < m_flatVelZ.size()) m_flatVelZ[i] = 0.0F;
+        return true;
+    }
+    return false;
+}
+
 CollisionMask XPBDPhysicsSystem::GetEntityLayer(uint32_t flatIdx) const { return (flatIdx < m_EntityLayers.size()) ? m_EntityLayers[flatIdx] : COLLISION_LAYER_NONE; }
 
 std::vector<uint32_t> XPBDPhysicsSystem::OverlapSphere(float centerX, float centerZ, float radius,
