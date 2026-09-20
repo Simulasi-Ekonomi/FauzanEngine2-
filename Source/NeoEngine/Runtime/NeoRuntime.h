@@ -55,7 +55,7 @@ struct RuntimeConfig {
     bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false;
     bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp;
     Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;
-    std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; bool enableFarmCurriculum=false; bool telemetryConsentGranted=false;
+    std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; bool enableFarmCurriculum=false; bool telemetryConsentGranted=false; uint64_t telemetryRetentionMs=7ULL * 24ULL * 60ULL * 60ULL * 1000ULL;
 };
 class NeoRuntime {
 public:
@@ -193,6 +193,7 @@ private:
     NeoRuntimeFrameReceipt m_LastFrameReceipt{};
     bool m_HasFrameReceipt = false;
     bool m_TelemetryConsentGranted = false;
+    uint64_t m_TelemetryRetentionMs = 7ULL * 24ULL * 60ULL * 60ULL * 1000ULL;
     uint64_t m_RenderedFarmFrames = 0U;
     RuntimeFarmRenderReceipt m_LastFarmRenderReceipt{};
     bool m_HasFarmRenderReceipt = false;
