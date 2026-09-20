@@ -191,6 +191,37 @@ bool CanonicalRuntimeWorld::OverlapCircleSet(const std::vector<GameplayOverlapCi
     return false;
 }
 
+bool CanonicalRuntimeWorld::IsPhysicsEntityAwake(const CanonicalEntity& entity) const {
+    if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) return false;
+    return physics_.IsEntityAwake(entity.ecs);
+}
+
+bool CanonicalRuntimeWorld::WakePhysicsEntity(const CanonicalEntity& entity) {
+    if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
+        lastError_ = CanonicalWorldError::InvalidEntity;
+        return false;
+    }
+    if (!physics_.WakeEntity(entity.ecs)) {
+        lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::SleepPhysicsEntity(const CanonicalEntity& entity) {
+    if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
+        lastError_ = CanonicalWorldError::InvalidEntity;
+        return false;
+    }
+    if (!physics_.SleepEntity(entity.ecs)) {
+        lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
 bool CanonicalRuntimeWorld::Step(float dt) {
     if (bindingCount_ > kMaxBindings) {
         lastError_ = CanonicalWorldError::Capacity;
