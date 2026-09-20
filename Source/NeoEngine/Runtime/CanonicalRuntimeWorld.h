@@ -64,6 +64,7 @@ public:
     bool IsPhysicsEntityAwake(const CanonicalEntity& entity) const;
     bool WakePhysicsEntity(const CanonicalEntity& entity);
     bool SleepPhysicsEntity(const CanonicalEntity& entity);
+    bool WakePhysicsEntities(const std::vector<CanonicalEntity>& entities);
     [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
