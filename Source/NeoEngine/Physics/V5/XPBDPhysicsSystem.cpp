@@ -59,6 +59,7 @@ XPBDPhysicsSystem::XPBDPhysicsSystem() {
     m_flatInvInertia.resize(PHYS_ENTITIES_MAX, 1.0f);
     m_EntityColor.resize(PHYS_ENTITIES_MAX, -1);
     m_ConstraintColor.resize(MAX_CONSTRAINTS, -1);
+    m_ColorTasks.reserve(MAX_WORKER_THREADS * 16);
     m_flatPosXPrev.resize(PHYS_ENTITIES_MAX, 0.0f);
     m_flatPosZPrev.resize(PHYS_ENTITIES_MAX, 0.0f);
     m_ChunkAssignment.resize(PHYS_ENTITIES_MAX, -1);
@@ -1552,23 +1553,22 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         for (size_t color = 0; color < m_NumColors; ++color)
             SolveColorBatch(color, compliance, simulationDt, 0, maxIter);
     } else {
-        struct ColorTask { size_t color; size_t offset; size_t count; };
         constexpr size_t kMinContactsPerTask = 4096;
-        std::vector<ColorTask> colorTasks;
+        m_ColorTasks.clear();
         for (size_t color = 0; color < m_NumColors; ++color) {
             const size_t count = m_ColorBatches[color].count;
             const size_t parts = std::min(workerCount, std::max<size_t>(1, (count + kMinContactsPerTask - 1) / kMinContactsPerTask));
             for (size_t part = 0; part < parts; ++part) {
                 const size_t begin = count * part / parts;
                 const size_t end = count * (part + 1) / parts;
-                if (begin < end) colorTasks.push_back({color, begin, end - begin});
+                if (begin < end) m_ColorTasks.push_back({color, begin, end - begin});
             }
         }
-        const size_t scheduledWorkers = std::min(workerCount, colorTasks.size());
+        const size_t scheduledWorkers = std::min(workerCount, m_ColorTasks.size());
         for (size_t worker = 0; worker < scheduledWorkers; ++worker) {
-            JobSystem::Get().Execute([this, &colorTasks, compliance, simulationDt, worker, scheduledWorkers, maxIter]() {
-                for (size_t task = worker; task < colorTasks.size(); task += scheduledWorkers) {
-                    const ColorTask& work = colorTasks[task];
+            JobSystem::Get().Execute([this, compliance, simulationDt, worker, scheduledWorkers, maxIter]() {
+                for (size_t task = worker; task < m_ColorTasks.size(); task += scheduledWorkers) {
+                    const ColorTask& work = m_ColorTasks[task];
                     SolveColorBatch(work.color, compliance, simulationDt, worker, maxIter, work.offset, work.count);
                 }
             });
