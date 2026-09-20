@@ -85,6 +85,8 @@ public:
     ActorComponentWorld* Actors() { return m_Actors.get(); }
     const ActorComponentWorld* Actors() const { return m_Actors.get(); }
     ReplicationWorld* Replication() { return m_Replication.get(); }
+    const ReplicationSnapshot& LastReplicationSnapshot() const { return m_LastReplicationSnapshot; }
+    const ReplicationApplyReceipt& LastReplicationReceipt() const { return m_LastReplicationReceipt; }
     const ReplicationWorld* Replication() const { return m_Replication.get(); }
     AuthoringCatalog* Authoring() { return m_Authoring.get(); }
     const AuthoringCatalog* Authoring() const { return m_Authoring.get(); }
@@ -141,6 +143,8 @@ private:
     std::unique_ptr<AssetResourceManager> m_Resources;
     std::unique_ptr<ActorComponentWorld> m_Actors;
     std::unique_ptr<ReplicationWorld> m_Replication;
+    ReplicationSnapshot m_LastReplicationSnapshot{};
+    ReplicationApplyReceipt m_LastReplicationReceipt{};
     std::unique_ptr<AuthoringCatalog> m_Authoring;
     std::unique_ptr<CurriculumSystem> m_Curriculum;
     std::vector<CurriculumEvent> m_LastCurriculumEvents{};
