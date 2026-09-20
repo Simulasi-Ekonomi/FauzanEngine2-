@@ -40,6 +40,7 @@ public:
     
     // Advance frame (cleanup completed uploads, fence waits)
     void AdvanceFrame(VkDevice device) noexcept;
+    void Flush(VkDevice device) noexcept;
     
     [[nodiscard]] uint32_t GetStagingPoolSizeMB() const noexcept { return stagingPoolSizeMB_; }
     [[nodiscard]] uint32_t GetCurrentStagingUsedMB() const noexcept { return currentStagingUsedMB_; }
@@ -56,6 +57,7 @@ private:
     uint32_t currentStagingUsedMB_ = 0;
     std::vector<UploadTask> pendingUploads_;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
+    VkDevice lastDevice_ = VK_NULL_HANDLE;
 };
 
 } // namespace NeoEngine
