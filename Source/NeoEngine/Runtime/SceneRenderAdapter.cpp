@@ -23,6 +23,12 @@ Mat4 Multiply(const Mat4& a, const Mat4& b) {
     return out;
 }
 
+Mat4 MakeMat4(const std::array<float, 16>& values) {
+    Mat4 out{};
+    std::copy(values.begin(), values.end(), out.m);
+    return out;
+}
+
 RenderPoint3 Normalize(RenderPoint3 value) {
     const float length = std::sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
     if (!std::isfinite(length) || length <= 1.0e-6F) return {0.0F, 0.0F, 1.0F};
@@ -33,8 +39,7 @@ Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3
     const RenderPoint3 forward = Normalize(config.forward);
     right = Normalize(right);
     up = Normalize(up);
-    Mat4 view{};
-    view.m = {
+    const Mat4 view = MakeMat4({
         right.x, up.x, forward.x, 0.0F,
         right.y, up.y, forward.y, 0.0F,
         right.z, up.z, forward.z, 0.0F,
@@ -42,7 +47,7 @@ Mat4 MakeView(const RenderCameraConfig& config, RenderPoint3 right, RenderPoint3
         -(up.x * config.position.x + up.y * config.position.y + up.z * config.position.z),
         -(forward.x * config.position.x + forward.y * config.position.y + forward.z * config.position.z),
         1.0F
-    };
+    });
     return view;
 }
 
@@ -54,12 +59,12 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
         const float halfWidth = halfHeight * aspect;
         const float nearPlane = std::max(0.001F, config.nearPlane);
         const float farPlane = std::max(nearPlane + 0.001F, config.farPlane);
-        projection.m = {
+        projection = MakeMat4({
             1.0F / halfWidth, 0.0F, 0.0F, 0.0F,
             0.0F, 1.0F / halfHeight, 0.0F, 0.0F,
             0.0F, 0.0F, 1.0F / (farPlane - nearPlane), 0.0F,
             0.0F, 0.0F, -nearPlane / (farPlane - nearPlane), 1.0F
-        };
+        });
         return projection;
     }
 
@@ -69,12 +74,12 @@ Mat4 MakeProjection(const RenderCameraConfig& config) {
     const float farPlane = std::max(nearPlane + 0.001F, config.farPlane);
     const float halfFov = std::clamp(config.verticalFovDegrees, 1.0F, 179.0F) * (kPi / 360.0F);
     const float focal = 1.0F / std::tan(halfFov);
-    projection.m = {
+    projection = MakeMat4({
         focal / aspect, 0.0F, 0.0F, 0.0F,
         0.0F, focal, 0.0F, 0.0F,
         0.0F, 0.0F, farPlane / (farPlane - nearPlane), 1.0F,
         0.0F, 0.0F, -(nearPlane * farPlane) / (farPlane - nearPlane), 0.0F
-    };
+    });
     return projection;
 }
 
@@ -82,13 +87,12 @@ Mat4 MakeModel(const Transform3& transform) {
     const float cx = std::cos(transform.rx), sx = std::sin(transform.rx);
     const float cy = std::cos(transform.ry), sy = std::sin(transform.ry);
     const float cz = std::cos(transform.rz), sz = std::sin(transform.rz);
-    Mat4 model{};
-    model.m = {
+    const Mat4 model = MakeMat4({
         (cz * cy) * transform.sx, (sz * cy) * transform.sx, (-sy) * transform.sx, 0.0F,
         (cz * sy * sx - sz * cx) * transform.sy, (sz * sy * sx + cz * cx) * transform.sy, (cy * sx) * transform.sy, 0.0F,
         (cz * sy * cx + sz * sx) * transform.sz, (sz * sy * cx - cz * sx) * transform.sz, (cy * cx) * transform.sz, 0.0F,
         transform.x, transform.y, transform.z, 1.0F
-    };
+    });
     return model;
 }
 
