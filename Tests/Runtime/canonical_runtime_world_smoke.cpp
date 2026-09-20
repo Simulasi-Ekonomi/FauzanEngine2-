@@ -16,6 +16,9 @@ int main() {
     assert(world.ECS().HasEntity(sceneActor.ecs));
     assert(world.Scene().GetTransform(sceneActor.scene) != nullptr);
 
+    assert(world.ConfigureReplication(ReplicationRole::Server, 7U, true));
+    assert(world.RegisterReplicatedEntity(sceneActor, 42U, 7U));
+
     const uint64_t revisionBefore = world.ECS().GetPhysicsRevision();
     assert(world.Step(1.0F / 60.0F));
     assert(world.LastFrame().physicsStepped);
@@ -24,6 +27,11 @@ int main() {
     assert(world.LastFrame().physicsEntities == 1U);
     assert(world.ECS().GetPhysicsRevision() >= revisionBefore);
 
+    ReplicationSnapshot snapshot{};
+    assert(world.BuildReplicationSnapshot(world.LastFrame().frame, snapshot));
+    assert(snapshot.count == 1U);
+    assert(snapshot.states[0].networkId == 42U);
+
     const Transform3* sceneTransform = world.Scene().GetTransform(sceneActor.scene);
     assert(sceneTransform != nullptr);
     assert(std::isfinite(sceneTransform->x) && std::isfinite(sceneTransform->z));
@@ -31,6 +39,7 @@ int main() {
     assert(world.SetTransform(sceneActor, {4.0F, 0.0F, -2.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}));
     assert(world.Step(1.0F / 60.0F));
 
+    assert(world.UnregisterReplicatedEntity(42U));
     assert(world.DestroyEntity(sceneActor));
     assert(world.Scene().AliveCount() == 0U);
     return 0;
