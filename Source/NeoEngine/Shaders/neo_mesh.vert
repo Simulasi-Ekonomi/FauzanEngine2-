@@ -11,7 +11,7 @@ layout(location = 7) in uvec4 boneIndices;
 layout(location = 8) in vec4 boneWeights;
 
 layout(set = 0, binding = 0, std140) uniform SkinningPalette {
-    mat4 bones[64];
+    mat4 skinning.bones[64];
 } skinning;
 
 layout(push_constant) uniform Transform {
@@ -28,10 +28,10 @@ void main() {
     float weightSum = boneWeights.x + boneWeights.y + boneWeights.z + boneWeights.w;
     if (weightSum > 0.000001) {
         skinMatrix =
-            bones[min(boneIndices.x, 63u)] * boneWeights.x +
-            bones[min(boneIndices.y, 63u)] * boneWeights.y +
-            bones[min(boneIndices.z, 63u)] * boneWeights.z +
-            bones[min(boneIndices.w, 63u)] * boneWeights.w;
+            skinning.bones[min(boneIndices.x, 63u)] * boneWeights.x +
+            skinning.bones[min(boneIndices.y, 63u)] * boneWeights.y +
+            skinning.bones[min(boneIndices.z, 63u)] * boneWeights.z +
+            skinning.bones[min(boneIndices.w, 63u)] * boneWeights.w;
     }
     vec4 skinnedPosition = skinMatrix * vec4(inPosition, 1.0);
     vec3 skinnedNormal = mat3(skinMatrix) * inNormal;
