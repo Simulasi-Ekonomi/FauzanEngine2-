@@ -85,6 +85,10 @@ XPBDPhysicsSystem::XPBDPhysicsSystem() {
     m_DenseShardStamp.resize(STAMP_SIZE, UINT32_MAX);
     for (auto& contacts : m_DenseShardContacts) contacts.reserve(MAX_CONTACTS / DENSE_MANIFOLD_SHARDS + 1);
     m_BVHStack.reserve(4096);
+    m_BroadphaseIndices.reserve(PHYS_ENTITIES_MAX);
+    m_BVHSortBuffer.reserve(PHYS_ENTITIES_MAX);
+    m_BVHSortedIndices.reserve(PHYS_ENTITIES_MAX);
+    m_BVHBuildStack.reserve(PHYS_ENTITIES_MAX * 2);
     m_LeafNode.resize(PHYS_ENTITIES_MAX, -1);
     m_PostOrderCache.reserve(PHYS_ENTITIES_MAX * 2);
     m_PersistentContacts.resize(STAMP_SIZE);
@@ -277,32 +281,34 @@ void XPBDPhysicsSystem::BuildBVHMorton(std::vector<int>& indices) {
         v = (v | (v << 4)) & 0x030C30C3; v = (v | (v << 2)) & 0x09249249;
         return v;
     };
-    std::vector<std::pair<uint32_t,int>> mortonBuffer(indices.size());
+    m_BVHSortBuffer.clear();
+    m_BVHSortBuffer.resize(indices.size());
     size_t validCount = 0;
     for (size_t i = 0; i < indices.size(); ++i) {
         int e = indices[i];
         if (e < 0 || e >= (int)m_activeFlatEntities) continue;
         uint32_t ix = (uint32_t)(std::min(std::max((m_flatPosX[e]-minX)*invRange,0.0f),1.0f)*1023.0f);
         uint32_t iz = (uint32_t)(std::min(std::max((m_flatPosZ[e]-minZ)*invRange,0.0f),1.0f)*1023.0f);
-        mortonBuffer[validCount++] = {spread(ix) | (spread(iz) << 1), e};
+        m_BVHSortBuffer[validCount++] = {spread(ix) | (spread(iz) << 1), e};
     }
     if (validCount == 0) { m_BVHRoot = -1; return; }
-    RadixSortMorton(mortonBuffer);
-    std::vector<int> sorted(validCount);
-    for (size_t i = 0; i < validCount; ++i) sorted[i] = mortonBuffer[i].second;
+    m_BVHSortBuffer.resize(validCount);
+    RadixSortMorton(m_BVHSortBuffer);
+    m_BVHSortedIndices.resize(validCount);
+    for (size_t i = 0; i < validCount; ++i) m_BVHSortedIndices[i] = m_BVHSortBuffer[i].second;
 
     m_BVHNodes.clear();
     m_LeafNode.assign(m_activeFlatEntities, -1);
-    struct Task { int s, e, p; bool r; };
-    std::vector<Task> stk; stk.push_back({0,(int)sorted.size(),-1,false});
-    while (!stk.empty()) {
-        auto t = stk.back(); stk.pop_back();
+    m_BVHBuildStack.clear();
+    m_BVHBuildStack.push_back({0,(int)m_BVHSortedIndices.size(),-1,false});
+    while (!m_BVHBuildStack.empty()) {
+        auto t = m_BVHBuildStack.back(); m_BVHBuildStack.pop_back();
         int nid = (int)m_BVHNodes.size(); m_BVHNodes.push_back({});
         m_BVHNodes[nid].parent = t.p;
-        if (t.p >= 0) { if (t.r) m_BVHNodes[t.p].right = nid; else m_BVHNodes[t.p].left = nid; }
+        if (t.p >= 0) { if (t.right) m_BVHNodes[t.p].right = nid; else m_BVHNodes[t.p].left = nid; }
         else m_BVHRoot = nid;
         if (t.e - t.s == 1) {
-            int e = sorted[t.s];
+            int e = m_BVHSortedIndices[t.s];
             BVHNode& leaf = m_BVHNodes[nid];
             leaf.isLeaf = true; leaf.entityIdx = e; leaf.left = leaf.right = -1;
             float r = m_flatRadius[e] + FAT_MARGIN;
@@ -314,7 +320,7 @@ void XPBDPhysicsSystem::BuildBVHMorton(std::vector<int>& indices) {
         }
         float nX=1e30f,nZ=1e30f,xX=-1e30f,xZ=-1e30f;
         for (int i = t.s; i < t.e; ++i) {
-            int e = sorted[i]; float r = m_flatRadius[e] + FAT_MARGIN;
+            int e = m_BVHSortedIndices[i]; float r = m_flatRadius[e] + FAT_MARGIN;
             float ex = m_flatPosX[e], ez = m_flatPosZ[e];
             if (ex - r < nX) nX = ex - r; if (ex + r > xX) xX = ex + r;
             if (ez - r < nZ) nZ = ez - r; if (ez + r > xZ) xZ = ez + r;
@@ -323,8 +329,8 @@ void XPBDPhysicsSystem::BuildBVHMorton(std::vector<int>& indices) {
         nd.isLeaf = false; nd.minX = nX; nd.maxX = xX; nd.minZ = nZ; nd.maxZ = xZ;
         nd.cachedCost = (xX - nX) * (xZ - nZ);
         int mid = (t.s + t.e) / 2;
-        stk.push_back({mid, t.e, nid, true});
-        stk.push_back({t.s, mid, nid, false});
+        m_BVHBuildStack.push_back({mid, t.e, nid, true});
+        m_BVHBuildStack.push_back({t.s, mid, nid, false});
     }
     m_BVHInitialized = true;
 }
@@ -1488,13 +1494,12 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         m_BVHNodes.clear();
         GridBroadphase();
     } else {
-        std::vector<int> indices;
-        indices.reserve(m_activeFlatEntities);
+        m_BroadphaseIndices.clear();
         // Static colliders are spatial query participants even when no dynamic body is awake.
         // Excluding them made resting or initial dynamic–static overlaps invisible to the BVH.
         for (size_t i = 0; i < m_activeFlatEntities; ++i)
-            if (m_IsAwake[i] || m_flatInvMass[i] <= 0.0f) indices.push_back((int)i);
-        if (!indices.empty()) BuildBVHMorton(indices); else m_BVHRoot = -1;
+            if (m_IsAwake[i] || m_flatInvMass[i] <= 0.0f) m_BroadphaseIndices.push_back((int)i);
+        if (!m_BroadphaseIndices.empty()) BuildBVHMorton(m_BroadphaseIndices); else m_BVHRoot = -1;
     }
     if (m_TimingEnabled) m_StepTimingStats.broadphaseMs = millisSince(broadphaseStarted);
 
