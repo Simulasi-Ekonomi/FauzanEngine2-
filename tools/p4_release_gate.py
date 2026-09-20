@@ -53,12 +53,16 @@ if not sbom.is_file():
 lines = manifest.read_text(encoding="utf-8").splitlines()
 if len(lines) < 4 or lines[0] != "FAUZANENGINE_RELEASE_MANIFEST_V1":
     raise SystemExit("P4_RELEASE_GATE_FAIL invalid manifest header")
-if not all(lines[i].split("=", 1)[0] in {"commit", "tree", "files"} for i in range(1, 4)):
+metadata = lines[1:4]
+if any(line.count("=") != 1 for line in metadata):
     raise SystemExit("P4_RELEASE_GATE_FAIL invalid manifest metadata")
-manifest_commit = lines[1].split("=", 1)[1]
-manifest_tree = lines[2].split("=", 1)[1]
+metadata_keys = [line.split("=", 1)[0] for line in metadata]
+if metadata_keys != ["commit", "tree", "files"]:
+    raise SystemExit("P4_RELEASE_GATE_FAIL invalid manifest metadata order")
+manifest_commit = metadata[0].split("=", 1)[1]
+manifest_tree = metadata[1].split("=", 1)[1]
 try:
-    manifest_files = int(lines[3].split("=", 1)[1])
+    manifest_files = int(metadata[2].split("=", 1)[1])
 except ValueError as exc:
     raise SystemExit("P4_RELEASE_GATE_FAIL malformed manifest file count") from exc
 if manifest_files < 0:
