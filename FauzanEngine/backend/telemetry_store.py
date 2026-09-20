@@ -17,6 +17,10 @@ class TelemetryDurableStore:
     """Crash-safe SQLite queue with idempotent event references."""
 
     def __init__(self, path: str | Path, *, max_events: int = 100_000, max_bytes: int = 64 * 1024 * 1024) -> None:
+        if max_events <= 0:
+            raise ValueError("max_events must be positive")
+        if max_bytes <= 0:
+            raise ValueError("max_bytes must be positive")
         self.path = str(path)
         self.max_events = max_events
         self.max_bytes = max_bytes
