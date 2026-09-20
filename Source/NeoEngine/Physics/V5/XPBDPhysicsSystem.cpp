@@ -584,8 +584,9 @@ void XPBDPhysicsSystem::GridBroadphase() {
         return;
     }
 
-    std::vector<std::pair<uint64_t, uint32_t>> entries;
-    entries.reserve(m_activeFlatEntities * 2);
+    m_GridEntries.clear();
+    m_GridEntries.reserve(m_activeFlatEntities * 2);
+    auto& entries = m_GridEntries;
     for (uint32_t index = 0; index < m_activeFlatEntities; ++index) {
         if (m_flatRadius[index] <= 0.0f) continue;
         const float radius = m_flatRadius[index];
