@@ -133,6 +133,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/FarmSpriteRenderAdapter.cpp
     Runtime/ActorComponentWorld.cpp
     Runtime/ReplicationWorld.cpp
+    Runtime/CanonicalReplicationBridge.cpp
     Runtime/KinematicMotionController.cpp
     Runtime/FarmPlayerInputBridge.cpp
     Runtime/RuntimeTimerQueue.cpp
