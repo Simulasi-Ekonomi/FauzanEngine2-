@@ -207,6 +207,8 @@ set(XPBD_RUNTIME_SOURCES
     Threading/JobSystem.cpp
     Renderer/GPUDrivenRenderer.cpp
     Renderer/GPUFrustumCulling.cpp
+    Rendering/Rendering/Renderer/HiZBuffer.cpp
+    Rendering/Rendering/Renderer/OcclusionCulling.cpp
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
