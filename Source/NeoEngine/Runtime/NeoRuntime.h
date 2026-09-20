@@ -27,6 +27,7 @@
 #include "RouteRootMotionAdapter.h"
 #include "Systems/FarmSystem.h"
 #include "Systems/FarmAuthoritativeService.h"
+#include "Systems/FarmAuthoritativeSessionHost.h"
 #include "Systems/FarmWorldTool.h"
 #include "Systems/CurriculumSystem.h"
 #include "Systems/AuthoringCatalog.h"
@@ -62,6 +63,8 @@ public:
     bool SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool ReplanRouteMotion();
+    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
+    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
@@ -75,6 +78,8 @@ public:
     FarmWorldTool* FarmWorld() { return m_FarmWorld.get(); }
     const FarmWorldTool* FarmWorld() const { return m_FarmWorld.get(); }
     FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
+    FarmAuthoritativeSessionHost* FarmAuthoritySession() { return m_FarmAuthoritySession.get(); }
+    const FarmAuthoritativeSessionHost* FarmAuthoritySession() const { return m_FarmAuthoritySession.get(); }
     const FarmAuthoritativeService* FarmAuthority() const { return m_FarmAuthority.get(); }
     TrustSafetySystem* TrustSafety() { return m_TrustSafety.get(); }
     const TrustSafetySystem* TrustSafety() const { return m_TrustSafety.get(); }
@@ -137,6 +142,7 @@ private:
     std::unique_ptr<FarmSystem> m_Farm;
     std::unique_ptr<FarmWorldTool> m_FarmWorld;
     std::unique_ptr<FarmAuthoritativeService> m_FarmAuthority;
+    std::unique_ptr<FarmAuthoritativeSessionHost> m_FarmAuthoritySession;
     std::unique_ptr<AssetRegistry> m_Assets;
     std::unique_ptr<AssetResourceManager> m_Resources;
     std::unique_ptr<ActorComponentWorld> m_Actors;
