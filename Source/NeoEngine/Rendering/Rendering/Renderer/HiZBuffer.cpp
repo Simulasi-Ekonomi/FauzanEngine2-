@@ -63,9 +63,11 @@ void HiZBuffer::BuildPyramid(const std::vector<float>& depth,
 
         for (int y = 0; y < outHeight; ++y) {
             for (int x = 0; x < outWidth; ++x) {
-                const int x0 = std::min(2 * x, prevWidth - 1);
+                const int x0 = static_cast<int>(std::min<std::size_t>(
+                    static_cast<std::size_t>(x) * 2U, static_cast<std::size_t>(prevWidth - 1)));
                 const int x1 = std::min(x0 + 1, prevWidth - 1);
-                const int y0 = std::min(2 * y, prevHeight - 1);
+                const int y0 = static_cast<int>(std::min<std::size_t>(
+                    static_cast<std::size_t>(y) * 2U, static_cast<std::size_t>(prevHeight - 1)));
                 const int y1 = std::min(y0 + 1, prevHeight - 1);
                 const float a = in[static_cast<std::size_t>(y0) * static_cast<std::size_t>(prevWidth) + static_cast<std::size_t>(x0)];
                 const float b = in[static_cast<std::size_t>(y0) * static_cast<std::size_t>(prevWidth) + static_cast<std::size_t>(x1)];
