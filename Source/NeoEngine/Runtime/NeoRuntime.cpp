@@ -1,38 +1,4 @@
-#i
-bool NeoRuntime::BuildReplicationSnapshotPacket(std::vector<uint8_t>& bytes) const {
-    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Server) return false;
-    ReplicationError error = ReplicationError::None;
-    return ReplicationSnapshotCodec::Serialize(m_LastReplicationSnapshot, bytes, error);
-}
-
-bool NeoRuntime::ApplyReplicationSnapshotPacket(std::span<const uint8_t> bytes, ReplicationApplyReceipt& receipt) {
-    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    ReplicationSnapshot snapshot{};
-    ReplicationError error = ReplicationError::None;
-    if (!ReplicationSnapshotCodec::Deserialize(bytes, snapshot, error)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    return ApplyReplicationSnapshot(snapshot, receipt);
-}
-
-bool NeoRuntime::ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
-    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Replication->ApplyServerSnapshot(snapshot, receipt)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    m_LastReplicationReceipt = receipt;
-    m_LastError = RuntimeError::None;
-    return true;
-}
-nclude "NeoRuntime.h"
+#include "NeoRuntime.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
@@ -42,6 +8,7 @@ nclude "NeoRuntime.h"
 #include <limits>
 
 namespace NeoEngine {
+
 namespace {
 constexpr const char* kFarmProgressCheckpointKind = "neo-farm-progress";
 
