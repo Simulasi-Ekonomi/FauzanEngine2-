@@ -1,6 +1,9 @@
 #include "Runtime/NeoRuntime.h"
 #include "Runtime/MeshStaging.h"
 #include "Runtime/MaterialStaging.h"
+#include "Animation/Bone.h"
+#include "Animation/SkeletalPoseClip.h"
+#include "Animation/Skeleton.h"
 #include <cassert>
 #include <cstdio>
 #include <cmath>
@@ -59,6 +62,21 @@ int main() {
     assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
     std::fprintf(stderr, "SMOKE: after AddStaged call\n"); std::fflush(stderr);
     std::fprintf(stderr, "SMOKE: after mesh staging\n"); std::fflush(stderr);
+
+    NeoEngine::Skeleton skeleton;
+    NeoEngine::Bone root("root", -1);
+    if (!skeleton.TryAddBone(root) || !skeleton.DeriveInverseBindPose()) return 12;
+    NeoEngine::SkeletalPoseClip clip;
+    if (!clip.Configure(1U)) return 13;
+    const std::vector<NeoEngine::SkeletalPoseKeyframe> keys{
+        {0.0F, {0.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 0.0F, 1.0F}, {1.0F, 1.0F, 1.0F}},
+        {0.5F, {0.1F, 0.0F, 0.0F}, {0.0F, 0.0F, 0.0F, 1.0F}, {1.0F, 1.0F, 1.0F}}
+    };
+    if (!clip.SetTrack(0U, keys)) return 14;
+    std::vector<NeoEngine::VertexWeight> weights(mesh.vertices.size());
+    for (auto& weight : weights) { weight.boneIDs[0] = 0; weight.weights[0] = 1.0F; }
+    if (!runtime.SceneMeshes()->BindSkeletalAnimation(entities.front(), skeleton, clip, NeoEngine::SkeletalPosePlaybackMode::Clamp, weights)) return 15;
+    if (runtime.SceneMeshes()->Instances().front().skeletalPalette.size() != 1U) return 16;
 
     std::fprintf(stderr, "SMOKE: before Tick\n"); std::fflush(stderr);
     assert(runtime.Tick());
