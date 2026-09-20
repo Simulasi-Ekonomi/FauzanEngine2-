@@ -78,3 +78,18 @@ def test_durable_store_retains_ack_tombstone_for_idempotent_replay(tmp_path) -> 
     reopened = TelemetryDurableStore(db_path)
     assert reopened.enqueue(envelope, 123457) == 0
     assert reopened.pending_count() == 0
+
+
+def test_durable_store_byte_budget_counts_each_new_event_and_allows_replay(tmp_path) -> None:
+    store = TelemetryDurableStore(tmp_path / "telemetry-multi.sqlite3", max_bytes=520)
+    envelope = make_envelope("event-a")
+    envelope["events"].append({"eventRef": "event-b", "eventType": "farm.harvested", "occurredAtMs": 123456})
+    try:
+        store.enqueue(envelope, 123456)
+        assert False
+    except TelemetryStoreError:
+        pass
+
+    single = make_envelope("event-a")
+    assert store.enqueue(single, 123456) == 1
+    assert store.enqueue(single, 123457) == 0
