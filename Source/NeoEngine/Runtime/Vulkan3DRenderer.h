@@ -1,6 +1,7 @@
 #pragma once
 
-#include <array>\n#include <cstdint>
+#include <array>
+#include <cstdint>
 #include <span>
 #include <vector>
 #include "Animation/GPUSkinningPaletteBuffer.h"
@@ -14,6 +15,8 @@ struct Vulkan3DVertex {
     float px = 0.0F, py = 0.0F, pz = 0.0F;
     float nx = 0.0F, ny = 0.0F, nz = 1.0F;
     float u = 0.0F, v = 0.0F;
+    std::array<uint32_t, 4> boneIndices{};
+    std::array<float, 4> boneWeights{};
 };
 
 struct Vulkan3DFrameStats {
