@@ -61,6 +61,8 @@ for line in hash_lines:
     path = ROOT / relative
     if not path.is_file():
         raise SystemExit(f"P4_RELEASE_GATE_FAIL missing_manifest_file={relative}")
+    if path.is_symlink():
+        raise SystemExit(f"P4_RELEASE_GATE_FAIL symlink_manifest_file={relative}")
     actual = hashlib.sha256(path.read_bytes()).hexdigest()
     if actual != expected:
         raise SystemExit(f"P4_RELEASE_GATE_FAIL hash_mismatch={relative}")
