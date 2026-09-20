@@ -96,6 +96,10 @@ for line in hash_lines:
 bom = json.loads(sbom.read_text(encoding="utf-8"))
 if bom.get("bomFormat") != "CycloneDX" or bom.get("specVersion") != "1.5":
     raise SystemExit("P4_RELEASE_GATE_FAIL invalid SBOM format")
+bom_version = (bom.get("metadata") or {}).get("component", {}).get("version")
+if bom_version != head_commit:
+    raise SystemExit("P4_RELEASE_GATE_FAIL SBOM metadata does not describe current HEAD")
+
 components = bom.get("components")
 if not components:
     raise SystemExit("P4_RELEASE_GATE_FAIL empty SBOM")
