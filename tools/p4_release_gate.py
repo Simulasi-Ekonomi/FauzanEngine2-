@@ -68,7 +68,24 @@ for line in hash_lines:
 bom = json.loads(sbom.read_text(encoding="utf-8"))
 if bom.get("bomFormat") != "CycloneDX" or bom.get("specVersion") != "1.5":
     raise SystemExit("P4_RELEASE_GATE_FAIL invalid SBOM format")
-if not bom.get("components"):
+components = bom.get("components")
+if not components:
     raise SystemExit("P4_RELEASE_GATE_FAIL empty SBOM")
+
+manifest_entries = {}
+for line in hash_lines:
+    expected, relative = line.split("  ", 1)
+    manifest_entries[relative] = expected
+sbom_entries = {}
+for component in components:
+    if component.get("type") != "file" or not component.get("name"):
+        raise SystemExit("P4_RELEASE_GATE_FAIL malformed SBOM component")
+    hashes = component.get("hashes") or []
+    sha = next((item.get("content") for item in hashes if item.get("alg") == "SHA-256"), None)
+    if not sha or len(sha) != 64:
+        raise SystemExit("P4_RELEASE_GATE_FAIL missing SBOM SHA-256")
+    sbom_entries[component["name"]] = sha
+if sbom_entries != manifest_entries:
+    raise SystemExit("P4_RELEASE_GATE_FAIL SBOM does not exactly match release manifest")
 
 print(f"P4_RELEASE_GATE_OK files={len(bom['components'])}")
