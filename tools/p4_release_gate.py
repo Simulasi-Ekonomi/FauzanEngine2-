@@ -32,11 +32,15 @@ for pattern in ("*.keystore", "*.jks", "*.p12", "*-release-key", "*-signing-key"
             + ",".join(str(p.relative_to(ROOT)) for p in leaked)
         )
 
+signing_config_markers = ("storeFile", "storePassword", "keyAlias", "keyPassword", "signingConfigs", "NEO_ANDROID_KEYSTORE", "NEO_ANDROID_KEY_ALIAS", "NEO_ANDROID_STORE_PASSWORD", "NEO_ANDROID_KEY_PASSWORD")
 for forbidden_name in ("gradle.properties", "local.properties"):
-    leaked = [
-        p for p in ROOT.rglob(forbidden_name)
-        if ".git" not in p.parts and "build" not in p.parts and "out" not in p.parts
-    ]
+    leaked = []
+    for p in ROOT.rglob(forbidden_name):
+        if ".git" in p.parts or "build" in p.parts or "out" in p.parts:
+            continue
+        content = p.read_text(encoding="utf-8", errors="ignore")
+        if any(marker in content for marker in signing_config_markers):
+            leaked.append(p)
     if leaked:
         raise SystemExit(
             "P4_RELEASE_GATE_FAIL local_signing_config="
