@@ -13,6 +13,8 @@ from typing import Any
 
 import httpx
 
+from telemetry_store import TelemetryDurableStore
+
 
 class TelemetryForwarderError(RuntimeError):
     pass
@@ -27,12 +29,14 @@ class FarmTelemetryForwarder:
         runtime_token: str | None = None,
         timeout_seconds: float = 10.0,
         client: httpx.AsyncClient | None = None,
+        durable_store: TelemetryDurableStore | None = None,
     ) -> None:
         self.control_plane_url = (control_plane_url or os.getenv("CONTROL_PLANE_FARM_INGEST_URL", "")).strip()
         self.ingest_token = ingest_token if ingest_token is not None else os.getenv("ENGINE_TELEMETRY_INGEST_TOKEN", "")
         self.runtime_token = runtime_token if runtime_token is not None else os.getenv("ENGINE_RUNTIME_FORWARDER_TOKEN", "")
         self.timeout_seconds = timeout_seconds
         self._client = client
+        self.durable_store = durable_store
 
     def authenticate_runtime(self, supplied_token: str | None) -> bool:
         return bool(self.runtime_token) and supplied_token == self.runtime_token
@@ -67,6 +71,8 @@ class FarmTelemetryForwarder:
 
     async def forward(self, envelope: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         payload = self.validate_envelope(envelope)
+        if self.durable_store is not None:
+            self.durable_store.enqueue(payload, payload["occurredAtMs"])
         if not self.control_plane_url or not self.ingest_token:
             raise TelemetryForwarderError("trusted control-plane configuration is incomplete")
         client = self._client
@@ -83,6 +89,8 @@ class FarmTelemetryForwarder:
                 body = response.json()
             except ValueError:
                 body = {"body": response.text[:4096]}
+            if response.status_code < 400 and self.durable_store is not None:
+                self.durable_store.acknowledge([event["eventRef"] for event in payload["events"]])
             return response.status_code, body
         except httpx.HTTPError as exc:
             raise TelemetryForwarderError("control-plane transport failed") from exc
