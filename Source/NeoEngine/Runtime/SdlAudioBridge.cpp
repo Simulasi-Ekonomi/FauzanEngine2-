@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <cmath>
 
 namespace NeoEngine {
 
@@ -90,7 +91,25 @@ bool SdlAudioBridge::UpdateVoiceGain(uint32_t id, uint16_t gainQ8) {
     const bool ok = mixer_.UpdateVoiceGain(id, gainQ8);
     SDL_UnlockAudioStream(stream_);
     if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
     return ok;
+}
+
+bool SdlAudioBridge::SetListener(const AudioListener& listener) {
+    if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
+    for (const float value : {listener.position[0], listener.position[1], listener.position[2],
+                              listener.forward[0], listener.forward[1], listener.forward[2],
+                              listener.up[0], listener.up[1], listener.up[2]}) {
+        if (!std::isfinite(value)) {
+            lastError_ = SdlAudioBridgeError::MixerRejected;
+            return false;
+        }
+    }
+    SDL_LockAudioStream(stream_);
+    mixer_.SetListener(listener);
+    SDL_UnlockAudioStream(stream_);
+    lastError_ = SdlAudioBridgeError::None;
+    return true;
 }
 
 uint16_t SdlAudioBridge::QueuedVoiceCount() const {
