@@ -35,7 +35,7 @@ uint32_t BytesToMB(VkDeviceSize bytes) noexcept {
 
 bool VulkanAssetUploader::Initialize(VkDevice device, VkPhysicalDevice physicalDevice) noexcept {
     if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) return false;
-    if (!pendingUploads_.empty()) return false;
+    if (initializedDevice_ != VK_NULL_HANDLE || !pendingUploads_.empty()) return false;
     physicalDevice_ = physicalDevice;
     initializedDevice_ = device;
     currentStagingUsedMB_ = 0;
@@ -43,14 +43,14 @@ bool VulkanAssetUploader::Initialize(VkDevice device, VkPhysicalDevice physicalD
 }
 
 void VulkanAssetUploader::Shutdown(VkDevice device) noexcept {
-    if (device == VK_NULL_HANDLE) return;
+    // Staging allocations belong to the device used during Initialize(). Never
+    // destroy them through an unrelated device handle.
+    if (device == VK_NULL_HANDLE || device != initializedDevice_) return;
     for (auto& task : pendingUploads_) DestroyUploadTask(device, task);
     pendingUploads_.clear();
     currentStagingUsedMB_ = 0;
-    if (device == initializedDevice_) {
-        initializedDevice_ = VK_NULL_HANDLE;
-        physicalDevice_ = VK_NULL_HANDLE;
-    }
+    initializedDevice_ = VK_NULL_HANDLE;
+    physicalDevice_ = VK_NULL_HANDLE;
 }
 
 bool VulkanAssetUploader::ReserveStaging(VkDeviceSize bytes) noexcept {
