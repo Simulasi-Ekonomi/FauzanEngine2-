@@ -1,0 +1,34 @@
+name: SDL3 Modernize
+
+on:
+  push:
+    branches: [upgrade/sdl3-modern]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-and-verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: upgrade/sdl3-modern
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libvulkan-dev glslang-tools python3
+      - name: Build and install SDL 3.4.14
+        run: |
+          curl -L --fail --retry 3 -o /tmp/SDL3.tar.gz https://github.com/libsdl-org/SDL/releases/download/release-3.4.14/SDL3-3.4.14.tar.gz
+          tar -xzf /tmp/SDL3.tar.gz -C /tmp
+          cmake -S /tmp/SDL3-3.4.14 -B /tmp/sdl3-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL_TESTS=OFF
+          cmake --build /tmp/sdl3-build --parallel 2
+          sudo cmake --install /tmp/sdl3-build
+      - name: Audit for stale SDL2 API
+        run: |
+          if grep -RInE '#include <SDL\.h>|#include <SDL_vulkan\.h>|SDL2::|find_package\(SDL2|SDL_WINDOWPOS_|SDL_WINDOWEVENT|SDL_CONTROLLER|SDL_RenderCopy\(|SDL_RENDERER_SOFTWARE|AUDIO_S16SYS' Source Tests --include='*.cpp' --include='*.h'; then
+            echo 'Stale SDL2 API detected.'
+            exit 1
+          fi
