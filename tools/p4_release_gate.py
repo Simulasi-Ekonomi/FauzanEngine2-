@@ -81,7 +81,10 @@ for line in hash_lines:
     if len(parts) != 2 or not re.fullmatch(r"[0-9a-f]{64}", parts[0]):
         raise SystemExit("P4_RELEASE_GATE_FAIL malformed manifest hash entry")
     expected, relative = parts
-    path = ROOT / relative
+    relative_path = Path(relative)
+    if relative_path.is_absolute() or ".." in relative_path.parts or str(relative_path) != relative:
+        raise SystemExit(f"P4_RELEASE_GATE_FAIL unsafe_manifest_path={relative}")
+    path = ROOT / relative_path
     if not path.is_file():
         raise SystemExit(f"P4_RELEASE_GATE_FAIL missing_manifest_file={relative}")
     if path.is_symlink():
