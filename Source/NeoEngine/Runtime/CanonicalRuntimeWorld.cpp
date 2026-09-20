@@ -172,6 +172,15 @@ bool CanonicalRuntimeWorld::Raycast(const GameplayRay2& ray, GameplayRayHit2& hi
     return false;
 }
 
+bool CanonicalRuntimeWorld::RaycastSet(const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits) {
+    if (physicsQuery_.RaycastSet(physics_, rays, hits)) {
+        lastError_ = CanonicalWorldError::None;
+        return true;
+    }
+    lastError_ = CanonicalWorldError::QueryFailed;
+    return false;
+}
+
 bool CanonicalRuntimeWorld::OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities) {
     if (physicsQuery_.OverlapCircle(physics_, circle, entities)) {
         lastError_ = CanonicalWorldError::None;
