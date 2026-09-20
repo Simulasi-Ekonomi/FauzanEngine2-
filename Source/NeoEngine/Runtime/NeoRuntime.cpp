@@ -1,4 +1,18 @@
-#include "NeoRuntime.h"
+#i
+bool NeoRuntime::ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
+    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_Replication->ApplyServerSnapshot(snapshot, receipt)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    m_LastReplicationReceipt = receipt;
+    m_LastError = RuntimeError::None;
+    return true;
+}
+nclude "NeoRuntime.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
