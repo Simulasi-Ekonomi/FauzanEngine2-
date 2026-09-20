@@ -80,6 +80,9 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/Vulkan3DRenderer.cpp
+    Runtime/VulkanGPUBuffer.cpp
+    Runtime/VulkanGraphicsPipeline.cpp
+    Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
@@ -90,6 +93,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/CanonicalReplicationBridge.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
     Runtime/SceneECSBridge.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
