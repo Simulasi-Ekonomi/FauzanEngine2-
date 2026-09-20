@@ -10,7 +10,8 @@ int main() {
     NeoEngine::PhysicsStepBudget budget{};
 
     constexpr uint32_t kBodies = 100000U;
-    constexpr uint32_t kCollisionTarget = 200000U;
+    constexpr uint32_t kMinCollisionTests = 198000U;
+    constexpr uint32_t kMaxCollisionTests = 200000U;
     constexpr uint32_t kComponentMask =
         NeoEngine::COMP_POSITION | NeoEngine::COMP_VELOCITY | NeoEngine::COMP_COLLIDER;
 
@@ -18,8 +19,8 @@ int main() {
     for (uint32_t i = 0; i < kBodies; ++i) {
         const NeoEngine::EntityID id = entities.CreateEntity(kComponentMask);
         assert(id != UINT32_MAX);
-        const float x = static_cast<float>(i % 1000U) * 1.5F;
-        const float z = static_cast<float>(i / 1000U) * 1.5F;
+        const float x = static_cast<float>(i % 1000U) * 0.89F;
+        const float z = static_cast<float>(i / 1000U) * 0.89F;
         entities.SetPosX(id, x);
         entities.SetPosZ(id, z);
         entities.SetRadius(id, 0.45F);
@@ -34,7 +35,8 @@ int main() {
     const uint64_t elapsedUs = physics.GetLastStepElapsedMicroseconds();
 
     assert(measuredBodies == kBodies);
-    assert(measuredCollisionTests <= kCollisionTarget);
+    assert(measuredCollisionTests >= kMinCollisionTests);
+    assert(measuredCollisionTests <= kMaxCollisionTests);
     assert(elapsedUs > 0U);
 
     budget.Record(measuredBodies, measuredCollisionTests, static_cast<uint32_t>(physics.GetManifoldCount()), elapsedUs);
@@ -42,6 +44,6 @@ int main() {
 
     // This smoke is an integration guard, not a fabricated performance pass:
     // it only reports the real measured workload to CI.
-    (void)std::fputs("physics_step_measurement_smoke: actual ECS workload executed\\n", stdout);
+    std::printf("physics_step_measurement_smoke: actual ECS workload executed collisions=%u elapsed_us=%llu\\n", measuredCollisionTests, static_cast<unsigned long long>(elapsedUs));
     return 0;
 }
