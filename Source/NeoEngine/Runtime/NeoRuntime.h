@@ -65,6 +65,8 @@ public:
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
+    bool RegisterReplicatedEntity(SceneEntity entity, uint32_t networkId, uint32_t ownerId);
+    bool UnregisterReplicatedEntity(uint32_t networkId);
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
