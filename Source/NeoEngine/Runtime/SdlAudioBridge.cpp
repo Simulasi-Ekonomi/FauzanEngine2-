@@ -172,15 +172,10 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     auto* bridge = static_cast<SdlAudioBridge*>(userdata);
     if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
 
-    // Reset() takes the same SDL stream lock before destroying the stream. The
-    // callback therefore keeps the stream alive for every PutAudioStreamData call.
-    SDL_LockAudioStream(stream);
-
     constexpr size_t bytesPerFrame = sizeof(int16_t) * kStereoChannels;
     const size_t requestedBytes = static_cast<size_t>(additionalAmount);
     const size_t frames = requestedBytes / bytesPerFrame;
     if (frames == 0) {
-        SDL_UnlockAudioStream(stream);
         return;
     }
 
@@ -205,7 +200,6 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
         }
     }
 
-    SDL_UnlockAudioStream(stream);
 }
 
 } // namespace NeoEngine
