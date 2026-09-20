@@ -66,6 +66,7 @@ public:
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
+    bool UploadTextureResource(const AssetResourceHandle& handle, VkImage targetImage, VkImageLayout targetLayout, uint32_t width, uint32_t height);
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
