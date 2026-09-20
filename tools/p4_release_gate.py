@@ -75,16 +75,24 @@ if not components:
 manifest_entries = {}
 for line in hash_lines:
     expected, relative = line.split("  ", 1)
+    if relative in manifest_entries:
+        raise SystemExit(f"P4_RELEASE_GATE_FAIL duplicate manifest path={relative}")
     manifest_entries[relative] = expected
 sbom_entries = {}
 for component in components:
     if component.get("type") != "file" or not component.get("name"):
         raise SystemExit("P4_RELEASE_GATE_FAIL malformed SBOM component")
+    name = component["name"]
+    normalized = Path(name)
+    if normalized.is_absolute() or ".." in normalized.parts or str(normalized) != name:
+        raise SystemExit(f"P4_RELEASE_GATE_FAIL unsafe SBOM path={name}")
+    if name in sbom_entries:
+        raise SystemExit(f"P4_RELEASE_GATE_FAIL duplicate SBOM path={name}")
     hashes = component.get("hashes") or []
     sha = next((item.get("content") for item in hashes if item.get("alg") == "SHA-256"), None)
     if not sha or len(sha) != 64:
         raise SystemExit("P4_RELEASE_GATE_FAIL missing SBOM SHA-256")
-    sbom_entries[component["name"]] = sha
+    sbom_entries[name] = sha
 if sbom_entries != manifest_entries:
     raise SystemExit("P4_RELEASE_GATE_FAIL SBOM does not exactly match release manifest")
 
