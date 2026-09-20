@@ -12,7 +12,7 @@ HiZBuffer::HiZBuffer(int width, int height)
     }
     const int maxDimension = std::max(width_, height_);
     levels_ = 1;
-    for (int size = maxDimension; size > 1; size = (size + 1) / 2) {
+    for (int size = maxDimension; size > 1; size = size / 2 + size % 2) {
         ++levels_;
     }
     mip_.resize(static_cast<std::size_t>(levels_));
