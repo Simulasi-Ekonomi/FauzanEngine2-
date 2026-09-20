@@ -5,6 +5,8 @@
 #include "Vulkan3DRenderer.h"
 
 #include <cstdint>
+#include <vector>
+#include "Core/Math/Mat4.h"
 
 namespace NeoEngine {
 enum class SceneRenderAdapterError : uint8_t { None, MeshDrawFailed, SpriteQueueFailed, SpriteFlushFailed, VulkanFrameFailed, VulkanMeshDrawFailed };
@@ -21,7 +23,8 @@ public:
     // adapter is introduced; this method never silently falls back to software mesh rendering.
     bool DrawVulkan3D(const SceneWorld& world, const SceneMeshAdapter& meshes, RenderCamera& camera,
                       Vulkan3DRenderer& renderer, float clearR = 0.03F, float clearG = 0.03F,
-                      float clearB = 0.05F, float clearA = 1.0F);
+                      float clearB = 0.05F, float clearA = 1.0F,
+                      const std::vector<Mat4>* skeletalPalette = nullptr);
 
     [[nodiscard]] SceneRenderAdapterError LastError() const { return lastError_; }
 private:
