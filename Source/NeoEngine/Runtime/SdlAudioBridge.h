@@ -25,6 +25,7 @@ public:
     bool UpdateVoicePosition(uint32_t id, const float position[3]);
     bool UpdateVoicePitch(uint32_t id, float pitch);
     bool UpdateVoiceGain(uint32_t id, uint16_t gainQ8);
+    bool SetListener(const AudioListener& listener);
     void Reset();
 
     [[nodiscard]] bool IsReady() const { return stream_ != nullptr; }
