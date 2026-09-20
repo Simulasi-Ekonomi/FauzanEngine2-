@@ -44,7 +44,7 @@ bool AudioComponent::Play(AudioMixer& mixer) const {
 bool AudioComponent::Play(SdlAudioBridge& bridge) const {
     if (voiceId_ == 0 || samples_.empty() || gainQ8_ == 0 ||
         !std::isfinite(pitch_) || pitch_ <= 0.001f || pitch_ > 8.0f) return false;
-    if (!spatialized_) return bridge.Play(voiceId_, samples_, gainQ8_);
+    if (!spatialized_) return bridge.Play(voiceId_, samples_, gainQ8_, looping_, pitch_);
     SpatialVoiceParams params;
     params.id = voiceId_;
     params.mono = samples_;
