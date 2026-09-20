@@ -1643,8 +1643,6 @@ bool XPBDPhysicsSystem::WakeEntity(const EntityID entityId) {
         if (i >= m_IsAwake.size()) return false;
         m_IsAwake[i] = 1U;
         if (i < m_IsAwakePrev.size()) m_IsAwakePrev[i] = 1U;
-        if (i < m_flatVelX.size()) m_flatVelX[i] = 0.0F;
-        if (i < m_flatVelZ.size()) m_flatVelZ[i] = 0.0F;
         return true;
     }
     return false;
