@@ -69,12 +69,12 @@ def test_durable_store_enforces_total_pending_byte_budget(tmp_path) -> None:
         pass
 
 
-def test_durable_store_prunes_acked_rows(tmp_path) -> None:
-    db_path = tmp_path / "telemetry-prune.sqlite3"
+def test_durable_store_retains_ack_tombstone_for_idempotent_replay(tmp_path) -> None:
+    db_path = tmp_path / "telemetry-tombstone.sqlite3"
     store = TelemetryDurableStore(db_path)
-    assert store.enqueue(make_envelope("event-prune"), 123456) == 1
-    assert store.acknowledge(["event-prune"]) == 1
+    envelope = make_envelope("event-tombstone")
+    assert store.enqueue(envelope, 123456) == 1
+    assert store.acknowledge(["event-tombstone"]) == 1
     reopened = TelemetryDurableStore(db_path)
-    with reopened._connect() as db:
-        count = db.execute("SELECT COUNT(*) FROM telemetry_events").fetchone()[0]
-    assert count == 0
+    assert reopened.enqueue(envelope, 123457) == 0
+    assert reopened.pending_count() == 0
