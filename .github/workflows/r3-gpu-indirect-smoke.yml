@@ -10,6 +10,7 @@ on:
       - 'Source/NeoEngine/Runtime/VulkanGraphicsPipeline.*'
       - 'Source/NeoEngine/Renderer/GPUDrivenRenderer.*'
       - 'Source/NeoEngine/Shaders/neo_mesh.*'
+      - 'Source/NeoEngine/Shaders/neo_gpu_indirect.vert'
       - 'Source/NeoEngine/Tests/vulkan_mesh_indirect_batch_gpu_smoke.cpp'
       - 'Source/NeoEngine/Tests/r3_gpu_indirect_capacity_smoke.cpp'
       - 'Source/NeoEngine/Tests/r3_gpu_indirect_10k_execution_smoke.cpp'
@@ -46,6 +47,7 @@ jobs:
         run: |
           glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
           glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
+          glslangValidator -V Shaders/neo_gpu_indirect.vert -o Shaders/neo_gpu_indirect.vert.spv
       - name: Build real GPU smoke
         working-directory: Source/NeoEngine
         run: |
