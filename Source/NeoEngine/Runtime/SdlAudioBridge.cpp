@@ -99,6 +99,7 @@ bool SdlAudioBridge::UpdateVoicePosition(uint32_t id, const float position[3]) {
     const bool ok = mixer_.UpdateVoicePosition(id, position);
     SDL_UnlockAudioStream(stream_);
     if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
     return ok;
 }
 
@@ -108,6 +109,7 @@ bool SdlAudioBridge::UpdateVoicePitch(uint32_t id, float pitch) {
     const bool ok = mixer_.UpdateVoicePitch(id, pitch);
     SDL_UnlockAudioStream(stream_);
     if (!ok) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
     return ok;
 }
 
