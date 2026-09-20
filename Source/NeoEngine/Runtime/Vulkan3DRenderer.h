@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <array>\n#include <cstdint>
 #include <span>
 #include <vector>
 #include "Animation/GPUSkinningPaletteBuffer.h"
