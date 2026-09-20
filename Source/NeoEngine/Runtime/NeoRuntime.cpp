@@ -62,6 +62,11 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
     if (!renderer->Initialize(config.renderWidth, config.renderHeight)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto audio = std::unique_ptr<SdlAudioBridge>{};
+    if (config.enableAudio) {
+        audio = std::make_unique<SdlAudioBridge>();
+        if (!audio->Initialize(config.audioFramesPerCallback)) { m_LastError = RuntimeError::AudioInitializationFailed; m_State = RuntimeState::Failed; return false; }
+    }
     auto surfacePresenter = std::unique_ptr<SoftwareSurfacePresenter>{};
     if (config.enableSoftwareSurfacePresentation) {
         surfacePresenter = std::make_unique<SoftwareSurfacePresenter>();
@@ -195,6 +200,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
     m_SurfacePresenter = std::move(surfacePresenter);
+    m_Audio = std::move(audio);
     m_LastError = RuntimeError::None;
     m_State = RuntimeState::Initialized;
     return true;
@@ -432,6 +438,7 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
+    m_Audio.reset();
     m_FarmRuntimeHud.reset();
     m_FarmRenderAssets.reset();
     m_FarmSpriteRenderer.reset();
