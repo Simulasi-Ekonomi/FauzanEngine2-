@@ -51,7 +51,8 @@ jobs:
           cmake --build build/runtime-release --target \
             vulkan_asset_uploader_smoke \
             network_replication_baseline_smoke \
-            replication_world_smoke -j2
+            replication_world_smoke \
+            asset_streaming_queue_smoke -j2
 
       - name: Run Release validation
         run: |
@@ -59,6 +60,7 @@ jobs:
           ./build/runtime-release/vulkan_asset_uploader_smoke
           ./build/runtime-release/network_replication_baseline_smoke
           ./build/runtime-release/replication_world_smoke
+          ./build/runtime-release/asset_streaming_queue_smoke
 
       - name: Configure ASAN
         run: |
@@ -72,7 +74,8 @@ jobs:
           cmake --build build/runtime-asan --target \
             vulkan_asset_uploader_smoke \
             network_replication_baseline_smoke \
-            replication_world_smoke -j2
+            replication_world_smoke \
+            asset_streaming_queue_smoke -j2
 
       - name: Run ASAN validation
         env:
@@ -82,3 +85,4 @@ jobs:
           ./build/runtime-asan/vulkan_asset_uploader_smoke
           ./build/runtime-asan/network_replication_baseline_smoke
           ./build/runtime-asan/replication_world_smoke
+          ./build/runtime-asan/asset_streaming_queue_smoke
