@@ -55,7 +55,7 @@ void HiZBuffer::BuildPyramid(const std::vector<float>& depth,
         const int outHeight = LevelExtent(height, static_cast<int>(level));
         auto& out = pyramid[level];
         const auto& in = pyramid[level - 1];
-        out.assign(static_cast<std::size_t>(outWidth * outHeight),
+        out.assign(static_cast<std::size_t>(outWidth) * static_cast<std::size_t>(outHeight),
                    std::numeric_limits<float>::infinity());
 
         for (int y = 0; y < outHeight; ++y) {
@@ -64,11 +64,11 @@ void HiZBuffer::BuildPyramid(const std::vector<float>& depth,
                 const int x1 = std::min(x0 + 1, prevWidth - 1);
                 const int y0 = std::min(2 * y, prevHeight - 1);
                 const int y1 = std::min(y0 + 1, prevHeight - 1);
-                const float a = in[static_cast<std::size_t>(y0 * prevWidth + x0)];
-                const float b = in[static_cast<std::size_t>(y0 * prevWidth + x1)];
-                const float c = in[static_cast<std::size_t>(y1 * prevWidth + x0)];
-                const float d = in[static_cast<std::size_t>(y1 * prevWidth + x1)];
-                out[static_cast<std::size_t>(y * outWidth + x)] =
+                const float a = in[static_cast<std::size_t>(y0) * static_cast<std::size_t>(prevWidth) + static_cast<std::size_t>(x0)];
+                const float b = in[static_cast<std::size_t>(y0) * static_cast<std::size_t>(prevWidth) + static_cast<std::size_t>(x1)];
+                const float c = in[static_cast<std::size_t>(y1) * static_cast<std::size_t>(prevWidth) + static_cast<std::size_t>(x0)];
+                const float d = in[static_cast<std::size_t>(y1) * static_cast<std::size_t>(prevWidth) + static_cast<std::size_t>(x1)];
+                out[static_cast<std::size_t>(y) * static_cast<std::size_t>(outWidth) + static_cast<std::size_t>(x)] =
                     std::min(std::min(a, b), std::min(c, d));
             }
         }
