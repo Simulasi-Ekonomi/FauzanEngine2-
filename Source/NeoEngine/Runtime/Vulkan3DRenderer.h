@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
+#include "Animation/GPUSkinningPaletteBuffer.h"
 #include "VulkanAssetUploader.h"
 
 #include <vulkan/vulkan.h>
@@ -62,6 +64,7 @@ public:
     bool UploadTextureResource(AssetResourceManager& resources, const AssetResourceHandle& handle,
                                VkImage targetImage, VkImageLayout targetLayout,
                                uint32_t width, uint32_t height);
+    bool UploadSkinningPalette(const std::vector<Mat4>& palette);
 
     [[nodiscard]] bool Ready() const { return ready_; }
     [[nodiscard]] Vulkan3DRendererError LastError() const { return lastError_; }
