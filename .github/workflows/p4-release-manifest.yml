@@ -20,6 +20,8 @@ jobs:
         run: bash tools/release_manifest.sh p4-release-manifest.sha256
       - name: Generate deterministic source SBOM
         run: python3 tools/generate_source_sbom.py
+      - name: Syntax-check release certification gate
+        run: python3 -m py_compile tools/p4_release_gate.py
       - name: Run release certification gate
         run: |
           python3 tools/p4_release_gate.py
