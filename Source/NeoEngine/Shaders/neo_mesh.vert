@@ -11,7 +11,7 @@ layout(location = 7) in uvec4 boneIndices;
 layout(location = 8) in vec4 boneWeights;
 
 layout(set = 0, binding = 0, std140) uniform SkinningPalette {
-    mat4 skinning.bones[64];
+    mat4 bones[64];
 } skinning;
 
 layout(push_constant) uniform Transform {
