@@ -42,5 +42,5 @@ bom = {
     },
     "components": components,
 }
-Path("p4-source-sbom.json").write_text(json.dumps(bom, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+(root / "p4-source-sbom.json").write_text(json.dumps(bom, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 print(f"SOURCE_SBOM_OK files={len(components)}")
