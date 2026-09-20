@@ -19,6 +19,7 @@ set(NEO_TEXTURE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.frag.spv")
 set(NEO_TRIANGLE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.vert.spv")
 set(NEO_TRIANGLE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.frag.spv")
 set(NEO_SKINNED_MESH_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_skinned_mesh.vert.spv")
+set(NEO_GPU_INDIRECT_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_gpu_indirect.vert.spv")
 
 add_custom_command(
     OUTPUT "${NEO_MESH_VERT_SPV}"
@@ -69,10 +70,17 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_skinned_mesh.vert"
     VERBATIM
 )
+add_custom_command(
+    OUTPUT "${NEO_GPU_INDIRECT_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_gpu_indirect.vert" -o "${NEO_GPU_INDIRECT_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_gpu_indirect.vert"
+    VERBATIM
+)
 add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
     "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
-    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}" "${NEO_SKINNED_MESH_VERT_SPV}")
+    "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}" "${NEO_SKINNED_MESH_VERT_SPV}" "${NEO_GPU_INDIRECT_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
     Runtime/AtomicSaveFile.cpp
