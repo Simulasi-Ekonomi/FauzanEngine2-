@@ -13,6 +13,7 @@
 #include "RuntimeTimeSystem.h"
 #include "RuntimeTimerQueue.h"
 #include "RuntimePersistence.h"
+#include "AtomicSaveFile.h"
 #include "ActorComponentWorld.h"
 #include "AssetResourceManager.h"
 #include "ReplicationWorld.h"
@@ -33,6 +34,7 @@
 #include "Systems/WorldAuthoring.h"
 #include "Systems/TrustSafetySystem.h"
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <vector>
 
@@ -61,6 +63,8 @@ public:
     bool SetTimeScalePermille(uint16_t scalePermille);
     bool SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
+    bool SaveFarmProgressCheckpointFile(const std::filesystem::path& root, std::string_view slot, uint64_t revision);
+    bool RestoreFarmProgressCheckpointFile(const std::filesystem::path& root, std::string_view slot, uint64_t& revision);
     bool ReplanRouteMotion();
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
