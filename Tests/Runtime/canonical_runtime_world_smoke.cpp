@@ -31,9 +31,6 @@ int main() {
     assert(world.BuildReplicationSnapshot(world.LastFrame().frame, snapshot));
     assert(snapshot.count == 1U);
     assert(snapshot.states[0].networkId == 42U);
-    std::vector<uint8_t> snapshotBytes;
-    ReplicationSnapshot decodedSnapshot{};
-    assert(world.BuildReplicationSnapshot(world.LastFrame().frame, snapshot));
 
     const Transform3* sceneTransform = world.Scene().GetTransform(sceneActor.scene);
     assert(sceneTransform != nullptr);
