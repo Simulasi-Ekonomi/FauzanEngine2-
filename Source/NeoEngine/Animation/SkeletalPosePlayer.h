@@ -21,6 +21,7 @@ public:
     void SetPaused(bool paused) { paused_ = paused; }
     // Samples after a bounded caller-provided time step, replacing both time state and output only after success.
     [[nodiscard]] bool Advance(float deltaSeconds, std::vector<Mat4>& output);
+    [[nodiscard]] bool SampleCurrentPose(std::vector<Mat4>& output) const;
     [[nodiscard]] float Time() const { return time_; }
     [[nodiscard]] float Speed() const { return speed_; }
     [[nodiscard]] bool IsPaused() const { return paused_; }
