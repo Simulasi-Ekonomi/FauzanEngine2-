@@ -57,7 +57,7 @@ if not all(lines[i].split("=", 1)[0] in {"commit", "tree", "files"} for i in ran
     raise SystemExit("P4_RELEASE_GATE_FAIL invalid manifest metadata")
 manifest_commit = lines[1].split("=", 1)[1]
 manifest_tree = lines[2].split("=", 1)[1]
-manifest_files = int(lines[3].split("=", 1)[1])
+try:\n    manifest_files = int(lines[3].split("=", 1)[1])\nexcept ValueError as exc:\n    raise SystemExit("P4_RELEASE_GATE_FAIL malformed manifest file count") from exc\nif manifest_files < 0:\n    raise SystemExit("P4_RELEASE_GATE_FAIL negative manifest file count")
 head_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 head_tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip()
 if not re.fullmatch(r"[0-9a-f]{40}", manifest_commit) or not re.fullmatch(r"[0-9a-f]{40}", manifest_tree):
