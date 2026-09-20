@@ -67,6 +67,32 @@ bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ
     return true;
 }
 
+bool SdlAudioBridge::PlaySpatial(const SpatialVoiceParams& params) {
+    if (stream_ == nullptr) {
+        lastError_ = SdlAudioBridgeError::NotInitialized;
+        return false;
+    }
+    SDL_LockAudioStream(stream_);
+    const bool accepted = mixer_.PlaySpatial(params);
+    SDL_UnlockAudioStream(stream_);
+    if (!accepted) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
+    return accepted;
+}
+
+bool SdlAudioBridge::Stop(uint32_t id) {
+    if (stream_ == nullptr) {
+        lastError_ = SdlAudioBridgeError::NotInitialized;
+        return false;
+    }
+    SDL_LockAudioStream(stream_);
+    const bool stopped = mixer_.Stop(id);
+    SDL_UnlockAudioStream(stream_);
+    if (!stopped) lastError_ = SdlAudioBridgeError::MixerRejected;
+    else lastError_ = SdlAudioBridgeError::None;
+    return stopped;
+}
+
 bool SdlAudioBridge::UpdateVoicePosition(uint32_t id, const float position[3]) {
     if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
     SDL_LockAudioStream(stream_);
