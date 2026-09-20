@@ -161,6 +161,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     }
 
     m_FixedTicksPerFrame = config.fixedTicksPerFrame;
+    m_TelemetryConsentGranted = config.telemetryConsentGranted;
     m_FarmWorldConfig = worldConfig;
     m_TrustSafety = std::move(trustSafety);
     m_Farm = std::move(farm);
