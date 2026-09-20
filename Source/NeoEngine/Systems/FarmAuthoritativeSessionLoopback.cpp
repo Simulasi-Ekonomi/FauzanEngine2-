@@ -21,7 +21,7 @@ bool FarmAuthoritativeSessionLoopback::Start(FarmAuthoritativeSessionHost& host,
     transport_ = &transport;
     principal_ = serverAuthenticatedPrincipal;
     sessionHandle_ = candidateSessionHandle;
-    serverTick_ = serverTick;
+    serverTick_.store(serverTick);
     hasAcceptedReceipt_ = false;
     ready_ = true;
     lastError_.store(FarmAuthoritativeSessionLoopbackError::None);
@@ -34,6 +34,10 @@ bool FarmAuthoritativeSessionLoopback::Start(FarmAuthoritativeSessionHost& host,
         return false;
     }
     return true;
+}
+
+void FarmAuthoritativeSessionLoopback::SetServerTick(uint64_t serverTick) {
+    if (serverTick != 0U) serverTick_.store(serverTick);
 }
 
 void FarmAuthoritativeSessionLoopback::Stop() {
@@ -57,7 +61,7 @@ AuthorityDecision FarmAuthoritativeSessionLoopback::Dispatch(const AuthorityComm
     FarmSessionCommand command{wireCommand.playerId, wireCommand.commandId, wireCommand.kind,
                                wireCommand.clientSequence, wireCommand.clientTick, wireCommand.payload};
     FarmAuthoritativeCommandReceipt candidate{};
-    if (!host_->Submit(sessionHandle_, command, serverTick_, candidate) || !candidate.decision.Accepted()) {
+    if (!host_->Submit(sessionHandle_, command, serverTick_.load(), candidate) || !candidate.decision.Accepted()) {
         lastError_.store(FarmAuthoritativeSessionLoopbackError::CommandRejected);
         return {AuthorityError::HandlerRejected, 0U, false};
     }
@@ -90,7 +94,7 @@ void FarmAuthoritativeSessionLoopback::Reset() {
     transport_ = nullptr;
     principal_ = {};
     sessionHandle_ = 0U;
-    serverTick_ = 0U;
+    serverTick_.store(0U);
     lastAcceptedReceipt_ = {};
     hasAcceptedReceipt_ = false;
     ready_ = false;
