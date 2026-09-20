@@ -256,7 +256,7 @@ bool CanonicalRuntimeWorld::Step(float dt) {
 
 bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
                                             const DirectionalLight& light) {
-    if (!rendererAdapter_.Draw(scene_, meshes_, sprites, camera, renderer, light)) {
+    if (!rendererAdapter_.Draw(scene_, meshes_, sprites_, camera, renderer, light)) {
         lastError_ = CanonicalWorldError::RenderFailed;
         return false;
     }
