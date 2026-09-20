@@ -56,6 +56,48 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
     return true;
 }
 
+bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
+    ReplicationError error = ReplicationError::None;
+    if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error)) {
+        lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
+        return false;
+    }
+    lastError_ = CanonicalReplicationBridgeError::None;
+    return true;
+}
+
+bool CanonicalReplicationBridge::DecodeSnapshot(std::span<const uint8_t> bytes, ReplicationSnapshot& snapshot) {
+    ReplicationError error = ReplicationError::None;
+    if (!ReplicationSnapshotCodec::Deserialize(bytes, snapshot, error)) {
+        lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
+        return false;
+    }
+    lastError_ = CanonicalReplicationBridgeError::None;
+    return true;
+}
+
+bool CanonicalReplicationBridge::EncodeAcknowledgement(const ReplicationAcknowledgement& acknowledgement,
+                                                       std::vector<uint8_t>& bytes) {
+    ReplicationError error = ReplicationError::None;
+    if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement, bytes, error)) {
+        lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
+        return false;
+    }
+    lastError_ = CanonicalReplicationBridgeError::None;
+    return true;
+}
+
+bool CanonicalReplicationBridge::DecodeAcknowledgement(std::span<const uint8_t> bytes,
+                                                        ReplicationAcknowledgement& acknowledgement) {
+    ReplicationError error = ReplicationError::None;
+    if (!ReplicationAcknowledgementCodec::Deserialize(bytes, acknowledgement, error)) {
+        lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
+        return false;
+    }
+    lastError_ = CanonicalReplicationBridgeError::None;
+    return true;
+}
+
 bool CanonicalReplicationBridge::ApplyAcknowledgement(const ReplicationAcknowledgement& acknowledgement) {
     if (!replication_.ApplyClientAcknowledgement(acknowledgement)) {
         lastError_ = CanonicalReplicationBridgeError::AcknowledgementFailed;
