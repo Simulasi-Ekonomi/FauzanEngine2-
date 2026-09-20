@@ -306,6 +306,7 @@ private:
     bool m_UseGridBroadphase = true;
     float m_GridCellSize = 2.0f;
     std::unordered_map<uint64_t, std::vector<uint32_t>> m_Grid;
+    std::vector<std::pair<uint64_t, uint32_t>> m_GridEntries;
     std::vector<int> m_DenseGridHeads;
     std::vector<int> m_DenseGridNext;
     std::vector<uint8_t> m_DenseGridActiveCells;
