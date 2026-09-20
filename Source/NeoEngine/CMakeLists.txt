@@ -202,7 +202,7 @@ set(XPBD_RUNTIME_SOURCES
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+target_include_directories(NeoEngineRuntime PUBLIC ${JSONCPP_INCLUDE_DIRS} PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_compile_definitions(NeoEngineRuntime PUBLIC
     NEO_SHADER_DIR="${NEO_SHADER_OUTPUT_DIR}"
     GLM_ENABLE_EXPERIMENTAL
