@@ -18,7 +18,7 @@ for raw in files:
         continue
     path = raw.decode()
     full = root / path
-    if not full.is_file():
+    if not full.is_file() or full.is_symlink():
         continue
     digest = hashlib.sha256(full.read_bytes()).hexdigest()
     components.append({
