@@ -356,6 +356,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_agent_smoke.cpp")
     add_xpbd_executable(editor_scene_agent_smoke ../../Tests/Runtime/editor_scene_agent_smoke.cpp)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_session_smoke.cpp")
+    add_xpbd_executable(editor_scene_session_smoke ../../Tests/Runtime/editor_scene_session_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp")
