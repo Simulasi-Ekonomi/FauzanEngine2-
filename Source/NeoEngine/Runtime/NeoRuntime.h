@@ -74,6 +74,8 @@ public:
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool SetTelemetryConsent(bool granted);
+    bool SaveTelemetryOutboxFile(const std::filesystem::path& root, std::string_view slot);
+    bool RestoreTelemetryOutboxFile(const std::filesystem::path& root, std::string_view slot);
     bool Shutdown();
     RuntimeState State() const { return m_State; }
     RuntimeError LastError() const { return m_LastError; }
