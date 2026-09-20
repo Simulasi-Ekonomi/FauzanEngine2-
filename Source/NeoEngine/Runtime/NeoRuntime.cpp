@@ -46,10 +46,10 @@ bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uin
 namespace {
 std::string BuildRuntimeTelemetryJson(const NeoRuntimeFrameReceipt& receipt) {
     return std::string("{\"schema\":1,\"frame\":") +
-        std::to_string(receipt.clock.frameIndex) +
+        std::to_string(receipt.clock.frameCount) +
         ",\"fixed_step\":" + std::to_string(receipt.clock.fixedStepCount) +
         ",\"scene_entities\":" + std::to_string(receipt.sceneAliveEntityCount) +
-        ",\"event_dispatch\":" + std::to_string(receipt.eventDispatch.dispatchedCount) +
+        ",\"event_dispatch\":" + std::to_string(receipt.eventDispatch.eventCount) +
         "}";
 }
 } // namespace
@@ -287,16 +287,6 @@ bool NeoRuntime::Tick() {
             (void)m_Telemetry.Enqueue(id, std::move(telemetryEnvelope));
         }
     }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::SaveTelemetryOutboxFile(const std::filesystem::path& root, const std::string& slot) {
-    if (m_State != RuntimeState::Initialized || !m_TelemetryConsentGranted) { m_LastError = RuntimeError::InvalidState; return false; }
-    std::vector<uint8_t> bytes;
-    if (!m_Telemetry.Serialize(bytes) || bytes.size() > AtomicSaveFile::kMaxBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
-    AtomicSaveFileError error = AtomicSaveFileError::None;
-    if (!AtomicSaveFile::Write(root, slot, bytes, error) || !AtomicSaveFile::Flush(root, slot, error)) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     m_LastError = RuntimeError::None;
     return true;
 }
