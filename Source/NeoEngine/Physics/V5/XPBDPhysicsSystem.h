@@ -264,6 +264,12 @@ private:
     size_t m_NumColors = 0;
 
     std::vector<BVHNode> m_BVHNodes;
+    // Persistent broadphase scratch buffers: avoid per-step heap churn without changing collision coverage.
+    std::vector<int> m_BroadphaseIndices;
+    std::vector<std::pair<uint32_t, int>> m_BVHSortBuffer;
+    std::vector<int> m_BVHSortedIndices;
+    struct BVHBuildTask { int s, e, p; bool right; };
+    std::vector<BVHBuildTask> m_BVHBuildStack;
     int m_BVHRoot = -1;
     bool m_BVHInitialized = false;
     mutable std::vector<int> m_BVHStack;
