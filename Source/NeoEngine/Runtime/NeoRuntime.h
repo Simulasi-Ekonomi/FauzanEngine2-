@@ -138,7 +138,9 @@ public:
     MovementAuthorityGate* MotionAuthority() { return m_MotionAuthority.get(); }
     const MovementAuthorityGate* MotionAuthority() const { return m_MotionAuthority.get(); }
     const TelemetryOutbox& Telemetry() const { return m_Telemetry; }
+    const std::vector<TelemetryEnvelope>& PendingTelemetry() const { return m_Telemetry.Pending(); }
     bool AcknowledgeTelemetry(const std::string& id) { return m_Telemetry.Acknowledge(id); }
+    bool AcknowledgeTelemetryBatch(const std::vector<std::string>& ids) { return m_Telemetry.AcknowledgeBatch(ids); }
 private:
     RuntimeState m_State = RuntimeState::Created;
     RuntimeError m_LastError = RuntimeError::None;
