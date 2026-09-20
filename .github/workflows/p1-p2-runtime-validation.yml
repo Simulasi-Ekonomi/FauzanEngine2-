@@ -1,0 +1,84 @@
+name: P1 P2 runtime validation
+
+on:
+  push:
+    branches:
+      - p3-pr44-advanced-port
+    paths:
+      - 'Source/NeoEngine/Runtime/VulkanAssetUploader.*'
+      - 'Source/NeoEngine/Networking/**'
+      - 'Source/NeoEngine/Runtime/ReplicationWorld.*'
+      - 'Tests/Runtime/vulkan_asset_uploader_smoke.cpp'
+      - 'Tests/Runtime/network_replication_baseline_smoke.cpp'
+      - 'Tests/Runtime/replication_world_smoke.cpp'
+      - 'Source/NeoEngine/CMakeLists.txt'
+      - '.github/workflows/p1-p2-runtime-validation.yml'
+  pull_request:
+    paths:
+      - 'Source/NeoEngine/Runtime/VulkanAssetUploader.*'
+      - 'Source/NeoEngine/Networking/**'
+      - 'Source/NeoEngine/Runtime/ReplicationWorld.*'
+      - 'Tests/Runtime/vulkan_asset_uploader_smoke.cpp'
+      - 'Tests/Runtime/network_replication_baseline_smoke.cpp'
+      - 'Tests/Runtime/replication_world_smoke.cpp'
+      - 'Source/NeoEngine/CMakeLists.txt'
+      - '.github/workflows/p1-p2-runtime-validation.yml'
+  workflow_dispatch:
+
+jobs:
+  runtime-validation:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools ninja-build
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@main
+        with:
+          version: 3.4.16
+          install-linux-dependencies: true
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/runtime-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build validation targets
+        run: |
+          cmake --build build/runtime-release --target \
+            vulkan_asset_uploader_smoke \
+            network_replication_baseline_smoke \
+            replication_world_smoke -j2
+
+      - name: Run Release validation
+        run: |
+          set -e
+          ./build/runtime-release/vulkan_asset_uploader_smoke
+          ./build/runtime-release/network_replication_baseline_smoke
+          ./build/runtime-release/replication_world_smoke
+
+      - name: Configure ASAN
+        run: |
+          cmake -S Source/NeoEngine -B build/runtime-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build ASAN validation targets
+        run: |
+          cmake --build build/runtime-asan --target \
+            vulkan_asset_uploader_smoke \
+            network_replication_baseline_smoke \
+            replication_world_smoke -j2
+
+      - name: Run ASAN validation
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+        run: |
+          set -e
+          ./build/runtime-asan/vulkan_asset_uploader_smoke
+          ./build/runtime-asan/network_replication_baseline_smoke
+          ./build/runtime-asan/replication_world_smoke
