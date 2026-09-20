@@ -8,10 +8,12 @@
 #include "Runtime/SceneRenderAdapter.h"
 #include "Runtime/SceneSpriteAdapter.h"
 #include "Runtime/SceneWorld.h"
+#include "Runtime/GameplayPhysicsQuery.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace NeoEngine {
 
@@ -55,6 +57,8 @@ public:
     bool DestroyEntity(CanonicalEntity entity);
     bool SetTransform(CanonicalEntity entity, const Transform3& transform);
     bool BindMesh(const SceneMeshInstance& instance);
+    bool Raycast(const GameplayRay2& ray, GameplayRayHit2& hit);
+    bool OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
     [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
@@ -98,6 +102,7 @@ private:
     uint16_t bindingCount_ = 0U;
     uint64_t frame_ = 0U;
     CanonicalFrameReceipt lastFrame_{};
+    GameplayPhysicsQuery physicsQuery_{};
     CanonicalWorldError lastError_ = CanonicalWorldError::None;
 };
 
