@@ -1,4 +1,24 @@
 #i
+bool NeoRuntime::BuildReplicationSnapshotPacket(std::vector<uint8_t>& bytes) const {
+    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Server) return false;
+    ReplicationError error = ReplicationError::None;
+    return ReplicationSnapshotCodec::Serialize(m_LastReplicationSnapshot, bytes, error);
+}
+
+bool NeoRuntime::ApplyReplicationSnapshotPacket(std::span<const uint8_t> bytes, ReplicationApplyReceipt& receipt) {
+    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    ReplicationSnapshot snapshot{};
+    ReplicationError error = ReplicationError::None;
+    if (!ReplicationSnapshotCodec::Deserialize(bytes, snapshot, error)) {
+        m_LastError = RuntimeError::WorldTickFailed;
+        return false;
+    }
+    return ApplyReplicationSnapshot(snapshot, receipt);
+}
+
 bool NeoRuntime::ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
         m_LastError = RuntimeError::InvalidState;
