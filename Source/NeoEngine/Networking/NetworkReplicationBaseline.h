@@ -12,9 +12,12 @@ public:
 
     bool store(const ReplicationSnapshot& snapshot) {
         if (snapshot.sequence == 0U || snapshot.count > ReplicationSnapshot::kMaxEntities) return false;
+        if (hasStored_ && snapshot.sequence <= latestSequence_) return false;
         const uint8_t slot = static_cast<uint8_t>(snapshot.sequence % kHistory);
         history_[slot] = snapshot;
         valid_[slot] = true;
+        latestSequence_ = snapshot.sequence;
+        hasStored_ = true;
         return true;
     }
 
@@ -34,11 +37,15 @@ public:
     void clear() {
         valid_.fill(false);
         for (auto& snapshot : history_) snapshot = {};
+        latestSequence_ = 0U;
+        hasStored_ = false;
     }
 
 private:
     std::array<ReplicationSnapshot, kHistory> history_{};
     std::array<bool, kHistory> valid_{};
+    uint64_t latestSequence_ = 0U;
+    bool hasStored_ = false;
 };
 
 } // namespace NeoEngine::Networking
