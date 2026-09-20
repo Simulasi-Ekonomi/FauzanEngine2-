@@ -67,13 +67,18 @@ jobs:
             renderer_capability_smoke
           )
           cmake --build build/p0-release --target "${targets[@]}" -j2
-          release_status=0
-          for target in "${targets[@]}"; do
+          build_status=$?
+          release_status=$build_status
+          if [ "$build_status" -ne 0 ]; then
+            echo "Release build failed; smoke executables will not be run."
+          else
+            for target in "${targets[@]}"; do
             echo "=== RUN $target ==="
             "./build/p0-release/$target"
             status=$?
             if [ "$status" -ne 0 ]; then release_status=1; fi
-          done
+            done
+          fi
           echo "release_status=$release_status" >> "$GITHUB_OUTPUT"
           exit "$release_status"
 
@@ -86,7 +91,7 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
         run: |
-          set -e
+          set +e
           targets=(
             canonical_runtime_world_smoke
             item_serial_tracker_smoke
@@ -96,13 +101,18 @@ jobs:
             renderer_capability_smoke
           )
           cmake --build build/p0-asan --target "${targets[@]}" -j2
-          asan_status=0
-          for target in "${targets[@]}"; do
+          build_status=$?
+          asan_status=$build_status
+          if [ "$build_status" -ne 0 ]; then
+            echo "ASAN build failed; smoke executables will not be run."
+          else
+            for target in "${targets[@]}"; do
             echo "=== RUN $target ==="
             "./build/p0-asan/$target"
             status=$?
             if [ "$status" -ne 0 ]; then asan_status=1; fi
-          done
+            done
+          fi
           echo "asan_status=$asan_status" >> "$GITHUB_OUTPUT"
           exit "$asan_status"
 
