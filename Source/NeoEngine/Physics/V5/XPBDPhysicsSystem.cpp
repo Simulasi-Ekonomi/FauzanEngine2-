@@ -1483,6 +1483,7 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
     m_ManifoldCacheStats = {};
     m_BroadphaseStats = {};
     m_BroadphaseTimingStats = {};
+    const auto totalStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
     const auto setupStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
     for (size_t i = 0; i < totalEntities; ++i) {
         float speed = fabsf(m_flatVelX[i]) + fabsf(m_flatVelZ[i]) + fabsf(m_flatAngVel[i]);
