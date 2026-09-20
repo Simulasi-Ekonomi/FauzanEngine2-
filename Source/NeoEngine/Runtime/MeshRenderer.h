@@ -2,14 +2,22 @@
 
 #include "RenderCamera.h"
 
-#include <array>\n#include <cstdint>
+#include <array>
+#include <cstdint>
 #include <vector>
 
 namespace NeoEngine {
 class SoftwareRenderer;
 struct CpuTextureResource;
 enum class MeshRenderError : uint8_t { None, EmptyMesh, Capacity, InvalidIndex, InvalidTransform, InvalidLight, InvalidTexture, ProjectionFailed, RasterFailed };
-struct MeshVertex {\n    RenderPoint3 position{};\n    RenderPoint3 normal{0.0F, 0.0F, 1.0F};\n    float u = 0.0F;\n    float v = 0.0F;\n    std::array<uint32_t, 4> boneIndices{};\n    std::array<float, 4> boneWeights{};\n};
+struct MeshVertex {
+    RenderPoint3 position{};
+    RenderPoint3 normal{0.0F, 0.0F, 1.0F};
+    float u = 0.0F;
+    float v = 0.0F;
+    std::array<uint32_t, 4> boneIndices{};
+    std::array<float, 4> boneWeights{};
+};
 struct MeshMaterial { uint32_t rgba = 0xFFFFFFFF; float ambient = 0.20F; float directional = 0.80F; const CpuTextureResource* texture = nullptr; bool cullBackFaces = false; };
 struct MeshTransform { RenderPoint3 translation{}; float uniformScale = 1.0F; RenderPoint3 rotationRadians{}; };
 struct DirectionalLight { RenderPoint3 directionToLight{0.0F, 0.0F, 1.0F}; float intensity = 1.0F; };
