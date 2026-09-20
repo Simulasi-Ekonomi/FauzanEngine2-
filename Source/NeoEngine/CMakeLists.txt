@@ -18,6 +18,7 @@ set(NEO_TEXTURE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.vert.spv")
 set(NEO_TEXTURE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.frag.spv")
 set(NEO_TRIANGLE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.vert.spv")
 set(NEO_TRIANGLE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_triangle.frag.spv")
+set(NEO_GPU_INDIRECT_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_gpu_indirect.vert.spv")
 
 add_custom_command(
     OUTPUT "${NEO_MESH_VERT_SPV}"
