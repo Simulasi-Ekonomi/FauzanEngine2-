@@ -9,6 +9,7 @@
 namespace NeoEngine {
 
 class CanonicalRuntimeWorld;
+struct CanonicalEntity;
 
 enum class CanonicalReplicationBridgeError : uint8_t {
     None,
