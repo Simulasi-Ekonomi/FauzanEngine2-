@@ -312,6 +312,19 @@ bool NeoRuntime::RenderFarm() {
     return true;
 }
 
+bool NeoRuntime::UploadTextureResource(const AssetResourceHandle& handle, VkImage targetImage, VkImageLayout targetLayout, uint32_t width, uint32_t height) {
+    if (m_State != RuntimeState::Initialized || !m_VulkanRenderer || !m_Resources || targetImage == VK_NULL_HANDLE || width == 0U || height == 0U) {
+        m_LastError = RuntimeError::InvalidState;
+        return false;
+    }
+    if (!m_VulkanRenderer->UploadTextureResource(*m_Resources, handle, targetImage, targetLayout, width, height)) {
+        m_LastError = RuntimeError::Vulkan3DRenderFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt) {
     receipt = {};
     if (m_State != RuntimeState::Initialized || m_FarmRuntimeHud == nullptr || m_FarmPlayerInput == nullptr) { m_LastError = RuntimeError::InvalidState; return false; }
