@@ -93,3 +93,14 @@ def test_durable_store_byte_budget_counts_each_new_event_and_allows_replay(tmp_p
     single = make_envelope("event-a")
     assert store.enqueue(single, 123456) == 1
     assert store.enqueue(single, 123457) == 0
+
+
+def test_durable_store_rejects_invalid_occurred_timestamp(tmp_path) -> None:
+    store = TelemetryDurableStore(tmp_path / "telemetry-time.sqlite3")
+    for value in (-1, 1.5, "123456"):
+        try:
+            store.enqueue(make_envelope("event-invalid-time"), value)
+            assert False
+        except TelemetryStoreError:
+            pass
+    assert store.pending_count() == 0
