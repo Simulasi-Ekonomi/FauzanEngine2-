@@ -223,7 +223,7 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
-    const uint64_t serverTick = m_Clock ? m_Clock->FrameIndex() : 0U;
+    const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
     if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
