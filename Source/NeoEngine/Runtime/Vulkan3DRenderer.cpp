@@ -92,6 +92,18 @@ bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* tit
     VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};pool.queueFamilyIndex=impl->graphicsFamily;pool.flags=VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;if(vkCreateCommandPool(impl->device,&pool,nullptr,&impl->commandPool)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}for(auto& f:impl->frames){VkSemaphoreCreateInfo s{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};VkFenceCreateInfo fence{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};fence.flags=VK_FENCE_CREATE_SIGNALED_BIT;if(vkCreateSemaphore(impl->device,&s,nullptr,&f.imageAvailable)!=VK_SUCCESS||vkCreateSemaphore(impl->device,&s,nullptr,&f.renderFinished)!=VK_SUCCESS||vkCreateFence(impl->device,&fence,nullptr,&f.fence)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}VkCommandBufferAllocateInfo a{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};a.commandPool=impl->commandPool;a.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;a.commandBufferCount=1;if(vkAllocateCommandBuffers(impl->device,&a,&f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}}
     impl->uploader.SetPhysicalDevice(impl->physical);
     if (!impl->skinningPalette.Initialize(impl->device, impl->physical)) { lastError_=Vulkan3DRendererError::BufferFailure; impl->Destroy(); return false; }
+    VkDescriptorSetLayoutBinding skinBinding{};
+    skinBinding.binding=0U; skinBinding.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; skinBinding.descriptorCount=1U; skinBinding.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;
+    VkDescriptorSetLayoutCreateInfo skinLayout{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO}; skinLayout.bindingCount=1U; skinLayout.pBindings=&skinBinding;
+    if (vkCreateDescriptorSetLayout(impl->device,&skinLayout,nullptr,&impl->skinningDescriptorSetLayout)!=VK_SUCCESS) { lastError_=Vulkan3DRendererError::PipelineFailure; impl->Destroy(); return false; }
+    VkDescriptorPoolSize skinPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,1U};
+    VkDescriptorPoolCreateInfo skinPool{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO}; skinPool.maxSets=1U; skinPool.poolSizeCount=1U; skinPool.pPoolSizes=&skinPoolSize;
+    if (vkCreateDescriptorPool(impl->device,&skinPool,nullptr,&impl->skinningDescriptorPool)!=VK_SUCCESS) { lastError_=Vulkan3DRendererError::PipelineFailure; impl->Destroy(); return false; }
+    VkDescriptorSetAllocateInfo skinAlloc{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO}; skinAlloc.descriptorPool=impl->skinningDescriptorPool; skinAlloc.descriptorSetCount=1U; skinAlloc.pSetLayouts=&impl->skinningDescriptorSetLayout;
+    if (vkAllocateDescriptorSets(impl->device,&skinAlloc,&impl->skinningDescriptorSet)!=VK_SUCCESS) { lastError_=Vulkan3DRendererError::PipelineFailure; impl->Destroy(); return false; }
+    VkDescriptorBufferInfo skinBuffer{impl->skinningPalette.GetBuffer(),0U,sizeof(Mat4)*GPUSkinningPaletteBuffer::kMaxBones};
+    VkWriteDescriptorSet skinWrite{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET}; skinWrite.dstSet=impl->skinningDescriptorSet; skinWrite.dstBinding=0U; skinWrite.descriptorCount=1U; skinWrite.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; skinWrite.pBufferInfo=&skinBuffer;
+    vkUpdateDescriptorSets(impl->device,1U,&skinWrite,0U,nullptr);
     impl_=impl.release();if(!Resize(width,height)){Reset();return false;}ready_=true;lastError_=Vulkan3DRendererError::None;return true;
 }
 bool Vulkan3DRenderer::Resize(uint32_t width,uint32_t height){
