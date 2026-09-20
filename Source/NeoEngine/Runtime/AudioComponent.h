@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <vector>
 
+namespace NeoEngine { class SdlAudioBridge; }
+
 namespace NeoEngine {
 
 class AudioComponent {
@@ -33,7 +35,9 @@ public:
     void SetPitch(float pitch) { pitch_ = pitch; }
     [[nodiscard]] float Pitch() const { return pitch_; }
     bool Play(AudioMixer& mixer) const;
+    bool Play(SdlAudioBridge& bridge) const;
     bool Stop(AudioMixer& mixer) const;
+    bool Stop(SdlAudioBridge& bridge) const;
 
 private:
     uint32_t voiceId_ = 0;
