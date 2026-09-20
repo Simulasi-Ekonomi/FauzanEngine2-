@@ -150,6 +150,8 @@ int main() {
 
     NeoEngine::VulkanAssetUploader uploader(8);
     TEST_CHECK(uploader.Initialize(device, physicalDevice), "Uploader initialization failed");
+    TEST_CHECK(!uploader.Initialize(device, physicalDevice),
+               "Uploader allowed a second initialization without shutdown");
     TEST_CHECK(uploader.GetCurrentStagingUsedMB() == 0, "Uploader initial budget is not empty");
 
     VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
