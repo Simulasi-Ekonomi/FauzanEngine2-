@@ -40,3 +40,21 @@ def test_durable_store_rejects_duplicate_refs(tmp_path) -> None:
         assert False
     except TelemetryStoreError:
         pass
+
+
+def test_durable_store_recovers_pending_events_after_reopen(tmp_path) -> None:
+    db_path = tmp_path / "telemetry-recovery.sqlite3"
+    envelope = make_envelope("event-recovery")
+
+    first = TelemetryDurableStore(db_path)
+    assert first.enqueue(envelope, 123456) == 1
+    assert first.pending_count() == 1
+
+    reopened = TelemetryDurableStore(db_path)
+    pending = reopened.pending()
+    assert pending == [{"eventRef": "event-recovery", "envelope": envelope}]
+    assert reopened.pending_count() == 1
+
+    assert reopened.acknowledge(["event-recovery"]) == 1
+    final = TelemetryDurableStore(db_path)
+    assert final.pending_count() == 0
