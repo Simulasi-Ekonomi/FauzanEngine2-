@@ -322,9 +322,6 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         const Slot* slot = FindSlot(state.networkId);
         if (slot != nullptr && (state.stateRevision < slot->stateRevision || (snapshotSequence_ != 0U && state.stateRevision == slot->stateRevision && slot->hasAuthoritative && !SameTransform(slot->authoritative, state.transform)))) return Fail(ReplicationError::StaleSnapshot);
     }
-    std::unique_ptr<SceneWorld> candidateScene;
-    try { candidateScene = std::make_unique<SceneWorld>(sceneWorld_); }
-    catch (const std::bad_alloc&) { return Fail(ReplicationError::Capacity); }
     ReplicationApplyReceipt candidateReceipt{};
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
@@ -335,22 +332,21 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         Slot* slot = FindSlot(state.networkId);
         if (slot == nullptr) {
             SceneEntity entity{};
-            if (!candidateScene->Create(entity) || !candidateScene->SetTransform(entity, state.transform)) return Fail(ReplicationError::SpawnRejected);
+            if (!sceneWorld_.Create(entity) || !sceneWorld_.SetTransform(entity, state.transform)) return Fail(ReplicationError::SpawnRejected);
             spawnedEntities[spawnedIndex++] = entity;
             if (slotIndex >= kMaxEntities) return Fail(ReplicationError::SpawnRejected);
             presentSlots[slotIndex] = true;
             ++candidateReceipt.spawnedEntities;
         } else if (state.ownerId == localClientId_) {
             if (slot->hasPrediction && !SameTransform(slot->predictedTransform, state.transform)) ++candidateReceipt.reconciledPredictions;
-            if (!candidateScene->SetTransform(slot->entity, state.transform)) return Fail(ReplicationError::SceneApplyRejected);
+            if (!sceneWorld_.SetTransform(slot->entity, state.transform)) return Fail(ReplicationError::SceneApplyRejected);
         }
         ++candidateReceipt.appliedEntities;
     }
     if (allowDynamicLifecycle_) for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) if (slots_[slotIndex].registered && !presentSlots[slotIndex]) {
-        if (!candidateScene->Destroy(slots_[slotIndex].entity)) return Fail(ReplicationError::DespawnRejected);
+        if (!sceneWorld_.Destroy(slots_[slotIndex].entity)) return Fail(ReplicationError::DespawnRejected);
         ++candidateReceipt.despawnedEntities;
     }
-    sceneWorld_ = *candidateScene;
     uint16_t spawnedCommitIndex = 0U;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
@@ -397,17 +393,13 @@ bool ReplicationWorld::SetInterpolationAlphaPermille(uint16_t alphaPermille) {
 
 bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
-    std::unique_ptr<SceneWorld> candidateScene;
-    try { candidateScene = std::make_unique<SceneWorld>(sceneWorld_); }
-    catch (const std::bad_alloc&) { return Fail(ReplicationError::Capacity); }
     uint16_t interpolated = 0U;
     for (const Slot& slot : slots_) {
         if (!slot.registered || slot.ownerId == localClientId_ || !slot.hasAuthoritative) continue;
         const Transform3 candidate = Lerp(slot.previousAuthoritative, slot.authoritative, interpolationAlphaPermille_);
-        if (!candidateScene->SetTransform(slot.entity, candidate)) return Fail(ReplicationError::SceneApplyRejected);
+        if (!sceneWorld_.SetTransform(slot.entity, candidate)) return Fail(ReplicationError::SceneApplyRejected);
         ++interpolated;
     }
-    sceneWorld_ = *candidateScene;
     ReplicationApplyReceipt candidateReceipt{};
     candidateReceipt.sequence = snapshotSequence_;
     candidateReceipt.serverTick = lastServerTick_;
