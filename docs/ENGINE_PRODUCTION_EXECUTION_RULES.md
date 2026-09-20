@@ -35,6 +35,91 @@ The required transition is:
 11. **P0–P4 are mandatory.** Production certification requires 100% completion of all required P0, P1, P2, P3 and P4 criteria.
 12. **No percentage inflation.** If evidence is incomplete, report the gap rather than inventing a readiness percentage.
 
+## 2A. Mandatory implementation + integration contract (every work run)
+
+Every engineering run that changes the engine MUST perform **both** of these actions before the run is considered productive:
+
+1. **Implementation** — deliver real production code in the canonical source tree. The code must preserve existing behavior and add/upgrade the required capability; it must not be a stub, placeholder, mock-only implementation, or documentation-only claim.
+2. **Integration** — wire that implementation into the real canonical subsystem/runtime call chain. A new class, API, helper, or subsystem with no real caller is **not counted as integrated**.
+
+A run that only creates production-looking code without a live integration path is incomplete. A run that only changes CI, documentation, or tests without advancing the underlying capability is also not counted as capability progress unless the change directly removes a verified production blocker.
+
+### Production-code quality floor
+
+For every implemented capability:
+
+- Code must be production-oriented and actually usable by the engine, not a demonstration-only proof.
+- Preserve original functions, contracts, and capability unless a documented compatibility migration explicitly requires otherwise.
+- **Downgrade is forbidden.** Do not remove features, reduce limits, weaken validation, lower quality, bypass ownership, replace real paths with mocks, or relax performance/robustness requirements merely to obtain a green build/test.
+- Do not replace a difficult subsystem with a simpler substitute just to increase a readiness percentage.
+- Error handling, lifetime/ownership, bounds, concurrency, determinism, and failure paths must be explicit where relevant.
+- Existing production code must be inspected before editing; changes must fit the canonical architecture rather than creating a parallel implementation.
+- “Production-ready” means the code is intended for the actual engine path and has enough surrounding integration to be exercised by the later validation gates. It must not be claimed solely from compilation.
+
+### Integration proof required
+
+When reporting a completed run, identify:
+
+implementation -> integration caller -> canonical owner -> runtime effect -> remaining validation
+
+If the caller chain cannot be identified, status remains **Implemented/Partial/Isolated**, never **Integrated**.
+
+### No percentage gaming
+
+Readiness percentages increase only for real capability implemented and integrated. Documentation, branch activity, line count, test scaffolding, or CI-only changes do not independently increase P0–P3 capability percentages.
+
+## 2B. Mandatory sandbox promotion gate
+
+**No branch is eligible to merge into another branch, including `main`, until its required sandbox validation has passed.** This applies equally to:
+
+- P0/P1/P2/P3 work branches;
+- feature branches;
+- helper branches;
+- port/reservoir branches;
+- branches containing only “small” fixes if they affect executable behavior;
+- any other branch proposed for merge or promotion.
+
+The required sequence is:
+
+implementation + integration -> P0–P3 completion -> consolidated test plan -> sandbox validation -> review/evidence -> merge
+
+After P0–P3 reach 100%, perform the full consolidated validation in the sandbox rather than repeatedly spending development runs on fragmented CI repair. The consolidated gate must cover the relevant Release, ASAN/regression, performance/load, failure-path, integration, platform, persistence/recovery, networking, and Android/device checks required by the applicable P0–P4 criteria.
+
+A branch that has not passed sandbox validation remains **not mergeable**, even if:
+- GitHub reports it as mergeable;
+- a subset of CI jobs is green;
+- it compiles in one configuration;
+- another branch already passed a similar test;
+- the change appears low risk.
+
+### Branch merge rule
+
+Before merging **any** branch:
+
+1. verify the branch's implementation and integration scope;
+2. verify no downgrade or capability loss against its base;
+3. run the required sandbox validation against the exact branch commit intended for merge;
+4. record the validation result/evidence;
+5. review conflicts and canonical ownership;
+6. merge only after the sandbox gate passes.
+
+The same rule applies when promoting a branch into a work branch before eventual promotion to `main`.
+
+## 2C. Final certification rule
+
+P4 remains the final certification gate. It is intentionally held until P0–P3 capability and integration work is complete.
+
+When P0–P3 are 100%:
+
+- execute the consolidated full test/validation campaign;
+- run the required sandbox tests for every branch still awaiting promotion;
+- repair failures in the underlying production code first;
+- do not solve failures by downgrading functionality or weakening tests;
+- only after the required sandbox evidence passes may the corresponding branches be merged;
+- after all required merges, execute final main-branch regression/certification and produce the reproducible release evidence.
+
+This establishes a hard separation between **building capability** and **certifying capability**: development runs must keep increasing real P0–P3 capability, while the final consolidated test phase proves that the completed engine works as a whole.
+
 ## 3. Canonical workflow
 
 ### Step 1 — Inventory
