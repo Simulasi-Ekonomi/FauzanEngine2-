@@ -5,6 +5,9 @@
 
 namespace NeoEngine {
 
+class AssetResourceManager;
+struct AssetResourceHandle;
+
 struct UploadTask {
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
@@ -21,47 +24,45 @@ public:
 
     void SetPhysicalDevice(VkPhysicalDevice physicalDevice) noexcept { physicalDevice_ = physicalDevice; }
     [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const noexcept { return physicalDevice_; }
-    
+
     ~VulkanAssetUploader() noexcept = default;
-    
     VulkanAssetUploader(const VulkanAssetUploader&) = delete;
     VulkanAssetUploader& operator=(const VulkanAssetUploader&) = delete;
 
-    // Upload texture via staging buffer (returns staging buffer for later cleanup)
     [[nodiscard]] bool UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                      const std::vector<uint8_t>& mipData,
                                      VkImage targetImage, VkImageLayout targetLayout) noexcept;
-
-    // Explicit-dimension overload; the legacy overload remains for API compatibility.
     [[nodiscard]] bool UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                      const std::vector<uint8_t>& mipData,
                                      VkImage targetImage, VkImageLayout targetLayout,
                                      uint32_t width, uint32_t height) noexcept;
-    
-    // Upload mesh geometry (vertex + index buffers)
+
+    // Integrated resource-manager path: validates the live resource lease and
+    // uploads its current registry payload without bypassing ownership validation.
+    [[nodiscard]] bool UploadTextureResource(AssetResourceManager& resources,
+                                              const AssetResourceHandle& handle,
+                                              VkDevice device, VkCommandBuffer cmd,
+                                              VkImage targetImage, VkImageLayout targetLayout,
+                                              uint32_t width, uint32_t height) noexcept;
+
     [[nodiscard]] bool UploadMesh(VkDevice device, VkCommandBuffer cmd,
                                   const std::vector<uint8_t>& vertexData,
                                   const std::vector<uint8_t>& indexData,
                                   VkBuffer vertexBuffer, VkBuffer indexBuffer) noexcept;
-    
-    // Advance frame (cleanup completed uploads, fence waits)
-    // Associates recorded uploads with the fence used by the command submission.
-    // The fence must outlive the submission and is owned by the uploader afterwards.
-    void AttachCompletionFence(VkFence fence) noexcept;
 
+    void AttachCompletionFence(VkFence fence) noexcept;
     void AdvanceFrame(VkDevice device) noexcept;
     void Flush(VkDevice device) noexcept;
-    
+
     [[nodiscard]] uint32_t GetStagingPoolSizeMB() const noexcept { return stagingPoolSizeMB_; }
     [[nodiscard]] uint32_t GetCurrentStagingUsedMB() const noexcept { return currentStagingUsedMB_; }
 
 private:
-    [[nodiscard]] VkBuffer AllocateStagingBuffer(VkDevice device, size_t size, 
+    [[nodiscard]] VkBuffer AllocateStagingBuffer(VkDevice device, size_t size,
                                                  VkDeviceMemory& outMemory) noexcept;
-    
     [[nodiscard]] bool CopyBufferToImage(VkDevice device, VkCommandBuffer cmd,
-                                        VkBuffer stagingBuffer, VkImage targetImage,
-                                        uint32_t width, uint32_t height) noexcept;
+                                          VkBuffer stagingBuffer, VkImage targetImage,
+                                          uint32_t width, uint32_t height) noexcept;
 
     uint32_t stagingPoolSizeMB_;
     uint32_t currentStagingUsedMB_ = 0;
