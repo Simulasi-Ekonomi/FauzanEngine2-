@@ -58,3 +58,23 @@ def test_durable_store_recovers_pending_events_after_reopen(tmp_path) -> None:
     assert reopened.acknowledge(["event-recovery"]) == 1
     final = TelemetryDurableStore(db_path)
     assert final.pending_count() == 0
+
+def test_durable_store_enforces_total_pending_byte_budget(tmp_path) -> None:
+    store = TelemetryDurableStore(tmp_path / "telemetry-bytes.sqlite3", max_bytes=180)
+    envelope = make_envelope("event-bytes")
+    try:
+        store.enqueue(envelope, 123456)
+        assert False
+    except TelemetryStoreError:
+        pass
+
+
+def test_durable_store_prunes_acked_rows(tmp_path) -> None:
+    db_path = tmp_path / "telemetry-prune.sqlite3"
+    store = TelemetryDurableStore(db_path)
+    assert store.enqueue(make_envelope("event-prune"), 123456) == 1
+    assert store.acknowledge(["event-prune"]) == 1
+    reopened = TelemetryDurableStore(db_path)
+    with reopened._connect() as db:
+        count = db.execute("SELECT COUNT(*) FROM telemetry_events").fetchone()[0]
+    assert count == 0
