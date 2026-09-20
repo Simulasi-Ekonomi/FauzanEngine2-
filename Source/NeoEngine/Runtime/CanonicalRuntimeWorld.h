@@ -58,6 +58,7 @@ public:
     bool SetTransform(CanonicalEntity entity, const Transform3& transform);
     bool BindMesh(const SceneMeshInstance& instance);
     bool Raycast(const GameplayRay2& ray, GameplayRayHit2& hit);
+    bool RaycastSet(const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits);
     bool OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
     bool OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets);
     bool IsPhysicsEntityAwake(const CanonicalEntity& entity) const;
