@@ -1,6 +1,8 @@
 #include "CanonicalReplicationBridge.h"
 #include "CanonicalRuntimeWorld.h"
 
+#include <cmath>
+
 namespace NeoEngine {
 
 CanonicalReplicationBridge::CanonicalReplicationBridge(CanonicalRuntimeWorld& world, ReplicationRole role,
@@ -110,6 +112,10 @@ bool CanonicalReplicationBridge::ApplyAcknowledgement(const ReplicationAcknowled
 
 bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float deltaZ,
                                          ReplicationPredictionReceipt& receipt) {
+    if (!std::isfinite(deltaX) || !std::isfinite(deltaZ)) {
+        lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
+        return false;
+    }
     if (!replication_.PredictLocalInput(networkId, deltaX, deltaZ, receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
