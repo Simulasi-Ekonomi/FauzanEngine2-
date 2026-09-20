@@ -34,6 +34,7 @@
 #include "Systems/TrustSafetySystem.h"
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace NeoEngine {
@@ -71,6 +72,8 @@ public:
     bool ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement);
     bool PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
     bool ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
+    bool BuildReplicationSnapshotPacket(std::vector<uint8_t>& bytes) const;
+    bool ApplyReplicationSnapshotPacket(std::span<const uint8_t> bytes, ReplicationApplyReceipt& receipt);
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
