@@ -15,3 +15,37 @@ namespace NeoEngine { namespace {template<class T>void Put(std::vector<uint8_t>&
 }
 
 std::vector<uint8_t> TelemetryOutbox::Serialize()const{std::vector<uint8_t>o;Put<uint32_t>(o,0x5842544FULL);Put<uint16_t>(o,1);Put<uint32_t>(o,m_Pending.size());for(const auto&e:m_Pending){Put<uint16_t>(o,e.id.size());o.insert(o.end(),e.id.begin(),e.id.end());Put<uint32_t>(o,e.json.size());o.insert(o.end(),e.json.begin(),e.json.end());}return o;}bool TelemetryOutbox::Deserialize(const std::vector<uint8_t>&b){if(b.empty()||b.size()>kMaxSerializedBytes)return false;size_t n=0;uint32_t magic,count;uint16_t ver;if(!Get(b,n,magic)||!Get(b,n,ver)||!Get(b,n,count)||magic!=0x5842544FULL||ver!=1||count>kMaxEnvelopes)return false;try{std::vector<TelemetryEnvelope>next;next.reserve(count);for(uint32_t i=0;i<count;++i){uint16_t il;uint32_t jl;if(!Get(b,n,il)||n+il>b.size())return false;std::string id(reinterpret_cast<const char*>(b.data()+n),il);n+=il;if(!Get(b,n,jl)||jl>kMaxEnvelopeBytes||n+jl>b.size()||!ValidId(id))return false;std::string json(reinterpret_cast<const char*>(b.data()+n),jl);n+=jl;if(json.empty()||json.front()!='{'||std::any_of(next.begin(),next.end(),[&](const auto&e){return e.id==id;}))return false;next.push_back({std::move(id),std::move(json)});}if(n!=b.size())return false;m_Pending=std::move(next);return true;}catch(const std::bad_alloc&){return false;}} }
+
+bool NeoEngine::TelemetryOutbox::PruneOlderThan(uint64_t nowMs, uint64_t maxAgeMs) {
+    if (maxAgeMs == 0U) return false;
+    const uint64_t cutoff = nowMs > maxAgeMs ? nowMs - maxAgeMs : 0U;
+    std::vector<TelemetryEnvelope> retained;
+    retained.reserve(m_Pending.size());
+    bool changed = false;
+    for (const TelemetryEnvelope& envelope : m_Pending) {
+        const std::string key = "\"occurredAtMs\":";
+        const size_t marker = envelope.json.find(key);
+        if (marker == std::string::npos) {
+            retained.push_back(envelope);
+            continue;
+        }
+        size_t begin = marker + key.size();
+        size_t end = begin;
+        while (end < envelope.json.size() && envelope.json[end] >= '0' && envelope.json[end] <= '9') ++end;
+        if (end == begin) {
+            retained.push_back(envelope);
+            continue;
+        }
+        uint64_t occurredAtMs = 0U;
+        try {
+            occurredAtMs = std::stoull(envelope.json.substr(begin, end - begin));
+        } catch (...) {
+            retained.push_back(envelope);
+            continue;
+        }
+        if (occurredAtMs >= cutoff) retained.push_back(envelope);
+        else changed = true;
+    }
+    if (changed) m_Pending.swap(retained);
+    return changed;
+}
