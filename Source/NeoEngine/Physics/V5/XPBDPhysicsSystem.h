@@ -270,6 +270,8 @@ private:
     std::vector<std::pair<uint32_t, int>> m_BVHSortTemp;
     std::vector<int> m_BVHSortedIndices;
     struct BVHBuildTask { int s, e, p; bool right; };
+    struct ColorTask { size_t color; size_t offset; size_t count; };
+    std::vector<ColorTask> m_ColorTasks;
     std::vector<BVHBuildTask> m_BVHBuildStack;
     int m_BVHRoot = -1;
     bool m_BVHInitialized = false;
