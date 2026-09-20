@@ -21,7 +21,7 @@ HiZBuffer::HiZBuffer(int width, int height)
 
 int HiZBuffer::LevelExtent(int base, int level) {
     int value = base;
-    for (int i = 0; i < level; ++i) value = std::max(1, (value + 1) / 2);
+    for (int i = 0; i < level; ++i) value = std::max(1, value / 2 + value % 2);
     return value;
 }
 
@@ -90,7 +90,7 @@ float HiZBuffer::Sample(int level, int x, int y) const {
     const int height = GetHeight(level);
     if (x < 0 || y < 0 || x >= width || y >= height) return 0.0F;
     return mip_[static_cast<std::size_t>(level)]
-               [static_cast<std::size_t>(y * width + x)];
+               [static_cast<std::size_t>(y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(x)];
 }
 
 float HiZBuffer::SampleOcclusion(int level, int x, int y) const {
