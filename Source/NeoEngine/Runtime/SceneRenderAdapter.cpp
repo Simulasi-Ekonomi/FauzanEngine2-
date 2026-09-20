@@ -155,7 +155,10 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         for (const MeshVertex& vertex : instance.vertices) {
             const RenderPoint3 position = TransformPoint(model, vertex.position);
             const RenderPoint3 normal = TransformDirection(model, vertex.normal);
-            Vulkan3DVertex gpuVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.m};\n            gpuVertex.boneIndices = vertex.boneIndices;\n            gpuVertex.boneWeights = vertex.boneWeights;\n            vertices.push_back(gpuVertex);
+            Vulkan3DVertex gpuVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v};
+            gpuVertex.boneIndices = vertex.boneIndices;
+            gpuVertex.boneWeights = vertex.boneWeights;
+            vertices.push_back(gpuVertex);
         }
 
         std::vector<uint32_t> indices;
