@@ -42,6 +42,20 @@ if len(lines) < 4 or lines[0] != "FAUZANENGINE_RELEASE_MANIFEST_V1":
     raise SystemExit("P4_RELEASE_GATE_FAIL invalid manifest header")
 if not all(lines[i].split("=", 1)[0] in {"commit", "tree", "files"} for i in range(1, 4)):
     raise SystemExit("P4_RELEASE_GATE_FAIL invalid manifest metadata")
+manifest_commit = lines[1].split("=", 1)[1]
+manifest_tree = lines[2].split("=", 1)[1]
+manifest_files = int(lines[3].split("=", 1)[1])
+head_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+head_tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip()
+if manifest_commit != head_commit or manifest_tree != head_tree:
+    raise SystemExit("P4_RELEASE_GATE_FAIL manifest does not describe current HEAD")
+hash_lines = lines[4:]
+if len(hash_lines) != manifest_files:
+    raise SystemExit("P4_RELEASE_GATE_FAIL manifest file count mismatch")
+for line in hash_lines:
+    parts = line.split("  ", 1)
+    if len(parts) != 2 or len(parts[0]) != 64:
+        raise SystemExit("P4_RELEASE_GATE_FAIL malformed manifest hash entry")
 
 bom = json.loads(sbom.read_text(encoding="utf-8"))
 if bom.get("bomFormat") != "CycloneDX" or bom.get("specVersion") != "1.5":
