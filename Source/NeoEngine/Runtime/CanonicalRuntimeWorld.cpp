@@ -168,7 +168,7 @@ bool CanonicalRuntimeWorld::Raycast(const GameplayRay2& ray, GameplayRayHit2& hi
         lastError_ = CanonicalWorldError::None;
         return true;
     }
-    lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+    lastError_ = CanonicalWorldError::QueryFailed;
     return false;
 }
 
@@ -177,7 +177,7 @@ bool CanonicalRuntimeWorld::OverlapCircle(const GameplayOverlapCircle2& circle, 
         lastError_ = CanonicalWorldError::None;
         return true;
     }
-    lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+    lastError_ = CanonicalWorldError::QueryFailed;
     return false;
 }
 
