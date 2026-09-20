@@ -253,8 +253,11 @@ m_UF_ParentPrev.resize(totalEntities, 0);
             m_flatEntityIDs[idx] = id;
             m_flatRot[idx] = chunk->rotZ ? chunk->rotZ[i] : 0.0f;
             m_flatAngVel[idx] = 0.0f;
-            m_flatInvInertia[idx] = (chunk->invMass[i] > 0)
-                ? (2.0f / (chunk->radius[i] * chunk->radius[i] * chunk->invMass[i])) : 0.0f;
+            const float radius = chunk->radius[i];
+            const float invMass = chunk->invMass[i];
+            const float inertiaDenominator = radius * radius * invMass;
+            m_flatInvInertia[idx] = (invMass > 0.0f && inertiaDenominator > 1.0e-12f)
+                ? (2.0f / inertiaDenominator) : 0.0f;
             ++idx;
         }
     }
