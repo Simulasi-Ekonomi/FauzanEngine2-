@@ -67,12 +67,19 @@ jobs:
           SDL_VIDEODRIVER: dummy
         run: |
           cmake --build build/r4-release --target sdl_audio_bridge_smoke sdl_input_bridge_smoke input_state_smoke ui_input_router_smoke audio_subsystem_smoke neo_runtime_audio_smoke editor_subsystem_smoke -j2
+          echo 'RUN sdl_audio_bridge_smoke'
           ./build/r4-release/sdl_audio_bridge_smoke
+          echo 'RUN sdl_input_bridge_smoke'
           ./build/r4-release/sdl_input_bridge_smoke
+          echo 'RUN input_state_smoke'
           ./build/r4-release/input_state_smoke
+          echo 'RUN ui_input_router_smoke'
           ./build/r4-release/ui_input_router_smoke
+          echo 'RUN audio_subsystem_smoke'
           ./build/r4-release/audio_subsystem_smoke
+          echo 'RUN neo_runtime_audio_smoke'
           ./build/r4-release/neo_runtime_audio_smoke
+          echo 'RUN editor_subsystem_smoke'
           ./build/r4-release/editor_subsystem_smoke
       - name: Configure AddressSanitizer
         run: |
@@ -84,10 +91,17 @@ jobs:
           SDL_VIDEODRIVER: dummy
         run: |
           cmake --build build/r4-asan --target sdl_audio_bridge_smoke sdl_input_bridge_smoke input_state_smoke ui_input_router_smoke audio_subsystem_smoke neo_runtime_audio_smoke editor_subsystem_smoke -j2
+          echo 'RUN ASAN sdl_audio_bridge_smoke'
           ./build/r4-asan/sdl_audio_bridge_smoke
+          echo 'RUN ASAN sdl_input_bridge_smoke'
           ./build/r4-asan/sdl_input_bridge_smoke
+          echo 'RUN ASAN input_state_smoke'
           ./build/r4-asan/input_state_smoke
+          echo 'RUN ASAN ui_input_router_smoke'
           ./build/r4-asan/ui_input_router_smoke
+          echo 'RUN ASAN audio_subsystem_smoke'
           ./build/r4-asan/audio_subsystem_smoke
+          echo 'RUN ASAN neo_runtime_audio_smoke'
           ./build/r4-asan/neo_runtime_audio_smoke
+          echo 'RUN ASAN editor_subsystem_smoke'
           ./build/r4-asan/editor_subsystem_smoke
