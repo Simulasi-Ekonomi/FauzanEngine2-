@@ -234,15 +234,21 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
 }
 
 bool NeoRuntime::Tick() {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidDelta(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount)) { m_LastError = RuntimeError::TimeFailed; return false; }
+    const float tickDelta = 1.0F / 60.0F;
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidElapsedDelta(tickDelta) || !m_Clock->Advance(tickDelta)) { m_LastError = RuntimeError::TimeFailed; return false; }
     const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(contractSnapshot.pendingFixedSteps, 1000U)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevisionTransition(contractSnapshot.frameCount - 1U, contractSnapshot.frameCount)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_InputMotion != nullptr && !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InputMotionFailed; return false; }
+    if (m_RouteFollower != nullptr && !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_RouteMotionEntity_.index)) { m_LastError = RuntimeError::RouteMotionFailed; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidWorldExtent(m_FarmWorldConfig.worldWidth, m_FarmWorldConfig.worldHeight)) { m_LastError = RuntimeError::WorldTickFailed; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidResourceCount(m_Assets->Summary().assetCount, 1U << 20U) || !RuntimeContractGuard::RuntimeContractGuard::ValidResourceCount(m_Resources->Summary().resourceCount, 1U << 20U)) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(static_cast<size_t>(contractSnapshot.pendingFixedSteps), 1000U)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     std::vector<RuntimeTimerFire> fires;
-    if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
-    for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!m_Timers->Advance(contractSnapshot.scaledDeltaSeconds, fires) || !RuntimeContractGuard::RuntimeContractGuard::ValidTimerCount(fires.size(), EventSignalBus::kMaxEvents)) { m_LastError = RuntimeError::InvalidState; return false; }
+    for (const RuntimeTimerFire& fire : fires) if (fire.fireCount == 0U || !RuntimeContractGuard::RuntimeContractGuard::ValidEventCount(fire.fireCount, EventSignalBus::kMaxEvents) || !m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), contractSnapshot.fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_Input != nullptr) m_Input->BeginFrame();
     std::vector<RuntimeTimeEvent> timeEvents;
     uint32_t simulatedTicks = 0U;
@@ -254,6 +260,7 @@ bool NeoRuntime::Tick() {
     }
     if (m_Clock->Snapshot().paused || simulatedTicks == 0U) {
         const uint32_t eventCount = m_Events->PendingCount();
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidEventCount(eventCount, EventSignalBus::kMaxEvents) || !RuntimeContractGuard::RuntimeContractGuard::ValidReceiptFrame(m_Clock->Snapshot().frameCount)) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
         EventSignalDispatchReceipt dispatchReceipt{};
         CurriculumProgressReceipt curriculumReceipt{};
         if (m_Curriculum != nullptr && !m_Curriculum->Snapshot(curriculumReceipt)) { m_LastError = RuntimeError::CurriculumFailed; return false; }
