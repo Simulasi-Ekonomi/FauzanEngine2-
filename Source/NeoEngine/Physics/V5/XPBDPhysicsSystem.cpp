@@ -1560,33 +1560,36 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
     if (m_TimingEnabled) m_StepTimingStats.islandsAndGraphMs = millisSince(islandsStarted);
     const auto solveStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
     float compliance = 0.0001f / (simulationDt * simulationDt);
-    constexpr int maxIter = 3;
+    constexpr uint32_t solverIterations = 3U;
     const size_t workerCount = std::min(std::max(JobSystem::Get().NumWorkers(), 1UL), MAX_WORKER_THREADS);
-    if (workerCount <= 1 || m_NumColors <= 1) {
-        for (size_t color = 0; color < m_NumColors; ++color)
-            SolveColorBatch(color, compliance, simulationDt, 0, maxIter);
-    } else {
-        constexpr size_t kMinContactsPerTask = 4096;
-        m_ColorTasks.clear();
-        for (size_t color = 0; color < m_NumColors; ++color) {
-            const size_t count = m_ColorBatches[color].count;
-            const size_t parts = std::min(workerCount, std::max<size_t>(1, (count + kMinContactsPerTask - 1) / kMinContactsPerTask));
-            for (size_t part = 0; part < parts; ++part) {
-                const size_t begin = count * part / parts;
-                const size_t end = count * (part + 1) / parts;
-                if (begin < end) m_ColorTasks.push_back({color, begin, end - begin});
-            }
-        }
-        const size_t scheduledWorkers = std::min(workerCount, m_ColorTasks.size());
-        for (size_t worker = 0; worker < scheduledWorkers; ++worker) {
-            JobSystem::Get().Execute([this, compliance, simulationDt, worker, scheduledWorkers, maxIter]() {
-                for (size_t task = worker; task < m_ColorTasks.size(); task += scheduledWorkers) {
-                    const ColorTask& work = m_ColorTasks[task];
-                    SolveColorBatch(work.color, compliance, simulationDt, worker, maxIter, work.offset, work.count);
+    for (uint32_t iteration = 0; iteration < solverIterations; ++iteration) {
+        if (workerCount <= 1 || m_NumColors <= 1) {
+            for (size_t color = 0; color < m_NumColors; ++color)
+                SolveColorBatch(color, compliance, simulationDt, 0, 1U);
+        } else {
+            constexpr size_t kMinContactsPerTask = 4096;
+            m_ColorTasks.clear();
+            for (size_t color = 0; color < m_NumColors; ++color) {
+                const size_t count = m_ColorBatches[color].count;
+                const size_t parts = std::min(workerCount, std::max<size_t>(1, (count + kMinContactsPerTask - 1) / kMinContactsPerTask));
+                for (size_t part = 0; part < parts; ++part) {
+                    const size_t begin = count * part / parts;
+                    const size_t end = count * (part + 1) / parts;
+                    if (begin < end) m_ColorTasks.push_back({color, begin, end - begin});
                 }
-            });
+            }
+            const size_t scheduledWorkers = std::min(workerCount, m_ColorTasks.size());
+            for (size_t worker = 0; worker < scheduledWorkers; ++worker) {
+                JobSystem::Get().Execute([this, compliance, simulationDt, worker, scheduledWorkers]() {
+                    for (size_t task = worker; task < m_ColorTasks.size(); task += scheduledWorkers) {
+                        const ColorTask& work = m_ColorTasks[task];
+                        SolveColorBatch(work.color, compliance, simulationDt, worker, 1U, work.offset, work.count);
+                    }
+                });
+            }
+            JobSystem::Get().WaitForAll();
         }
-        JobSystem::Get().WaitForAll();
+        MergeThreadDeltas();
     }
     if (m_TimingEnabled) m_StepTimingStats.solveMs = millisSince(solveStarted);
     const auto mergeStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
