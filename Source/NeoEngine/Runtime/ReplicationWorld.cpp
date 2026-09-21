@@ -97,7 +97,7 @@ Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPerm
 }
 
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
-    if (snapshot.sequence == 0U || snapshot.serverTick == 0U || snapshot.count > ReplicationSnapshot::kMaxEntities || snapshot.count > 1024U) { error = ReplicationError::InvalidSnapshot; return false; }
+    if (snapshot.sequence == 0U || snapshot.count > ReplicationSnapshot::kMaxEntities || snapshot.count > 1024U) { error = ReplicationError::InvalidSnapshot; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
@@ -121,7 +121,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     if (bytes.size() < 4U + 2U + 8U + 8U + 2U + 8U || bytes.size() > kMaxBytes) { error = ReplicationError::CorruptSnapshot; return false; }
     size_t offset = 0U;
     uint32_t magic = 0U; uint16_t version = 0U; uint64_t sequence = 0U; uint64_t serverTick = 0U; uint16_t count = 0U;
-    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, sequence) || !ReadU64(bytes, offset, serverTick) || !ReadU16(bytes, offset, count) || magic != kMagic || version != kVersion || sequence == 0U || serverTick == 0U || count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::CorruptSnapshot; return false; }
+    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, sequence) || !ReadU64(bytes, offset, serverTick) || !ReadU16(bytes, offset, count) || magic != kMagic || version != kVersion || sequence == 0U || count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::CorruptSnapshot; return false; }
     ReplicationSnapshot candidate{};
     candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count;
     for (uint16_t index = 0U; index < count; ++index) {
@@ -138,7 +138,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
 }
 
 bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement& acknowledgement, std::vector<uint8_t>& bytes, ReplicationError& error) {
-    if (acknowledgement.sequence == 0U || acknowledgement.checksum == 0U || acknowledgement.serverTick == 0U) { error = ReplicationError::InvalidAcknowledgement; return false; }
+    if (acknowledgement.sequence == 0U || acknowledgement.checksum == 0U) { error = ReplicationError::InvalidAcknowledgement; return false; }
     try {
         std::vector<uint8_t> content;
         content.reserve(30U);
