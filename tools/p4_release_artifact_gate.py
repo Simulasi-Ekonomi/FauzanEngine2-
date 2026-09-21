@@ -6,7 +6,6 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
-from datetime import datetime
 
 MAX_ARTIFACT_SIZE=512*1024*1024
 MAX_ENTRY_SIZE=256*1024*1024
@@ -67,7 +66,6 @@ def main()->int:
                 if len(info.extra)>MAX_EXTRA_FIELD: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_extra")
                 if info.flag_bits & 0x1 or info.flag_bits & ((1<<5)|(1<<6)|(1<<13)|(1<<14)|(1<<15)): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_flags")
                 if info.header_offset < 0 or info.header_offset >= artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_header_offset")
-                if info.header_offset % 1 != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_header_alignment")
                 if info.compress_size == 0 and info.file_size == 0 and not info.is_dir() and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
                 header_end=info.header_offset+30+len(name.encode("utf-8"))+len(info.extra)
                 if header_end>artifact_size or header_end<info.header_offset: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_extent")
