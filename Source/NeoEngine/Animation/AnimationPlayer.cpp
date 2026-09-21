@@ -31,10 +31,12 @@ void AnimationPlayer::Stop() noexcept {
 
 bool AnimationPlayer::Update(float dt) {
     if (!playing_ || currentClip_ == nullptr || !std::isfinite(dt) || dt < 0.0F || dt > 3600.0F) return false;
+    if (skeleton_ == nullptr || !skeleton_->IsComplete()) return false;
     if (!std::isfinite(time_) || time_ < 0.0F || time_ > 86400.0F) return false;
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F) return false;
     if (duration <= 0.0F) {
+        if (playbackMode_ == AnimationPlaybackMode::Loop && duration == 0.0F) { playing_ = false; return true; }
         time_ = 0.0F;
         if (playbackMode_ == AnimationPlaybackMode::Clamp) playing_ = false;
         return true;
@@ -42,9 +44,10 @@ bool AnimationPlayer::Update(float dt) {
     if (dt > 86400.0F - time_) return false;
     const float nextTime = time_ + dt;
     if (!std::isfinite(nextTime) || nextTime < time_ || nextTime > 86400.0F) return false;
-    if (duration > 0.0F && nextTime > 86400.0F - std::numeric_limits<float>::epsilon()) { time_ = duration; playing_ = playbackMode_ == AnimationPlaybackMode::Loop; return true; }
+    if (duration > 0.0F && nextTime > duration + std::numeric_limits<float>::epsilon()) { time_ = duration; playing_ = false; return true; }
     time_ = nextTime;
     if (playbackMode_ == AnimationPlaybackMode::Loop) {
+        if (duration <= 0.0F) return false;
         time_ = std::fmod(time_, duration);
         if (!std::isfinite(time_) || time_ < 0.0F) return false;
         if (time_ < 0.0F) time_ += duration;
@@ -88,7 +91,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
         candidatePalette.size() != boneCount) return false;
     if (candidatePalette.capacity() > kMaxPaletteBones) return false;
     for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
-    if (candidateLocal.size() != boneCount || candidatePalette.size() != boneCount) return false;
+    if (candidateLocal.size() != boneCount || candidatePalette.size() != boneCount || candidateLocal.capacity() < boneCount || candidatePalette.capacity() < boneCount) return false;
     localPose = std::move(candidateLocal);
     skinningPalette = std::move(candidatePalette);
     if (localPose.size() != boneCount || skinningPalette.size() != boneCount) { localPose.clear(); skinningPalette.clear(); return false; }
