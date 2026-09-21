@@ -38,7 +38,7 @@ void AnimationClip::AddKeyframe(int bone, const Keyframe& frame) {
     if (track.size() >= kMaxKeyframesPerBone) return;
     size_t total = 0U;
     for (const auto& t : tracks) {
-        if (total > kMaxTotalKeyframes - std::min(t.size(), kMaxTotalKeyframes)) return;
+        if (t.size() > kMaxTotalKeyframes || total > kMaxTotalKeyframes - t.size()) return;
         total += t.size();
     }
     if (total >= kMaxTotalKeyframes) return;
@@ -67,7 +67,7 @@ float AnimationClip::GetDuration() const { return std::isfinite(duration) && dur
 
 bool AnimationClip::Sample(int bone, float time, Mat4& out) const {
     const auto& track = GetFrames(bone);
-    if (track.empty() || !std::isfinite(time) || !std::isfinite(duration)) return false;
+    if (track.empty() || !std::isfinite(time) || !std::isfinite(duration) || time < 0.0F || time > kMaxAnimationTime) return false;
     if (track.size() == 1U || time <= track.front().time) { out = track.front().transform; return true; }
     if (time >= track.back().time) { out = track.back().transform; return true; }
 
