@@ -682,3 +682,17 @@
 - [x] gap-closure-all-branches-night T4-09: restore bounds decoded authority blob.
 - [x] gap-closure-all-branches-night T4-10: encoded checkpoint must not be smaller than payload.
 - [x] gap-closure-all-branches-night T4-11: checkpoint decode remains transactional before runtime commit.
+
+
+## 2026-09-21 — Turn 5 — implementation/integration correction ledger
+- [x] T5 compile blocker: canonical CheckpointEncodeFailed enum.
+- [x] T5 remove invalid PersistenceFailed references.
+- [x] T5 restore payload bounds revalidated after CI failure.
+- [x] T5 world payload bound retained before checkpoint composition.
+- [x] T5 authority payload bound retained before checkpoint composition.
+- [x] T5 empty restore input rejected.
+- [x] T5 oversized restore input rejected.
+- [x] T5 terminal revision rejected.
+- [x] T5 empty envelope rejected.
+- [x] T5 decoded blob bounds retained.
+- [x] T5 checkpoint encode/restore fail-closed.
