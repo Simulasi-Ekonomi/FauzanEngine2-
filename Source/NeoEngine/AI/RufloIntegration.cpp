@@ -66,11 +66,13 @@ ExecutionResult RufloIntegration::ExecuteCode(const std::string& code, const std
         !root["success"].isBool()) return {1, "", "Invalid response from Ruflo", 0.0f, false};
 
     ExecutionResult result{};
-    result.exitCode = root.get("exitCode", 1).asInt();
-    result.stdout = root.get("stdout", "").asString();
-    result.stderr = root.get("stderr", "").asString();
-    result.executionTime = root.get("executionTime", 0.0f).asFloat();
+    if (!root["exitCode"].isInt() || !root["stdout"].isString() || !root["stderr"].isString() || !root["executionTime"].isNumeric()) return {1, "", "Malformed Ruflo result", 0.0f, false};
+    result.exitCode = root["exitCode"].asInt();
+    result.stdout = root["stdout"].asString();
+    result.stderr = root["stderr"].asString();
+    result.executionTime = root["executionTime"].asFloat();
     if (!std::isfinite(result.executionTime) || result.executionTime < 0.0f || result.executionTime > 86400.0f) return {1, "", "Invalid execution time", 0.0f, false};
+    if (result.stdout.size() > 16U * 1024U * 1024U || result.stderr.size() > 16U * 1024U * 1024U) return {1, "", "Ruflo output limit exceeded", 0.0f, false};
     result.success = root["success"].asBool();
     return result;
 }
