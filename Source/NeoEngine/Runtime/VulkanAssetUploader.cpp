@@ -118,15 +118,12 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     std::memcpy(indexMapped, indexData.data(), indexData.size());
     vkUnmapMemory(device, vertexMemory); vkUnmapMemory(device, indexMemory);
 
-    const VkBufferCopy vertexRegion{0, 0, vertexData.size()};
-    const VkBufferCopy indexRegion{0, 0, indexData.size()};
-    vkCmdCopyBuffer(cmd, vertexStaging, vertexBuffer, 1, &vertexRegion);
-    vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &indexRegion);
-
     const uint64_t vertexMB64 = (static_cast<uint64_t>(vertexData.size()) + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
     const uint64_t indexMB64 = (static_cast<uint64_t>(indexData.size()) + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
-    if (vertexMB64 > UINT32_MAX || indexMB64 > UINT32_MAX ||
-        vertexMB64 + indexMB64 > stagingPoolSizeMB_ ||
+    if (vertexMB64 == 0ULL || indexMB64 == 0ULL ||
+        vertexMB64 > UINT32_MAX || indexMB64 > UINT32_MAX ||
+        vertexMB64 > stagingPoolSizeMB_ || indexMB64 > stagingPoolSizeMB_ ||
+        vertexMB64 > static_cast<uint64_t>(stagingPoolSizeMB_) - indexMB64 ||
         currentStagingUsedMB_ > stagingPoolSizeMB_ - static_cast<uint32_t>(vertexMB64 + indexMB64)) {
         vkDestroyBuffer(device, vertexStaging, nullptr);
         vkFreeMemory(device, vertexMemory, nullptr);
@@ -134,6 +131,11 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
         vkFreeMemory(device, indexMemory, nullptr);
         return false;
     }
+
+    const VkBufferCopy vertexRegion{0, 0, vertexData.size()};
+    const VkBufferCopy indexRegion{0, 0, indexData.size()};
+    vkCmdCopyBuffer(cmd, vertexStaging, vertexBuffer, 1, &vertexRegion);
+    vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &indexRegion);
     try {
         pendingUploads_.reserve(pendingUploads_.size() + 2U);
         pendingUploads_.push_back({vertexStaging, vertexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
