@@ -68,7 +68,7 @@ void AIManager::Update(float DeltaTime) {
     timeAccumulator = std::fmod(timeAccumulator, 1.0f);
 }
 
-bool AIManager::IsReady() const {
+bool AIManager::IsReady() const noexcept {
     return initialized && ((hermes && hermes->IsReady()) || (gemma4 && gemma4->IsReady()) ||
                            (ruflo && ruflo->IsReady()) || (opencode && opencode->IsReady()));
 }
