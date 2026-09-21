@@ -572,3 +572,16 @@
 - [ ] P2.2: Reproduce broad non-Vulkan Release and ASAN `detect_leaks=1` suites on a single tip revision under a storage-aware build strategy before making cross-engine readiness claims.
 - [x] P2.2a: Execute a bounded representative non-Vulkan smoke matrix on one canonical tip in Release and AddressSanitizer with leak detection, recording exact target coverage and any external-driver exceptions without claiming whole-engine coverage; do not expand to every duplicate-heavy executable target. `docs/BROAD_NON_VULKAN_SMOKE_EVIDENCE_V1.md` records the exact 35-target set; all 35/35 pass in Release and ASAN `detect_leaks=1`. The run is headless with dummy SDL drivers; Vulkan `glslc` discovery is an external configuration exception and Vulkan presentation is not counted.
 \n## 2026-09-21 — Turn 2: Android/editor vertical-slice and native render integration\n- [x] B4-01 captured the initial Scene/ECS revision before executing the vertical-slice tick.\n- [x] B4-02 bounded pre-tick Scene/ECS counters before narrowing them to receipt types.\n- [x] B4-03 enforced Scene/ECS receipt-count equality.\n- [x] B4-04 enforced non-regressing physics revision at the pre-tick boundary.\n- [x] B4-05 validated the pre-tick receipt state transactionally before mutation.\n- [x] B4-06 validated canonical runtime state after tick.\n- [x] B4-07 bounded post-tick Scene/ECS counts and cross-checked both counters.\n- [x] B4-08 rejected terminal post-tick revision values.\n- [x] B4-09 revalidated post-tick Scene/ECS receipt consistency.\n- [x] B4-10 bound the Android JNI bridge to canonical NeoRuntime initialization/tick/render/shutdown on the active JNI path.\n- [x] B4-11 added the canonical SoftwareRenderer to the Android native CMake source set.\n- [x] B4-12 added a real native framebuffer render/hash path to NeoEngineCanonicalBridge and exposed it to Java.\n- [x] B4-13 bound Java canonical tick acceptance to successful native rendering instead of telemetry-only success.\n
+
+## 2026-09-21 — Turn 3 — 11+ substantive implementation/integration ledger
+- [x] p3-editor-android-production-night T3-01: Android render width persisted in JNI state.
+- [x] p3-editor-android-production-night T3-02: Android render height persisted in JNI state.
+- [x] p3-editor-android-production-night T3-03: render dimensions reset on shutdown.
+- [x] p3-editor-android-production-night T3-04: native init rejects oversized dimensions.
+- [x] p3-editor-android-production-night T3-05: native tick requires initialized runtime.
+- [x] p3-editor-android-production-night T3-06: native tick delta finite/bounded.
+- [x] p3-editor-android-production-night T3-07: native frame counter overflow guarded.
+- [x] p3-editor-android-production-night T3-08: native render requires running state.
+- [x] p3-editor-android-production-night T3-09: native render requires canonical runtime receipt.
+- [x] p3-editor-android-production-night T3-10: render telemetry entity bound enforced.
+- [x] p3-editor-android-production-night T3-11: render telemetry triangle/draw-call bounds enforced.
