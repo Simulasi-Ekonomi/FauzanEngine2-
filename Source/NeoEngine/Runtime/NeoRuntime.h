@@ -61,6 +61,8 @@ struct RuntimeConfig {
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
+    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
+    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool Tick();
     bool SetPaused(bool paused);
     bool SetTimeScalePermille(uint16_t scalePermille);
