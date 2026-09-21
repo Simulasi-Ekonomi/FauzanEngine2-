@@ -40,6 +40,7 @@ public:
     void BeginFrame();
     void EndFrame();
     void Present();
+    bool Resize(uint32_t width, uint32_t height);
     [[nodiscard]] VkDevice GetDevice() const { return m_Device; }
     [[nodiscard]] VkPhysicalDevice GetGPU() const { return m_GPU; }
     [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
