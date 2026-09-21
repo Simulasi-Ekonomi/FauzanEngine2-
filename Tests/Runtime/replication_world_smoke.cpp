@@ -177,5 +177,23 @@ int main() {
     std::vector<uint8_t> despawnBytes;
     if (!ReplicationSnapshotCodec::Serialize(despawnSnapshot, despawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(despawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.despawnedEntities != 1U || dynamicClient.RegisteredCount() != 0U || dynamicClient.IsRegistered(300U)) return 30;
     if (!RunStaleRemoteEntityRegression()) return 31;
+
+    // Atomicity: a dynamic lifecycle snapshot containing a valid spawn followed by
+    // an invalid scene target must reject the whole snapshot and preserve the world.
+    SceneWorld atomicScene;
+    SceneEntity atomicExisting{};
+    if (!atomicScene.Create(atomicExisting) || !atomicScene.SetTransform(atomicExisting, {1.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 32;
+    ReplicationWorld atomicClient(atomicScene, ReplicationRole::Client, 7U, true);
+    if (!atomicClient.RegisterEntity(atomicExisting, 700U, 7U)) return 32;
+    ReplicationSnapshot atomicSnapshot{};
+    atomicSnapshot.sequence = 1U;
+    atomicSnapshot.serverTick = 1U;
+    atomicSnapshot.count = 2U;
+    atomicSnapshot.states[0] = {700U, 7U, 1U, {2.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
+    atomicSnapshot.states[1] = {701U, 8U, 1U, {std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
+    ReplicationApplyReceipt atomicReceipt{41U, 42U, 43U, 44U, 45U, 46U, 47U, true};
+    if (atomicClient.ApplyServerSnapshot(atomicSnapshot, atomicReceipt) || atomicClient.LastError() != ReplicationError::InvalidSnapshot || atomicClient.RegisteredCount() != 1U || atomicClient.IsRegistered(701U) || atomicReceipt.sequence != 41U || atomicReceipt.appliedEntities != 43U || atomicReceipt.accepted) return 32;
+    const Transform3* atomicTransform = atomicScene.GetTransform(atomicExisting);
+    if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) return 32;
     return 0;
 }
