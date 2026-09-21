@@ -7,7 +7,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
 
  if(runtime.State()!=RuntimeState::Initialized){receipt.error=VerticalSliceGateError::RuntimeNotInitialized;return false;}
  receipt.initialized=true;
- if(runtime.SceneECS().revision==0U){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
+ if(runtime.SceneECS().revision==0U || runtime.SceneECS().revision==std::numeric_limits<uint64_t>::max()){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  receipt.sceneValid=runtime.Scene()!=nullptr;
  if(!receipt.sceneValid){receipt.error=VerticalSliceGateError::SceneMissing;return false;}
  receipt.ecsValid=runtime.ECS()!=nullptr;
@@ -19,7 +19,6 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
  receipt.sceneECSConsistent=runtime.SceneECS().sceneCount==receipt.sceneEntities &&
                               runtime.SceneECS().ecsCount==receipt.sceneEntities;
  receipt.sceneECSRevisionValid=runtime.SceneECS().revision==runtime.ECS()->GetPhysicsRevision();
- if(runtime.SceneECS().revision==std::numeric_limits<uint64_t>::max()){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  if(!receipt.sceneECSConsistent){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
  if(!receipt.sceneECSRevisionValid){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  receipt.sceneMeshRegistryValid=runtime.SceneMeshes()!=nullptr;
@@ -29,14 +28,19 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
  if(!receipt.assetsValid || !receipt.resourcesValid){receipt.error=VerticalSliceGateError::AssetsMissing;return false;}
  receipt.replicationValid=runtime.Replication()!=nullptr;
  if(!receipt.replicationValid){ receipt.error=VerticalSliceGateError::ReplicationMissing; return false; }
- if(runtime.SceneECS().sceneCount > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().ecsCount > std::numeric_limits<uint32_t>::max()){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
  if(!receipt.assetsValid){receipt.error=VerticalSliceGateError::AssetsMissing;return false;}
  if(!receipt.resourcesValid){receipt.error=VerticalSliceGateError::ResourcesMissing;return false;}
  if(!receipt.replicationValid){receipt.error=VerticalSliceGateError::ReplicationMissing;return false;}
+ if(executeTick && runtime.SceneECS().revision==0U){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  if(executeTick && runtime.State()!=RuntimeState::Initialized){receipt.error=VerticalSliceGateError::RuntimeNotInitialized;return false;}
  if(executeTick){
   receipt.tickAccepted=runtime.Tick();
   if(!receipt.tickAccepted){receipt.error=VerticalSliceGateError::TickRejected;return false;}
+  if(runtime.State()!=RuntimeState::Initialized){receipt.error=VerticalSliceGateError::RuntimeNotInitialized;return false;}
+  if(runtime.Scene()==nullptr || runtime.ECS()==nullptr){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
+  const auto postTickSceneCount=runtime.Scene()->AliveCount();
+  if(postTickSceneCount>std::numeric_limits<uint32_t>::max() || runtime.SceneECS().sceneCount!=postTickSceneCount || runtime.SceneECS().ecsCount!=postTickSceneCount){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
+  if(runtime.SceneECS().revision!=runtime.ECS()->GetPhysicsRevision()){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  }
  receipt.error=VerticalSliceGateError::None;
  return true;
