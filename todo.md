@@ -627,3 +627,17 @@
 - [x] T6-09 streamed scales remain positive.
 - [x] T6-10 actor metadata remains non-empty.
 - [x] T6-11 JNI lifecycle rejects invalid runtime state.
+
+
+## 2026-09-21 — Turn 7 — implementation/integration ledger
+- [x] T7-01 actor JSON validates positive actor ID.
+- [x] T7-02 actor JSON rejects empty actor names.
+- [x] T7-03 actor JSON rejects empty actor types.
+- [x] T7-04 actor JSON rejects empty colors.
+- [x] T7-05 actor JSON bounds name length.
+- [x] T7-06 actor JSON bounds type length.
+- [x] T7-07 actor JSON bounds color length.
+- [x] T7-08 actor JSON validates roughness.
+- [x] T7-09 actor JSON validates metalness.
+- [x] T7-10 actor JSON validates transform finiteness.
+- [x] T7-11 actor JSON rejects truncated snprintf output.
