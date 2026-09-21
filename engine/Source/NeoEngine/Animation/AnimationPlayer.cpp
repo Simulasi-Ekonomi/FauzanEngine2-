@@ -8,7 +8,7 @@ namespace NeoEngine
 
 void AnimationPlayer::Play(AnimationClip* clip)
 {
-    if (clip == nullptr || !std::isfinite(clip->GetDuration()) || clip->GetDuration() < 0.0f) {
+    if (clip == nullptr || !std::isfinite(clip->GetDuration()) || clip->GetDuration() < 0.0f || clip->GetDuration() > 86400.0f) {
         currentClip = nullptr;
         time = 0.0f;
         return;
@@ -28,7 +28,9 @@ void AnimationPlayer::Update(float dt)
     }
     if (!std::isfinite(time) || time < 0.0f || time > duration) time = 0.0f;
     if (dt > duration) {
-        time = std::fmod(dt, duration);
+        const float wrapped = std::fmod(dt, duration);
+        if (!std::isfinite(wrapped) || wrapped < 0.0f || wrapped >= duration) { time = 0.0f; return; }
+        time = wrapped;
         return;
     }
     const float next = time + dt;
@@ -37,7 +39,11 @@ void AnimationPlayer::Update(float dt)
         return;
     }
     time = next;
-    if (time >= duration) time = std::fmod(time, duration);
+    if (time >= duration) {
+        const float wrapped = std::fmod(time, duration);
+        if (!std::isfinite(wrapped) || wrapped < 0.0f || wrapped >= duration) { time = 0.0f; return; }
+        time = wrapped;
+    }
 }
 
 }
