@@ -27,6 +27,8 @@ bool ReachesRoot(uint32_t actorId, uint32_t rootActorId, const std::unordered_ma
     return false;
 }
 
+constexpr size_t kMaxSceneStringBytes = 4096U;
+
 bool ValidPrefab(const EditorScenePrefab& prefab) {
     if (prefab.rootSourceId == 0U || prefab.actors.empty() || prefab.actors.size() > EditorScenePrefabAdapter::kMaxActors) return false;
     std::unordered_map<uint32_t, const EditorSceneActor*> index;
@@ -34,6 +36,10 @@ bool ValidPrefab(const EditorScenePrefab& prefab) {
     const auto root = index.find(prefab.rootSourceId);
     if (root == index.end() || root->second->parentId != 0U) return false;
     for (const EditorSceneActor& actor : prefab.actors) {
+        if (actor.name.size() > kMaxSceneStringBytes ||
+            actor.assetId.size() > kMaxSceneStringBytes ||
+            actor.materialAssetId.size() > kMaxSceneStringBytes ||
+            actor.textureAssetId.size() > kMaxSceneStringBytes) return false;
         if (actor.id != prefab.rootSourceId && (actor.parentId == 0U || actor.parentId == actor.id || !index.contains(actor.parentId) || !ReachesRoot(actor.id, prefab.rootSourceId, index))) return false;
     }
     return true;
