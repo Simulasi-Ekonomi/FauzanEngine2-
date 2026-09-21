@@ -50,7 +50,12 @@ int main() {
     std::array<NeoEngine::Vulkan3DVertex, 3> skinnedVertices = vertices;
     for (auto& vertex : skinnedVertices) { vertex.boneIndices = {0U, 0U, 0U, 0U}; vertex.boneWeights = {1.0F, 0.0F, 0.0F, 0.0F}; }
 
+    TEST_CHECK(!renderer.Resize(0, 600), "Zero-width resize must be rejected");
+    TEST_CHECK(renderer.LastError() == NeoEngine::Vulkan3DRendererError::InvalidConfiguration,
+               "Invalid resize should report InvalidConfiguration");
+    TEST_CHECK(renderer.Resize(800, 600), "Renderer should recover after rejected resize");
     TEST_CHECK(renderer.BeginFrame(), "BeginFrame failed");
+    TEST_CHECK(!renderer.UploadSkinningPalette({}), "Empty skinning palette must be rejected");
     TEST_CHECK(renderer.UploadSkinningPalette(palette), "UploadSkinningPalette failed");
     TEST_CHECK(renderer.DrawIndexed(skinnedVertices, indices, identity.data()), "DrawIndexed with GPU skinning failed");
     TEST_CHECK(renderer.EndFrame(), "EndFrame failed");
