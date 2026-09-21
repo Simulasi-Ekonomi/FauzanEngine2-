@@ -47,6 +47,7 @@ int main() {
     assert(agent.Execute(R"({"operation":"select","actorId":42})", session, assets, response));
     assert(session.SelectedActorId() == 42);
     assert(session.SelectedActorIds().size() == 1 && session.SelectedActorIds()[0] == 42);
+    EditorSceneActor inspected;
     assert(agent.Execute(R"({"operation":"duplicate","actorId":42,"newActorId":44})", session, assets, response));
     assert(session.InspectActor(44, inspected));
     assert(inspected.name == "Hero" && inspected.id == 44);
@@ -67,7 +68,6 @@ int main() {
 
     const std::string fullTransform = R"({"operation":"transform","actorId":42,"transform":{"x":3,"y":4,"z":5,"rx":6,"ry":7,"rz":8,"sx":2,"sy":3,"sz":4}})";
     assert(agent.Execute(fullTransform, session, assets, response));
-    EditorSceneActor inspected;
     assert(session.InspectActor(42, inspected));
     assert(inspected.transform.x == 3.0f && inspected.transform.ry == 7.0f && inspected.transform.sz == 4.0f);
 
