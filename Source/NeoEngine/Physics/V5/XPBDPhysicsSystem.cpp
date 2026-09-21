@@ -1749,6 +1749,7 @@ std::vector<uint8_t> XPBDPhysicsSystem::SerializePhysicsState() const {
     const uint32_t count = static_cast<uint32_t>(m_activeFlatEntities);
     append(count);
     for (size_t index = 0; index < m_activeFlatEntities; ++index) {
+        if (!std::isfinite(m_flatPosX[index]) || !std::isfinite(m_flatPosZ[index]) || !std::isfinite(m_flatVelX[index]) || !std::isfinite(m_flatVelZ[index]) || !std::isfinite(m_flatRot[index]) || !std::isfinite(m_flatAngVel[index])) return {};
         append(m_flatPosX[index]); append(m_flatPosZ[index]);
         append(m_flatVelX[index]); append(m_flatVelZ[index]);
         append(m_flatRot[index]); append(m_flatAngVel[index]);
@@ -1761,14 +1762,14 @@ void XPBDPhysicsSystem::DeserializePhysicsState(const std::vector<uint8_t>& data
     constexpr uint32_t kStateVersion = 1U;
     size_t offset = 0;
     const auto read = [&data, &offset](auto& value) {
-        if (offset + sizeof(value) > data.size()) return false;
+        if (offset > data.size() || sizeof(value) > data.size() - offset) return false;
         std::memcpy(&value, data.data() + offset, sizeof(value));
         offset += sizeof(value);
         return true;
     };
     uint32_t magic = 0, version = 0, count = 0;
     if (!read(magic) || !read(version) || !read(count) || magic != kStateMagic || version != kStateVersion ||
-        count > m_maxFlatEntities) return;
+        count > m_maxFlatEntities || static_cast<uint64_t>(count) * 6ULL * sizeof(float) > data.size() - offset) return;
     for (uint32_t index = 0; index < count; ++index) {
         if (!read(m_flatPosX[index]) || !read(m_flatPosZ[index]) || !read(m_flatVelX[index]) ||
             !read(m_flatVelZ[index]) || !read(m_flatRot[index]) || !read(m_flatAngVel[index])) return;
