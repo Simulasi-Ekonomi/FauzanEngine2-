@@ -385,14 +385,10 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                 return failTransaction(ReplicationError::SpawnRejected);
             }
             if (!sceneWorld_.SetTransform(entity, state.transform)) {
-                (void)sceneWorld_.Destroy(entity);
-                rollbackMutations();
-                return Fail(ReplicationError::SpawnRejected);
+                return failTransaction(ReplicationError::SpawnRejected);
             }
             if (slotIndex >= kMaxEntities) {
-                (void)sceneWorld_.Destroy(entity);
-                rollbackMutations();
-                return Fail(ReplicationError::SpawnRejected);
+                return failTransaction(ReplicationError::SpawnRejected);
             }
             spawnedEntities[spawnedIndex++] = entity;
             presentSlots[slotIndex] = true;
@@ -421,8 +417,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             if (!slots_[slotIndex].registered || presentSlots[slotIndex]) continue;
             const Transform3* transform = sceneWorld_.GetTransform(slots_[slotIndex].entity);
             if (transform == nullptr) {
-                rollbackMutations();
-                return Fail(ReplicationError::InvalidEntity);
+                return failTransaction(ReplicationError::InvalidEntity);
             }
             const uint16_t restoreIndex = despawnedIndex;
             despawnedEntities[restoreIndex] = slots_[slotIndex].entity;
