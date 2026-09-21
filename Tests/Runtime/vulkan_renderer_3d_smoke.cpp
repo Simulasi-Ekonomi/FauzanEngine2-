@@ -80,7 +80,7 @@ int main() {
     TEST_CHECK(renderer.EndFrame(), "EndFrame after resize failed");
     std::vector<uint8_t> secondFrame;
     TEST_CHECK(renderer.ReadbackLastFrame(secondFrame), "Second presented-frame readback failed");
-    TEST_CHECK(secondFrame.size() == firstFrame.size(), "Second readback size mismatch");
+    TEST_CHECK(secondFrame.size() == static_cast<size_t>(640U * 480U * 4U), "Second readback size mismatch");
     const uint64_t secondChecksum = std::accumulate(secondFrame.begin(), secondFrame.end(), uint64_t{0});
     TEST_CHECK(secondChecksum != firstChecksum, "GPU skinning palette change did not alter presented pixels");
 
