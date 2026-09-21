@@ -265,6 +265,7 @@ bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntit
 
 bool CanonicalRuntimeWorld::Step(float dt) {
     lastFrame_.physicsStepped = false;
+    if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) { lastError_ = CanonicalWorldError::InvalidDeltaTime; return false; }
     if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
     if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) { lastError_ = CanonicalWorldError::PhysicsStepFailed; return false; }
     if (!SyncSceneToPhysics()) return false;
