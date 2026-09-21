@@ -94,7 +94,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     std::vector<Mat4> candidatePalette;
     try { candidatePalette.reserve(boneCount);
         if (candidatePalette.capacity() < boneCount) return false; } catch (...) { return false; }
-    if (candidateLocal.size() != skeleton_->BoneCount() || candidatePalette.size() != skeleton_->BoneCount()) return false;
+    if (candidateLocal.size() != skeleton_->GetBoneCount() || candidatePalette.size() != skeleton_->BoneCount()) return false;
     if (candidateLocal.empty() || candidateLocal.size() > 4096U) return false;
     for (const Mat4& matrix : candidateLocal) if (!FiniteMatrix(matrix)) return false;
     if (!skeleton_->EvaluateSkinningPalette(candidateLocal, candidatePalette) ||
