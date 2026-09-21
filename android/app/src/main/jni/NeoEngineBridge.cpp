@@ -154,7 +154,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     JNIEnv* env, jclass, jint seed, jfloat sizeKm)
 {
-    if (!std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
+    if (!NeoJNI::g_Initialized || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
         NEO_LOGE("startWorldStreaming: invalid world size %.3f km", sizeKm);
         return;
     }
@@ -326,7 +326,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
     if (fpsTimer >= 1.0f) {
         NeoJNI::g_FPS = static_cast<float>(fpsFrames) / fpsTimer;
         NeoJNI::g_Telemetry.fps = NeoJNI::g_FPS;
-        NeoJNI::g_Telemetry.entities = static_cast<int>(NeoJNI::g_Actors.size());
+        NeoJNI::g_Telemetry.entities = NeoJNI::g_Actors.size() > static_cast<size_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(NeoJNI::g_Actors.size());
         fpsTimer = 0.0f; fpsFrames = 0;
     }
 }
@@ -337,7 +337,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     NeoJNI::g_Telemetry.entities = static_cast<int>(NeoJNI::g_Actors.size());
     NeoJNI::g_Telemetry.drawCalls = NeoJNI::g_Telemetry.entities;
-    NeoJNI::g_Telemetry.triangles = NeoJNI::g_Telemetry.entities * 12;
+    NeoJNI::g_Telemetry.triangles = NeoJNI::g_Telemetry.entities > std::numeric_limits<int>::max() / 12 ? std::numeric_limits<int>::max() : NeoJNI::g_Telemetry.entities * 12;
 }
 
 JNIEXPORT void JNICALL
@@ -364,7 +364,7 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     jstring jtype, jstring jname,
     jfloat x, jfloat y, jfloat z)
 {
-    if (env == nullptr || jtype == nullptr || jname == nullptr) return -1;
+    if (env == nullptr || jtype == nullptr || jname == nullptr || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return -1;
     const char* type = env->GetStringUTFChars(jtype, nullptr);
     const char* name = env->GetStringUTFChars(jname, nullptr);
     if (type == nullptr || name == nullptr) {
@@ -373,9 +373,15 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
         return -1;
     }
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
+    if (NeoJNI::g_NextActorId <= 0 || NeoJNI::g_NextActorId == std::numeric_limits<int>::max()) {
+        env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
+    }
     int id = NeoJNI::g_NextActorId++;
 
     NeoJNI::Actor a;
+    if (std::strlen(name) > 4096U || std::strlen(type) > 1024U) {
+        env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
+    }
     a.id       = id;
     a.name     = name;
     a.type     = type;
