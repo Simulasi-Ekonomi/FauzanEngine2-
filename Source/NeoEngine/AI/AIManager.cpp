@@ -1,6 +1,5 @@
 #include "AIManager.h"
-#include <cmath>
-#include <cstdint>
+#include <iostream>
 
 namespace NeoEngine {
 
@@ -9,84 +8,59 @@ AIManager& AIManager::Get() {
     return instance;
 }
 
-AIManager::AIManager() : initialized(false), timeAccumulator(0.0f), lastError(Error::None) {}
-AIManager::~AIManager() { Shutdown(); }
+AIManager::AIManager() : initialized(false), timeAccumulator(0.0f) {}
+
+AIManager::~AIManager() {}
 
 bool AIManager::Initialize() {
-    if (initialized) { lastError = Error::AlreadyInitialized; return false; }
+    hermes = std::make_unique<HermesIntegration>();
+    gemma4 = std::make_unique<Gemma4Integration>();
+    ruflo = std::make_unique<RufloIntegration>();
+    opencode = std::make_unique<OpenCodeIntegration>();
 
-    auto newHermes = std::make_unique<HermesIntegration>();
-    auto newGemma4 = std::make_unique<Gemma4Integration>();
-    auto newRuflo = std::make_unique<RufloIntegration>();
-    auto newOpenCode = std::make_unique<OpenCodeIntegration>();
-
-    const bool hermesReady = newHermes->Initialize();
-    const bool gemmaReady = newGemma4->Initialize();
-    const bool rufloReady = newRuflo->Initialize();
-    const bool openCodeReady = newOpenCode->Initialize();
-    if (!hermesReady && !gemmaReady && !rufloReady && !openCodeReady) {
-        lastError = Error::InitializationFailed;
-        return false;
-    }
-
-    hermes = std::move(newHermes);
-    gemma4 = std::move(newGemma4);
-    ruflo = std::move(newRuflo);
-    opencode = std::move(newOpenCode);
     initialized = true;
-    timeAccumulator = 0.0f;
-    lastError = Error::None;
+
+    std::cout << "[AI] Initialized\n";
     return true;
 }
 
 void AIManager::Shutdown() {
-    if (hermes) hermes->Shutdown();
-    if (gemma4) gemma4->Shutdown();
-    if (ruflo) ruflo->Shutdown();
-    if (opencode) opencode->Shutdown();
     hermes.reset();
     gemma4.reset();
     ruflo.reset();
     opencode.reset();
+
     initialized = false;
-    timeAccumulator = 0.0f;
-    lastError = Error::None;
 }
 
 void AIManager::Update(float DeltaTime) {
     if (!initialized) return;
-    if (!std::isfinite(DeltaTime) || DeltaTime < 0.0f || DeltaTime > 0.25f) {
-        lastError = Error::InvalidDeltaTime;
-        return;
-    }
+
     timeAccumulator += DeltaTime;
-    if (timeAccumulator < 1.0f) return;
-    timeAccumulator = std::fmod(timeAccumulator, 1.0f);
+
+    if (timeAccumulator > 1.0f) {
+        std::cout << "[AI] Tick\n";
+
+        std::string decision = Think("game_state");
+        std::cout << "Decision: " << decision << std::endl;
+
+        timeAccumulator = 0.0f;
+    }
 }
 
 bool AIManager::IsReady() const {
-    return initialized && ((hermes && hermes->IsReady()) || (gemma4 && gemma4->IsReady()) ||
-                           (ruflo && ruflo->IsReady()) || (opencode && opencode->IsReady()));
+    return initialized;
 }
 
 std::string AIManager::Think(const std::string& context) {
-    if (context.empty()) { lastError = Error::InvalidContext; return {}; }
-    if (!IsReady()) { lastError = Error::BackendUnavailable; return {}; }
-    if (hermes && hermes->IsReady()) {
-        const HermesResponse response = hermes->GenerateText(context);
-        if (!response.text.empty()) return response.text;
+    if (hermes) {
+        return "AI thinking on: " + context;
     }
-    if (gemma4 && gemma4->IsReady()) {
-        const Gemma4Response response = gemma4->GenerateText(context);
-        if (!response.generatedText.empty()) return response.generatedText;
-    }
-    lastError = Error::BackendUnavailable;
-    return {};
+    return "No AI";
 }
 
 std::string AIManager::PlanAction(const std::string& state) {
-    if (state.empty()) { lastError = Error::InvalidContext; return {}; }
-    return Think("Plan an action for the following game state:\n" + state);
+    return "Action for: " + state;
 }
 
 }
