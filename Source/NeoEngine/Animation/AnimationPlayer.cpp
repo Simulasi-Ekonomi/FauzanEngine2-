@@ -2,8 +2,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace NeoEngine {
+
+namespace {
+bool FiniteMatrix(const Mat4& m) {
+    for (float value : m.m) if (!std::isfinite(value)) return false;
+    return true;
+}
+}
 
 void AnimationPlayer::Play(AnimationClip* clip) {
     currentClip_ = clip;
@@ -26,9 +34,12 @@ bool AnimationPlayer::Update(float dt) {
         return true;
     }
 
-    time_ += dt;
+    const float nextTime = time_ + dt;
+    if (!std::isfinite(nextTime) || nextTime < time_) return false;
+    time_ = nextTime;
     if (playbackMode_ == AnimationPlaybackMode::Loop) {
         time_ = std::fmod(time_, duration);
+        if (!std::isfinite(time_)) return false;
         if (time_ < 0.0F) time_ += duration;
     } else if (time_ >= duration) {
         time_ = duration;
@@ -47,16 +58,18 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     candidateLocal.reserve(boneCount);
     for (size_t bone = 0U; bone < boneCount; ++bone) {
         const Bone* source = skeleton_->GetBone(bone);
-        if (source == nullptr) return false;
+        if (source == nullptr || !FiniteMatrix(source->localBindPose)) return false;
         Mat4 sampled = source->localBindPose;
         const auto& frames = currentClip_->GetFrames(static_cast<int>(bone));
         if (!frames.empty() && !currentClip_->Sample(static_cast<int>(bone), time_, sampled)) return false;
+        if (!FiniteMatrix(sampled)) return false;
         candidateLocal.push_back(sampled);
     }
 
     std::vector<Mat4> candidatePalette;
     if (!skeleton_->EvaluateSkinningPalette(candidateLocal, candidatePalette) ||
         candidatePalette.size() != boneCount) return false;
+    for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
 
     localPose = std::move(candidateLocal);
     skinningPalette = std::move(candidatePalette);
