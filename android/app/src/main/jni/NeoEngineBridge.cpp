@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include "NeoRuntime.h"
 
 #define NEO_JNI_TAG "NeoEngine-JNI"
 #define NEO_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  NEO_JNI_TAG, __VA_ARGS__)
@@ -38,6 +39,7 @@ static JavaVM*       g_JavaVM      = nullptr;
 static jobject       g_Activity    = nullptr;
 static AAssetManager* g_AssetMgr   = nullptr;
 static std::mutex    g_Mutex;
+static std::unique_ptr<NeoEngine::NeoRuntime> g_Runtime;
 static bool          g_Initialized = false;
 static bool          g_Running     = false;
 static float         g_DeltaTime   = 0.0f;
@@ -298,10 +300,22 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
         return JNI_FALSE;
     }
 
+    NeoEngine::RuntimeConfig runtimeConfig{};
+    runtimeConfig.renderWidth = static_cast<uint16_t>(w);
+    runtimeConfig.renderHeight = static_cast<uint16_t>(h);
+    runtimeConfig.enableSoftwareSurfacePresentation = false;
+    auto runtime = std::make_unique<NeoEngine::NeoRuntime>();
+    if (!runtime->Initialize(runtimeConfig)) {
+        NEO_LOGE("nativeInit: canonical NeoRuntime initialization failed (%u)", static_cast<unsigned>(runtime->LastError()));
+        env->DeleteGlobalRef(NeoJNI::g_Activity); NeoJNI::g_Activity = nullptr;
+        NeoJNI::g_AssetMgr = nullptr;
+        return JNI_FALSE;
+    }
+    NeoJNI::g_Runtime = std::move(runtime);
     NeoJNI::g_Running     = true;
     NeoJNI::g_Initialized = true;
     NeoJNI::g_FrameCount  = 0;
-    NEO_LOGI("nativeInit: OK");
+    NEO_LOGI("nativeInit: canonical NeoRuntime bound");
     return JNI_TRUE;
 }
 
@@ -312,6 +326,10 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     NEO_LOGI("nativeShutdown");
     NeoJNI::g_Running = false;
+    if (NeoJNI::g_Runtime) {
+        if (!NeoJNI::g_Runtime->Shutdown()) NEO_LOGE("nativeShutdown: canonical NeoRuntime shutdown reported failure");
+        NeoJNI::g_Runtime.reset();
+    }
     NeoJNI::g_Initialized = false;
     NeoJNI::g_DeltaTime = 0.0f;
     NeoJNI::g_FrameCount = 0;
@@ -330,8 +348,13 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
     if (!NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
+    if (!NeoJNI::g_Runtime) return;
     NeoJNI::g_DeltaTime = dt;
-    if (NeoJNI::g_FrameCount == std::numeric_limits<uint64_t>::max()) return;
+    if (NeoJNI::g_FrameCount == std::numeric_limits<int>::max()) return;
+    if (!NeoJNI::g_Runtime->Tick()) {
+        NEO_LOGE("nativeTick: canonical NeoRuntime::Tick rejected frame");
+        return;
+    }
     NeoJNI::g_FrameCount++;
 
     static float fpsTimer  = 0.0f;
@@ -348,9 +371,15 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
-    if (!NeoJNI::g_Running || !NeoJNI::g_Initialized) return;
+    if (!NeoJNI::g_Running || !NeoJNI::g_Initialized || !NeoJNI::g_Runtime) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
-    NeoJNI::g_Telemetry.entities = NeoJNI::g_Actors.size() > static_cast<size_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(NeoJNI::g_Actors.size());
+    if (!NeoJNI::g_Runtime->RenderFarm()) {
+        NEO_LOGE("nativeRender: canonical NeoRuntime::RenderFarm rejected frame");
+        return;
+    }
+    const auto* receipt = NeoJNI::g_Runtime->LastFarmRenderReceipt();
+    if (receipt == nullptr) return;
+    NeoJNI::g_Telemetry.entities = receipt->telemetry.entities > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.entities);
     NeoJNI::g_Telemetry.drawCalls = NeoJNI::g_Telemetry.entities;
     NeoJNI::g_Telemetry.triangles = NeoJNI::g_Telemetry.entities > std::numeric_limits<int>::max() / 12 ? std::numeric_limits<int>::max() : NeoJNI::g_Telemetry.entities * 12;
 }
