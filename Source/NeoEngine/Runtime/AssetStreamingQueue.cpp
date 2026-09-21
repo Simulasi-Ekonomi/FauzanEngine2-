@@ -131,8 +131,8 @@ void AssetStreamingQueue::SetMemoryBudgetMB(uint32_t budgetMB) noexcept {
 
 uint32_t AssetStreamingQueue::GetMemoryBudgetMB() const noexcept { std::lock_guard<std::mutex> lock(mutex_); return memoryBudgetMB_; }
 uint32_t AssetStreamingQueue::GetResidentMB() const noexcept { std::lock_guard<std::mutex> lock(mutex_); return residentMemoryMB_; }
-uint32_t AssetStreamingQueue::GetQueuedCount() const noexcept { std::lock_guard<std::mutex> lock(mutex_); return static_cast<uint32_t>(streamQueue_.size()); }
-uint32_t AssetStreamingQueue::GetAssetCount() const noexcept { std::lock_guard<std::mutex> lock(mutex_); return static_cast<uint32_t>(loadedAssets_.size()); }
+uint32_t AssetStreamingQueue::GetQueuedCount() const noexcept { std::lock_guard<std::mutex> lock(mutex_); return streamQueue_.size() > std::numeric_limits<uint32_t>::max() ? std::numeric_limits<uint32_t>::max() : static_cast<uint32_t>(streamQueue_.size()); }
+uint32_t AssetStreamingQueue::GetAssetCount() const noexcept { std::lock_guard<std::mutex> lock(mutex_); return loadedAssets_.size() > std::numeric_limits<uint32_t>::max() ? std::numeric_limits<uint32_t>::max() : static_cast<uint32_t>(loadedAssets_.size()); }
 
 void AssetStreamingQueue::MarkAccessed(AssetID id, uint64_t frameNumber) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
