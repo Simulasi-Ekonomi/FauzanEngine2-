@@ -221,6 +221,7 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
                     int cx = camChunkX + dx;
                     int cz = camChunkZ + dz;
                     
+                    if (cx < -1000000 || cx > 1000000 || cz < -1000000 || cz > 1000000) continue;
                     const std::uint64_t key = NeoJNI::chunkKey(cx, cz);
                     {
                         std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
@@ -229,10 +230,11 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
 
                     // Generate chunk
                     NeoEngine::WorldChunk chunk = NeoJNI::g_WorldGenerator->GenerateChunk(cx, cz);
-                    if (chunk.objects.size() > 100000U || chunk.objects.size() > chunk.objects.max_size()) continue;
+                    if (chunk.objects.size() > 100000U || chunk.objects.size() > chunk.objects.max_size() || chunk.objects.size() > 65535U) continue;
                     
                     // Convert to actors and add to scene
                     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
+                    if (NeoJNI::g_Actors.size() + chunk.objects.size() > 1000000U) { NeoJNI::g_StreamingActive = false; break; }
                     auto& chunkActors = NeoJNI::g_ChunkActors[key];
                     chunkActors.reserve(chunk.objects.size());
                     for (const auto& obj : chunk.objects) {
@@ -245,6 +247,7 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
                         a.rotation = {obj.rotation.x, obj.rotation.y, obj.rotation.z};
                         a.scale = {obj.scale.x, obj.scale.y, obj.scale.z};
                         
+                        if (a.id <= 0 || a.id == std::numeric_limits<int>::max()) { NeoJNI::g_StreamingActive = false; break; }
                         NeoJNI::g_Actors[a.id] = a;
                         NeoJNI::g_ActorsByName[a.name] = a.id;
                         chunkActors.push_back(a.id);
@@ -267,7 +270,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_updateCameraPosition(
     JNIEnv*, jclass, jfloat x, jfloat y, jfloat z)
 {
-    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return;
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_StreamMutex);
     NeoJNI::g_CameraX = x;
     NeoJNI::g_CameraZ = z;
@@ -294,9 +297,10 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
     jobject activity, jobject assetManager,
     jint w, jint h)
 {
-    if (env == nullptr || activity == nullptr || assetManager == nullptr || w <= 0 || h <= 0 || w > 16384 || h > 16384 || static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) > 16ULL * 1024ULL * 1024ULL) return JNI_FALSE;
+    if (env == nullptr || activity == nullptr || assetManager == nullptr || NeoJNI::g_JavaVM == nullptr || w <= 0 || h <= 0 || w > 16384 || h > 16384 || static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) > 16ULL * 1024ULL * 1024ULL) return JNI_FALSE;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (NeoJNI::g_Initialized) return JNI_TRUE;
+    if (NeoJNI::g_Running || NeoJNI::g_Runtime != nullptr) return JNI_FALSE;
     NEO_LOGI("nativeInit %dx%d", w, h);
 
     NeoJNI::g_Activity  = env->NewGlobalRef(activity);
@@ -319,10 +323,13 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
         NeoJNI::g_AssetMgr = nullptr;
         return JNI_FALSE;
     }
+    if (runtime->LastError() != NeoEngine::RuntimeError::None) return JNI_FALSE;
     NeoJNI::g_Runtime = std::move(runtime);
     NeoJNI::g_Running     = true;
     NeoJNI::g_Initialized = true;
     NeoJNI::g_FrameCount  = 0;
+    NeoJNI::g_FPS = 0.0f;
+    NeoJNI::g_DeltaTime = 0.0f;
     NeoJNI::g_RenderWidth = w;
     NeoJNI::g_RenderHeight = h;
     NEO_LOGI("nativeInit: canonical NeoRuntime bound");
@@ -337,6 +344,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     NEO_LOGI("nativeShutdown");
     NeoJNI::g_Running = false;
+    NeoJNI::g_StreamingActive = false;
     if (NeoJNI::g_Runtime) {
         if (!NeoJNI::g_Runtime->Shutdown()) NEO_LOGE("nativeShutdown: canonical NeoRuntime shutdown reported failure");
         NeoJNI::g_Runtime.reset();
