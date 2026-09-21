@@ -106,6 +106,8 @@ bool AtomicSaveFile::Read(const std::filesystem::path& root, std::string_view sl
 }
 
 bool AtomicSaveFile::Backup(const std::filesystem::path& root, std::string_view slot, AtomicSaveFileError& error) {
+    std::error_code rootEc;
+    if (std::filesystem::is_symlink(root, rootEc) || rootEc) { error = AtomicSaveFileError::UnsafePath; return false; }
     if (!ValidSlot(slot)) {
         error = AtomicSaveFileError::InvalidSlot;
         return false;
@@ -137,6 +139,8 @@ bool AtomicSaveFile::Backup(const std::filesystem::path& root, std::string_view 
 
 bool AtomicSaveFile::RestoreBackup(const std::filesystem::path& root, std::string_view slot,
                                    AtomicSaveFileError& error) {
+    std::error_code rootEc;
+    if (std::filesystem::is_symlink(root, rootEc) || rootEc) { error = AtomicSaveFileError::UnsafePath; return false; }
     if (!ValidSlot(slot)) {
         error = AtomicSaveFileError::InvalidSlot;
         return false;
