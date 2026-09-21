@@ -5,6 +5,7 @@
 namespace NeoEngine {
 bool GPUSkinningPaletteBuffer::Initialize(VkDevice device,VkPhysicalDevice physicalDevice) {
  if(device==VK_NULL_HANDLE||physicalDevice==VK_NULL_HANDLE) return false;
+ boneCount_=0U;
  return buffer_.Initialize(device,physicalDevice,sizeof(Mat4)*kMaxBones,VulkanBufferType::UniformBuffer,
    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 }
