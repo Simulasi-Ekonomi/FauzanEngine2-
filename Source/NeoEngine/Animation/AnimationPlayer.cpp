@@ -34,12 +34,11 @@ void AnimationPlayer::Stop() noexcept {
 bool AnimationPlayer::Update(float dt) {
     if (playing_ && currentClip_ == nullptr) playing_ = false;
     if (!playing_ || currentClip_ == nullptr || skeleton_ == nullptr || !skeleton_->IsComplete() || !std::isfinite(dt) || dt < 0.0F || dt > 3600.0F) return false;
+    if (skeleton_->GetBoneCount() == 0U || skeleton_->GetBoneCount() > kMaxPaletteBones || skeleton_->GetBoneCount() > 4096U) return false;
     if (!std::isfinite(time_) || time_ < 0.0F || time_ > 86400.0F || time_ == std::numeric_limits<float>::max() || !std::isfinite(currentClip_->GetDuration())) return false;
     const float duration = currentClip_->GetDuration();
-    if (!std::isfinite(duration)) return false;
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F || duration == std::numeric_limits<float>::infinity()) return false;
     if (!currentClip_->IsValid() || skeleton_->GetBoneCount() == 0U || !skeleton_->IsComplete()) return false;
-    if (duration < 0.0F) return false;
     if (duration <= 0.0F) {
         if (playbackMode_ == AnimationPlaybackMode::Loop && duration == 0.0F) { playing_ = false; return true; }
         time_ = 0.0F;
@@ -73,12 +72,12 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
                                    std::vector<Mat4>& skinningPalette) const {
     localPose.clear();
     skinningPalette.clear();
-    if (currentClip_ == nullptr || skeleton_ == nullptr || !skeleton_->IsComplete() || !currentClip_->IsValid() || !std::isfinite(time_) || time_ < 0.0F) return false;
+    if (currentClip_ == nullptr || skeleton_ == nullptr || !skeleton_->IsComplete() || !currentClip_->IsValid() || !std::isfinite(time_) || time_ < 0.0F || time_ > 86400.0F) return false;
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F || time_ > duration) return false;
     const size_t boneCount = skeleton_->GetBoneCount();
-    if (boneCount != skeleton_->BoneCount()) return false;
-    if (boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U || boneCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
+    if (boneCount != skeleton_->BoneCount() || boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U) return false;
+    if (boneCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
 
     std::vector<Mat4> candidateLocal;
     try { candidateLocal.reserve(boneCount);
