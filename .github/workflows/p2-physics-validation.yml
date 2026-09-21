@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - p2-physics-networking-night
+  pull_request:
+    branches:
+      - sandbox-p0-validation-20260920
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/**'
+      - '.github/workflows/p2-physics-validation.yml'
   workflow_dispatch:
 
 permissions:
