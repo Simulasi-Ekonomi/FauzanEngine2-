@@ -4,7 +4,6 @@
 namespace NeoEngine {
 bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,VerticalSliceGateReceipt& receipt){
  receipt={};
-
  if(runtime.State()!=RuntimeState::Initialized){receipt.error=VerticalSliceGateError::RuntimeNotInitialized;return false;}
  receipt.initialized=true;
  if(runtime.SceneECS().revision==0U || runtime.SceneECS().revision==std::numeric_limits<uint64_t>::max()){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
@@ -16,8 +15,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
  if(receipt.sceneEntities>std::numeric_limits<uint32_t>::max()){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
  if(runtime.SceneECS().sceneCount > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().ecsCount > std::numeric_limits<uint32_t>::max()){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
  receipt.ecsEntities=runtime.SceneECS().ecsCount;
- receipt.sceneECSConsistent=runtime.SceneECS().sceneCount==receipt.sceneEntities &&
-                              runtime.SceneECS().ecsCount==receipt.sceneEntities;
+ receipt.sceneECSConsistent=runtime.SceneECS().sceneCount==receipt.sceneEntities && runtime.SceneECS().ecsCount==receipt.sceneEntities;
  receipt.sceneECSRevisionValid=runtime.SceneECS().revision==runtime.ECS()->GetPhysicsRevision();
  if(!receipt.sceneECSConsistent){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
  if(!receipt.sceneECSRevisionValid){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
