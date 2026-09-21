@@ -18,7 +18,7 @@ int main() {
     if(!session.ReparentActor(10,0,assets)||!session.SelectActor(20)||!session.DeleteActor(20,assets)||session.HasSelection()||!session.Save(saved)||saved.revision!=7U||session.HierarchySnapshot().size()!=2U)return 1;
     if(session.AddActor({5,0,EditorSceneActorKind::Empty,{}},assets)||session.LastError()!=EditorSceneSessionError::DocumentLoadFailed||!session.Save(saved)||saved.revision!=7U||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
     if(session.UpdateTransform(10,{0,0,3,0,0,0,0,1,1},assets)||session.LastError()!=EditorSceneSessionError::DocumentLoadFailed||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
-    if(!session.UpdateTransform(10,{1.0F,0,3,0,0,0,1,1,1},assets)||session.Document().revision!=8U||!session.HasUnsavedChanges())return 1;
+    if(!session.UpdateTransform(10,{1.0F,0,3,0,0,0,1,1,1},assets)||session.Document().revision!=8U||session.HasUnsavedChanges())return 1;
     if(!session.Undo(assets)||session.Document().revision!=7U||session.HasUnsavedChanges())return 1;
     if(!session.Redo(assets)||session.Document().revision!=8U||!session.HasUnsavedChanges())return 1;
     if(!session.RevertToSaved(assets)||session.Document().revision!=7U||session.HasUnsavedChanges()||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
