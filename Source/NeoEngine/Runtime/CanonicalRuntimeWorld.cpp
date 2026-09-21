@@ -297,9 +297,9 @@ bool CanonicalRuntimeWorld::Step(float dt) {
 
 bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
                                             const DirectionalLight& light) {
-    if (!std::isfinite(light.direction.x) || !std::isfinite(light.direction.y) || !std::isfinite(light.direction.z) ||
-        !std::isfinite(light.color.x) || !std::isfinite(light.color.y) || !std::isfinite(light.color.z) ||
-        !std::isfinite(light.intensity) || light.intensity < 0.0F) {
+    if (!std::isfinite(light.directionToLight.x) || !std::isfinite(light.directionToLight.y) ||
+        !std::isfinite(light.directionToLight.z) || !std::isfinite(light.intensity) ||
+        light.intensity < 0.0F) {
         lastError_ = CanonicalWorldError::RenderFailed; return false;
     }
     if (!rendererAdapter_.Draw(scene_, meshes_, sprites_, camera, renderer, light)) {
