@@ -39,6 +39,7 @@ bool AnimationPlayer::Update(float dt) {
         return true;
     }
 
+    if (dt > 3600.0F - time_) return false;
     const float nextTime = time_ + dt;
     if (!std::isfinite(nextTime) || nextTime < time_ || nextTime > 86400.0F) return false;
     time_ = nextTime;
@@ -74,6 +75,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
 
     std::vector<Mat4> candidatePalette;
     try { candidatePalette.reserve(boneCount); } catch (...) { return false; }
+    if (candidateLocal.size() != boneCount) return false;
     if (!skeleton_->EvaluateSkinningPalette(candidateLocal, candidatePalette) ||
         candidatePalette.size() != boneCount) return false;
     for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
