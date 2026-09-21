@@ -165,9 +165,15 @@ void VulkanRHI::BeginFrame() {
     // Do all command-buffer setup before resetting the fence. If any setup step
     // fails, the fence remains signaled and the next frame cannot deadlock waiting
     // on an unsignaled fence that will never be submitted.
-    if (vkResetCommandBuffer(m_CommandBuffer, 0) != VK_SUCCESS) return;
+    if (vkResetCommandBuffer(m_CommandBuffer, 0) != VK_SUCCESS) {
+        RecreateSwapchainResources(static_cast<uint32_t>(std::max(m_Width, 1)), static_cast<uint32_t>(std::max(m_Height, 1)));
+        return;
+    }
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    if (vkBeginCommandBuffer(m_CommandBuffer, &begin) != VK_SUCCESS) return;
+    if (vkBeginCommandBuffer(m_CommandBuffer, &begin) != VK_SUCCESS) {
+        RecreateSwapchainResources(static_cast<uint32_t>(std::max(m_Width, 1)), static_cast<uint32_t>(std::max(m_Height, 1)));
+        return;
+    }
 
     VkClearValue clear{};
     clear.color = {{0.02F, 0.02F, 0.025F, 1.0F}};
@@ -182,6 +188,7 @@ void VulkanRHI::BeginFrame() {
     if (vkResetFences(m_Device, 1, &m_InFlight) != VK_SUCCESS) {
         vkCmdEndRenderPass(m_CommandBuffer);
         (void)vkEndCommandBuffer(m_CommandBuffer);
+        RecreateSwapchainResources(static_cast<uint32_t>(std::max(m_Width, 1)), static_cast<uint32_t>(std::max(m_Height, 1)));
         return;
     }
 
