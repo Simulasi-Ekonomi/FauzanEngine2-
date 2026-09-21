@@ -207,6 +207,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     if (role_ != ReplicationRole::Server) return Fail(ReplicationError::NotServer);
     if (serverTick == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::Capacity);
     if (serverTick < lastServerTick_) return Fail(ReplicationError::StaleSnapshot);
+    if (registeredCount_ > kMaxEntities) return Fail(ReplicationError::Capacity);
     if (snapshotSequence_ == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::Capacity);
     snapshot = {};
     struct CandidateState { uint16_t slotIndex = 0U; ReplicatedEntityState state{}; Transform3 previous{}; };
@@ -280,7 +281,7 @@ bool ReplicationWorld::BuildClientAcknowledgement(ReplicationAcknowledgement& ac
 
 bool ReplicationWorld::ApplyClientAcknowledgement(const ReplicationAcknowledgement& acknowledgement) {
     if (role_ != ReplicationRole::Server) return Fail(ReplicationError::NotServer);
-    if (acknowledgement.sequence == 0U || acknowledgement.sequence > snapshotSequence_ || acknowledgement.checksum == 0U) return Fail(ReplicationError::InvalidAcknowledgement);
+    if (acknowledgement.sequence == 0U || acknowledgement.sequence > snapshotSequence_ || acknowledgement.checksum == 0U || acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::InvalidAcknowledgement);
     const AcknowledgementRecord& record = acknowledgementHistory_[acknowledgement.sequence % kMaxAcknowledgementHistory];
     if (record.sequence != acknowledgement.sequence) return Fail(ReplicationError::StaleAcknowledgement);
     if (acknowledgement.serverTick != record.serverTick || acknowledgement.checksum != record.checksum) return Fail(ReplicationError::InvalidAcknowledgement);
@@ -295,7 +296,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
     if (snapshot.count > kMaxEntities) return Fail(ReplicationError::InvalidSnapshot);
     if (!ValidateSnapshot(snapshot)) return Fail(ReplicationError::InvalidSnapshot);
-    if (snapshot.sequence <= snapshotSequence_ || snapshot.serverTick < lastServerTick_) return Fail(ReplicationError::StaleSnapshot);
+    if (snapshot.sequence <= snapshotSequence_ || snapshot.serverTick < lastServerTick_ || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::StaleSnapshot);
     std::array<uint16_t, kMaxEntities> resolvedSlots{};
     std::array<SceneEntity, kMaxEntities> spawnedEntities{};
     std::array<bool, kMaxEntities> usedSlots{};
