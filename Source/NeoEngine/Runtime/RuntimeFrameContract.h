@@ -48,6 +48,10 @@ public:
         const auto current = static_cast<uint8_t>(m_Stage);
         const auto requested = static_cast<uint8_t>(next);
         if (requested != current + 1U) return false;
+        if (next == RuntimeFrameStage::Completed &&
+            (m_Receipt.inputDigest == 0U || m_Receipt.simulationDigest == 0U ||
+             m_Receipt.sceneDigest == 0U || m_Receipt.renderDigest == 0U ||
+             m_Receipt.audioDigest == 0U)) return false;
         m_Stage = next;
         if (next == RuntimeFrameStage::Completed) { m_Receipt.completed = true; m_Receipt.completedStage = next; m_Active = false; }
         return true;
