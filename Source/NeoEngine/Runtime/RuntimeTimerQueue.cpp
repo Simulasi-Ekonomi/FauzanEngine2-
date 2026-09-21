@@ -26,11 +26,13 @@ bool RuntimeTimerQueue::Advance(float delta, std::vector<RuntimeTimerFire>& fire
         }
 
         float remaining = nextRemaining;
+        if (!std::isfinite(remaining)) return Fail(RuntimeTimerError::InvalidDuration);
         uint32_t timerFires = 0;
         while (remaining <= 0.000001F) {
             ++timerFires;
             if (timerFires > kMaxFiresPerAdvance || fireCount + timerFires > kMaxFiresPerAdvance || timer.fireCount > std::numeric_limits<uint64_t>::max() - timerFires) return Fail(timer.fireCount > std::numeric_limits<uint64_t>::max() - timerFires ? RuntimeTimerError::FireCountOverflow : RuntimeTimerError::FireCapacity);
             remaining += timer.interval;
+            if (!std::isfinite(remaining)) return Fail(RuntimeTimerError::InvalidDuration);
         }
         fireCount += timerFires;
     }
