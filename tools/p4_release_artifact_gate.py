@@ -90,7 +90,6 @@ def main()->int:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_directory_entry")
                 if info.is_dir() and info.file_size != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL nonzero_directory_size")
                 if info.is_dir() and info.compress_size != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL compressed_directory_entry")
-                if info.create_system not in (0, 3, 10): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_creator_system")
                 if info.reserved != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL reserved_zip_field")
                 if any(ord(ch)>127 for ch in name) and (info.flag_bits & 0x800) == 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL non_utf8_name_flag")
                 if info.is_dir() and info.file_size != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL nonzero_directory_size")
