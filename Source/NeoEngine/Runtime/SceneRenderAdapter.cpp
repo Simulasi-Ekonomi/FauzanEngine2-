@@ -122,7 +122,7 @@ bool SceneRenderAdapter::Draw(const SceneWorld& world, SceneMeshAdapter& meshes,
 
 bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAdapter& meshes, RenderCamera& camera,
                                       Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA) {
-    if (!renderer.Ready()) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
+    if (!renderer.Ready() || !std::isfinite(clearR) || !std::isfinite(clearG) || !std::isfinite(clearB) || !std::isfinite(clearA) || clearR < 0.0F || clearR > 1.0F || clearG < 0.0F || clearG > 1.0F || clearB < 0.0F || clearB > 1.0F || clearA < 0.0F || clearA > 1.0F) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
     const RenderCameraConfig& config = camera.Config();
     if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F || config.farPlane <= config.nearPlane) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
@@ -149,7 +149,9 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         vertices.reserve(instance.vertices.size());
         for (const MeshVertex& vertex : instance.vertices) {
             const RenderPoint3 position = TransformPoint(model, vertex.position);
+            if (!std::isfinite(position.x) || !std::isfinite(position.y) || !std::isfinite(position.z)) { lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed; renderer.EndFrame(); return false; }
             const RenderPoint3 normal = TransformDirection(model, vertex.normal);
+            if (!std::isfinite(normal.x) || !std::isfinite(normal.y) || !std::isfinite(normal.z) || !std::isfinite(vertex.u) || !std::isfinite(vertex.v)) { lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed; renderer.EndFrame(); return false; }
             vertices.push_back(Vulkan3DVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v});
         }
 
