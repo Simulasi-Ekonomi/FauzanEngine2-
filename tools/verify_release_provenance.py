@@ -6,6 +6,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while True:
+            chunk = stream.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
 ROOT = Path(subprocess.check_output(
     ["git", "rev-parse", "--show-toplevel"], text=True
 ).strip())
@@ -46,6 +56,12 @@ expected_keys = [
 ]
 if len(lines) != len(expected_keys) or any(not line.startswith(prefix) for line, prefix in zip(lines, expected_keys)):
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_provenance")
+if len(set(line.split("=", 1)[0] for line in lines[1:])) != len(expected_keys) - 1:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL duplicate_provenance_key")
+if any("=" not in line for line in lines[1:]):
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_provenance_field")
+if any(len(line.split("=", 1)[1]) > 4096 for line in lines[1:]):
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL oversized_provenance_field")
 
 values = {line.split("=", 1)[0]: line.split("=", 1)[1] for line in lines[1:]}
 head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
