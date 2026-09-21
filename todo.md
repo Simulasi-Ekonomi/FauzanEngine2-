@@ -599,3 +599,17 @@
 - [x] p1-renderer-asset-animation-night T4-09: Update rejects non-finite time accumulation.
 - [x] p1-renderer-asset-animation-night T4-10: Update wraps exact duration with modulo.
 - [x] p1-renderer-asset-animation-night T4-11: AnimationPlayer keeps fail-closed playback state.
+
+
+## 2026-09-21 — Turn 5 — implementation/integration correction ledger
+- [x] T5 AnimationPlayer clip null guard retained.
+- [x] T5 duration finiteness guard retained.
+- [x] T5 negative duration guard retained.
+- [x] T5 delta finiteness guard retained.
+- [x] T5 delta upper bound retained.
+- [x] T5 player time repair retained.
+- [x] T5 accumulation overflow guard retained.
+- [x] T5 duration wrap retained.
+- [x] T5 malformed playback fail-closed.
+- [x] T5 canonical clip API retained.
+- [x] T5 animation runtime state reset on invalid clip.
