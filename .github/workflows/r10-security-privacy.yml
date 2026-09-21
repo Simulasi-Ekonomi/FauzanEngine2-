@@ -43,8 +43,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
 
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        with:
+          version: 3.4.14
+          install-linux-dependencies: true
+
       - name: Configure Release
-        run: cmake -S Source/NeoEngine -B build/r10-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S Source/NeoEngine -B build/r10-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$SDL3_ROOT"
 
       - name: Build and run Release boundary smokes
         run: |
