@@ -36,6 +36,7 @@ int main() {
     rhi.EndFrame();
     if (rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 8; }
     rhi.Present();
+    if (rhi.Resize(0, 64) || rhi.GetWidth() != 64 || rhi.GetHeight() != 64 || !rhi.HasSwapchain()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 8; }
 
     for (int frame = 0; frame < 3; ++frame) {
         rhi.BeginFrame();
