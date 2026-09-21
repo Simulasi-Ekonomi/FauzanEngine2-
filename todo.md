@@ -627,3 +627,17 @@
 - [x] T6-09 transaction receipt remains validated before sequence commit.
 - [x] T6-10 replication serialization remains fail-closed on capacity errors.
 - [x] T6-11 empty/invalid replication state cannot partially commit.
+
+
+## 2026-09-21 — Turn 7 — implementation/integration ledger
+- [x] T7-01 replication transform scales have an explicit production bound.
+- [x] T7-02 transform equality no longer depends on struct padding.
+- [x] T7-03 interpolation alpha above protocol maximum fails closed.
+- [x] T7-04 interpolation result is validated before publication.
+- [x] T7-05 snapshot entity count uses canonical protocol maximum.
+- [x] T7-06 wire size remains exact before decode.
+- [x] T7-07 checksum remains validated after decode.
+- [x] T7-08 network IDs remain strictly ordered.
+- [x] T7-09 transform values remain finite.
+- [x] T7-10 prediction interpolation remains bounded.
+- [x] T7-11 transactional sequence commit remains deferred.
