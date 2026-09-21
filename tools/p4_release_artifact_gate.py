@@ -32,6 +32,8 @@ def main() -> int:
         raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_or_symlink={args.artifact}")
     if artifact.suffix.lower() not in {".apk", ".aab"}:
         raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_artifact_type")
+    if not artifact.is_absolute():
+        raise SystemExit("P4_ARTIFACT_GATE_FAIL artifact_path_not_absolute")
 
     artifact_size = artifact.stat().st_size
     if artifact_size == 0:
