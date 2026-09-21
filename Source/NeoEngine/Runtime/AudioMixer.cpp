@@ -49,7 +49,7 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
 
 bool AudioMixer::UpdateVoicePosition(uint32_t id,const float position[3]) { if(id==0||position==nullptr||m_Voices.size()>kMaxVoices||m_Voices.empty()||!std::isfinite(position[0])||!std::isfinite(position[1])||!std::isfinite(position[2]))return false;for(float value:{position[0],position[1],position[2]})if(!std::isfinite(value))return false;for(auto& voice:m_Voices)if(voice.id==id){voice.position[0]=position[0];voice.position[1]=position[1];voice.position[2]=position[2];return true;}return false; }
 bool AudioMixer::UpdateVoicePitch(uint32_t id,float pitch) { if(id==0||m_Voices.size()>kMaxVoices||m_Voices.empty()||!std::isfinite(pitch)||pitch<=0.001f||pitch>8.0f)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.pitch=pitch;return true;}return false; }
-bool AudioMixer::UpdateVoiceGain(uint32_t id,uint16_t gainQ8) { if(id==0||m_Voices.size()>kMaxVoices||m_Voices.empty()||gainQ8==0||gainQ8>65535U)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.gain=gainQ8;return true;}return false; }
+bool AudioMixer::UpdateVoiceGain(uint32_t id,uint16_t gainQ8) { if(id==0||m_Voices.size()>kMaxVoices||m_Voices.empty()||gainQ8==0)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.gain=gainQ8;return true;}return false; }
 bool AudioMixer::Stop(uint32_t id) { if(id==0||m_Voices.size()>kMaxVoices)return false;auto it=std::find_if(m_Voices.begin(),m_Voices.end(),[&](const auto& voice){return voice.id==id;});if(it==m_Voices.end())return false;m_Voices.erase(it);return true; }
 void AudioMixer::Clear(){ m_Voices.clear(); m_Voices.shrink_to_fit(); }
 
