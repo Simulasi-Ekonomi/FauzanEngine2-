@@ -613,3 +613,17 @@
 - [x] T5 malformed playback fail-closed.
 - [x] T5 canonical clip API retained.
 - [x] T5 animation runtime state reset on invalid clip.
+
+
+## 2026-09-21 — Turn 6 — implementation/integration ledger
+- [x] T6-01 AnimationPlayer null clip resets playback state.
+- [x] T6-02 non-finite clip duration is rejected.
+- [x] T6-03 negative clip duration is rejected.
+- [x] T6-04 non-finite delta is rejected.
+- [x] T6-05 negative delta is rejected.
+- [x] T6-06 excessive delta is rejected.
+- [x] T6-07 invalid player time is repaired.
+- [x] T6-08 duration larger than frame delta is handled.
+- [x] T6-09 time accumulation overflow is rejected.
+- [x] T6-10 duration wrap uses finite modulo result.
+- [x] T6-11 malformed playback remains fail-closed.
