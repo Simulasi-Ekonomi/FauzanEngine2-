@@ -53,6 +53,8 @@ public:
     [[nodiscard]] EditorSceneSessionError LastError() const { return lastError_; }
 private:
     static constexpr size_t kMaxHistory = 32;
+    static constexpr size_t kMaxSceneStringBytes = 4096;
+    static constexpr size_t kMaxMultiSelectActors = 4096;
     bool OpenCandidate(const EditorSceneDocument& document, const AssetRegistry& assets, bool markSaved);
     bool CommitMutation(const EditorSceneDocument& candidate, const AssetRegistry& assets);
     static void PushHistory(std::vector<EditorSceneDocument>& history, const EditorSceneDocument& document);
