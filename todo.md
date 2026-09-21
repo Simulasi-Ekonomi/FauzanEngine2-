@@ -613,3 +613,17 @@
 - [x] T5 empty actor metadata rejected.
 - [x] T5 touch pointer range bounded.
 - [x] T5 key event lifecycle guard retained.
+
+
+## 2026-09-21 — Turn 6 — implementation/integration ledger
+- [x] T6-01 actor container cardinality is bounded.
+- [x] T6-02 actor name index cardinality is bounded.
+- [x] T6-03 touch coordinates remain finite.
+- [x] T6-04 touch pointer ID remains bounded.
+- [x] T6-05 touch input requires running runtime.
+- [x] T6-06 native render dimensions remain bounded.
+- [x] T6-07 framebuffer pixel budget remains bounded.
+- [x] T6-08 streamed transforms remain finite.
+- [x] T6-09 streamed scales remain positive.
+- [x] T6-10 actor metadata remains non-empty.
+- [x] T6-11 JNI lifecycle rejects invalid runtime state.
