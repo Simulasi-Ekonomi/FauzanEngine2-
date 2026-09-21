@@ -2,6 +2,7 @@
 #include "CanonicalRuntimeWorld.h"
 
 #include <cmath>
+#include <limits>
 
 namespace NeoEngine {
 
@@ -64,6 +65,7 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
 
 bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
     bytes.clear();
+    if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes) bytes.shrink_to_fit();
     if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes) bytes.shrink_to_fit();
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error)) {
