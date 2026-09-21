@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <iostream>
+#include <numeric>
 #include <vector>
 
 #define TEST_CHECK(cond, msg) \
@@ -60,6 +61,10 @@ int main() {
     TEST_CHECK(renderer.UploadSkinningPalette(palette), "UploadSkinningPalette failed");
     TEST_CHECK(renderer.DrawIndexed(skinnedVertices, indices, identity.data()), "DrawIndexed with GPU skinning failed");
     TEST_CHECK(renderer.EndFrame(), "EndFrame failed");
+    std::vector<uint8_t> firstFrame;
+    TEST_CHECK(renderer.ReadbackLastFrame(firstFrame), "First presented-frame readback failed");
+    TEST_CHECK(firstFrame.size() == static_cast<size_t>(800U * 600U * 4U), "First readback size mismatch");
+    const uint64_t firstChecksum = std::accumulate(firstFrame.begin(), firstFrame.end(), uint64_t{0});
 
     const auto& stats = renderer.LastFrameStats();
     TEST_CHECK(stats.width == 800U && stats.height == 600U, "Frame dimensions mismatch");
@@ -73,6 +78,11 @@ int main() {
     TEST_CHECK(renderer.UploadSkinningPalette(palette), "Second skinning palette upload failed");
     TEST_CHECK(renderer.DrawIndexed(skinnedVertices, indices, identity.data()), "Second GPU skinning draw failed");
     TEST_CHECK(renderer.EndFrame(), "EndFrame after resize failed");
+    std::vector<uint8_t> secondFrame;
+    TEST_CHECK(renderer.ReadbackLastFrame(secondFrame), "Second presented-frame readback failed");
+    TEST_CHECK(secondFrame.size() == firstFrame.size(), "Second readback size mismatch");
+    const uint64_t secondChecksum = std::accumulate(secondFrame.begin(), secondFrame.end(), uint64_t{0});
+    TEST_CHECK(secondChecksum != firstChecksum, "GPU skinning palette change did not alter presented pixels");
 
     renderer.Reset();
     TEST_CHECK(!renderer.Ready(), "Renderer should not be ready after Reset");
