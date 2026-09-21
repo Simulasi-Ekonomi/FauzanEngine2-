@@ -29,6 +29,7 @@ bool EditorProvider::ExecuteCommand(const std::string& action, const std::string
 }
 
 std::string EditorProvider::GetEditorStateJSON() const {
+    if (commandSequence_ == std::numeric_limits<uint64_t>::max()) return "{}";
     return "{\"paused\":" + std::string(m_Paused ? "true" : "false") +
            ",\"commandSequence\":" + std::to_string(m_CommandSequence) + "}";
 }
