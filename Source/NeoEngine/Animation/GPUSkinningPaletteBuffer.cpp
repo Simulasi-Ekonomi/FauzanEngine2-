@@ -12,12 +12,14 @@ bool GPUSkinningPaletteBuffer::Initialize(VkDevice device,VkPhysicalDevice physi
 }
 bool GPUSkinningPaletteBuffer::UploadPalette(const std::vector<Mat4>& palette) {
  if(!buffer_.IsValid()||palette.empty()||palette.size()>kMaxBones||palette.size()>std::numeric_limits<size_t>::max()/sizeof(Mat4)) return false;
+ if (palette.size() > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
  for (const Mat4& matrix : palette) for (float value : matrix.m) if (!std::isfinite(value)) return false;
  constexpr size_t maxBytes = std::numeric_limits<VkDeviceSize>::max();
  if (palette.size() > maxBytes / sizeof(Mat4)) return false;
  const VkDeviceSize byteSize = static_cast<VkDeviceSize>(palette.size() * sizeof(Mat4));
  if(!buffer_.UploadData(palette.data(), byteSize)) { boneCount_=0U; return false; }
  boneCount_=palette.size();
+ if (boneCount_ > kMaxBones) { boneCount_ = 0U; return false; }
  return true;
 }
 void GPUSkinningPaletteBuffer::Destroy(){ buffer_.Destroy(); boneCount_=0U; }
