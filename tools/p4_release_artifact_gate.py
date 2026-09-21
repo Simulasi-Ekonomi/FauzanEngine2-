@@ -47,7 +47,7 @@ def main() -> int:
                     raise SystemExit(f"P4_ARTIFACT_GATE_FAIL invalid_required_entry={required_entry}")
             missing_entries = sorted(required_entries.difference(names))
             if missing_entries:
-                raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_required_entries={",".join(missing_entries)}")
+                raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_required_entries=" + ",".join(missing_entries))
             for info in archive.infolist():
                 name = info.filename
                 if "\x00" in name or "\\" in name or name.startswith("/") or ".." in Path(name).parts:
