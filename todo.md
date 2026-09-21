@@ -585,3 +585,17 @@
 - [x] p1-renderer-asset-animation-night T3-09: animation evaluation rejects size mismatch.
 - [x] p1-renderer-asset-animation-night T3-10: GPU palette cannot commit malformed matrices.
 - [x] p1-renderer-asset-animation-night T3-11: animation update remains fail-closed on invalid clip state.
+
+
+## 2026-09-21 — Turn 4 — substantive implementation/integration ledger
+- [x] p1-renderer-asset-animation-night T4-01: Play rejects null or malformed clip.
+- [x] p1-renderer-asset-animation-night T4-02: Play rejects non-finite clip duration.
+- [x] p1-renderer-asset-animation-night T4-03: Play resets stale player time on invalid clip.
+- [x] p1-renderer-asset-animation-night T4-04: Update rejects non-finite delta.
+- [x] p1-renderer-asset-animation-night T4-05: Update rejects excessive delta.
+- [x] p1-renderer-asset-animation-night T4-06: Update validates duration before advancing.
+- [x] p1-renderer-asset-animation-night T4-07: Update repairs invalid player time.
+- [x] p1-renderer-asset-animation-night T4-08: Update handles delta larger than clip duration.
+- [x] p1-renderer-asset-animation-night T4-09: Update rejects non-finite time accumulation.
+- [x] p1-renderer-asset-animation-night T4-10: Update wraps exact duration with modulo.
+- [x] p1-renderer-asset-animation-night T4-11: AnimationPlayer keeps fail-closed playback state.
