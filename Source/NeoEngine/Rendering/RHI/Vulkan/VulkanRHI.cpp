@@ -151,10 +151,33 @@ void VulkanRHI::BeginFrame() {
     }
     if (acquired != VK_SUCCESS && acquired != VK_SUBOPTIMAL_KHR) return;
 
-    // Reset only after a successful acquire. This prevents the unsignaled-fence
-    // deadlock that occurs when acquire returns OUT_OF_DATE before submission.
-    if (vkResetFences(m_Device, 1, &m_InFlight) != VK_SUCCESS) return;
-    if (vkResetCommandBuffer(m_CommandBuffer, 0) != VK_SUCCESS) return; VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}; if (vkBeginCommandBuffer(m_CommandBuffer, &begin) != VK_SUCCESS) return; VkClearValue clear{}; clear.color = {{0.02F, 0.02F, 0.025F, 1.0F}}; VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO}; pass.renderPass = m_RenderPass; pass.framebuffer = m_Framebuffers[m_ImageIndex]; pass.renderArea.extent = {static_cast<uint32_t>(m_Width), static_cast<uint32_t>(m_Height)}; pass.clearValueCount = 1; pass.pClearValues = &clear; vkCmdBeginRenderPass(m_CommandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE); m_ImageAcquired = true; m_FrameActive = true; m_FrameSubmitted = false; }
+    // Do all command-buffer setup before resetting the fence. If any setup step
+    // fails, the fence remains signaled and the next frame cannot deadlock waiting
+    // on an unsignaled fence that will never be submitted.
+    if (vkResetCommandBuffer(m_CommandBuffer, 0) != VK_SUCCESS) return;
+    VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    if (vkBeginCommandBuffer(m_CommandBuffer, &begin) != VK_SUCCESS) return;
+
+    VkClearValue clear{};
+    clear.color = {{0.02F, 0.02F, 0.025F, 1.0F}};
+    VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    pass.renderPass = m_RenderPass;
+    pass.framebuffer = m_Framebuffers[m_ImageIndex];
+    pass.renderArea.extent = {static_cast<uint32_t>(m_Width), static_cast<uint32_t>(m_Height)};
+    pass.clearValueCount = 1;
+    pass.pClearValues = &clear;
+    vkCmdBeginRenderPass(m_CommandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE);
+
+    if (vkResetFences(m_Device, 1, &m_InFlight) != VK_SUCCESS) {
+        vkCmdEndRenderPass(m_CommandBuffer);
+        (void)vkEndCommandBuffer(m_CommandBuffer);
+        return;
+    }
+
+    m_ImageAcquired = true;
+    m_FrameActive = true;
+    m_FrameSubmitted = false;
+}
 void VulkanRHI::EndFrame() { if (!m_FrameActive || !m_ImageAcquired) return; vkCmdEndRenderPass(m_CommandBuffer); if (vkEndCommandBuffer(m_CommandBuffer) != VK_SUCCESS) { m_FrameActive = false; m_ImageAcquired = false; m_FrameSubmitted = false; return; } VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO}; submit.waitSemaphoreCount = 1; submit.pWaitSemaphores = &m_ImageAvailable; submit.pWaitDstStageMask = &waitStage; submit.commandBufferCount = 1; submit.pCommandBuffers = &m_CommandBuffer; submit.signalSemaphoreCount = 1; submit.pSignalSemaphores = &m_RenderFinished; if (vkQueueSubmit(m_GraphicsQueue, 1, &submit, m_InFlight) != VK_SUCCESS) { m_FrameActive = false; m_ImageAcquired = false; m_FrameSubmitted = false; return; } m_FrameActive = false; m_FrameSubmitted = true; }
 void VulkanRHI::Present() {
     if (m_Swapchain == VK_NULL_HANDLE || m_ImageIndex == UINT32_MAX || !m_FrameSubmitted) return;
