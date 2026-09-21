@@ -57,6 +57,13 @@ int main() {
     assert(session.SelectedActorIds().size() == 2 && session.SelectedActorIds()[0] == 42 && session.SelectedActorIds()[1] == 44);
     assert(agent.Execute(R"({"operation":"query"})", session, assets, response));
     assert(response.find("\"operation\":\"query\"") != std::string::npos);
+    assert(response.find("\"returnedCount\":2") != std::string::npos);
+    assert(agent.Execute(R"({"operation":"query","offset":1,"limit":1})", session, assets, response));
+    assert(response.find("\"offset\":1") != std::string::npos);
+    assert(response.find("\"returnedCount\":1") != std::string::npos);
+    assert(agent.Execute(R"({"operation":"query","offset":0,"limit":256})", session, assets, response));
+    assert(!agent.Execute(R"({"operation":"query","limit":257})", session, assets, response));
+    assert(!agent.Execute(R"({"operation":"query","limit":0})", session, assets, response));
 
     const std::string fullTransform = R"({"operation":"transform","actorId":42,"transform":{"x":3,"y":4,"z":5,"rx":6,"ry":7,"rz":8,"sx":2,"sy":3,"sz":4}})";
     assert(agent.Execute(fullTransform, session, assets, response));
