@@ -67,7 +67,6 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
         vkFreeMemory(device, stagingMemory, nullptr);
         return false;
     }
-    if (currentStagingUsedMB_ > stagingPoolSizeMB_ - static_cast<uint32_t>(requestedMB64)) return false;
     currentStagingUsedMB_ += static_cast<uint32_t>(requestedMB64);
     return true;
 }
