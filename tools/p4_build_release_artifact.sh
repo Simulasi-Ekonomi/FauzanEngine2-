@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
@@ -15,6 +16,8 @@ fi
 
 case "$TASK" in
   assembleRelease|bundleRelease) ;;
+  clean) echo "P4_RELEASE_BUILD_FAIL clean_not_allowed"; exit 2 ;;
+
   *) echo "P4_RELEASE_BUILD_FAIL unsupported_task=$TASK" >&2; exit 2 ;;
 esac
 
@@ -26,9 +29,14 @@ for name in "${required[@]}"; do
   fi
 done
 
-if [[ ! -f "$NEO_ANDROID_KEYSTORE" || -L "$NEO_ANDROID_KEYSTORE" || ! -r "$NEO_ANDROID_KEYSTORE" ]]; then
+if [[ ! -f "$NEO_ANDROID_KEYSTORE" || -L "$NEO_ANDROID_KEYSTORE" || ! -r "$NEO_ANDROID_KEYSTORE" || ! -s "$NEO_ANDROID_KEYSTORE" ]]; then
   echo "P4_RELEASE_BUILD_FAIL invalid_signing_keystore=$NEO_ANDROID_KEYSTORE" >&2
   exit 3
+fi
+
+if [[ ! -x "$ANDROID_DIR/gradlew" || ! -f "$ANDROID_DIR/gradle/wrapper/gradle-wrapper.properties" ]]; then
+  echo "P4_RELEASE_BUILD_FAIL incomplete_gradle_wrapper" >&2
+  exit 2
 fi
 
 "$GRADLEW" --no-daemon --stacktrace "$TASK"
@@ -42,7 +50,7 @@ case "$TASK" in
     ;;
 esac
 
-if [[ ! -f "$artifact" || -L "$artifact" || ! -s "$artifact" || ! -r "$artifact" ]]; then
+if [[ ! -f "$artifact" || -L "$artifact" || ! -s "$artifact" || ! -r "$artifact" || ! -O "$artifact" ]]; then
   echo "P4_RELEASE_BUILD_FAIL missing_artifact=$artifact" >&2
   exit 4
 fi
