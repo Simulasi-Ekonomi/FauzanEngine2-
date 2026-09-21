@@ -14,6 +14,7 @@ void Put32(std::vector<uint8_t>& b, uint32_t v) { for (int i = 0; i < 4; ++i) b.
 
 bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out) {
     out = {};
+    if (bytes.size() > 64U * 1024U * 1024U) return false;
     if (bytes.size() < 12 || std::memcmp(bytes.data(), "RIFF", 4) != 0 || std::memcmp(bytes.data() + 8, "WAVE", 4) != 0) return false;
     bool fmtFound = false, dataFound = false;
     uint16_t format = 0, channels = 0, bits = 0;
@@ -22,6 +23,7 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
     while (offset + 8 <= bytes.size()) {
         const uint8_t* header = bytes.data() + offset;
         const uint32_t chunkSize = U32(header + 4);
+        if (chunkSize > bytes.size() - offset) return false;
         offset += 8;
         if (chunkSize > bytes.size() - offset) return false;
         if (std::memcmp(header, "fmt ", 4) == 0) {
@@ -42,8 +44,9 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
     const size_t frameCount = dataSize / frameBytes;
     if (frameCount == 0U || frameCount > 48000U * 60U * 60U) return false;
     const size_t sampleCount = frameCount * channels;
-    if (sampleCount > std::vector<int16_t>().max_size()) return false;
-    out.sampleRate = rate; out.channels = channels; out.pcmSamples.resize(frameCount);
+    if (sampleCount > std::vector<int16_t>().max_size() || sampleCount > 48000ULL * 60ULL * 60ULL * 2ULL) return false;
+    out.sampleRate = rate; out.channels = channels;
+    try { out.pcmSamples.resize(frameCount); } catch (...) { out = {}; return false; }
     if (bits == 16) {
         for (size_t frame = 0; frame < frameCount; ++frame) {
             int32_t sum = 0;
