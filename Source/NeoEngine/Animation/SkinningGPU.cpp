@@ -16,11 +16,9 @@ SkinningGPU::~SkinningGPU()
 }
 
 SkinningGPU::SkinningGPU(SkinningGPU&& other) noexcept
-    : boneBuffer_(std::move(other.boneBuffer_)),
-      descriptorManager_(std::move(other.descriptorManager_)),
-      descriptorSet_(other.descriptorSet_)
+    : boneBuffer_(std::move(other.boneBuffer_)), descriptorManager_(std::move(other.descriptorManager_)), descriptorSet_(other.descriptorSet_), uploadedBoneCount_(other.uploadedBoneCount_)
 {
-    other.descriptorSet_ = VK_NULL_HANDLE;
+    other.descriptorSet_ = VK_NULL_HANDLE; other.uploadedBoneCount_ = 0U;
 }
 
 SkinningGPU& SkinningGPU::operator=(SkinningGPU&& other) noexcept
@@ -29,8 +27,8 @@ SkinningGPU& SkinningGPU::operator=(SkinningGPU&& other) noexcept
         Destroy();
         boneBuffer_ = std::move(other.boneBuffer_);
         descriptorManager_ = std::move(other.descriptorManager_);
-        descriptorSet_ = other.descriptorSet_;
-        other.descriptorSet_ = VK_NULL_HANDLE;
+        descriptorSet_ = other.descriptorSet_; uploadedBoneCount_ = other.uploadedBoneCount_;
+        other.descriptorSet_ = VK_NULL_HANDLE; other.uploadedBoneCount_ = 0U;
     }
     return *this;
 }
@@ -38,6 +36,7 @@ SkinningGPU& SkinningGPU::operator=(SkinningGPU&& other) noexcept
 bool SkinningGPU::Initialize(VkDevice device, VkPhysicalDevice physicalDevice)
 {
     if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) return false;
+    if (kPaletteBytes == 0U || kPaletteBytes % alignof(BoneMatrix) != 0U) return false;
 
     Destroy();
 
@@ -67,6 +66,7 @@ bool SkinningGPU::Initialize(VkDevice device, VkPhysicalDevice physicalDevice)
         descriptorSet_, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         boneBuffer_.GetBuffer(), 0, kPaletteBytes);
 
+    uploadedBoneCount_ = 0U;
     return UploadBones({});
 }
 
@@ -89,7 +89,8 @@ std::array<SkinningGPU::BoneMatrix, SkinningGPU::MaxBones> SkinningGPU::Identity
 
 bool SkinningGPU::UploadBones(const std::vector<BoneMatrix>& matrices)
 {
-    if (!IsValid() || matrices.size() > MaxBones) return false;
+    if (!IsValid() || matrices.size() > MaxBones || matrices.size() > static_cast<size_t>(MaxBones)) return false;
+    if (boneBuffer_.GetBuffer() == VK_NULL_HANDLE || boneBuffer_.GetSize() < kPaletteBytes) return false;
 
     for (const BoneMatrix& matrix : matrices) {
         if (!IsFiniteMatrix(matrix)) return false;
@@ -97,12 +98,17 @@ bool SkinningGPU::UploadBones(const std::vector<BoneMatrix>& matrices)
 
     std::array<BoneMatrix, MaxBones> palette = IdentityPalette();
     std::copy(matrices.begin(), matrices.end(), palette.begin());
-    return boneBuffer_.UploadData(palette.data(), kPaletteBytes);
+    const bool uploaded = boneBuffer_.UploadData(palette.data(), kPaletteBytes);
+    if (!uploaded) return false;
+    uploadedBoneCount_ = static_cast<uint32_t>(matrices.size());
+    return uploadedBoneCount_ <= MaxBones;
 }
 
 bool SkinningGPU::Bind(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const
 {
     if (!IsValid() || commandBuffer == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) return false;
+    if (boneBuffer_.GetBuffer() == VK_NULL_HANDLE || descriptorSet_ == VK_NULL_HANDLE || descriptorManager_.GetLayout() == VK_NULL_HANDLE) return false;
+    if (uploadedBoneCount_ > MaxBones) return false;
 
     const VkDescriptorSet set = descriptorSet_;
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -113,6 +119,7 @@ bool SkinningGPU::Bind(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineL
 void SkinningGPU::Destroy()
 {
     descriptorSet_ = VK_NULL_HANDLE;
+    uploadedBoneCount_ = 0U;
     descriptorManager_.Destroy();
     boneBuffer_.Destroy();
 }
