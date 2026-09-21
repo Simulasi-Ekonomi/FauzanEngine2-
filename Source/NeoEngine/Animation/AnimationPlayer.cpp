@@ -78,17 +78,16 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     if (currentClip_ == nullptr || skeleton_ == nullptr || !skeleton_->IsComplete() || !currentClip_->IsValid() || !std::isfinite(time_) || time_ < 0.0F || time_ > 86400.0F) return false;
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F || time_ > duration) return false;
+    const size_t boneCount = skeleton_->GetBoneCount();
     if (skeleton_->BoneCount() != boneCount) return false;
     if (boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U) return false;
+    if (boneCount > static_cast<size_t>(std::numeric_limits<uint16_t>::max())) return false;
+    if (boneCount > std::numeric_limits<size_t>::max() / sizeof(Mat4) || boneCount * sizeof(Mat4) > 64U * 1024U * 1024U) return false;
+    if (skeleton_->GetBone(0U) == nullptr || skeleton_->GetBone(boneCount - 1U) == nullptr) return false;
     if (currentClip_->GetFrames(static_cast<int>(boneCount - 1U)).empty()) return false;
     if (duration == 0.0F && time_ != 0.0F) return false;
     if (time_ > duration) return false;
     if (playing_ && playbackMode_ != AnimationPlaybackMode::Loop && playbackMode_ != AnimationPlaybackMode::Clamp) return false;
-    if (boneCount > static_cast<size_t>(std::numeric_limits<uint16_t>::max())) return false;
-    if (boneCount * sizeof(Mat4) > 64U * 1024U * 1024U) return false;
-    if (candidateLocal.size() > boneCount || candidatePalette.size() > boneCount) return false;
-    if (skeleton_->GetBone(0U) == nullptr) return false;
-    const size_t boneCount = skeleton_->GetBoneCount();
     if (boneCount != skeleton_->BoneCount() || boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U) return false;
     if (boneCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
 
