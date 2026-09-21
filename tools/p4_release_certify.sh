@@ -12,6 +12,8 @@ if [[ -z "$ARTIFACT" ]]; then
   exit 2
 fi
 
+bash tools/release_manifest.sh p4-release-manifest.sha256
+python3 tools/generate_source_sbom.py
 python3 tools/p4_release_gate.py
 python3 tools/p4_release_artifact_gate.py "$ARTIFACT"
 
