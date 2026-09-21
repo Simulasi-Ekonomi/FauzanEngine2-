@@ -91,6 +91,7 @@ bool SameTransform(const Transform3& left, const Transform3& right) {
 }
 Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPermille) {
     if (alphaPermille > 1000U) return from;
+    if (!ValidTransform(from) || !ValidTransform(to)) return from;
     const double alpha = static_cast<double>(alphaPermille) / 1000.0;
     const auto mix = [alpha](float a, float b) { return static_cast<float>(static_cast<double>(a) + (static_cast<double>(b) - static_cast<double>(a)) * alpha); };
     const Transform3 result{mix(from.x, to.x), mix(from.y, to.y), mix(from.z, to.z), mix(from.rx, to.rx), mix(from.ry, to.ry), mix(from.rz, to.rz), mix(from.sx, to.sx), mix(from.sy, to.sy), mix(from.sz, to.sz)};
@@ -131,7 +132,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     constexpr size_t kEntityBytes = 4U + 4U + 8U + 9U * sizeof(float);
     if (count > (kMaxBytes - (4U + 2U + 8U + 8U + 2U + 8U)) / kEntityBytes) { error = ReplicationError::CorruptSnapshot; return false; }
     const size_t expectedSize = 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(count) * kEntityBytes + 8U;
-    if (bytes.size() != expectedSize) { error = ReplicationError::CorruptSnapshot; return false; }
+    if (bytes.size() != expectedSize || expectedSize > kMaxBytes) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count;
     for (uint16_t index = 0U; index < count; ++index) {
         ReplicatedEntityState& state = candidate.states[index];
@@ -253,7 +254,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
         slot.hasAuthoritative = true;
     }
     snapshot = std::move(snapshotCandidate);
-    if (candidateReceipt.appliedEntities != snapshot.count) return failTransaction(ReplicationError::SceneApplyRejected);
+    if (candidateReceipt.appliedEntities != snapshot.count || candidateReceipt.appliedEntities > kMaxEntities) return failTransaction(ReplicationError::SceneApplyRejected);
     snapshotSequence_ = snapshot.sequence;
     lastServerTick_ = serverTick;
     lastSnapshotChecksum_ = snapshot.checksum;
