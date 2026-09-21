@@ -15,6 +15,7 @@ set(NEO_CANONICAL_ANDROID_SOURCES
     "${NEO_ENGINE_ROOT}/Runtime/AndroidLifecycleGate.cpp"
     "${NEO_ENGINE_ROOT}/Runtime/SceneWorld.cpp"
     "${NEO_ENGINE_ROOT}/Runtime/SceneECSBridge.cpp"
+    "${NEO_ENGINE_ROOT}/Runtime/SoftwareRenderer.cpp"
     "${NEO_ENGINE_ROOT}/Core/ECS/ArchetypeManager.cpp"
     "${NEO_ENGINE_ROOT}/Systems/CommodityCatalog.cpp"
     "${NEO_ENGINE_ROOT}/Systems/CommodityEconomyLedger.cpp"
