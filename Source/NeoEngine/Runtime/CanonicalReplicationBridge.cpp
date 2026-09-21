@@ -34,13 +34,13 @@ bool CanonicalReplicationBridge::Unregister(uint32_t networkId) {
         return false;
     }
     lastError_ = CanonicalReplicationBridgeError::None;
-    if (receipt.sequence < previousSequence || receipt.applied > ReplicationWorld::kMaxReplicatedEntities || receipt.spawned > ReplicationWorld::kMaxReplicatedEntities || receipt.despawned > ReplicationWorld::kMaxReplicatedEntities) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
+    if (receipt.sequence < previousSequence || receipt.applied > ReplicationWorld::kMaxReplicatedEntities || receipt.spawned > ReplicationWorld::kMaxReplicatedEntities || receipt.despawned > ReplicationWorld::kMaxReplicatedEntities) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
     return true;
 }
 
 bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot) {
     snapshot = {};
-    if (serverTick == 0U || serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotBuildFailed; return false; }
+    if (serverTick == 0U || serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotFailed; return false; }
 
     if (serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = ReplicationError::InvalidSnapshot; return false; }
     snapshot = {};
@@ -61,7 +61,7 @@ bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationS
 bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     receipt = {};
     if (snapshot.serverTick == 0U || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
-    if (snapshot.entities.size() > ReplicationWorld::kMaxReplicatedEntities) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
+    if (snapshot.count > ReplicationWorld::kMaxEntities) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
 
     receipt = {};
     if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
