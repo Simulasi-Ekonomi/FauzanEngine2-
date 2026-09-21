@@ -84,20 +84,22 @@ uint64_t SnapshotChecksum(const ReplicationSnapshot& snapshot) {
     }
 }
 bool ValidTransform(const Transform3& transform) {
-    return std::isfinite(transform.x) && std::isfinite(transform.y) && std::isfinite(transform.z) && std::isfinite(transform.rx) && std::isfinite(transform.ry) && std::isfinite(transform.rz) && std::isfinite(transform.sx) && std::isfinite(transform.sy) && std::isfinite(transform.sz) && transform.sx > 0.0F && transform.sy > 0.0F && transform.sz > 0.0F;
+    return std::isfinite(transform.x) && std::isfinite(transform.y) && std::isfinite(transform.z) && std::isfinite(transform.rx) && std::isfinite(transform.ry) && std::isfinite(transform.rz) && std::isfinite(transform.sx) && std::isfinite(transform.sy) && std::isfinite(transform.sz) && transform.sx > 0.0F && transform.sy > 0.0F && transform.sz > 0.0F && transform.sx <= 1000000.0F && transform.sy <= 1000000.0F && transform.sz <= 1000000.0F;
 }
 bool SameTransform(const Transform3& left, const Transform3& right) {
-    return std::memcmp(&left, &right, sizeof(Transform3)) == 0;
+    return left.x == right.x && left.y == right.y && left.z == right.z && left.rx == right.rx && left.ry == right.ry && left.rz == right.rz && left.sx == right.sx && left.sy == right.sy && left.sz == right.sz;
 }
 Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPermille) {
+    if (alphaPermille > 1000U) return from;
     const double alpha = static_cast<double>(alphaPermille) / 1000.0;
     const auto mix = [alpha](float a, float b) { return static_cast<float>(static_cast<double>(a) + (static_cast<double>(b) - static_cast<double>(a)) * alpha); };
-    return {mix(from.x, to.x), mix(from.y, to.y), mix(from.z, to.z), mix(from.rx, to.rx), mix(from.ry, to.ry), mix(from.rz, to.rz), mix(from.sx, to.sx), mix(from.sy, to.sy), mix(from.sz, to.sz)};
+    const Transform3 result{mix(from.x, to.x), mix(from.y, to.y), mix(from.z, to.z), mix(from.rx, to.rx), mix(from.ry, to.ry), mix(from.rz, to.rz), mix(from.sx, to.sx), mix(from.sy, to.sy), mix(from.sz, to.sz)};
+    return ValidTransform(result) ? result : from;
 }
 }
 
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
-    if (snapshot.sequence == 0U || snapshot.count > ReplicationSnapshot::kMaxEntities || snapshot.count > 1024U) { error = ReplicationError::InvalidSnapshot; return false; }
+    if (snapshot.sequence == 0U || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
