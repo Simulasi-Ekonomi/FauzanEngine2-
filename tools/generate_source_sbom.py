@@ -15,11 +15,15 @@ files = subprocess.check_output(
 ).split(b"\0")
 
 components = []
-tracked_paths = sorted(set(raw.decode() for raw in files if raw))
+tracked_paths = sorted(set(raw.decode("utf-8", "strict") for raw in files if raw))
+if any("\x00" in path or path.startswith("/") or ".." in Path(path).parts for path in tracked_paths):
+    raise SystemExit("SOURCE_SBOM_FAIL unsafe_tracked_path")
 for path in tracked_paths:
     full = root / path
     if not full.is_file() or full.is_symlink():
         continue
+    if not full.resolve().is_relative_to(root.resolve()):
+        raise SystemExit("SOURCE_SBOM_FAIL path_escape")
     digest = hashlib.sha256(full.read_bytes()).hexdigest()
     components.append({
         "type": "file",
