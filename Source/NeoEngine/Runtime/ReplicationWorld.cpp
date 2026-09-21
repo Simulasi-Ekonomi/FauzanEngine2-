@@ -104,10 +104,12 @@ bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, st
     }
     try {
         std::vector<uint8_t> content;
+        content.reserve(4U + 2U + 8U + 8U + 2U + static_cast<size_t>(snapshot.count) * (4U + 4U + 8U + 9U * sizeof(float)) + 8U);
         AppendSnapshotContent(content, snapshot);
         if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
         const uint64_t checksum = Hash(content);
         AppendU64(content, checksum);
+        if (content.size() != 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(snapshot.count) * (4U + 4U + 8U + 9U * sizeof(float)) + 8U) { error = ReplicationError::Capacity; return false; }
         bytes = std::move(content);
         error = ReplicationError::None;
         return true;
@@ -126,6 +128,8 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     if (serverTick == std::numeric_limits<uint64_t>::max()) { error = ReplicationError::CorruptSnapshot; return false; }
     constexpr size_t kEntityBytes = 4U + 4U + 8U + 9U * sizeof(float);
     if (count > (kMaxBytes - (4U + 2U + 8U + 8U + 2U + 8U)) / kEntityBytes) { error = ReplicationError::CorruptSnapshot; return false; }
+    const size_t expectedSize = 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(count) * kEntityBytes + 8U;
+    if (bytes.size() != expectedSize) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count;
     for (uint16_t index = 0U; index < count; ++index) {
         ReplicatedEntityState& state = candidate.states[index];
@@ -148,6 +152,7 @@ bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement
         AppendU32(content, kAcknowledgementMagic); AppendU16(content, kVersion); AppendU64(content, acknowledgement.sequence); AppendU64(content, acknowledgement.serverTick); AppendU64(content, acknowledgement.checksum);
         if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
         AppendU64(content, Hash(content));
+        if (content.size() != 38U) { error = ReplicationError::Capacity; return false; }
         bytes = std::move(content);
         error = ReplicationError::None;
         return true;
@@ -237,7 +242,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     snapshotCandidate.count = count;
     for (uint16_t index = 0U; index < count; ++index) snapshotCandidate.states[index] = candidates[index].state;
     snapshotCandidate.checksum = SnapshotChecksum(snapshotCandidate);
-    if (snapshotCandidate.checksum == 0U) return Fail(ReplicationError::Capacity);
+    if (snapshotCandidate.checksum == 0U || snapshotCandidate.count != count || snapshotCandidate.sequence <= snapshotSequence_) return Fail(ReplicationError::Capacity);
     for (uint16_t index = 0U; index < count; ++index) {
         Slot& slot = slots_[candidates[index].slotIndex];
         slot.previousAuthoritative = candidates[index].previous;
@@ -246,6 +251,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
         slot.hasAuthoritative = true;
     }
     snapshot = std::move(snapshotCandidate);
+    if (candidateReceipt.appliedEntities != snapshot.count) return failTransaction(ReplicationError::SceneApplyRejected);
     snapshotSequence_ = snapshot.sequence;
     lastServerTick_ = serverTick;
     lastSnapshotChecksum_ = snapshot.checksum;
@@ -297,7 +303,7 @@ bool ReplicationWorld::ApplyClientAcknowledgement(const ReplicationAcknowledgeme
 
 bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
-    if (snapshot.count > kMaxEntities) return Fail(ReplicationError::InvalidSnapshot);
+    if (snapshot.count > kMaxEntities || snapshot.count > 1024U) return Fail(ReplicationError::InvalidSnapshot);
     if (!ValidateSnapshot(snapshot)) return Fail(ReplicationError::InvalidSnapshot);
     if (snapshot.sequence <= snapshotSequence_ || snapshot.serverTick < lastServerTick_ || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::StaleSnapshot);
     std::array<uint16_t, kMaxEntities> resolvedSlots{};
@@ -403,6 +409,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                 return failTransaction(ReplicationError::SceneApplyRejected);
             }
         }
+        if (candidateReceipt.appliedEntities >= kMaxEntities) return failTransaction(ReplicationError::Capacity);
         ++candidateReceipt.appliedEntities;
     }
     std::array<SceneEntity, kMaxEntities> despawnedEntities{};
@@ -426,6 +433,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                 return failTransaction(ReplicationError::DespawnRejected);
             }
             ++despawnedIndex;
+            if (candidateReceipt.despawnedEntities >= kMaxEntities) return failTransaction(ReplicationError::Capacity);
             ++candidateReceipt.despawnedEntities;
         }
     }
