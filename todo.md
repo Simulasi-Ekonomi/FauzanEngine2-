@@ -641,3 +641,17 @@
 - [x] T7-09 invalid accumulated time resets time.
 - [x] T7-10 duration wrapping remains finite.
 - [x] T7-11 animation playback fails closed.
+
+
+## 2026-09-21 — Turn 8 — implementation/integration ledger
+- [x] T8-01 clip duration upper bound enforced.
+- [x] T8-02 invalid clip resets playback state.
+- [x] T8-03 nonfinite clip duration resets playback.
+- [x] T8-04 nonpositive clip duration resets playback.
+- [x] T8-05 delta finiteness enforced.
+- [x] T8-06 delta upper bound enforced.
+- [x] T8-07 player time finiteness enforced.
+- [x] T8-08 player time range repaired.
+- [x] T8-09 oversized delta uses validated modulo.
+- [x] T8-10 wrapped delta result must be finite.
+- [x] T8-11 wrapped playback result must remain inside duration.
