@@ -47,3 +47,11 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1
         run: ./build/p2-asan/replication_world_smoke
+      - name: Configure UBSAN
+        run: cmake -S Source/NeoEngine -B build/p2-ubsan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=undefined -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=undefined'
+      - name: Build replication smoke UBSAN
+        run: cmake --build build/p2-ubsan --target replication_world_smoke -j2
+      - name: Run replication smoke UBSAN
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ./build/p2-ubsan/replication_world_smoke
