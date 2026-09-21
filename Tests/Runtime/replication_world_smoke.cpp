@@ -12,6 +12,7 @@ bool RunStaleRemoteEntityRegression() {
     auto client = std::make_unique<ReplicationWorld>(*scene, ReplicationRole::Client, 7U);
     SceneEntity entity{};
     if (!scene->Create(entity) || !scene->SetTransform(entity, {4.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !client->RegisterEntity(entity, 501U, 8U) || !scene->Destroy(entity)) return false;
+    ReplicationError codecError = ReplicationError::None;
     ReplicationAcknowledgement acknowledgement{};
     if (!server.BuildClientAcknowledgement(acknowledgement) || acknowledgement.sequence != 0U || acknowledgement.serverTick != 0U || acknowledgement.checksum != 0U) return 5;
     std::vector<uint8_t> acknowledgementBytes;
@@ -60,7 +61,6 @@ int main() {
     ReplicationSnapshot snapshot{};
     if (!server.BuildServerSnapshot(1U, snapshot) || snapshot.count != 2U || snapshot.sequence != 1U || snapshot.states[0].networkId != 100U || snapshot.states[1].networkId != 200U) return 6;
     std::vector<uint8_t> encoded;
-    ReplicationError codecError = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Serialize(snapshot, encoded, codecError) || encoded.empty() || codecError != ReplicationError::None) return 7;
     std::vector<uint8_t> preservedBytes{0xA5U};
     ReplicationSnapshot invalidCodecSnapshot = snapshot;
