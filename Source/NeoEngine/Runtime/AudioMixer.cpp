@@ -230,7 +230,8 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                 constexpr float kHalfPi = 1.57079632679489661923f;
                 const float angle = (pan + 1.0f) * 0.5f * kHalfPi;
                 if (!std::isfinite(angle)) continue;
-                const float leftGain = std::cos(angle);
+                if (!std::isfinite(pan)) return false;
+    const float leftGain = std::cos(angle);
                 const float rightGain = std::sin(angle);
                 left += static_cast<int64_t>(std::llround(static_cast<double>(sample) * leftGain));
                 right += static_cast<int64_t>(std::llround(static_cast<double>(sample) * rightGain));
