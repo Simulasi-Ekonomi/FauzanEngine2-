@@ -192,7 +192,9 @@ uint32_t XPBDPhysicsSystem::AddFixedJoint(uint32_t a, uint32_t b, float anchorAX
 
 uint32_t XPBDPhysicsSystem::AddSphericalJoint(uint32_t a, uint32_t b, float anchorAX, float anchorAZ,
                                               float anchorBX, float anchorBZ, float limitLow, float limitHigh) {
-    if (m_ConstraintCount >= MAX_CONSTRAINTS || a == b || limitHigh < limitLow) return UINT32_MAX;
+    if (m_ConstraintCount >= MAX_CONSTRAINTS || a >= PHYS_ENTITIES_MAX || b >= PHYS_ENTITIES_MAX || a == b || limitHigh < limitLow ||
+        !std::isfinite(anchorAX) || !std::isfinite(anchorAZ) || !std::isfinite(anchorBX) || !std::isfinite(anchorBZ) ||
+        !std::isfinite(limitLow) || !std::isfinite(limitHigh)) return UINT32_MAX;
     Constraint& constraint = m_Constraints[m_ConstraintCount];
     constraint = {};
     constraint.idxA = a; constraint.idxB = b; constraint.type = ConstraintType::Spherical;
@@ -204,7 +206,7 @@ uint32_t XPBDPhysicsSystem::AddSphericalJoint(uint32_t a, uint32_t b, float anch
 }
 
 void XPBDPhysicsSystem::SetConstraintDrive(uint32_t id, float targetVelocity, float maxForce) {
-    if (id >= m_ConstraintCount || maxForce < 0.0f) return;
+    if (id >= m_ConstraintCount || !std::isfinite(targetVelocity) || !std::isfinite(maxForce) || maxForce < 0.0f) return;
     Constraint& constraint = m_Constraints[id];
     constraint.motorSpeed = targetVelocity;
     constraint.maxForce = maxForce;
@@ -1813,6 +1815,8 @@ void XPBDPhysicsSystem::ProcessFractures() {
 
 void XPBDPhysicsSystem::UpdateWorldChunks() {
     constexpr float kWorldSize = 200.0f;
+    if (m_activeFlatEntities > m_ChunkAssignment.size()) return;
+    if (!std::isfinite(m_GridCellSize) || m_GridCellSize <= 0.0f) return;
     const float chunkSize = kWorldSize / static_cast<float>(CHUNK_DIM);
     if (m_WorldChunks.size() != CHUNK_DIM * CHUNK_DIM) {
         m_WorldChunks.resize(CHUNK_DIM * CHUNK_DIM);
@@ -1835,9 +1839,14 @@ void XPBDPhysicsSystem::UpdateWorldChunks() {
 }
 
 void XPBDPhysicsSystem::GPUBroadphaseQuery() {
-    // GPU dispatch is platform-dependent. The CPU BVH is the deterministic authority
-    // and remains active whenever a compute backend has not supplied a validated result.
-    if (m_BVHRoot != -1) QueryBVHPairsIterative(m_BVHRoot, m_BVHRoot);
+    // CPU BVH remains the deterministic authority unless a validated GPU result exists.
+    if (!m_GPUBroadphase) return;
+    if (m_activeFlatEntities == 0 || m_activeFlatEntities > m_maxFlatEntities) return;
+    if (m_BVHRoot < 0 || static_cast<size_t>(m_BVHRoot) >= m_BVHNodes.size()) return;
+    if (m_BVHNodes.empty() || m_ContactCount >= MAX_CONTACTS) return;
+    QueryBVHPairsIterative(m_BVHRoot, m_BVHRoot);
+    if (m_ContactCount > MAX_CONTACTS) m_ContactCount = MAX_CONTACTS;
+    if (m_BroadphaseStats.candidatePairs > MAX_CONTACTS) m_BroadphaseStats.candidatePairs = MAX_CONTACTS;
 }
 
 } // namespace
