@@ -627,3 +627,17 @@
 - [x] T6-09 non-UTF8 filename flag mismatch remains rejected.
 - [x] T6-10 compression ratio remains bounded.
 - [x] T6-11 signature/certificate validation remains a release gate.
+
+
+## 2026-09-21 — Turn 7 — implementation/integration ledger
+- [x] T7-01 central directory offset is bounded.
+- [x] T7-02 central directory extent is bounded.
+- [x] T7-03 archive comments reject NUL payloads.
+- [x] T7-04 entry comments remain bounded.
+- [x] T7-05 patched-data flag is rejected.
+- [x] T7-06 data-descriptor flag is rejected.
+- [x] T7-07 empty compressed files are rejected.
+- [x] T7-08 required entries remain non-empty.
+- [x] T7-09 ZIP entry extents remain bounded.
+- [x] T7-10 compression ratio remains bounded.
+- [x] T7-11 APK/AAB signature verification remains mandatory.
