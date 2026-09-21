@@ -164,7 +164,7 @@ bool AudioMixer::SetListener(const AudioListener& listener) {
 }
 
 void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
-    if (frames > kMaxMixFrames || frames > (std::numeric_limits<size_t>::max() / 2U)) { out.clear(); return; }
+    if (frames > kMaxMixFrames || frames > (std::numeric_limits<size_t>::max() / 2U) || m_Voices.size() > kMaxVoices) { out.clear(); return; }
     out.assign(frames * 2U, 0);
     for (size_t f = 0; f < frames; ++f) {
         int64_t left = 0;
@@ -220,6 +220,7 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
             }
             if (!std::isfinite(dynamicGain) || !std::isfinite(dynamicPan) || dynamicGain < 0.0f || dynamicGain > 256.0f) continue;
             const int64_t sample = static_cast<int64_t>(std::llround(static_cast<double>(interpolated) * dynamicGain));
+            if (!std::isfinite(voice.cursorSubframe + voice.pitch) || voice.cursorSubframe + voice.pitch < voice.cursorSubframe) continue;
             voice.cursorSubframe += voice.pitch;
             voice.cursor = static_cast<size_t>(voice.cursorSubframe);
             if (!voice.spatialized) {
