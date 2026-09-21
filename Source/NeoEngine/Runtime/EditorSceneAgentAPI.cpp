@@ -23,6 +23,20 @@ bool HasOnly(const Json::Value& object, std::initializer_list<const char*> allow
     return true;
 }
 
+constexpr size_t kMaxSceneStringBytes = 4096U;
+constexpr size_t kMaxMultiSelectActors = 4096U;
+
+bool IsBoundedString(const Json::Value& value) {
+    return value.isString() && value.asString().size() <= kMaxSceneStringBytes;
+}
+
+bool IsBoundedActorStringSet(const Json::Value& root) {
+    return IsBoundedString(root["name"]) &&
+           IsBoundedString(root["assetId"]) &&
+           IsBoundedString(root["materialAssetId"]) &&
+           IsBoundedString(root["textureAssetId"]);
+}
+
 bool ReadTransform(const Json::Value& value, Transform3& out) {
     if (!value.isObject() || !HasOnly(value, {"x", "y", "z", "rx", "ry", "rz", "sx", "sy", "sz"})) return false;
     return ReadFinite(value["x"], out.x) && ReadFinite(value["y"], out.y) &&
@@ -89,7 +103,7 @@ bool EditorSceneAgentAPI::Execute(std::string_view request, EditorSceneSession& 
     if (operation == "spawn") {
         if (!HasOnly(root, {"operation", "actorId", "parentId", "kind", "name", "assetId", "materialAssetId", "textureAssetId", "x", "y", "z"}) ||
             !root["actorId"].isUInt() || !root["parentId"].isUInt() || !root["kind"].isUInt() ||
-            !root["name"].isString() || !root["assetId"].isString() || !root["materialAssetId"].isString() || !root["textureAssetId"].isString()) return Fail(EditorAgentError::InvalidArgument, response);
+            !IsBoundedActorStringSet(root) return Fail(EditorAgentError::InvalidArgument, response);
         EditorSceneActor actor{};
         actor.id = root["actorId"].asUInt(); actor.parentId = root["parentId"].asUInt();
         actor.kind = static_cast<EditorSceneActorKind>(root["kind"].asUInt()); actor.name = root["name"].asString();
@@ -119,8 +133,14 @@ bool EditorSceneAgentAPI::Execute(std::string_view request, EditorSceneSession& 
     }
     if (operation == "selectMany") {
         if (!HasOnly(root, {"operation", "actorIds"}) || !root["actorIds"].isArray()) return Fail(EditorAgentError::InvalidArgument, response);
+        if (root["actorIds"].size() > kMaxMultiSelectActors)
+            return Fail(EditorAgentError::InvalidArgument, response);
         std::vector<uint32_t> ids;
-        for (const auto& item : root["actorIds"]) { if (!item.isUInt()) return Fail(EditorAgentError::InvalidArgument, response); ids.push_back(item.asUInt()); }
+        ids.reserve(root["actorIds"].size());
+        for (const auto& item : root["actorIds"]) {
+            if (!item.isUInt()) return Fail(EditorAgentError::InvalidArgument, response);
+            ids.push_back(item.asUInt());
+        }
         if (!session.MultiSelectActors(ids)) return Fail(EditorAgentError::OperationFailed, response);
         lastError_ = EditorAgentError::None; response = SceneResult("selectMany", session); return true;
     }
