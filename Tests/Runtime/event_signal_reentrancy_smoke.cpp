@@ -29,7 +29,6 @@ int main() {
     EventSignalDispatchReceipt second{};
     if (!bus.Dispatch(&second) || second.eventCount != 1U || bus.PendingCount() != 0U) return 4;
     if (mutator.calls != 2U || counter.calls != 2U) return 5;
-    std::printf("EVENT_SIGNAL_REENTRANCY_SMOKE_OK snapshot_dispatch=1 queued_during_callback=1
-");
+    std::printf("EVENT_SIGNAL_REENTRANCY_SMOKE_OK snapshot_dispatch=1 queued_during_callback=1\\n");
     return 0;
 }
