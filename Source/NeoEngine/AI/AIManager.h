@@ -12,7 +12,7 @@ class AIManager {
 public:
     enum class Error : uint8_t { None, AlreadyInitialized, InitializationFailed, InvalidDeltaTime, InvalidContext, BackendUnavailable };
     static AIManager& Get();
-    bool Initialize(); void Shutdown(); void Update(float DeltaTime); bool IsReady() const;
+    bool Initialize(); void Shutdown(); void Update(float DeltaTime); bool IsReady() const noexcept;
     [[nodiscard]] Error LastError() const noexcept { return lastError; }
     std::string Think(const std::string& context); std::string PlanAction(const std::string& state);
 private:
