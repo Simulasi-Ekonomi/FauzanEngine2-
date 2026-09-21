@@ -32,6 +32,7 @@ SerialNumber* ItemSerialTracker::RegisterItem(const std::string& ownerId, const 
                                               const std::string& itemName, int quantity, const std::string& source) {
     if (ownerId.empty() || itemType.empty() || itemName.empty() || source.empty() || quantity <= 0) return nullptr;
     std::string serial = GenerateSerial(itemType, itemName);
+    if (serial.empty()) return nullptr;
     SerialNumber sn;
     sn.number = serial;
     sn.itemType = itemType;
