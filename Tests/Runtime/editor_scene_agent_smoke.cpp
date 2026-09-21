@@ -60,6 +60,15 @@ int main() {
     TEST_CHECK(session.InspectActor(44, inspected) && inspected.transform.x == 3.0F, "second transform mutation missing");
     TEST_CHECK(session.RevertToSaved(assets), "revert to saved failed");
     TEST_CHECK(session.InspectActor(44, inspected) && inspected.transform.x == 2.0F, "revert did not restore saved document");
+    TEST_CHECK(!agent.Execute(R"({"operation":"reparent","actorId":44,"parentId":9999})", session, assets, response), "reparent to unknown parent was accepted");
+    TEST_CHECK(session.LastError() == EditorSceneSessionError::UnknownActor, "wrong error for unknown reparent parent");
+    TEST_CHECK(!agent.Execute(R"({"operation":"reparent","actorId":44,"parentId":44})", session, assets, response), "self-parenting was accepted");
+    TEST_CHECK(session.LastError() == EditorSceneSessionError::InvalidHierarchy, "wrong error for self-parenting");
+    TEST_CHECK(agent.Execute(R"({"operation":"reparent","actorId":44,"parentId":42})", session, assets, response), "valid reparent failed");
+    TEST_CHECK(session.InspectActor(44, inspected) && inspected.parentId == 42U, "reparent did not update parent");
+    TEST_CHECK(!agent.Execute(R"({"operation":"delete","actorId":42})", session, assets, response), "delete with children was accepted");
+    TEST_CHECK(session.LastError() == EditorSceneSessionError::ActorHasChildren, "wrong error for delete with children");
+    TEST_CHECK(session.InspectActor(44, inspected) && inspected.parentId == 42U, "failed delete changed child state");
 
     TEST_CHECK(agent.Execute(R"({"operation":"selectMany","actorIds":[42,44]})", session, assets, response),
                "multi-select command failed");
