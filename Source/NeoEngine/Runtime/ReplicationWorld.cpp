@@ -364,17 +364,6 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
     uint16_t spawnedIndex = 0U;
-    const auto rollbackMutations = [this, &spawnedEntities, &spawnedIndex,
-                                     &previousSceneTransforms, &changedSceneTransforms]() {
-        for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
-            if (!changedSceneTransforms[slotIndex] || !slots_[slotIndex].registered) continue;
-            (void)sceneWorld_.SetTransform(slots_[slotIndex].entity, previousSceneTransforms[slotIndex]);
-        }
-        while (spawnedIndex > 0U) {
-            --spawnedIndex;
-            (void)sceneWorld_.Destroy(spawnedEntities[spawnedIndex]);
-        }
-    };
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         const uint16_t slotIndex = resolvedSlots[index];
@@ -425,19 +414,6 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             despawnedSlots[restoreIndex] = slots_[slotIndex];
             despawnedSlotIndices[restoreIndex] = slotIndex;
             if (!sceneWorld_.Destroy(slots_[slotIndex].entity)) {
-                // Restore only entities that were actually destroyed. The
-                // failed entity remains alive and must not be recreated.
-                while (despawnedIndex > 0U) {
-                    --despawnedIndex;
-                    SceneEntity restored{};
-                    if (sceneWorld_.Create(restored) &&
-                        sceneWorld_.SetTransform(restored, despawnedTransforms[despawnedIndex])) {
-                        slots_[despawnedSlotIndices[despawnedIndex]] = despawnedSlots[despawnedIndex];
-                        slots_[despawnedSlotIndices[despawnedIndex]].entity = restored;
-                    } else {
-                        return Fail(ReplicationError::DespawnRejected);
-                    }
-                }
                 return failTransaction(ReplicationError::DespawnRejected);
             }
             ++despawnedIndex;
