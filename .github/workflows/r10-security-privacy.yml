@@ -1,0 +1,74 @@
+name: R10 security and privacy boundaries
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
+      - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
+      - 'Source/NeoEngine/Systems/AuthoritativeCommandGate.*'
+      - 'Source/NeoEngine/Systems/TrustSafetySystem.*'
+      - 'Tests/Runtime/runtime_persistence_smoke.cpp'
+      - 'Tests/Runtime/atomic_save_file_smoke.cpp'
+      - 'Tests/Farm/farm_telemetry_smoke.cpp'
+      - 'Tests/Systems/authoritative_command_gate_smoke.cpp'
+      - 'Tests/Systems/trust_safety_smoke.cpp'
+      - '.github/workflows/r10-security-privacy.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
+      - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
+      - 'Source/NeoEngine/Systems/AuthoritativeCommandGate.*'
+      - 'Source/NeoEngine/Systems/TrustSafetySystem.*'
+      - 'Tests/Runtime/runtime_persistence_smoke.cpp'
+      - 'Tests/Runtime/atomic_save_file_smoke.cpp'
+      - 'Tests/Farm/farm_telemetry_smoke.cpp'
+      - 'Tests/Systems/authoritative_command_gate_smoke.cpp'
+      - 'Tests/Systems/trust_safety_smoke.cpp'
+      - '.github/workflows/r10-security-privacy.yml'
+  workflow_dispatch:
+
+jobs:
+  security-privacy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libsdl2-dev glslang-tools ninja-build
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r10-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run Release boundary smokes
+        run: |
+          cmake --build build/r10-release --target runtime_persistence_smoke atomic_save_file_smoke farm_telemetry_smoke authoritative_command_gate_smoke trust_safety_smoke -j2
+          ./build/r10-release/runtime_persistence_smoke
+          ./build/r10-release/atomic_save_file_smoke
+          ./build/r10-release/farm_telemetry_smoke
+          ./build/r10-release/authoritative_command_gate_smoke
+          ./build/r10-release/trust_safety_smoke
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r10-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run ASAN boundary smokes
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          cmake --build build/r10-asan --target runtime_persistence_smoke atomic_save_file_smoke farm_telemetry_smoke authoritative_command_gate_smoke trust_safety_smoke -j2
+          ./build/r10-asan/runtime_persistence_smoke
+          ./build/r10-asan/atomic_save_file_smoke
+          ./build/r10-asan/farm_telemetry_smoke
+          ./build/r10-asan/authoritative_command_gate_smoke
+          ./build/r10-asan/trust_safety_smoke
