@@ -613,3 +613,17 @@
 - [x] T5 ACK fixed-size validation retained.
 - [x] T5 transactional apply bounds retained.
 - [x] T5 sequence commit deferred until receipt validation.
+
+
+## 2026-09-21 — Turn 6 — implementation/integration ledger
+- [x] T6-01 snapshot count is bounded by protocol capacity.
+- [x] T6-02 snapshot count has explicit runtime ceiling.
+- [x] T6-03 applied receipt cardinality is bounded.
+- [x] T6-04 spawn/despawn aggregate cardinality is bounded.
+- [x] T6-05 snapshot wire size is checked before decode.
+- [x] T6-06 snapshot sequence ordering remains guarded.
+- [x] T6-07 snapshot checksum remains validated.
+- [x] T6-08 entity payload remains bounded.
+- [x] T6-09 transaction receipt remains validated before sequence commit.
+- [x] T6-10 replication serialization remains fail-closed on capacity errors.
+- [x] T6-11 empty/invalid replication state cannot partially commit.
