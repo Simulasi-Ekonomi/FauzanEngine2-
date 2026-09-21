@@ -28,7 +28,7 @@ def main()->int:
     if args.artifact.is_symlink(): raise SystemExit("P4_ARTIFACT_GATE_FAIL symlink_artifact_path")
     try: artifact=args.artifact.resolve(strict=True)
     except (OSError,RuntimeError) as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL unresolved_artifact_path={exc}") from exc
-    if not artifact.is_file() or artifact.is_symlink(): raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_or_symlink={args.artifact}")
+    if not artifact.is_file() or artifact.is_symlink() or not artifact.exists(): raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_or_symlink={args.artifact}")
     if not artifact.is_absolute() or artifact.suffix.lower() not in ALLOWED_SUFFIXES: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_path")
     try: artifact_size=artifact.stat().st_size
     except OSError as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL artifact_stat_failed={artifact}") from exc
@@ -47,7 +47,7 @@ def main()->int:
             for info in archive.infolist():
                 name=info.filename
                 if "\\" in name or name.startswith("/") or name.startswith("./") or Path(name).is_absolute() or ".." in Path(name).parts: raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_path")
-                if len(name)>1024 or any(len(part)>255 for part in Path(name).parts): raise SystemExit("P4_ARTIFACT_GATE_FAIL zip_name_too_long")
+                if len(name)>1024 or any(len(part)>255 for part in Path(name).parts) or name.endswith("/../"): raise SystemExit("P4_ARTIFACT_GATE_FAIL zip_name_too_long")
                 if info.flag_bits & 0x1 or info.flag_bits & ((1<<5)|(1<<6)|(1<<13)|(1<<14)|(1<<15)): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_flags")
                 if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
                 if info.compress_size==0 and info.file_size>0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_compression_size")
@@ -57,6 +57,10 @@ def main()->int:
                 if info.compress_size>0 and info.file_size/info.compress_size>200.0: raise SystemExit("P4_ARTIFACT_GATE_FAIL suspicious_compression_ratio")
                 if info.compress_type not in {zipfile.ZIP_STORED,zipfile.ZIP_DEFLATED,zipfile.ZIP_BZIP2,zipfile.ZIP_LZMA}: raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_zip_compression")
                 if info.create_system == 3 and ((info.external_attr >> 16) & 0o170000) == 0o120000: raise SystemExit("P4_ARTIFACT_GATE_FAIL symlink_zip_entry")
+                if info.is_dir() and not name.endswith("/"):
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_directory_entry")
+                if info.is_dir() and info.file_size != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL nonzero_directory_size")
+                if info.is_dir() and info.compress_size != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL compressed_directory_entry")
                 if info.is_dir() and not name.endswith("/"): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_directory_entry")
                 if not info.is_dir() and name.endswith("/"): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_file_entry")
     except zipfile.BadZipFile as exc: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip") from exc
