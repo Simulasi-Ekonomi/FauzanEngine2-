@@ -326,15 +326,33 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
     uint16_t spawnedIndex = 0U;
+    const auto rollbackSpawns = [this, &spawnedEntities, spawnedIndex]() mutable {
+        while (spawnedIndex > 0U) {
+            --spawnedIndex;
+            (void)sceneWorld_.Destroy(spawnedEntities[spawnedIndex]);
+        }
+    };
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         const uint16_t slotIndex = resolvedSlots[index];
         Slot* slot = FindSlot(state.networkId);
         if (slot == nullptr) {
             SceneEntity entity{};
-            if (!sceneWorld_.Create(entity) || !sceneWorld_.SetTransform(entity, state.transform)) return Fail(ReplicationError::SpawnRejected);
+            if (!sceneWorld_.Create(entity)) {
+                rollbackSpawns();
+                return Fail(ReplicationError::SpawnRejected);
+            }
+            if (!sceneWorld_.SetTransform(entity, state.transform)) {
+                (void)sceneWorld_.Destroy(entity);
+                rollbackSpawns();
+                return Fail(ReplicationError::SpawnRejected);
+            }
+            if (slotIndex >= kMaxEntities) {
+                (void)sceneWorld_.Destroy(entity);
+                rollbackSpawns();
+                return Fail(ReplicationError::SpawnRejected);
+            }
             spawnedEntities[spawnedIndex++] = entity;
-            if (slotIndex >= kMaxEntities) return Fail(ReplicationError::SpawnRejected);
             presentSlots[slotIndex] = true;
             ++candidateReceipt.spawnedEntities;
         } else if (state.ownerId == localClientId_) {
