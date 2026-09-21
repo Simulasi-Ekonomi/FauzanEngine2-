@@ -204,8 +204,10 @@ bool ReplicationWorld::UnregisterEntity(uint32_t networkId) {
 
 bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot) {
     if (role_ != ReplicationRole::Server) return Fail(ReplicationError::NotServer);
+    if (serverTick == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::Capacity);
     if (serverTick < lastServerTick_) return Fail(ReplicationError::StaleSnapshot);
     if (snapshotSequence_ == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::Capacity);
+    snapshot = {};
     struct CandidateState { uint16_t slotIndex = 0U; ReplicatedEntityState state{}; Transform3 previous{}; };
     std::array<CandidateState, kMaxEntities> candidates{};
     uint16_t count = 0U;
@@ -268,6 +270,7 @@ bool ReplicationWorld::SetDynamicLifecycleEnabled(bool enabled) {
 }
 
 bool ReplicationWorld::BuildClientAcknowledgement(ReplicationAcknowledgement& acknowledgement) const {
+    acknowledgement = {};
     if (role_ != ReplicationRole::Client || snapshotSequence_ == 0U || lastSnapshotChecksum_ == 0U) return Fail(role_ == ReplicationRole::Client ? ReplicationError::InvalidAcknowledgement : ReplicationError::NotClient);
     acknowledgement = {snapshotSequence_, lastServerTick_, lastSnapshotChecksum_};
     lastError_ = ReplicationError::None;
