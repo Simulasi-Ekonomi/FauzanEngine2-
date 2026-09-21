@@ -10,6 +10,8 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
+#include <cmath>
 #include <vector>
 #include <sstream>
 #include <thread>
@@ -150,16 +152,14 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     JNIEnv* env, jclass, jint seed, jfloat sizeKm)
 {
+    if (!std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
+        NEO_LOGE("startWorldStreaming: invalid world size %.3f km", sizeKm);
+        return;
+    }
+    NeoJNI::g_StreamingActive = false;
+    if (NeoJNI::g_StreamingThread.joinable()) NeoJNI::g_StreamingThread.join();
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     NEO_LOGI("startWorldStreaming: seed=%d, size=%.1f km", seed, sizeKm);
-
-    // Stop existing streaming
-    if (NeoJNI::g_StreamingActive) {
-        NeoJNI::g_StreamingActive = false;
-        if (NeoJNI::g_StreamingThread.joinable()) {
-            NeoJNI::g_StreamingThread.join();
-        }
-    }
 
     // Clear existing actors
     NeoJNI::g_Actors.clear();
@@ -297,6 +297,8 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
+    NeoJNI::g_StreamingActive = false;
+    if (NeoJNI::g_StreamingThread.joinable()) NeoJNI::g_StreamingThread.join();
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     NEO_LOGI("nativeShutdown");
     NeoJNI::g_Running     = false;
@@ -309,7 +311,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
-    if (!NeoJNI::g_Running) return;
+    if (!NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
     NeoJNI::g_DeltaTime = dt;
     NeoJNI::g_FrameCount++;
 
@@ -349,9 +351,14 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     jstring jtype, jstring jname,
     jfloat x, jfloat y, jfloat z)
 {
+    if (env == nullptr || jtype == nullptr || jname == nullptr) return -1;
     const char* type = env->GetStringUTFChars(jtype, nullptr);
     const char* name = env->GetStringUTFChars(jname, nullptr);
-
+    if (type == nullptr || name == nullptr) {
+        if (type) env->ReleaseStringUTFChars(jtype, type);
+        if (name) env->ReleaseStringUTFChars(jname, name);
+        return -1;
+    }
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     int id = NeoJNI::g_NextActorId++;
 
@@ -375,7 +382,9 @@ JNIEXPORT jboolean JNICALL
 Java_com_neoengine_core_NeoEngineBridgeNative_nativeDeleteActor(
     JNIEnv* env, jobject, jstring jname)
 {
+    if (env == nullptr || jname == nullptr) return JNI_FALSE;
     const char* name = env->GetStringUTFChars(jname, nullptr);
+    if (name == nullptr) return JNI_FALSE;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
 
     auto it = NeoJNI::g_ActorsByName.find(name);
@@ -397,7 +406,11 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeSetTransform(
     jfloat rx, jfloat ry, jfloat rz,
     jfloat sx, jfloat sy, jfloat sz)
 {
+    if (env == nullptr || jname == nullptr || !std::isfinite(px) || !std::isfinite(py) || !std::isfinite(pz) ||
+        !std::isfinite(rx) || !std::isfinite(ry) || !std::isfinite(rz) ||
+        !std::isfinite(sx) || !std::isfinite(sy) || !std::isfinite(sz) || sx <= 0.0f || sy <= 0.0f || sz <= 0.0f) return;
     const char* name = env->GetStringUTFChars(jname, nullptr);
+    if (name == nullptr) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
 
     auto it = NeoJNI::g_ActorsByName.find(name);
@@ -483,7 +496,9 @@ Java_com_neoengine_core_NeoEngineBridge_nativeGetActorCount(JNIEnv*, jclass) {
 
 JNIEXPORT jboolean JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeLoadScene(JNIEnv* env, jclass, jstring path) {
+    if (env == nullptr || path == nullptr) return JNI_FALSE;
     const char* p = env->GetStringUTFChars(path, nullptr);
+    if (p == nullptr || *p == '\0') { if (p) env->ReleaseStringUTFChars(path, p); return JNI_FALSE; }
     NEO_LOGI("LoadScene: %s", p);
     env->ReleaseStringUTFChars(path, p);
     return JNI_TRUE;
@@ -491,7 +506,9 @@ Java_com_neoengine_core_NeoEngineBridge_nativeLoadScene(JNIEnv* env, jclass, jst
 
 JNIEXPORT jboolean JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeSaveScene(JNIEnv* env, jclass, jstring path) {
+    if (env == nullptr || path == nullptr) return JNI_FALSE;
     const char* p = env->GetStringUTFChars(path, nullptr);
+    if (p == nullptr || *p == '\0') { if (p) env->ReleaseStringUTFChars(path, p); return JNI_FALSE; }
     NEO_LOGI("SaveScene: %s", p);
     env->ReleaseStringUTFChars(path, p);
     return JNI_TRUE;
