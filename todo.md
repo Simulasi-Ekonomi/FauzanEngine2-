@@ -668,3 +668,17 @@
 - [x] gap-closure-all-branches-night T3-09: save operation requires initialized runtime.
 - [x] gap-closure-all-branches-night T3-10: save operation requires farm/world/clock ownership.
 - [x] gap-closure-all-branches-night T3-11: checkpoint output is fail-closed before commit.
+
+
+## 2026-09-21 — Turn 4 — substantive implementation/integration ledger
+- [x] gap-closure-all-branches-night T4-01: checkpoint world payload size bounded before composition.
+- [x] gap-closure-all-branches-night T4-02: authority ledger payload size bounded before composition.
+- [x] gap-closure-all-branches-night T4-03: restore rejects empty checkpoint input.
+- [x] gap-closure-all-branches-night T4-04: restore rejects oversized checkpoint input.
+- [x] gap-closure-all-branches-night T4-05: restore rejects terminal checkpoint revision.
+- [x] gap-closure-all-branches-night T4-06: restore rejects empty envelope payload.
+- [x] gap-closure-all-branches-night T4-07: restore bounds decoded world blob.
+- [x] gap-closure-all-branches-night T4-08: restore bounds decoded time blob.
+- [x] gap-closure-all-branches-night T4-09: restore bounds decoded authority blob.
+- [x] gap-closure-all-branches-night T4-10: encoded checkpoint must not be smaller than payload.
+- [x] gap-closure-all-branches-night T4-11: checkpoint decode remains transactional before runtime commit.
