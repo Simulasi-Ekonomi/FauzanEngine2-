@@ -295,7 +295,10 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
     std::array<SceneEntity, kMaxEntities> spawnedEntities{};
     std::array<bool, kMaxEntities> usedSlots{};
     std::array<bool, kMaxEntities> presentSlots{};
+    std::array<Transform3, kMaxEntities> previousSceneTransforms{};
+    std::array<bool, kMaxEntities> changedSceneTransforms{};
     resolvedSlots.fill(0xFFFFU);
+    changedSceneTransforms.fill(false);
     for (uint16_t index = 0U; index < kMaxEntities; ++index) usedSlots[index] = slots_[index].registered;
     uint16_t spawnCount = 0U;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
@@ -322,11 +325,29 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         const Slot* slot = FindSlot(state.networkId);
         if (slot != nullptr && (state.stateRevision < slot->stateRevision || (snapshotSequence_ != 0U && state.stateRevision == slot->stateRevision && slot->hasAuthoritative && !SameTransform(slot->authoritative, state.transform)))) return Fail(ReplicationError::StaleSnapshot);
     }
+    if (allowDynamicLifecycle_) {
+        for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
+            if (!slots_[slotIndex].registered || presentSlots[slotIndex]) continue;
+            // Destruction is the only irreversible SceneWorld operation here.
+            // Preflight every candidate before any mutation so a stale/invalid
+            // handle cannot cause a mid-transaction despawn failure.
+            if (sceneWorld_.GetTransform(slots_[slotIndex].entity) == nullptr)
+                return Fail(ReplicationError::InvalidEntity);
+        }
+        if (sceneWorld_.AliveCount() + spawnCount > SceneWorld::kCapacity)
+            return Fail(ReplicationError::Capacity);
+    }
+
     ReplicationApplyReceipt candidateReceipt{};
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
     uint16_t spawnedIndex = 0U;
-    const auto rollbackSpawns = [this, &spawnedEntities, &spawnedIndex]() {
+    const auto rollbackMutations = [this, &spawnedEntities, &spawnedIndex,
+                                     &previousSceneTransforms, &changedSceneTransforms]() {
+        for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
+            if (!changedSceneTransforms[slotIndex] || !slots_[slotIndex].registered) continue;
+            (void)sceneWorld_.SetTransform(slots_[slotIndex].entity, previousSceneTransforms[slotIndex]);
+        }
         while (spawnedIndex > 0U) {
             --spawnedIndex;
             (void)sceneWorld_.Destroy(spawnedEntities[spawnedIndex]);
@@ -339,17 +360,17 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         if (slot == nullptr) {
             SceneEntity entity{};
             if (!sceneWorld_.Create(entity)) {
-                rollbackSpawns();
+                rollbackMutations();
                 return Fail(ReplicationError::SpawnRejected);
             }
             if (!sceneWorld_.SetTransform(entity, state.transform)) {
                 (void)sceneWorld_.Destroy(entity);
-                rollbackSpawns();
+                rollbackMutations();
                 return Fail(ReplicationError::SpawnRejected);
             }
             if (slotIndex >= kMaxEntities) {
                 (void)sceneWorld_.Destroy(entity);
-                rollbackSpawns();
+                rollbackMutations();
                 return Fail(ReplicationError::SpawnRejected);
             }
             spawnedEntities[spawnedIndex++] = entity;
@@ -357,7 +378,17 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             ++candidateReceipt.spawnedEntities;
         } else if (state.ownerId == localClientId_) {
             if (slot->hasPrediction && !SameTransform(slot->predictedTransform, state.transform)) ++candidateReceipt.reconciledPredictions;
-            if (!sceneWorld_.SetTransform(slot->entity, state.transform)) return Fail(ReplicationError::SceneApplyRejected);
+            const Transform3* previousTransform = sceneWorld_.GetTransform(slot->entity);
+            if (previousTransform == nullptr) {
+                rollbackMutations();
+                return Fail(ReplicationError::InvalidEntity);
+            }
+            previousSceneTransforms[slotIndex] = *previousTransform;
+            changedSceneTransforms[slotIndex] = true;
+            if (!sceneWorld_.SetTransform(slot->entity, state.transform)) {
+                rollbackMutations();
+                return Fail(ReplicationError::SceneApplyRejected);
+            }
         }
         ++candidateReceipt.appliedEntities;
     }
@@ -368,8 +399,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             if (!slots_[slotIndex].registered || presentSlots[slotIndex]) continue;
             despawnedEntities[despawnedIndex++] = slots_[slotIndex].entity;
             if (!sceneWorld_.Destroy(slots_[slotIndex].entity)) {
-                for (uint16_t rollback = 0U; rollback < spawnedIndex; ++rollback)
-                    (void)sceneWorld_.Destroy(spawnedEntities[rollback]);
+                rollbackMutations();
                 return Fail(ReplicationError::DespawnRejected);
             }
             ++candidateReceipt.despawnedEntities;
