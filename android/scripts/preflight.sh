@@ -19,6 +19,9 @@ if [[ -n "$SDK_ROOT" ]] && compgen -G "$SDK_ROOT/ndk/*" >/dev/null; then pass "a
 if [[ ! -f "$ROOT/app/src/main/jni/CMakeLists.txt" ]]; then fail "jni_cmake_missing"; else pass "jni_cmake"; fi
 
 if [[ "$MODE" == "release" ]]; then
+  [[ -d "$SDK_ROOT/platforms/android-36" ]] && pass "android_platform_36" || fail "android_platform_36_missing"
+  [[ -d "$SDK_ROOT/ndk/29.0.14206865" ]] && pass "android_ndk_29_0_14206865" || fail "android_ndk_29_0_14206865_missing"
+  if command -v apksigner >/dev/null 2>&1; then pass "apksigner"; else fail "apksigner_missing"; fi
   for key in NEO_ANDROID_KEYSTORE NEO_ANDROID_KEY_ALIAS NEO_ANDROID_STORE_PASSWORD NEO_ANDROID_KEY_PASSWORD; do
     [[ -n "${!key:-}" ]] && pass "${key}_present" || fail "${key}_missing"
   done
