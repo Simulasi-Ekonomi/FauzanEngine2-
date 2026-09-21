@@ -33,13 +33,14 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
             dataOffset = offset; dataSize = chunkSize; dataFound = true;
         }
         offset += chunkSize;
-        if ((chunkSize & 1U) != 0) { if (offset == bytes.size()) break; ++offset; }
+        if ((chunkSize & 1U) != 0) { if (offset >= bytes.size()) { if (offset == bytes.size()) break; return false; } ++offset; }
     }
     if (!fmtFound || !dataFound || format != 1 || channels == 0 || channels > 2 || rate == 0 ||
         (bits != 8 && bits != 16) || dataSize % (static_cast<size_t>(channels) * (bits / 8U)) != 0) return false;
     const size_t bytesPerSample = bits / 8U;
     const size_t frameBytes = static_cast<size_t>(channels) * bytesPerSample;
     const size_t frameCount = dataSize / frameBytes;
+    if (frameCount == 0U || frameCount > 48000U * 60U * 60U) return false;
     const size_t sampleCount = frameCount * channels;
     if (sampleCount > std::vector<int16_t>().max_size()) return false;
     out.sampleRate = rate; out.channels = channels; out.pcmSamples.resize(frameCount);
