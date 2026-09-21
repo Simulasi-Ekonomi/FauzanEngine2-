@@ -40,7 +40,7 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     float attenuation=1.0f;
     if(params.spatialized){if(distance>=maxD)attenuation=minVolume;else if(distance>minD){const float t=(distance-minD)/(maxD-minD);if(!std::isfinite(t))return false;attenuation=params.attenuation.model==AudioAttenuationModel::Linear?1.0f-t:(params.attenuation.model==AudioAttenuationModel::Logarithmic?1.0f-std::log10(1.0f+9.0f*t):1.0f/(1.0f+t*t*(maxD/minD)));attenuation=std::max(minVolume,attenuation);}}
     float pan=0.0f;
-    if(params.spatialized&&distance>0.001f){float forward[3]{m_Listener.forward[0],m_Listener.forward[1],m_Listener.forward[2]},up[3]{m_Listener.up[0],m_Listener.up[1],m_Listener.up[2]};if(Normalize3(forward)&&Normalize3(up)){const float fu=Dot3(forward,up);up[0]-=forward[0]*fu;up[1]-=forward[1]*fu;up[2]-=forward[2]*fu;if(Normalize3(up)){const float right[3]{up[1]*forward[2]-up[2]*forward[1],up[2]*forward[0]-up[0]*forward[2],up[0]*forward[1]-up[1]*forward[0]};pan=std::clamp((dx*right[0]+dy*right[1]+dz*right[2])/distance,-1.0f,1.0f);}}}
+    if(params.spatialized&&distance>0.001f){float forward[3]{listenerForward[0],listenerForward[1],listenerForward[2]},up[3]{listenerUp[0],listenerUp[1],listenerUp[2]};if(Normalize3(forward)&&Normalize3(up)){const float fu=Dot3(forward,up);up[0]-=forward[0]*fu;up[1]-=forward[1]*fu;up[2]-=forward[2]*fu;if(Normalize3(up)){const float right[3]{up[1]*forward[2]-up[2]*forward[1],up[2]*forward[0]-up[0]*forward[2],up[0]*forward[1]-up[1]*forward[0]};pan=std::clamp((dx*right[0]+dy*right[1]+dz*right[2])/distance,-1.0f,1.0f);}}}
     if(!std::isfinite(pan)||!std::isfinite(attenuation)||attenuation<0.0f||attenuation>1.0f||!std::isfinite(params.position[0])||!std::isfinite(params.position[1])||!std::isfinite(params.position[2]))return false;
     Voice voice;voice.id=params.id;voice.samples=params.mono;voice.gain=params.gainQ8;voice.pitch=params.pitch;
     if (voice.samples.empty() || voice.samples.size() > kMaxSamplesPerVoice || voice.samples.capacity() > kMaxSamplesPerVoice) return false;
@@ -75,9 +75,9 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
     if (frames == 0U) { out.clear(); return; }
     if (m_Voices.capacity() > kMaxVoices) { out.clear(); return; }
     if (!ValidWorldCoordinate(m_Listener.position[0]) || !ValidWorldCoordinate(m_Listener.position[1]) || !ValidWorldCoordinate(m_Listener.position[2])) { out.clear(); return; }
-    if (!Normalize3(m_Listener.forward)) { out.clear(); return; }
-    if (!Normalize3(m_Listener.up)) { out.clear(); return; }
-    if (std::fabs(Dot3(m_Listener.forward, m_Listener.up)) > 0.999f) { out.clear(); return; }
+    float listenerForward[3]{m_Listener.forward[0],m_Listener.forward[1],m_Listener.forward[2]};
+    float listenerUp[3]{m_Listener.up[0],m_Listener.up[1],m_Listener.up[2]};
+    if (!Normalize3(listenerForward) || !Normalize3(listenerUp) || std::fabs(Dot3(listenerForward,listenerUp)) > 0.999f) { out.clear(); return; }
     if(frames==0U){out.clear();return;}if(frames>kMaxMixFrames||frames>std::numeric_limits<size_t>::max()/2U||m_Voices.size()>kMaxVoices||frames>static_cast<size_t>(std::numeric_limits<uint32_t>::max())){out.clear();return;}
     try{out.assign(frames*2U,0);}catch(...){out.clear();return;}
     if (out.capacity() < out.size() || out.size() > kMaxMixFrames * 2U || out.size() > std::numeric_limits<size_t>::max() / sizeof(int16_t)) { out.clear(); return; }
