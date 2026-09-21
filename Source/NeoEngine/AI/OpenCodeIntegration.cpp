@@ -2,6 +2,7 @@
 #include <curl/curl.h>
 #include <json/json.h>
 #include <android/log.h>
+#include <limits>
 
 #define LOG_TAG_OC "OpenCodeIntegration"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG_OC, __VA_ARGS__)
@@ -9,7 +10,9 @@
 namespace NeoEngine {
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
+    if (output == nullptr || contents == nullptr || nmemb != 0U && size > std::numeric_limits<size_t>::max() / nmemb) return 0U;
     const size_t totalSize = size * nmemb;
+    if (totalSize > 16U * 1024U * 1024U || output->size() > 16U * 1024U * 1024U - totalSize) return 0U;
     output->append(static_cast<char*>(contents), totalSize);
     return totalSize;
 }
