@@ -74,7 +74,7 @@ bool AIManager::IsReady() const {
 }
 
 std::string AIManager::Think(const std::string& context) {
-    if (context.size() > 16U * 1024U * 1024U) { lastError = Error::InvalidContext; return {}; }
+    if (context.size() > 16U * 1024U * 1024U || context.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
     if (context.empty()) { lastError = Error::InvalidContext; return {}; }
     if (!IsReady()) { lastError = Error::BackendUnavailable; return {}; }
     if (hermes && hermes->IsReady()) {
@@ -83,14 +83,22 @@ std::string AIManager::Think(const std::string& context) {
     }
     if (gemma4 && gemma4->IsReady()) {
         const Gemma4Response response = gemma4->GenerateText(context);
-        if (!response.generatedText.empty()) return response.generatedText;
+        if (response.generatedText.size() <= 16U * 1024U * 1024U && !response.generatedText.empty()) return response.generatedText;
+    }
+    if (ruflo && ruflo->IsReady()) {
+        const auto response = ruflo->Execute(context);
+        if (response.size() <= 16U * 1024U * 1024U && !response.empty()) return response;
+    }
+    if (opencode && opencode->IsReady()) {
+        const auto response = opencode->Execute(context);
+        if (response.size() <= 16U * 1024U * 1024U && !response.empty()) return response;
     }
     lastError = Error::BackendUnavailable;
     return {};
 }
 
 std::string AIManager::PlanAction(const std::string& state) {
-    if (state.size() > 16U * 1024U * 1024U) { lastError = Error::InvalidContext; return {}; }
+    if (state.size() > 16U * 1024U * 1024U || state.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
     if (state.empty()) { lastError = Error::InvalidContext; return {}; }
     return Think("Plan an action for the following game state:\n" + state);
 }
