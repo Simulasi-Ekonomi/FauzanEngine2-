@@ -80,7 +80,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F || time_ > duration) return false;
     if (skeleton_->BoneCount() != boneCount) return false;
     if (boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U) return false;
-    if (currentClip_->GetBoneCount() != boneCount) return false;
+    if (currentClip_->GetFrames(static_cast<int>(boneCount - 1U)).empty()) return false;
     if (duration == 0.0F && time_ != 0.0F) return false;
     if (time_ > duration) return false;
     if (playing_ && playbackMode_ != AnimationPlaybackMode::Loop && playbackMode_ != AnimationPlaybackMode::Clamp) return false;
