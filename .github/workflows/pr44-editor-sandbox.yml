@@ -1,0 +1,54 @@
+name: PR44 editor mutation sandbox validation
+
+on:
+  push:
+    branches:
+      - p3-pr44-advanced-port
+  pull_request:
+    branches:
+      - p3-editor-android-production-night
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Runtime/editor_scene_agent_smoke.cpp'
+      - 'Tests/Runtime/editor_scene_session_smoke.cpp'
+      - 'Source/NeoEngine/CMakeLists.txt'
+
+permissions:
+  contents: read
+
+env:
+  SDL_VIDEODRIVER: dummy
+  SDL_AUDIODRIVER: dummy
+
+jobs:
+  editor-release-asan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools pkg-config
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739be7e0886d149a5e47
+        with:
+          version: 3.4.14
+          install-linux-dependencies: true
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/pr44-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build editor mutation smoke
+        run: cmake --build build/pr44-release --target editor_scene_agent_smoke editor_scene_session_smoke -j2
+      - name: Run editor mutation smoke
+        run: |
+          ./build/pr44-release/editor_scene_agent_smoke
+          ./build/pr44-release/editor_scene_session_smoke
+      - name: Configure ASAN
+        run: cmake -S Source/NeoEngine -B build/pr44-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+      - name: Build editor mutation smoke ASAN
+        run: cmake --build build/pr44-asan --target editor_scene_agent_smoke editor_scene_session_smoke -j2
+      - name: Run editor mutation smoke ASAN
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          ./build/pr44-asan/editor_scene_agent_smoke
+          ./build/pr44-asan/editor_scene_session_smoke
