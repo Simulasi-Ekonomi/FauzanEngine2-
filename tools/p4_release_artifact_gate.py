@@ -54,6 +54,7 @@ def main()->int:
                     if archive.getinfo(required).file_size <= 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry="+required)
                 except KeyError as exc: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_required_entry="+required) from exc
             total_uncompressed=0
+            previous_entry_end=0
             for info in archive.infolist():
                 name=info.filename
                 if "\\" in name or name.startswith("/") or name.startswith("./") or Path(name).is_absolute() or ".." in Path(name).parts: raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_path")
@@ -66,6 +67,9 @@ def main()->int:
                 if header_end>artifact_size or header_end<info.header_offset: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_extent")
                 data_end=header_end+info.compress_size
                 if data_end>artifact_size or data_end<header_end: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_compressed_data_extent")
+                if info.header_offset<previous_entry_end: raise SystemExit("P4_ARTIFACT_GATE_FAIL overlapping_zip_entries")
+                previous_entry_end=data_end
+                if len(info.comment)>65535: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
                 if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0 or info.volume!=0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_volume")
                 if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
                 if info.compress_size==0 and info.file_size>0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_compression_size")
