@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #define TEST_CHECK(cond, msg) \
     do { \
@@ -92,7 +93,7 @@ int main() {
 
     TEST_CHECK(agent.Execute(R"({"operation":"query"})", session, assets, response),
                "query command failed");
-    TEST_CHECK(response.find(""actorCount":2") != std::string::npos, "query did not report actor count");
+    TEST_CHECK(response.find(R"("actorCount":2)") != std::string::npos, "query did not report actor count");
 
     TEST_CHECK(!agent.Execute(R"({"operation":"query","unexpected":1})", session, assets, response),
                "unknown query field was accepted");
