@@ -11,7 +11,8 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     receipt.initialized = true;
 
     const auto& sceneEcs = runtime.SceneECS();
-    if (sceneEcs.revision == 0U || sceneEcs.revision == std::numeric_limits<uint64_t>::max()) {
+    const uint64_t initialRevision = sceneEcs.revision;
+    if (initialRevision == 0U || initialRevision == std::numeric_limits<uint64_t>::max()) {
         receipt.error = VerticalSliceGateError::SceneECSRevisionMismatch;
         return false;
     }
@@ -37,6 +38,10 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     receipt.sceneEntities = static_cast<uint32_t>(sceneEntities);
     receipt.ecsEntities = static_cast<uint32_t>(sceneEcs.ecsCount);
     receipt.sceneECSConsistent = sceneEcs.sceneCount == sceneEntities && sceneEcs.ecsCount == sceneEntities;
+    if (receipt.sceneEntities != receipt.ecsEntities) {
+        receipt.error = VerticalSliceGateError::SceneECSMismatch;
+        return false;
+    }
     if (!receipt.sceneECSConsistent) {
         receipt.error = VerticalSliceGateError::SceneECSMismatch;
         return false;
@@ -47,6 +52,10 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
         physicsRevision != 0U &&
         physicsRevision != std::numeric_limits<uint64_t>::max() &&
         physicsRevision == sceneEcs.revision;
+    if (physicsRevision < initialRevision) {
+        receipt.error = VerticalSliceGateError::SceneECSRevisionMismatch;
+        return false;
+    }
     if (!receipt.sceneECSRevisionValid) {
         receipt.error = VerticalSliceGateError::SceneECSRevisionMismatch;
         return false;
@@ -78,6 +87,12 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
         return true;
     }
 
+    const uint32_t preSceneEntities = receipt.sceneEntities;
+    const uint64_t prePhysicsRevision = physicsRevision;
+    if (preSceneEntities != sceneEcs.sceneCount || preSceneEntities != sceneEcs.ecsCount || prePhysicsRevision != initialRevision) {
+        receipt.error = VerticalSliceGateError::SceneECSMismatch;
+        return false;
+    }
     if (!runtime.Tick()) {
         receipt.error = VerticalSliceGateError::TickRejected;
         return false;
@@ -92,13 +107,17 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     }
     const uint64_t postSceneEntities = runtime.Scene()->AliveCount();
     const uint64_t postPhysicsRevision = runtime.ECS()->GetPhysicsRevision();
-    if (postSceneEntities > std::numeric_limits<uint32_t>::max() ||
-        postSceneEntities != runtime.SceneECS().sceneCount ||
-        postSceneEntities != runtime.SceneECS().ecsCount) {
+    if (postSceneEntities == std::numeric_limits<uint64_t>::max() || postPhysicsRevision == std::numeric_limits<uint64_t>::max()) {
         receipt.error = VerticalSliceGateError::SceneECSMismatch;
         return false;
     }
-    if (runtime.SceneECS().revision == 0U ||
+    if (postSceneEntities > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().sceneCount > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().ecsCount > std::numeric_limits<uint32_t>::max() ||
+        postSceneEntities != runtime.SceneECS().sceneCount ||
+        postSceneEntities != runtime.SceneECS().ecsCount || runtime.SceneECS().sceneCount != runtime.SceneECS().ecsCount) {
+        receipt.error = VerticalSliceGateError::SceneECSMismatch;
+        return false;
+    }
+    if (runtime.SceneECS().revision < prePhysicsRevision || runtime.SceneECS().revision == 0U ||
         runtime.SceneECS().revision == std::numeric_limits<uint64_t>::max() ||
         postPhysicsRevision != runtime.SceneECS().revision) {
         receipt.error = VerticalSliceGateError::SceneECSRevisionMismatch;
@@ -106,6 +125,14 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     }
     receipt.sceneEntities = static_cast<uint32_t>(postSceneEntities);
     receipt.ecsEntities = static_cast<uint32_t>(runtime.SceneECS().ecsCount);
+    if (receipt.sceneEntities != receipt.ecsEntities || !receipt.sceneECSRevisionValid) {
+        receipt.error = VerticalSliceGateError::SceneECSMismatch;
+        return false;
+    }
+    if (receipt.sceneEntities < preSceneEntities && postPhysicsRevision == prePhysicsRevision) {
+        receipt.error = VerticalSliceGateError::SceneECSMismatch;
+        return false;
+    }
     receipt.error = VerticalSliceGateError::None;
     return true;
 }
