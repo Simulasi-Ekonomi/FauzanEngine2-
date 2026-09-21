@@ -627,3 +627,17 @@
 - [x] T6-09 mix output size remains bounded.
 - [x] T6-10 voice cursor remains finite during mixing.
 - [x] T6-11 Clear lifecycle remains deterministic.
+
+
+## 2026-09-21 — Turn 7 — implementation/integration ledger
+- [x] T7-01 invalid mixer voice count no longer clears live state.
+- [x] T7-02 spatial sample capacity checked before insertion.
+- [x] T7-03 spatial sample capacity rechecked after copy.
+- [x] T7-04 spatial sample emptiness rejected.
+- [x] T7-05 stop rejects empty voice pool.
+- [x] T7-06 mix validates voice sample capacity.
+- [x] T7-07 mix preserves output fail-closed behavior.
+- [x] T7-08 spatial positions remain finite.
+- [x] T7-09 listener vectors remain normalized.
+- [x] T7-10 voice pitch remains finite and bounded.
+- [x] T7-11 mixer lifecycle remains deterministic.
