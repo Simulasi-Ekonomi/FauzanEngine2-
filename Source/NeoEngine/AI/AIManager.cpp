@@ -16,12 +16,19 @@ AIManager::~AIManager() { Shutdown(); }
 bool AIManager::Initialize() {
     if (initialized) { lastError = Error::AlreadyInitialized; return false; }
 
-    auto newHermes = std::make_unique<HermesIntegration>();
-    auto newGemma4 = std::make_unique<Gemma4Integration>();
-    auto newRuflo = std::make_unique<RufloIntegration>();
-    auto newOpenCode = std::make_unique<OpenCodeIntegration>();
-    if (!newHermes || !newGemma4 || !newRuflo || !newOpenCode) { lastError = Error::InitializationFailed; return false; }
-
+    std::unique_ptr<HermesIntegration> newHermes;
+    std::unique_ptr<Gemma4Integration> newGemma4;
+    std::unique_ptr<RufloIntegration> newRuflo;
+    std::unique_ptr<OpenCodeIntegration> newOpenCode;
+    try {
+        newHermes = std::make_unique<HermesIntegration>();
+        newGemma4 = std::make_unique<Gemma4Integration>();
+        newRuflo = std::make_unique<RufloIntegration>();
+        newOpenCode = std::make_unique<OpenCodeIntegration>();
+    } catch (...) {
+        lastError = Error::InitializationFailed;
+        return false;
+    }
     const bool hermesReady = newHermes->Initialize();
     const bool gemmaReady = newGemma4->Initialize();
     const bool rufloReady = newRuflo->Initialize();
@@ -76,7 +83,6 @@ void AIManager::Update(float DeltaTime) {
         lastError = Error::InvalidDeltaTime;
         return;
     }
-    if (DeltaTime > 0.25f) { lastError = Error::InvalidDeltaTime; return; }
     if (DeltaTime > 1.0e6f - timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
     if (!std::isfinite(timeAccumulator) || timeAccumulator > std::numeric_limits<float>::max() / 2.0f) { lastError = Error::InvalidDeltaTime; return; }
     if (timeAccumulator < 0.0f || timeAccumulator >= 1.0f) { lastError = Error::InvalidDeltaTime; return; }
@@ -84,7 +90,6 @@ void AIManager::Update(float DeltaTime) {
     if (!std::isfinite(nextAccumulator) || nextAccumulator < timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
     timeAccumulator = nextAccumulator;
     if (timeAccumulator < 1.0f) return;
-    if (timeAccumulator >= 2.0f) { lastError = Error::InvalidDeltaTime; return; }
     timeAccumulator = std::fmod(timeAccumulator, 1.0f);
     if (!std::isfinite(timeAccumulator) || timeAccumulator < 0.0f || timeAccumulator >= 1.0f) {
         lastError = Error::InvalidDeltaTime;
@@ -102,7 +107,6 @@ std::string AIManager::Think(const std::string& context) {
     constexpr std::size_t kMaxContext = 16U * 1024U * 1024U;
     if (context.size() > kMaxContext || context.size() == std::string::npos || context.capacity() < context.size() || context.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
     if (context.empty()) { lastError = Error::InvalidContext; return {}; }
-    if (context.capacity() > kMaxContext) { lastError = Error::InvalidContext; return {}; }
     if (!IsReady()) { lastError = Error::BackendUnavailable; return {}; }
     if (hermes && hermes->IsReady()) {
         const HermesResponse response = hermes->GenerateText(context);
@@ -132,7 +136,6 @@ std::string AIManager::PlanAction(const std::string& state) {
     constexpr std::size_t kMaxContext = 16U * 1024U * 1024U;
     if (state.size() > kMaxContext || state.size() == std::string::npos || state.capacity() < state.size() || state.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
     if (state.empty()) { lastError = Error::InvalidContext; return {}; }
-    if (state.capacity() > kMaxContext) { lastError = Error::InvalidContext; return {}; }
     constexpr std::size_t kPrefixSize = sizeof("Plan an action for the following game state:\n") - 1U;
     if (state.size() > kMaxContext - kPrefixSize) { lastError = Error::InvalidContext; return {}; }
     const std::string prompt = "Plan an action for the following game state:\n" + state;
