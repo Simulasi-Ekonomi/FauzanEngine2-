@@ -71,7 +71,7 @@ struct Vulkan3DRenderer::Impl {
     VkSwapchainKHR swapchain=VK_NULL_HANDLE; VkFormat swapchainFormat=VK_FORMAT_UNDEFINED; VkExtent2D extent{}; std::vector<VkImage> swapchainImages; std::vector<VkImageView> swapchainViews; std::vector<VkFramebuffer> framebuffers;
     VkRenderPass renderPass=VK_NULL_HANDLE; VkPipelineLayout pipelineLayout=VK_NULL_HANDLE; VkPipeline pipeline=VK_NULL_HANDLE; VkCommandPool commandPool=VK_NULL_HANDLE;
     VkImage depthImage=VK_NULL_HANDLE; VkDeviceMemory depthMemory=VK_NULL_HANDLE; VkImageView depthView=VK_NULL_HANDLE; VkFormat depthFormat=VK_FORMAT_D32_SFLOAT;
-    std::array<Frame,2> frames{}; uint32_t frameSlot=0; uint32_t acquiredImageIndex=0; bool frameBegun=false;
+    std::array<Frame,2> frames{}; uint32_t frameSlot=0; uint32_t acquiredImageIndex=0; uint32_t lastPresentedImageIndex=UINT32_MAX; bool hasPresentedFrame=false; bool frameBegun=false;
     VulkanAssetUploader uploader{};
     GPUSkinningPaletteBuffer skinningPalette{};
     VkDescriptorSetLayout skinningDescriptorSetLayout=VK_NULL_HANDLE;
@@ -109,7 +109,7 @@ bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* tit
     impl_=impl.release();if(!Resize(width,height)){Reset();return false;}ready_=true;lastError_=Vulkan3DRendererError::None;return true;
 }
 bool Vulkan3DRenderer::Resize(uint32_t width,uint32_t height){
-    if(!impl_||width==0||height==0){lastError_=Vulkan3DRendererError::InvalidConfiguration;return false;}VkSurfaceCapabilitiesKHR cap{};if(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(impl_->physical,impl_->surface,&cap)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}uint32_t fc=0,mc=0;if(vkGetPhysicalDeviceSurfaceFormatsKHR(impl_->physical,impl_->surface,&fc,nullptr)!=VK_SUCCESS||vkGetPhysicalDeviceSurfacePresentModesKHR(impl_->physical,impl_->surface,&mc,nullptr)!=VK_SUCCESS||fc==0||mc==0){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}std::vector<VkSurfaceFormatKHR> formats(fc);if(vkGetPhysicalDeviceSurfaceFormatsKHR(impl_->physical,impl_->surface,&fc,formats.data())!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}auto format=formats.front();for(const auto& c:formats)if(c.format==VK_FORMAT_B8G8R8A8_SRGB&&c.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR){format=c;break;}VkExtent2D extent{};if(cap.currentExtent.width!=std::numeric_limits<uint32_t>::max())extent=cap.currentExtent;else extent={std::clamp(width,cap.minImageExtent.width,cap.maxImageExtent.width),std::clamp(height,cap.minImageExtent.height,cap.maxImageExtent.height)};impl_->DestroySwapchainResources();uint32_t count=cap.minImageCount+1;if(cap.maxImageCount&&count>cap.maxImageCount)count=cap.maxImageCount;VkSwapchainCreateInfoKHR swap{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};swap.surface=impl_->surface;swap.minImageCount=count;swap.imageFormat=format.format;swap.imageColorSpace=format.colorSpace;swap.imageExtent=extent;swap.imageArrayLayers=1;swap.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;uint32_t families[]={impl_->graphicsFamily,impl_->presentFamily};if(impl_->graphicsFamily!=impl_->presentFamily){swap.imageSharingMode=VK_SHARING_MODE_CONCURRENT;swap.queueFamilyIndexCount=2;swap.pQueueFamilyIndices=families;}else swap.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE;swap.preTransform=cap.currentTransform;swap.compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;swap.presentMode=VK_PRESENT_MODE_FIFO_KHR;swap.clipped=VK_TRUE;if(vkCreateSwapchainKHR(impl_->device,&swap,nullptr,&impl_->swapchain)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}impl_->swapchainFormat=format.format;impl_->extent=extent;uint32_t actual=0;if(vkGetSwapchainImagesKHR(impl_->device,impl_->swapchain,&actual,nullptr)!=VK_SUCCESS||actual==0){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}impl_->swapchainImages.resize(actual);if(vkGetSwapchainImagesKHR(impl_->device,impl_->swapchain,&actual,impl_->swapchainImages.data())!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}impl_->swapchainViews.resize(actual);for(uint32_t i=0;i<actual;++i){VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};view.image=impl_->swapchainImages[i];view.viewType=VK_IMAGE_VIEW_TYPE_2D;view.format=impl_->swapchainFormat;view.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;view.subresourceRange.levelCount=1;view.subresourceRange.layerCount=1;if(vkCreateImageView(impl_->device,&view,nullptr,&impl_->swapchainViews[i])!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}}
+    if(!impl_||width==0||height==0){lastError_=Vulkan3DRendererError::InvalidConfiguration;return false;}VkSurfaceCapabilitiesKHR cap{};if(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(impl_->physical,impl_->surface,&cap)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}uint32_t fc=0,mc=0;if(vkGetPhysicalDeviceSurfaceFormatsKHR(impl_->physical,impl_->surface,&fc,nullptr)!=VK_SUCCESS||vkGetPhysicalDeviceSurfacePresentModesKHR(impl_->physical,impl_->surface,&mc,nullptr)!=VK_SUCCESS||fc==0||mc==0){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}std::vector<VkSurfaceFormatKHR> formats(fc);if(vkGetPhysicalDeviceSurfaceFormatsKHR(impl_->physical,impl_->surface,&fc,formats.data())!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}auto format=formats.front();for(const auto& c:formats)if(c.format==VK_FORMAT_B8G8R8A8_SRGB&&c.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR){format=c;break;}VkExtent2D extent{};if(cap.currentExtent.width!=std::numeric_limits<uint32_t>::max())extent=cap.currentExtent;else extent={std::clamp(width,cap.minImageExtent.width,cap.maxImageExtent.width),std::clamp(height,cap.minImageExtent.height,cap.maxImageExtent.height)};impl_->DestroySwapchainResources();uint32_t count=cap.minImageCount+1;if(cap.maxImageCount&&count>cap.maxImageCount)count=cap.maxImageCount;VkSwapchainCreateInfoKHR swap{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};swap.surface=impl_->surface;swap.minImageCount=count;swap.imageFormat=format.format;swap.imageColorSpace=format.colorSpace;swap.imageExtent=extent;swap.imageArrayLayers=1;swap.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT|VK_IMAGE_USAGE_TRANSFER_SRC_BIT;uint32_t families[]={impl_->graphicsFamily,impl_->presentFamily};if(impl_->graphicsFamily!=impl_->presentFamily){swap.imageSharingMode=VK_SHARING_MODE_CONCURRENT;swap.queueFamilyIndexCount=2;swap.pQueueFamilyIndices=families;}else swap.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE;swap.preTransform=cap.currentTransform;swap.compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;swap.presentMode=VK_PRESENT_MODE_FIFO_KHR;swap.clipped=VK_TRUE;if(vkCreateSwapchainKHR(impl_->device,&swap,nullptr,&impl_->swapchain)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}impl_->swapchainFormat=format.format;impl_->extent=extent;uint32_t actual=0;if(vkGetSwapchainImagesKHR(impl_->device,impl_->swapchain,&actual,nullptr)!=VK_SUCCESS||actual==0){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}impl_->swapchainImages.resize(actual);if(vkGetSwapchainImagesKHR(impl_->device,impl_->swapchain,&actual,impl_->swapchainImages.data())!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}impl_->swapchainViews.resize(actual);for(uint32_t i=0;i<actual;++i){VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};view.image=impl_->swapchainImages[i];view.viewType=VK_IMAGE_VIEW_TYPE_2D;view.format=impl_->swapchainFormat;view.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;view.subresourceRange.levelCount=1;view.subresourceRange.layerCount=1;if(vkCreateImageView(impl_->device,&view,nullptr,&impl_->swapchainViews[i])!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}}
     VkImageCreateInfo depth{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};depth.imageType=VK_IMAGE_TYPE_2D;depth.format=impl_->depthFormat;depth.extent={extent.width,extent.height,1};depth.mipLevels=1;depth.arrayLayers=1;depth.samples=VK_SAMPLE_COUNT_1_BIT;depth.tiling=VK_IMAGE_TILING_OPTIMAL;depth.usage=VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;depth.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;if(vkCreateImage(impl_->device,&depth,nullptr,&impl_->depthImage)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}VkMemoryRequirements dr{};vkGetImageMemoryRequirements(impl_->device,impl_->depthImage,&dr);uint32_t dt=FindMemoryType(impl_->physical,dr.memoryTypeBits,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);if(dt==UINT32_MAX){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}VkMemoryAllocateInfo da{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};da.allocationSize=dr.size;da.memoryTypeIndex=dt;if(vkAllocateMemory(impl_->device,&da,nullptr,&impl_->depthMemory)!=VK_SUCCESS||vkBindImageMemory(impl_->device,impl_->depthImage,impl_->depthMemory,0)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}VkImageViewCreateInfo dv{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};dv.image=impl_->depthImage;dv.viewType=VK_IMAGE_VIEW_TYPE_2D;dv.format=impl_->depthFormat;dv.subresourceRange.aspectMask=VK_IMAGE_ASPECT_DEPTH_BIT;dv.subresourceRange.levelCount=1;dv.subresourceRange.layerCount=1;if(vkCreateImageView(impl_->device,&dv,nullptr,&impl_->depthView)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}
     VkAttachmentDescription at[2]{};at[0].format=impl_->swapchainFormat;at[0].samples=VK_SAMPLE_COUNT_1_BIT;at[0].loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;at[0].storeOp=VK_ATTACHMENT_STORE_OP_STORE;at[0].initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;at[0].finalLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;at[1].format=impl_->depthFormat;at[1].samples=VK_SAMPLE_COUNT_1_BIT;at[1].loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;at[1].storeOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;at[1].initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;at[1].finalLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;VkAttachmentReference cr{0,VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},drref{1,VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};VkSubpassDescription sub{};sub.pipelineBindPoint=VK_PIPELINE_BIND_POINT_GRAPHICS;sub.colorAttachmentCount=1;sub.pColorAttachments=&cr;sub.pDepthStencilAttachment=&drref;VkSubpassDependency dep{};dep.srcSubpass=VK_SUBPASS_EXTERNAL;dep.dstSubpass=0;dep.srcStageMask=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;dep.dstStageMask=dep.srcStageMask;dep.dstAccessMask=VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;VkRenderPassCreateInfo rp{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};rp.attachmentCount=2;rp.pAttachments=at;rp.subpassCount=1;rp.pSubpasses=&sub;rp.dependencyCount=1;rp.pDependencies=&dep;if(vkCreateRenderPass(impl_->device,&rp,nullptr,&impl_->renderPass)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}
     auto vc=ReadSpirv(NEO_SHADER_DIR "/neo_mesh.vert.spv"),fcodes=ReadSpirv(NEO_SHADER_DIR "/neo_mesh.frag.spv");VkShaderModule vert=CreateShader(impl_->device,vc),frag=CreateShader(impl_->device,fcodes);if(!vert||!frag){if(vert)vkDestroyShaderModule(impl_->device,vert,nullptr);if(frag)vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::ShaderUnavailable;return false;}VkPipelineShaderStageCreateInfo stages[2]{};stages[0]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[0].stage=VK_SHADER_STAGE_VERTEX_BIT;stages[0].module=vert;stages[0].pName="main";stages[1]={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};stages[1].stage=VK_SHADER_STAGE_FRAGMENT_BIT;stages[1].module=frag;stages[1].pName="main";
@@ -141,6 +141,90 @@ bool Vulkan3DRenderer::UploadSkinningPalette(const std::vector<Mat4>& palette){
     return true;
 }
 
-bool Vulkan3DRenderer::EndFrame(){if(!impl_||!impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];vkCmdEndRenderPass(f.commandBuffer);if(vkEndCommandBuffer(f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPipelineStageFlags stage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&f.imageAvailable;submit.pWaitDstStageMask=&stage;submit.commandBufferCount=1;submit.pCommandBuffers=&f.commandBuffer;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&f.renderFinished;VkResult s=vkQueueSubmit(impl_->graphicsQueue,1,&submit,f.fence);if(s!=VK_SUCCESS){lastError_=s==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPresentInfoKHR p{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};p.waitSemaphoreCount=1;p.pWaitSemaphores=&f.renderFinished;p.swapchainCount=1;p.pSwapchains=&impl_->swapchain;p.pImageIndices=&impl_->acquiredImageIndex;VkResult presented=vkQueuePresentKHR(impl_->presentQueue,&p);impl_->frameBegun=false;impl_->frameSlot=(impl_->frameSlot+1U)%2U;stats_.frameIndex++;if(presented==VK_ERROR_OUT_OF_DATE_KHR||presented==VK_SUBOPTIMAL_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(presented==VK_ERROR_DEVICE_LOST){lastError_=Vulkan3DRendererError::DeviceLost;return false;}if(presented!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}lastError_=Vulkan3DRendererError::None;return true;}
+bool Vulkan3DRenderer::ReadbackLastFrame(std::vector<uint8_t>& rgba8){
+    rgba8.clear();
+    if(!impl_||!ready_||impl_->frameBegun||!impl_->hasPresentedFrame||impl_->swapchain==VK_NULL_HANDLE){
+        lastError_=Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
+    const uint32_t width=impl_->extent.width;
+    const uint32_t height=impl_->extent.height;
+    if(width==0U||height==0U){
+        lastError_=Vulkan3DRendererError::InvalidConfiguration;
+        return false;
+    }
+    const VkDeviceSize size=static_cast<VkDeviceSize>(width)*static_cast<VkDeviceSize>(height)*4U;
+    Buffer staging{};
+    if(!CreateBuffer(impl_->physical,impl_->device,size,VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,staging)){
+        lastError_=Vulkan3DRendererError::BufferFailure;
+        return false;
+    }
+    VkCommandBuffer command=VK_NULL_HANDLE;
+    VkCommandBufferAllocateInfo alloc{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    alloc.commandPool=impl_->commandPool;
+    alloc.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc.commandBufferCount=1U;
+    if(vkAllocateCommandBuffers(impl_->device,&alloc,&command)!=VK_SUCCESS){
+        DestroyBuffer(impl_->device,staging);
+        lastError_=Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
+    bool ok=false;
+    do {
+        VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        begin.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if(vkBeginCommandBuffer(command,&begin)!=VK_SUCCESS) break;
+        VkImageMemoryBarrier toCopy{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        toCopy.srcAccessMask=0;
+        toCopy.dstAccessMask=VK_ACCESS_TRANSFER_READ_BIT;
+        toCopy.oldLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        toCopy.newLayout=VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        toCopy.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        toCopy.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        toCopy.image=impl_->swapchainImages[impl_->lastPresentedImageIndex];
+        toCopy.subresourceRange.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+        toCopy.subresourceRange.levelCount=1U;
+        toCopy.subresourceRange.layerCount=1U;
+        vkCmdPipelineBarrier(command,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,
+                             0,nullptr,0,nullptr,1,&toCopy);
+        VkBufferImageCopy copy{};
+        copy.imageSubresource.aspectMask=VK_IMAGE_ASPECT_COLOR_BIT;
+        copy.imageSubresource.layerCount=1U;
+        copy.imageExtent={width,height,1U};
+        vkCmdCopyImageToBuffer(command,impl_->swapchainImages[impl_->lastPresentedImageIndex],
+                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,staging.handle,1U,&copy);
+        VkImageMemoryBarrier toPresent=toCopy;
+        toPresent.srcAccessMask=VK_ACCESS_TRANSFER_READ_BIT;
+        toPresent.dstAccessMask=0;
+        toPresent.oldLayout=VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        toPresent.newLayout=VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        vkCmdPipelineBarrier(command,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,
+                             0,nullptr,0,nullptr,1,&toPresent);
+        if(vkEndCommandBuffer(command)!=VK_SUCCESS) break;
+        VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        submit.commandBufferCount=1U;
+        submit.pCommandBuffers=&command;
+        if(vkQueueSubmit(impl_->graphicsQueue,1U,&submit,VK_NULL_HANDLE)!=VK_SUCCESS) break;
+        if(vkQueueWaitIdle(impl_->graphicsQueue)!=VK_SUCCESS) break;
+        void* mapped=nullptr;
+        if(vkMapMemory(impl_->device,staging.memory,0,size,0,&mapped)!=VK_SUCCESS) break;
+        rgba8.resize(static_cast<size_t>(size));
+        std::memcpy(rgba8.data(),mapped,static_cast<size_t>(size));
+        vkUnmapMemory(impl_->device,staging.memory);
+        ok=true;
+    } while(false);
+    vkFreeCommandBuffers(impl_->device,impl_->commandPool,1U,&command);
+    DestroyBuffer(impl_->device,staging);
+    if(!ok){
+        rgba8.clear();
+        lastError_=Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
+    lastError_=Vulkan3DRendererError::None;
+    return true;
+}
+
+bool Vulkan3DRenderer::EndFrame(){if(!impl_||!impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];vkCmdEndRenderPass(f.commandBuffer);if(vkEndCommandBuffer(f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPipelineStageFlags stage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&f.imageAvailable;submit.pWaitDstStageMask=&stage;submit.commandBufferCount=1;submit.pCommandBuffers=&f.commandBuffer;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&f.renderFinished;VkResult s=vkQueueSubmit(impl_->graphicsQueue,1,&submit,f.fence);if(s!=VK_SUCCESS){lastError_=s==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPresentInfoKHR p{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};p.waitSemaphoreCount=1;p.pWaitSemaphores=&f.renderFinished;p.swapchainCount=1;p.pSwapchains=&impl_->swapchain;p.pImageIndices=&impl_->acquiredImageIndex;VkResult presented=vkQueuePresentKHR(impl_->presentQueue,&p);impl_->frameBegun=false;if(presented==VK_SUCCESS||presented==VK_SUBOPTIMAL_KHR){impl_->lastPresentedImageIndex=impl_->acquiredImageIndex;impl_->hasPresentedFrame=true;}impl_->frameSlot=(impl_->frameSlot+1U)%2U;stats_.frameIndex++;if(presented==VK_ERROR_OUT_OF_DATE_KHR||presented==VK_SUBOPTIMAL_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(presented==VK_ERROR_DEVICE_LOST){lastError_=Vulkan3DRendererError::DeviceLost;return false;}if(presented!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}lastError_=Vulkan3DRendererError::None;return true;}
 void Vulkan3DRenderer::Reset(){ready_=false;if(impl_){impl_->Destroy();delete impl_;impl_=nullptr;}stats_={};lastError_=Vulkan3DRendererError::None;}
 } // namespace NeoEngine
