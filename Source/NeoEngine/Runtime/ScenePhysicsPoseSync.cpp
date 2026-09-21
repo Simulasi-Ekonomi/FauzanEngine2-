@@ -93,6 +93,7 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
                 if (chunk->entities[index] != binding.physics) continue;
                 const float x = chunk->posX[index];
                 const float z = chunk->posZ[index];
+                if (index >= chunk->count || chunk->posX == nullptr || chunk->posZ == nullptr || chunk->radius == nullptr || chunk->invMass == nullptr || chunk->entities == nullptr) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
                 const float radius = chunk->radius[index];
                 const float inverseMass = chunk->invMass[index];
                 if (!std::isfinite(x) || !std::isfinite(z) || !std::isfinite(radius) ||
