@@ -39,7 +39,6 @@ bool AnimationPlayer::Update(float dt) {
         if (playbackMode_ == AnimationPlaybackMode::Clamp) playing_ = false;
         return true;
     }
-
     if (dt > 86400.0F - time_) return false;
     const float nextTime = time_ + dt;
     if (!std::isfinite(nextTime) || nextTime < time_ || nextTime > 86400.0F) return false;
@@ -54,6 +53,9 @@ bool AnimationPlayer::Update(float dt) {
         time_ = duration;
         playing_ = false;
     }
+    if (!std::isfinite(time_) || time_ < 0.0F || time_ > duration) return false;
+    if (playbackMode_ == AnimationPlaybackMode::Clamp && time_ >= duration && playing_) playing_ = false;
+    if (playbackMode_ == AnimationPlaybackMode::Loop && (!playing_ || currentClip_ == nullptr)) return false;
     return true;
 }
 
@@ -76,17 +78,16 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
         const auto& frames = currentClip_->GetFrames(static_cast<int>(bone));
         if (!frames.empty() && !currentClip_->Sample(static_cast<int>(bone), time_, sampled)) return false;
         if (!FiniteMatrix(sampled)) return false;
-        candidateLocal.push_back(sampled);
+        try { candidateLocal.push_back(sampled); } catch (...) { return false; }
     }
+    if (candidateLocal.size() != boneCount || candidateLocal.capacity() > kMaxPaletteBones) return false;
 
     std::vector<Mat4> candidatePalette;
     try { candidatePalette.reserve(boneCount); } catch (...) { return false; }
-    if (candidateLocal.size() != boneCount) return false;
     if (!skeleton_->EvaluateSkinningPalette(candidateLocal, candidatePalette) ||
         candidatePalette.size() != boneCount) return false;
     if (candidatePalette.capacity() > kMaxPaletteBones) return false;
     for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
-
     if (candidateLocal.size() != boneCount || candidatePalette.size() != boneCount) return false;
     localPose = std::move(candidateLocal);
     skinningPalette = std::move(candidatePalette);
