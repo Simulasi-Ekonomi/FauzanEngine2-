@@ -22,8 +22,12 @@ if a.resolve() == b.resolve():
 for p in (a, b):
     if not p.is_absolute():
         p = Path.cwd() / p
-    if p.is_symlink() or not p.is_file() or p.stat().st_size == 0:
+    if p.is_symlink() or not p.is_file() or p.stat().st_size == 0 or p.stat().st_size > 512 * 1024 * 1024:
+        raise SystemExit(f'P4_REPRODUCIBILITY_FAIL invalid_or_oversized_artifact={p}')
+    if p.suffix.lower() not in {'.apk', '.aab'}:
         raise SystemExit(f'P4_REPRODUCIBILITY_FAIL invalid_artifact={p}')
+    if not p.is_absolute():
+        raise SystemExit(f'P4_REPRODUCIBILITY_FAIL unresolved_artifact_path={p}')
 if a.stat().st_dev == b.stat().st_dev and a.stat().st_ino == b.stat().st_ino:
     raise SystemExit('P4_REPRODUCIBILITY_FAIL artifacts_must_be_distinct_files')
 suffix_a = a.suffix.lower()
