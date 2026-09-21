@@ -11,7 +11,7 @@ CanonicalReplicationBridge::CanonicalReplicationBridge(CanonicalRuntimeWorld& wo
     : world_(world), replication_(world.Scene(), role, localClientId, allowDynamicLifecycle) {}
 
 bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_t networkId, uint32_t ownerId) {
-    if (entity.scene.index == 0U || entity.scene.index == 0xFFFFU || world_.Scene().GetTransform(entity.scene) == nullptr ||
+    if (entity.scene.index == 0xFFFFU || world_.Scene().GetTransform(entity.scene) == nullptr ||
         networkId == std::numeric_limits<uint32_t>::max() || ownerId == std::numeric_limits<uint32_t>::max()) {
         lastError_ = CanonicalReplicationBridgeError::InvalidEntity;
         return false;
@@ -56,8 +56,8 @@ bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationS
 
 bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     receipt = {};
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
-        snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count != snapshot.entities.size()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
+    if (snapshot.count == 0U || snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+        snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
     if (!replication_.ApplyServerSnapshot(snapshot, receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
@@ -84,8 +84,8 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
 
 bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
     bytes.clear();
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
-        snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count != snapshot.entities.size()) { lastError_ = CanonicalReplicationBridgeError::EncodeFailed; return false; }
+    if (snapshot.count == 0U || snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+        snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::EncodeFailed; return false; }
     if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes || bytes.capacity() < bytes.size()) std::vector<uint8_t>().swap(bytes);
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error) || bytes.size() > ReplicationSnapshotCodec::kMaxBytes) {
@@ -104,8 +104,8 @@ bool CanonicalReplicationBridge::DecodeSnapshot(std::span<const uint8_t> bytes, 
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
         return false;
     }
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count != snapshot.entities.size() ||
-        snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) {
+    if (snapshot.count == 0U || snapshot.count > ReplicationWorld::kMaxEntities ||
+        snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) {
         snapshot = {};
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
         return false;
