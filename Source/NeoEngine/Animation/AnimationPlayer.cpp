@@ -18,9 +18,8 @@ void AnimationPlayer::Play(AnimationClip* clip) {
     time_ = 0.0F;
     playing_ = false;
     if (clip == nullptr) return;
-    if (clip->GetDuration() == std::numeric_limits<float>::infinity()) return;
     const float duration = clip->GetDuration();
-    if (duration < 0.0F || duration > 86400.0F) return;
+    if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F) return;
     currentClip_ = clip;
     playing_ = true;
 }
@@ -32,9 +31,7 @@ void AnimationPlayer::Stop() noexcept {
 
 bool AnimationPlayer::Update(float dt) {
     if (!playing_ || currentClip_ == nullptr || !std::isfinite(dt) || dt < 0.0F || dt > 3600.0F) return false;
-    if (skeleton_ == nullptr || !skeleton_->IsComplete()) return false;
     if (!std::isfinite(time_) || time_ < 0.0F || time_ > 86400.0F) return false;
-    if (time_ > currentClip_->GetDuration() + 86400.0F) return false;
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration)) return false;
     if (duration < 0.0F || duration > 86400.0F) return false;
@@ -45,6 +42,7 @@ bool AnimationPlayer::Update(float dt) {
         return true;
     }
     if (dt > 86400.0F - time_) return false;
+    if (playbackMode_ != AnimationPlaybackMode::Loop && playbackMode_ != AnimationPlaybackMode::Clamp) return false;
     const float nextTime = time_ + dt;
     if (!std::isfinite(nextTime) || nextTime < time_ || nextTime > 86400.0F) return false;
     time_ = nextTime;
@@ -62,6 +60,7 @@ bool AnimationPlayer::Update(float dt) {
     if (!std::isfinite(time_) || time_ < 0.0F || time_ > duration) return false;
     if (playbackMode_ == AnimationPlaybackMode::Clamp && time_ >= duration && playing_) playing_ = false;
     if (playbackMode_ == AnimationPlaybackMode::Loop && (!playing_ || currentClip_ == nullptr)) return false;
+    if (playbackMode_ == AnimationPlaybackMode::Clamp && currentClip_ == nullptr) return false;
     return true;
 }
 
