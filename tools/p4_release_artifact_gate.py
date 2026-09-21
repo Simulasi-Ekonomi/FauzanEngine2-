@@ -64,6 +64,8 @@ def main()->int:
             if archive.start_dir < 0 or archive.start_dir >= artifact_size or archive.start_dir < 22 or archive.start_dir + archive.sizeCentralDir > artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_central_directory_offset")
             if archive.start_dir + archive.sizeCentralDir > artifact_size or archive.sizeCentralDir < 0 or archive.start_dir + archive.sizeCentralDir < archive.start_dir: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_central_directory_extent")
             names=archive.namelist()
+            if archive.start_dir + archive.sizeCentralDir + archive.sizeEndRec > artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL central_directory_and_eocd_extent")
+            if archive.start_dir + archive.sizeCentralDir + archive.sizeEndRec < archive.start_dir: raise SystemExit("P4_ARTIFACT_GATE_FAIL central_directory_integer_wrap")
             if len(names)==0 or len(names)>MAX_ENTRIES: raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
             if archive.comment and b"\x00" in archive.comment: raise SystemExit("P4_ARTIFACT_GATE_FAIL nul_archive_comment")
             if len(names)!=len(set(names)): raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
@@ -91,7 +93,7 @@ def main()->int:
                 if info.compress_size == 0 and info.file_size == 0 and not info.is_dir() and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
                 with artifact.open("rb") as raw:
                     raw.seek(info.header_offset)
-                    if raw.read(4) != b"PK\\x03\\x04": raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_signature")
+                    if raw.read(4) != b"PK\x03\x04": raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_signature")
                 header_end=info.header_offset+30+len(name.encode("utf-8"))+len(info.extra)
                 if header_end>artifact_size or header_end<info.header_offset: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_extent")
                 data_end=header_end+info.compress_size
@@ -124,7 +126,6 @@ def main()->int:
                 if info.is_dir() and info.compress_size != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL compressed_directory_entry")
                 if not info.is_dir() and name.endswith("/"): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_file_entry")
                 if info.flag_bits & 0x1: raise SystemExit("P4_ARTIFACT_GATE_FAIL encrypted_zip_entry")
-                if info.flag_bits & 0x8: raise SystemExit("P4_ARTIFACT_GATE_FAIL data_descriptor_entry")
                 if info.flag_bits & 0x8: raise SystemExit("P4_ARTIFACT_GATE_FAIL data_descriptor_entry")
                 if info.header_offset + 30 + len(name.encode("utf-8")) + len(info.extra) > archive.start_dir: raise SystemExit("P4_ARTIFACT_GATE_FAIL header_crosses_central_directory")
                 if info.flag_bits & 0x4: raise SystemExit("P4_ARTIFACT_GATE_FAIL patched_data_entry")
