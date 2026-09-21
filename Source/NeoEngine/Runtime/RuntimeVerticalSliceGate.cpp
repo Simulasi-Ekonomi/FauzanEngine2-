@@ -7,6 +7,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
 
  if(runtime.State()!=RuntimeState::Initialized){receipt.error=VerticalSliceGateError::RuntimeNotInitialized;return false;}
  receipt.initialized=true;
+ if(runtime.SceneECS().revision==0U){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  receipt.sceneValid=runtime.Scene()!=nullptr;
  if(!receipt.sceneValid){receipt.error=VerticalSliceGateError::SceneMissing;return false;}
  receipt.ecsValid=runtime.ECS()!=nullptr;
@@ -32,6 +33,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
  if(!receipt.assetsValid){receipt.error=VerticalSliceGateError::AssetsMissing;return false;}
  if(!receipt.resourcesValid){receipt.error=VerticalSliceGateError::ResourcesMissing;return false;}
  if(!receipt.replicationValid){receipt.error=VerticalSliceGateError::ReplicationMissing;return false;}
+ if(executeTick && runtime.State()!=RuntimeState::Initialized){receipt.error=VerticalSliceGateError::RuntimeNotInitialized;return false;}
  if(executeTick){
   receipt.tickAccepted=runtime.Tick();
   if(!receipt.tickAccepted){receipt.error=VerticalSliceGateError::TickRejected;return false;}
