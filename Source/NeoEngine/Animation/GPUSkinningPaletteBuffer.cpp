@@ -1,6 +1,7 @@
 #include "GPUSkinningPaletteBuffer.h"
 #include <limits>
 #include <cstdint>
+#include <cmath>
 namespace NeoEngine {
 bool GPUSkinningPaletteBuffer::Initialize(VkDevice device,VkPhysicalDevice physicalDevice) {
  if(device==VK_NULL_HANDLE||physicalDevice==VK_NULL_HANDLE) return false;
@@ -9,6 +10,7 @@ bool GPUSkinningPaletteBuffer::Initialize(VkDevice device,VkPhysicalDevice physi
 }
 bool GPUSkinningPaletteBuffer::UploadPalette(const std::vector<Mat4>& palette) {
  if(!buffer_.IsValid()||palette.empty()||palette.size()>kMaxBones) return false;
+ for (const Mat4& matrix : palette) for (float value : matrix.m) if (!std::isfinite(value)) return false;
  constexpr size_t maxBytes = std::numeric_limits<VkDeviceSize>::max();
  if (palette.size() > maxBytes / sizeof(Mat4)) return false;
  const VkDeviceSize byteSize = static_cast<VkDeviceSize>(palette.size() * sizeof(Mat4));
