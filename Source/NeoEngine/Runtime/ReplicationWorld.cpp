@@ -419,7 +419,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                     if (sceneWorld_.Create(restored) &&
                         sceneWorld_.SetTransform(restored, despawnedTransforms[despawnedIndex])) {
                         slots_[despawnedSlotIndices[despawnedIndex]] = despawnedSlots[despawnedIndex];
-                        slots_[despawnedSlotIndices[despawnedSlotIndices[despawnedIndex]]] = slots_[despawnedSlotIndices[despawnedIndex]];
+                        slots_[despawnedSlotIndices[despawnedIndex]].entity = restored;
                     } else {
                         return Fail(ReplicationError::DespawnRejected);
                     }
