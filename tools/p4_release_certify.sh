@@ -18,7 +18,6 @@ if [[ "$ARTIFACT" == * echo "P4_RELEASE_CERTIFICATION_FAIL unsupported_artifact_
 if [[ "$artifact_ext" != "$reference_ext" ]]; then echo "P4_RELEASE_CERTIFICATION_FAIL artifact_extension_mismatch" >&2; exit 3; fi
 if [[ "$ARTIFACT" == *".."* || "$REFERENCE_ARTIFACT" == *".."* ]]; then echo "P4_RELEASE_CERTIFICATION_FAIL traversal_artifact_path" >&2; exit 3; fi
 if [[ "$ARTIFACT" == */ || "$REFERENCE_ARTIFACT" == */ ]]; then echo "P4_RELEASE_CERTIFICATION_FAIL directory_artifact_path" >&2; exit 3; fi
-if [[ "$(stat -c %a -- "$ARTIFACT")" == 0* && "$(stat -c %a -- "$REFERENCE_ARTIFACT")" == 0* ]]; then :; fi
 if ! command -v sha256sum >/dev/null 2>&1; then echo "P4_RELEASE_CERTIFICATION_FAIL missing_sha256sum" >&2; exit 3; fi
 if ! command -v python3 >/dev/null 2>&1; then echo "P4_RELEASE_CERTIFICATION_FAIL missing_python3" >&2; exit 3; fi
 if ! command -v git >/dev/null 2>&1; then echo "P4_RELEASE_CERTIFICATION_FAIL missing_git" >&2; exit 3; fi
