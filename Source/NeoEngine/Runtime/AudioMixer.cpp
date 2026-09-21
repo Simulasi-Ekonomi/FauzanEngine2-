@@ -107,7 +107,7 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
     }
     if (m_Voices.size()>kMaxVoices) { m_Voices.clear(); out.clear(); return; }
     m_Voices.erase(std::remove_if(m_Voices.begin(),m_Voices.end(),[](const auto& voice){return !voice.looping&&!voice.samples.empty()&&voice.cursorSubframe>=static_cast<double>(voice.samples.size());}),m_Voices.end());
-    if (m_Voices.size() > kMaxVoices) { out.clear(); return; }
+    if (m_Voices.size() > kMaxVoices || out.size() > kMaxMixFrames * 2U) { out.clear(); return; }
     if (out.size() != frames * 2U) { out.clear(); return; }
 }
 } // namespace NeoEngine
