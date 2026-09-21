@@ -30,6 +30,7 @@ int main() {
     for (int frame = 0; frame < 3; ++frame) {
         rhi.BeginFrame();
         if (!rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 7; }
+        if (rhi.Resize(80, 80) || rhi.GetWidth() != 64 || rhi.GetHeight() != 64 || !rhi.HasSwapchain()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 10; }
         rhi.EndFrame();
         if (rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 8; }
         rhi.Present();
