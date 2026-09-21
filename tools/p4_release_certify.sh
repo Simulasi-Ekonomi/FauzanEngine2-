@@ -37,7 +37,9 @@ case "${REFERENCE_ARTIFACT,,}" in
   *.apk|*.aab) ;;
   *) echo "P4_RELEASE_CERTIFICATION_FAIL unsupported_reference_artifact_extension" >&2; exit 3 ;;
 esac
-if [[ "${ARTIFACT##*.,,}" != "${REFERENCE_ARTIFACT##*.,,}" ]]; then
+artifact_ext="${ARTIFACT##*.}"; artifact_ext="${artifact_ext,,}"
+reference_ext="${REFERENCE_ARTIFACT##*.}"; reference_ext="${reference_ext,,}"
+if [[ "$artifact_ext" != "$reference_ext" ]]; then
   echo "P4_RELEASE_CERTIFICATION_FAIL artifact_extension_mismatch" >&2
   exit 3
 fi
