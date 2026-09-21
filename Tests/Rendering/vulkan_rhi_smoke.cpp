@@ -30,6 +30,13 @@ int main() {
         rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 6;
     }
 
+    // Repeated recreation must leave the live frame path usable, not merely the dimensions.
+    rhi.BeginFrame();
+    if (!rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 7; }
+    rhi.EndFrame();
+    if (rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 8; }
+    rhi.Present();
+
     for (int frame = 0; frame < 3; ++frame) {
         rhi.BeginFrame();
         if (!rhi.IsInitialized() || !rhi.HasSwapchain() || !rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 7; }
