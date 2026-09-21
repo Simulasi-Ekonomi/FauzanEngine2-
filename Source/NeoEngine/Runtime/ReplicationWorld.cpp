@@ -130,7 +130,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
         if (index > 0U && candidate.states[index - 1U].networkId >= state.networkId) { error = ReplicationError::CorruptSnapshot; return false; }
     }
     uint64_t expected = 0U;
-    if (!ReadU64(bytes, offset, expected) || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptSnapshot; return false; }
+    if (!ReadU64(bytes, offset, expected) || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptAcknowledgement; return false; }
     candidate.checksum = expected;
     snapshot = std::move(candidate);
     error = ReplicationError::None;
@@ -155,7 +155,7 @@ bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement
 }
 
 bool ReplicationAcknowledgementCodec::Deserialize(std::span<const uint8_t> bytes, ReplicationAcknowledgement& acknowledgement, ReplicationError& error) {
-    if (bytes.size() != 38U) { error = ReplicationError::CorruptSnapshot; return false; }
+    if (bytes.size() != 38U) { error = ReplicationError::CorruptAcknowledgement; return false; }
     size_t offset = 0U;
     uint32_t magic = 0U; uint16_t version = 0U; ReplicationAcknowledgement candidate{}; uint64_t expected = 0U;
     if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, candidate.sequence) || !ReadU64(bytes, offset, candidate.serverTick) || !ReadU64(bytes, offset, candidate.checksum) || !ReadU64(bytes, offset, expected) || magic != kAcknowledgementMagic || version != kVersion || candidate.sequence == 0U || candidate.checksum == 0U || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptSnapshot; return false; }
