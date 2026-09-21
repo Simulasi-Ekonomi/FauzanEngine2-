@@ -16,10 +16,12 @@ if len(sys.argv) != 2:
 artifact = Path(sys.argv[1])
 if not artifact.is_absolute():
     artifact = ROOT / artifact
-artifact = artifact.resolve()
+if artifact.is_symlink():
+    raise SystemExit('P4_PROVENANCE_VERIFY_FAIL artifact_symlink')
+artifact = artifact.resolve(strict=True)
 provenance = ROOT / "p4-release-provenance.txt"
 
-if not artifact.is_file() or artifact.is_symlink():
+if not artifact.is_file():
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_not_regular_file")
 if artifact.suffix not in {".apk", ".aab"}:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL unsupported_artifact_extension")
@@ -52,10 +54,12 @@ if values["artifact"] != sys.argv[1]:
 reference = Path(values["reference_artifact"])
 if not reference.is_absolute():
     reference = ROOT / reference
-reference = reference.resolve()
-if not reference.is_file() or reference.is_symlink() or reference.suffix != artifact.suffix:
+if reference.is_symlink():
+    raise SystemExit('P4_PROVENANCE_VERIFY_FAIL reference_artifact_symlink')
+reference = reference.resolve(strict=True)
+if not reference.is_file() or reference.suffix != artifact.suffix:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL invalid_reference_artifact")
-if values["reference_artifact"] == sys.argv[1]:
+if values["reference_artifact"] == sys.argv[1] or artifact == reference:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL reference_artifact_identity_mismatch")
 
 artifact_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
