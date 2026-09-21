@@ -206,11 +206,12 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
 }
 
 bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle) {
+    sessionHandle = 0U;
     if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
-    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle)) {
+    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle) || sessionHandle == 0U) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
@@ -226,6 +227,7 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
         return false;
     }
     const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(serverTick)) { m_LastError = RuntimeError::TimeFailed; return false; }
     if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
@@ -236,8 +238,9 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
 
 bool NeoRuntime::Tick() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount)) { m_LastError = RuntimeError::TimeFailed; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(m_Clock->Snapshot().fixedStepCount)) { m_LastError = RuntimeError::TimeFailed; return false; }
     const float tickDelta = 1.0F / 60.0F;
+    if (!std::isfinite(tickDelta) || tickDelta <= 0.0F) { m_LastError = RuntimeError::TimeFailed; return false; }
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidElapsedDelta(tickDelta) || !m_Clock->Advance(tickDelta)) { m_LastError = RuntimeError::TimeFailed; return false; }
     const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
@@ -417,7 +420,7 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
     }
     RuntimePersistenceError error = RuntimePersistenceError::None;
     std::vector<uint8_t> encoded;
-    if (payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
+    if (payload.size() > RuntimeSaveCodec::kMaxPayloadBytes || payload.empty()) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (!RuntimeSaveCodec::Serialize({kFarmProgressCheckpointKind, revision, std::move(payload)}, encoded, error)) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
@@ -435,7 +438,7 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     }
     RuntimeSaveEnvelope envelope{};
     RuntimePersistenceError error = RuntimePersistenceError::None;
-    if (bytes.empty() || bytes.size() > RuntimeSaveCodec::kMaxPayloadBytes + 4096U || bytes.size() < sizeof(uint32_t) || !RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kFarmProgressCheckpointKind || envelope.revision == 0U || envelope.revision == std::numeric_limits<uint64_t>::max() || envelope.payload.empty() || envelope.payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) {
+    if (bytes.empty() || bytes.size() > RuntimeSaveCodec::kMaxPayloadBytes + 4096U || bytes.capacity() > RuntimeSaveCodec::kMaxPayloadBytes + 4096U || bytes.size() < sizeof(uint32_t) || !RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kFarmProgressCheckpointKind || envelope.revision == 0U || envelope.revision == std::numeric_limits<uint64_t>::max() || envelope.payload.empty() || envelope.payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
         return false;
     }
