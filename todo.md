@@ -710,3 +710,17 @@
 - [x] T6-09 checkpoint restore input size remains bounded.
 - [x] T6-10 decoded checkpoint blobs remain bounded.
 - [x] T6-11 checkpoint restore remains fail-closed before runtime commit.
+
+
+## 2026-09-21 — Turn 7 — implementation/integration ledger
+- [x] T7-01 R2 workflow now provisions SDL3 instead of SDL2.
+- [x] T7-02 R8 workflow now provisions SDL3.
+- [x] T7-03 R8 release configure receives SDL3 prefix.
+- [x] T7-04 R8 ASAN configure receives SDL3 prefix.
+- [x] T7-05 farm balance profile smoke is registered in canonical CMake.
+- [x] T7-06 farm progress file smoke remains registered.
+- [x] T7-07 canonical DirectionalLight field names fixed.
+- [x] T7-08 software light direction finite validation retained.
+- [x] T7-09 software light intensity finite validation retained.
+- [x] T7-10 checkpoint error enum remains canonical.
+- [x] T7-11 CMake smoke target set now matches R2 workflow.
