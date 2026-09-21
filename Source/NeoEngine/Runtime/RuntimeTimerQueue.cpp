@@ -1,6 +1,7 @@
 #include "RuntimeTimerQueue.h"
 
 #include <cmath>
+#include <limits>
 
 namespace NeoEngine {
 bool RuntimeTimerQueue::Fail(RuntimeTimerError error) { lastError_ = error; return false; }
@@ -46,8 +47,9 @@ bool RuntimeTimerQueue::Advance(float delta, std::vector<RuntimeTimerFire>& fire
         if (!timer.active) continue;
         timer.remaining -= delta;
         while (timer.active && timer.remaining <= 0.000001F) {
+            if (timer.fireCount == std::numeric_limits<uint64_t>::max()) { lastError_ = RuntimeTimerError::FireCountOverflow; return false; }
             ++timer.fireCount;
-            fires.push_back({{index, timer.generation}, timer.userTag, timer.fireCount});
+            fires.push_back({{index, timer.generation}, timer.userTag, timer.fireCount > std::numeric_limits<uint32_t>::max() ? std::numeric_limits<uint32_t>::max() : static_cast<uint32_t>(timer.fireCount)});
             if (!timer.repeating) {
                 timer.active = false;
                 ++timer.generation;
