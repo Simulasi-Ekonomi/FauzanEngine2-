@@ -59,6 +59,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!world->Initialize(*farm, *trustSafety, "runtime-farm-player", worldConfig)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto authority = std::make_unique<FarmAuthoritativeService>();
     if (!authority->Initialize(*world, *trustSafety, "runtime-farm-player", "runtime-farm-session")) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto authoritySession = std::make_unique<FarmAuthoritativeSessionHost>();
+    if (!authoritySession->Initialize(*authority)) { m_LastError = RuntimeError::AuthorityFailed; m_State = RuntimeState::Failed; return false; }
     auto assets = std::make_unique<AssetRegistry>();
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
@@ -163,6 +165,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Farm = std::move(farm);
     m_FarmWorld = std::move(world);
     m_FarmAuthority = std::move(authority);
+    m_FarmAuthoritySession = std::move(authoritySession);
     m_Assets = std::move(assets);
     m_Resources = std::move(resources);
     m_Actors = std::move(actors);
@@ -215,7 +218,21 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     return true;
 }
 
-bool NeoRuntime::Tick() {
+bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
+                                                const FarmSessionCommandbool NeoRuntime::Tick() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     RuntimeFrameContract frameContract;
     if (!frameContract.Begin(m_Clock->Snapshot().frameCount, m_SceneECSBridge.LastReceipt().revision)) { m_LastError = RuntimeError::InvalidState; return false; }
