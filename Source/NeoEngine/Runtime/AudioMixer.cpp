@@ -42,9 +42,10 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     float pan=0.0f;
     if(params.spatialized&&distance>0.001f){float forward[3]{m_Listener.forward[0],m_Listener.forward[1],m_Listener.forward[2]},up[3]{m_Listener.up[0],m_Listener.up[1],m_Listener.up[2]};if(Normalize3(forward)&&Normalize3(up)){const float fu=Dot3(forward,up);up[0]-=forward[0]*fu;up[1]-=forward[1]*fu;up[2]-=forward[2]*fu;if(Normalize3(up)){const float right[3]{up[1]*forward[2]-up[2]*forward[1],up[2]*forward[0]-up[0]*forward[2],up[0]*forward[1]-up[1]*forward[0]};pan=std::clamp((dx*right[0]+dy*right[1]+dz*right[2])/distance,-1.0f,1.0f);}}}
     if(!std::isfinite(pan)||!std::isfinite(attenuation)||attenuation<0.0f||attenuation>1.0f||!std::isfinite(params.position[0])||!std::isfinite(params.position[1])||!std::isfinite(params.position[2]))return false;
-    Voice voice;voice.id=params.id;voice.samples=params.mono;voice.gain=params.gainQ8;
+    Voice voice;voice.id=params.id;voice.samples=params.mono;voice.gain=params.gainQ8;voice.pitch=params.pitch;
     if (voice.samples.empty() || voice.samples.size() > kMaxSamplesPerVoice || voice.samples.capacity() > kMaxSamplesPerVoice) return false;
-    if (!std::isfinite(voice.pitch) || voice.pitch <= 0.001f || voice.pitch > 8.0f) return false;voice.pan=pan;voice.pitch=params.pitch;voice.position[0]=params.position[0];voice.position[1]=params.position[1];voice.position[2]=params.position[2];voice.attenuation=params.attenuation;voice.looping=params.looping;voice.spatialized=params.spatialized;
+    if (!std::isfinite(voice.pitch) || voice.pitch <= 0.001f || voice.pitch > 8.0f) return false;
+    if (!std::isfinite(voice.gain) || voice.gain == 0U) return false;voice.pan=pan;voice.position[0]=params.position[0];voice.position[1]=params.position[1];voice.position[2]=params.position[2];voice.attenuation=params.attenuation;voice.looping=params.looping;voice.spatialized=params.spatialized;
     try { m_Voices.push_back(std::move(voice)); } catch (...) { return false; }
     return m_Voices.size()<=kMaxVoices;
 }
