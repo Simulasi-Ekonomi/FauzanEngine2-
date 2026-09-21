@@ -9,12 +9,16 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.view.WindowManager;
 import android.os.Build;
+import android.view.Choreographer;
 
 public class NeoEngineActivity extends Activity {
     private WebView webView;
     private NeoEngineBridge bridge;
     private boolean nativeInitialized;
     private boolean nativeActive;
+    private final Choreographer.FrameCallback frameCallback = this::onEngineFrame;
+    private long lastFrameNanos;
+    private boolean frameLoopScheduled;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +49,8 @@ public class NeoEngineActivity extends Activity {
         bridge.init(this);
         nativeInitialized = NeoEngineCanonicalBridge.initialize();
         nativeActive = false;
+        lastFrameNanos = 0L;
+        frameLoopScheduled = false;
         
         webView.addJavascriptInterface(bridge, "NeoEngineBridge");
         webView.addJavascriptInterface(this, "AndroidActivity");
@@ -71,6 +77,7 @@ public class NeoEngineActivity extends Activity {
         if (nativeActive && NeoEngineCanonicalBridge.pause()) nativeActive = false;
         super.onPause();
         if (webView != null) webView.onPause();
+        stopNativeFrameLoop();
     }
 
     @Override
@@ -78,10 +85,41 @@ public class NeoEngineActivity extends Activity {
         super.onResume();
         if (webView != null) webView.onResume();
         if (nativeInitialized && !nativeActive) nativeActive = NeoEngineCanonicalBridge.resume();
+        if (nativeActive) startNativeFrameLoop();
+    }
+
+    private void startNativeFrameLoop() {
+        if (frameLoopScheduled || !nativeActive) return;
+        lastFrameNanos = System.nanoTime();
+        frameLoopScheduled = true;
+        Choreographer.getInstance().postFrameCallback(frameCallback);
+    }
+
+    private void stopNativeFrameLoop() {
+        if (!frameLoopScheduled) return;
+        Choreographer.getInstance().removeFrameCallback(frameCallback);
+        frameLoopScheduled = false;
+        lastFrameNanos = 0L;
+    }
+
+    private void onEngineFrame(long frameTimeNanos) {
+        frameLoopScheduled = false;
+        if (!nativeActive || isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) return;
+        float deltaSeconds = lastFrameNanos == 0L ? (1.0f / 60.0f) : (frameTimeNanos - lastFrameNanos) / 1_000_000_000.0f;
+        lastFrameNanos = frameTimeNanos;
+        if (!Float.isFinite(deltaSeconds) || deltaSeconds < 0.0f) deltaSeconds = 1.0f / 60.0f;
+        deltaSeconds = Math.min(deltaSeconds, 0.25f);
+        if (!NeoEngineCanonicalBridge.tick(deltaSeconds)) {
+            nativeActive = false;
+            stopNativeFrameLoop();
+            return;
+        }
+        startNativeFrameLoop();
     }
 
     @Override
     protected void onDestroy() {
+        stopNativeFrameLoop();
         if (nativeActive) NeoEngineCanonicalBridge.pause();
         if (nativeInitialized) NeoEngineCanonicalBridge.shutdown();
         nativeActive = false;
