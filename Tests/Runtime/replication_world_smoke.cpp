@@ -12,6 +12,13 @@ bool RunStaleRemoteEntityRegression() {
     auto client = std::make_unique<ReplicationWorld>(*scene, ReplicationRole::Client, 7U);
     SceneEntity entity{};
     if (!scene->Create(entity) || !scene->SetTransform(entity, {4.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !client->RegisterEntity(entity, 501U, 8U) || !scene->Destroy(entity)) return false;
+    ReplicationAcknowledgement acknowledgement{};
+    if (!server.BuildClientAcknowledgement(acknowledgement) || acknowledgement.sequence != 0U || acknowledgement.serverTick != 0U || acknowledgement.checksum != 0U) return 5;
+    std::vector<uint8_t> acknowledgementBytes;
+    if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement, acknowledgementBytes, codecError) || acknowledgementBytes.empty() || codecError != ReplicationError::None) return 5;
+    ReplicationAcknowledgement decodedAcknowledgement{};
+    if (!ReplicationAcknowledgementCodec::Deserialize(acknowledgementBytes, decodedAcknowledgement, codecError) || decodedAcknowledgement.sequence != acknowledgement.sequence || decodedAcknowledgement.serverTick != acknowledgement.serverTick || decodedAcknowledgement.checksum != acknowledgement.checksum) return 5;
+
     ReplicationSnapshot snapshot{};
     snapshot.sequence = 1U; snapshot.serverTick = 1U; snapshot.count = 1U;
     snapshot.states[0] = {501U, 8U, 1U, {5.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
