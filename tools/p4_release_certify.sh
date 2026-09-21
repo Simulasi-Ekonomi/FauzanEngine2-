@@ -6,6 +6,11 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
+if ! git diff --quiet --ignore-submodules -- || ! git diff --cached --quiet --ignore-submodules --; then
+  echo "P4_RELEASE_CERTIFICATION_FAIL dirty_worktree" >&2
+  exit 1
+fi
+
 ARTIFACT="${1:-}"
 if [[ -z "$ARTIFACT" ]]; then
   echo "usage: tools/p4_release_certify.sh <release.apk|release.aab>" >&2
