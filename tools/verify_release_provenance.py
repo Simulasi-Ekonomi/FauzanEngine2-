@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import hashlib
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(subprocess.check_output(
+    ["git", "rev-parse", "--show-toplevel"], text=True
+).strip())
+
+if len(sys.argv) != 2:
+    raise SystemExit("usage: tools/verify_release_provenance.py <release.apk|release.aab>")
+
+artifact = Path(sys.argv[1])
+if not artifact.is_absolute():
+    artifact = ROOT / artifact
+artifact = artifact.resolve()
+provenance = ROOT / "p4-release-provenance.txt"
+
+if not artifact.is_file() or artifact.is_symlink():
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_not_regular_file")
+if artifact.suffix not in {".apk", ".aab"}:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL unsupported_artifact_extension")
+if not provenance.is_file() or provenance.is_symlink():
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL missing_provenance")
+
+lines = provenance.read_text(encoding="utf-8").splitlines()
+expected_keys = [
+    "FAUZANENGINE_RELEASE_PROVENANCE_V1",
+    "commit=",
+    "tree=",
+    "artifact=",
+    "artifact_sha256=",
+    "manifest_sha256=",
+    "sbom_sha256=",
+]
+if len(lines) != len(expected_keys) or any(not line.startswith(prefix) for line, prefix in zip(lines, expected_keys)):
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_provenance")
+
+values = {line.split("=", 1)[0]: line.split("=", 1)[1] for line in lines[1:]}
+head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip()
+if values["commit"] != head or values["tree"] != tree:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL git_identity_mismatch")
+
+if values["artifact"] != sys.argv[1]:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_identity_mismatch")
+
+artifact_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
+manifest_sha = hashlib.sha256((ROOT / "p4-release-manifest.sha256").read_bytes()).hexdigest()
+sbom_sha = hashlib.sha256((ROOT / "p4-source-sbom.json").read_bytes()).hexdigest()
+if values["artifact_sha256"] != artifact_sha:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_hash_mismatch")
+if values["manifest_sha256"] != manifest_sha:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL manifest_hash_mismatch")
+if values["sbom_sha256"] != sbom_sha:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL sbom_hash_mismatch")
+
+print(f"P4_PROVENANCE_VERIFY_OK artifact={sys.argv[1]} commit={head}")
