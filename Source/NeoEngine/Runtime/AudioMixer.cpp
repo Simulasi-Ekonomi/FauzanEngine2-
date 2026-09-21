@@ -28,12 +28,12 @@ bool AudioMixer::Play(uint32_t id,std::vector<int16_t> samples,uint16_t gainQ8,b
 
 bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     if (m_Voices.size()>kMaxVoices) return false;
-    if(params.id==0||params.mono.empty()||params.mono.capacity()<params.mono.size()||params.mono.size()>kMaxSamplesPerVoice||params.mono.capacity()>kMaxSamplesPerVoice||params.gainQ8==0||!std::isfinite(params.pitch)||params.pitch<=0.001f||params.pitch>8.0f||!ValidAttenuationModel(params.attenuation.model))return false;
+    if(params.id==0 || params.id==std::numeric_limits<uint32_t>::max()||params.mono.empty()||params.mono.capacity()<params.mono.size()||params.mono.size()>kMaxSamplesPerVoice||params.mono.capacity()>kMaxSamplesPerVoice||params.gainQ8==0||!std::isfinite(params.pitch)||params.pitch<=0.001f||params.pitch>8.0f||!ValidAttenuationModel(params.attenuation.model))return false;
     for(const auto& voice:m_Voices)if(voice.id==params.id)return false;
     if(m_Voices.size()>=kMaxVoices)return false;
     for(float x:params.position)if(!ValidWorldCoordinate(x))return false;
     const float dx=params.position[0]-m_Listener.position[0],dy=params.position[1]-m_Listener.position[1],dz=params.position[2]-m_Listener.position[2];
-    const float distance=std::sqrt(dx*dx+dy*dy+dz*dz); if(!std::isfinite(distance))return false;
+    const float distance=std::sqrt(dx*dx+dy*dy+dz*dz); if(!std::isfinite(distance) || distance > 1.0e9f)return false;
     if(!std::isfinite(params.attenuation.minDistance)||!std::isfinite(params.attenuation.maxDistance)||!std::isfinite(params.attenuation.minVolume)||params.attenuation.minDistance>1.0e9f||params.attenuation.maxDistance>1.0e9f)return false;
     if(!std::isfinite(params.attenuation.minDistance)||params.attenuation.minDistance<=0.0f||params.attenuation.maxDistance<params.attenuation.minDistance||params.attenuation.maxDistance<0.0f||params.attenuation.maxDistance<=0.0f||params.attenuation.maxDistance<params.attenuation.minDistance||params.attenuation.minVolume<0.0f||params.attenuation.minVolume>1.0f)return false;
     const float minD=std::max(0.001f,params.attenuation.minDistance),maxD=std::max(minD+0.001f,params.attenuation.maxDistance);
@@ -50,7 +50,7 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     return m_Voices.size()<=kMaxVoices;
 }
 
-bool AudioMixer::UpdateVoicePosition(uint32_t id,const float position[3]) { if(id==0||position==nullptr||m_Voices.size()>kMaxVoices||m_Voices.empty()||!ValidWorldCoordinate(position[0])||!ValidWorldCoordinate(position[1])||!ValidWorldCoordinate(position[2]))return false;for(float value:{position[0],position[1],position[2]})if(!std::isfinite(value))return false;for(auto& voice:m_Voices)if(voice.id==id){voice.position[0]=position[0];voice.position[1]=position[1];voice.position[2]=position[2];return true;}return false; }
+bool AudioMixer::UpdateVoicePosition(uint32_t id,const float position[3]) { if(id==0||id==std::numeric_limits<uint32_t>::max()||position==nullptr||m_Voices.size()>kMaxVoices||m_Voices.empty()||!ValidWorldCoordinate(position[0])||!ValidWorldCoordinate(position[1])||!ValidWorldCoordinate(position[2]))return false;for(float value:{position[0],position[1],position[2]})if(!std::isfinite(value))return false;for(auto& voice:m_Voices)if(voice.id==id){voice.position[0]=position[0];voice.position[1]=position[1];voice.position[2]=position[2];return true;}return false; }
 bool AudioMixer::UpdateVoicePitch(uint32_t id,float pitch) { if(id==0||id==std::numeric_limits<uint32_t>::max()||m_Voices.size()>kMaxVoices||m_Voices.empty()||!std::isfinite(pitch)||pitch<=0.001f||pitch>8.0f)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.pitch=pitch;return true;}return false; }
 bool AudioMixer::UpdateVoiceGain(uint32_t id,uint16_t gainQ8) { if(id==0||id==std::numeric_limits<uint32_t>::max()||m_Voices.size()>kMaxVoices||m_Voices.empty()||gainQ8==0)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.gain=gainQ8;return true;}return false; }
 bool AudioMixer::Stop(uint32_t id) { if(id==0||m_Voices.size()>kMaxVoices)return false;if(m_Voices.empty())return false;auto it=std::find_if(m_Voices.begin(),m_Voices.end(),[&](const auto& voice){return voice.id==id;});if(it==m_Voices.end())return false;m_Voices.erase(it);return true; }
@@ -62,6 +62,7 @@ bool AudioMixer::SetListener(const AudioListener& listener) {
     for(float value:listener.up)if(!std::isfinite(value))return false;
     float forward[3]{listener.forward[0],listener.forward[1],listener.forward[2]},up[3]{listener.up[0],listener.up[1],listener.up[2]};
     if(!Normalize3(forward)||!Normalize3(up))return false;
+    if (std::fabs(Dot3(forward, up)) > 0.999f) return false;
     if (!ValidAttenuationModel(AudioAttenuationModel::Linear) || !ValidAttenuationModel(AudioAttenuationModel::InverseSquare) || !ValidAttenuationModel(AudioAttenuationModel::Logarithmic)) return false;
     const float orthogonality=std::fabs(Dot3(forward,up));if(!std::isfinite(orthogonality)||orthogonality>0.999f)return false;
     AudioListener canonical = listener;
@@ -80,7 +81,7 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
         return voice.id==0U || voice.samples.empty() || voice.samples.size()>kMaxSamplesPerVoice || voice.samples.capacity()>kMaxSamplesPerVoice || !std::isfinite(voice.cursorSubframe) ||
                !std::isfinite(voice.pitch) || voice.pitch<=0.001F || voice.pitch>8.0F || !std::isfinite(voice.pan) || voice.pan<-1.0F || voice.pan>1.0F;
     }),m_Voices.end());
-    if (m_Voices.size()>kMaxVoices) { out.clear(); return; }
+    if (m_Voices.size()>kMaxVoices || m_Voices.capacity()>kMaxVoices) { out.clear(); return; }
     for(size_t f=0;f<frames;++f){
         if (m_Voices.size()>kMaxVoices) { out.clear(); return; }
         int64_t left=0,right=0;
@@ -100,8 +101,10 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
             }
             if(!std::isfinite(voice.cursorSubframe)||voice.cursorSubframe<0.0||!std::isfinite(dynamicGain)||!std::isfinite(dynamicPan)||dynamicGain<0.0f||dynamicGain>256.0f||dynamicPan<-1.0f||dynamicPan>1.0f)continue;
             if (voice.spatialized && !ValidAttenuationModel(voice.attenuation.model)) continue;
+            if (!std::isfinite(voice.cursorSubframe)) continue;
             const double scaledSample=static_cast<double>(interpolated)*static_cast<double>(dynamicGain);if(!std::isfinite(scaledSample)||scaledSample>static_cast<double>(std::numeric_limits<int64_t>::max())||scaledSample<static_cast<double>(std::numeric_limits<int64_t>::min()))continue;
             const double roundedSample=std::llround(scaledSample); if(!std::isfinite(roundedSample)) continue; const int64_t sample=static_cast<int64_t>(roundedSample);const double nextCursor=voice.cursorSubframe+voice.pitch;
+            if (!std::isfinite(nextCursor)) continue;
             if (nextCursor > static_cast<double>(std::numeric_limits<size_t>::max())) continue;if(!std::isfinite(nextCursor)||nextCursor<voice.cursorSubframe)continue;voice.cursorSubframe=nextCursor;
             if(voice.cursorSubframe>static_cast<double>(std::numeric_limits<size_t>::max()))continue;
             if (voice.cursorSubframe < 0.0) continue;voice.cursor=static_cast<size_t>(voice.cursorSubframe);
