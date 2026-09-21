@@ -40,7 +40,13 @@ public class NeoEngineActivity extends Activity {
         settings.setDatabaseEnabled(true);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            settings.setSafeBrowsingEnabled(false);
+            settings.setSafeBrowsingEnabled(true);
+        }
+        // The editor is packaged as local assets. Keep file access limited to the
+        // app's own asset origin; never allow local files to reach arbitrary URLs.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            settings.setAllowFileAccessFromFileURLs(false);
+            settings.setAllowUniversalAccessFromFileURLs(false);
         }
 
         webView.setWebChromeClient(new WebChromeClient());
