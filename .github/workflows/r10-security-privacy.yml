@@ -6,6 +6,8 @@ on:
     paths:
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Runtime/NeoRuntime.*'
+      - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
       - 'Source/NeoEngine/Systems/AuthoritativeCommandGate.*'
       - 'Source/NeoEngine/Systems/TrustSafetySystem.*'
@@ -20,6 +22,8 @@ on:
     paths:
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Runtime/NeoRuntime.*'
+      - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Systems/FarmTelemetryAdapter.*'
       - 'Source/NeoEngine/Systems/AuthoritativeCommandGate.*'
       - 'Source/NeoEngine/Systems/TrustSafetySystem.*'
