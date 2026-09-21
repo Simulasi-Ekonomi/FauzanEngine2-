@@ -3,11 +3,14 @@
 #include <json/json.h>
 #include <android/log.h>
 #include <limits>
+#include <cstdlib>
 
 #define LOG_TAG_OC "OpenCodeIntegration"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG_OC, __VA_ARGS__)
 
 namespace NeoEngine {
+namespace { const char* EnvOrDefault(const char* name,const char* fallback){ const char* v=std::getenv(name); return (v&&*v)?v:fallback; } }
+
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
     if (output == nullptr || contents == nullptr || (nmemb != 0U && size > std::numeric_limits<size_t>::max() / nmemb)) return 0U;
@@ -23,7 +26,7 @@ OpenCodeIntegration::~OpenCodeIntegration() { Shutdown(); }
 bool OpenCodeIntegration::Initialize() {
     CURL* curl = curl_easy_init();
     if (!curl) { ready = false; return false; }
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:5000/health");
+    curl_easy_setopt(curl, CURLOPT_URL, EnvOrDefault("NEO_OPENCODE_HEALTH_URL","http://localhost:5000/health"));
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 2L);
     const CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
@@ -47,7 +50,7 @@ GeneratedCode OpenCodeIntegration::GenerateFromDescription(const std::string& de
     const std::string jsonBody = writer.write(body);
     std::string responseStr;
     struct curl_slist* headers = curl_slist_append(nullptr, "Content-Type: application/json");
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8765/v1/chat/completions");
+    curl_easy_setopt(curl, CURLOPT_URL, EnvOrDefault("NEO_OPENCODE_COMPLETIONS_URL","http://localhost:8765/v1/chat/completions"));
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonBody.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseStr);
