@@ -47,6 +47,7 @@ struct CanonicalFrameReceipt {
 class CanonicalRuntimeWorld {
 public:
     static constexpr uint16_t kMaxEntities = SceneWorld::kCapacity;
+    static constexpr uint8_t kMaxTriggers = 64U;
 
     CanonicalRuntimeWorld();
     ~CanonicalRuntimeWorld();
@@ -107,6 +108,8 @@ private:
     SceneSpriteAdapter sprites_;
     SceneRenderAdapter rendererAdapter_;
     std::array<Binding, kMaxBindings> bindings_{};
+    std::array<GameplayTriggerTracker, kMaxTriggers> triggers_{};
+    std::array<bool, kMaxTriggers> triggerConfigured_{};
     uint16_t bindingCount_ = 0U;
     uint64_t frame_ = 0U;
     CanonicalFrameReceipt lastFrame_{};
