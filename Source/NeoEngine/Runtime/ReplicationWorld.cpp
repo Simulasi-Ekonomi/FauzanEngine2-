@@ -289,6 +289,7 @@ bool ReplicationWorld::ApplyClientAcknowledgement(const ReplicationAcknowledgeme
 
 bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
+    if (snapshot.count > kMaxEntities) return Fail(ReplicationError::InvalidSnapshot);
     if (!ValidateSnapshot(snapshot)) return Fail(ReplicationError::InvalidSnapshot);
     if (snapshot.sequence <= snapshotSequence_ || snapshot.serverTick < lastServerTick_) return Fail(ReplicationError::StaleSnapshot);
     std::array<uint16_t, kMaxEntities> resolvedSlots{};
