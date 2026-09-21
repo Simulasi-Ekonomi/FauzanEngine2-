@@ -59,6 +59,7 @@ int main() {
     TEST_CHECK(stats.width == 800U && stats.height == 600U, "Frame dimensions mismatch");
     TEST_CHECK(stats.vertexCount == vertices.size(), "Vertex count mismatch");
     TEST_CHECK(stats.indexCount == indices.size(), "Index count mismatch");
+    TEST_CHECK(stats.frameIndex == 1U, "First frame index mismatch");
 
     TEST_CHECK(renderer.Resize(640, 480), "Renderer resize failed");
     TEST_CHECK(renderer.BeginFrame(), "BeginFrame after resize failed");
