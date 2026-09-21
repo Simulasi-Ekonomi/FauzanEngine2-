@@ -23,6 +23,8 @@ provenance = ROOT / "p4-release-provenance.txt"
 manifest_path = ROOT / "p4-release-manifest.sha256"
 sbom_path = ROOT / "p4-source-sbom.json"
 
+if artifact.stat().st_size == 0:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL empty_artifact")
 if not artifact.is_file():
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_not_regular_file")
 if artifact.suffix not in {".apk", ".aab"}:
@@ -51,6 +53,8 @@ tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).s
 if values["commit"] != head or values["tree"] != tree:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL git_identity_mismatch")
 
+if any(ord(ch) < 32 for ch in values["artifact"]):
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL unsafe_artifact_identity")
 if values["artifact"] != sys.argv[1]:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_identity_mismatch")
 reference = Path(values["reference_artifact"])
