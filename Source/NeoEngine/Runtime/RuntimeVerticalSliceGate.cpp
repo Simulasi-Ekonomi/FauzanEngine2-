@@ -41,6 +41,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
   const auto postTickSceneCount=runtime.Scene()->AliveCount();
   if(postTickSceneCount>std::numeric_limits<uint32_t>::max() || runtime.SceneECS().sceneCount!=postTickSceneCount || runtime.SceneECS().ecsCount!=postTickSceneCount){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
   if(runtime.SceneECS().revision!=runtime.ECS()->GetPhysicsRevision()){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
+  if(runtime.SceneMeshes()==nullptr || runtime.Assets()==nullptr || runtime.Resources()==nullptr || runtime.Replication()==nullptr){receipt.error=VerticalSliceGateError::AssetsMissing;return false;}
  }
  receipt.error=VerticalSliceGateError::None;
  return true;
