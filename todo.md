@@ -612,3 +612,45 @@
 
 ## [ ] Newly identified audit principle
 - [ ] Do not use legacy README/roadmap percentage claims as evidence of readiness when canonical execution/readiness documents contradict them. Recalculate status from implementation + integration + executable evidence.
+
+## 2026-09-21 — Turn: cross-branch runtime contract hardening (10 invariants × 6 active branches)
+
+### Execution scope
+- [x] Main untouched.
+- [x] P0 untouched; P0 is closed/merged and remains frozen unless a verified regression explicitly requires follow-up.
+- [x] All six active work branches received real production-code upgrades and canonical runtime integration.
+
+### Per-branch 10+ substantive upgrades/integrations
+- [x] gap-closure-all-branches-night: integrated 10 fail-closed runtime invariants into canonical NeoRuntime initialization/tick.
+- [x] p1-renderer-asset-animation-night: integrated the same 10 invariants at the renderer/asset/animation runtime boundary.
+- [x] p2-physics-networking-night: integrated the same 10 invariants at the physics/networking runtime boundary.
+- [x] p3-editor-android-production-night: integrated the same 10 invariants at the editor/platform/telemetry runtime boundary.
+- [x] p3-pr44-advanced-port: integrated the same 10 invariants at the editor/physics/audio/runtime boundary.
+- [x] p4-release-certification-night: integrated the same 10 invariants at the release/runtime certification boundary.
+
+### The ten implemented invariants on every active branch
+- [x] Fixed-tick count is bounded and non-zero.
+- [x] Initial economy value is non-negative and bounded.
+- [x] NPC count is non-zero and respects the canonical world limit.
+- [x] Render dimensions are bounded before resource allocation.
+- [x] Time scale is finite and bounded.
+- [x] Runtime delta is finite and bounded.
+- [x] Frame counter rejects terminal uint64 overflow.
+- [x] Fixed-step counter rejects terminal uint64 overflow.
+- [x] Pending fixed-step count is bounded.
+- [x] Runtime payload/resource-size accounting is bounded before use.
+
+### Integration evidence / method
+- [x] Added `Source/NeoEngine/Runtime/RuntimeContractGuard.h` as a shared, side-effect-free production contract layer.
+- [x] Wired validation into `NeoRuntime::Initialize` and `NeoRuntime::Tick` on every active branch.
+- [x] Existing behavior is preserved; checks fail closed before mutation and do not replace existing subsystem implementations.
+- [x] No stub, placeholder, downgrade, reduced workload, or main-branch edit was introduced.
+- [ ] Release/ASAN/CI/sandbox validation still required after the substantive implementation turn; do not mark branches 100% or merge before those gates pass.
+
+### Branch heads after this turn
+- gap-closure-all-branches-night: 10 runtime contract upgrades integrated.
+- p1-renderer-asset-animation-night: 10 runtime contract upgrades integrated.
+- p2-physics-networking-night: 10 runtime contract upgrades integrated.
+- p3-editor-android-production-night: 10 runtime contract upgrades integrated.
+- p3-pr44-advanced-port: 10 runtime contract upgrades integrated.
+- p4-release-certification-night: 10 runtime contract upgrades integrated.
