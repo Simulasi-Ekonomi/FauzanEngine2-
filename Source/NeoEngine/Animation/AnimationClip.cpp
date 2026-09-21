@@ -45,8 +45,10 @@ void AnimationClip::AddKeyframe(int bone, const Keyframe& frame) {
 
     auto it = std::lower_bound(track.begin(), track.end(), frame.time,
                                [](const Keyframe& value, float time) { return value.time < time; });
+    bool replaced = false;
     if (it != track.end() && std::fabs(it->time - frame.time) <= 1.0e-6F) {
         *it = frame;
+        replaced = true;
     } else {
         try {
             track.insert(it, frame);
@@ -54,7 +56,16 @@ void AnimationClip::AddKeyframe(int bone, const Keyframe& frame) {
             return;
         }
     }
-    duration = std::max(duration, frame.time);
+    if (!replaced || frame.time >= duration) {
+        duration = std::max(duration, frame.time);
+    } else if (it != track.end() && it->time >= duration) {
+        duration = frame.time;
+    }
+    if (replaced && std::isfinite(duration)) {
+        float recomputed = 0.0F;
+        for (const auto& candidateTrack : tracks) if (!candidateTrack.empty()) recomputed = std::max(recomputed, candidateTrack.back().time);
+        duration = recomputed;
+    }
 }
 
 const std::vector<Keyframe>& AnimationClip::GetFrames(int bone) const {
@@ -86,7 +97,12 @@ bool AnimationClip::IsValid() const noexcept {
 
 bool AnimationClip::Sample(int bone, float time, Mat4& out) const {
     const auto& track = GetFrames(bone);
-    if (!IsValid() || track.empty() || !std::isfinite(time) || !std::isfinite(duration) || time < 0.0F || time > duration) return false;
+    if (track.empty() || !std::isfinite(time) || !std::isfinite(duration) || time < 0.0F || time > duration) return false;
+    float previous = -1.0F;
+    for (const Keyframe& frame : track) {
+        if (!std::isfinite(frame.time) || frame.time < 0.0F || frame.time > duration || !FiniteMatrix(frame.transform) || frame.time <= previous) return false;
+        previous = frame.time;
+    }
     if (track.size() == 1U || time <= track.front().time) { out = track.front().transform; return true; }
     if (time >= track.back().time) { out = track.back().transform; return true; }
 
