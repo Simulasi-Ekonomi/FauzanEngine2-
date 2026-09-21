@@ -8,6 +8,8 @@
 #include "Runtime/SceneRenderAdapter.h"
 #include "Runtime/SceneSpriteAdapter.h"
 #include "Runtime/SceneWorld.h"
+#include "Runtime/GameplayPhysicsQuery.h"
+#include "Runtime/GameplayTriggerTracker.h"
 
 #include <array>
 #include <cstddef>
@@ -45,6 +47,7 @@ struct CanonicalFrameReceipt {
 class CanonicalRuntimeWorld {
 public:
     static constexpr uint16_t kMaxEntities = SceneWorld::kCapacity;
+    static constexpr uint8_t kMaxTriggers = 64U;
 
     CanonicalRuntimeWorld();
     CanonicalRuntimeWorld(const CanonicalRuntimeWorld&) = delete;
@@ -55,6 +58,17 @@ public:
     bool DestroyEntity(CanonicalEntity entity);
     bool SetTransform(CanonicalEntity entity, const Transform3& transform);
     bool BindMesh(const SceneMeshInstance& instance);
+    bool Raycast(const GameplayRay2& ray, GameplayRayHit2& hit);
+    bool RaycastSet(const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits);
+    bool OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
+    bool OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets);
+    bool ConfigureTrigger(uint8_t triggerIndex, GameplayTriggerCircleConfig config);
+    bool UpdateTrigger(uint8_t triggerIndex);
+    [[nodiscard]] const GameplayTriggerDelta* TriggerDelta(uint8_t triggerIndex) const;
+    bool IsPhysicsEntityAwake(const CanonicalEntity& entity) const;
+    bool WakePhysicsEntity(const CanonicalEntity& entity);
+    bool SleepPhysicsEntity(const CanonicalEntity& entity);
+    bool WakePhysicsEntities(const std::vector<CanonicalEntity>& entities);
 
     bool Step(float dt);
     bool RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
@@ -94,6 +108,9 @@ private:
     SceneSpriteAdapter sprites_;
     SceneRenderAdapter rendererAdapter_;
     std::array<Binding, kMaxBindings> bindings_{};
+    std::array<GameplayTriggerTracker, kMaxTriggers> triggers_{};
+    std::array<bool, kMaxTriggers> triggerConfigured_{};
+    GameplayPhysicsQuery physicsQuery_{};
     uint16_t bindingCount_ = 0U;
     uint64_t frame_ = 0U;
     CanonicalFrameReceipt lastFrame_{};
