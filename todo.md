@@ -613,3 +613,17 @@
 - [x] T5 mix output allocation overflow guard.
 - [x] T5 per-voice capacity guard during mixing.
 - [x] T5 spatial position finiteness guard during mixing.
+
+
+## 2026-09-21 — Turn 6 — implementation/integration ledger
+- [x] T6-01 impossible uint16 gain upper-bound check removed.
+- [x] T6-02 spatial voice position finiteness validated.
+- [x] T6-03 voice pool existence required for spatial updates.
+- [x] T6-04 voice pool existence required for pitch updates.
+- [x] T6-05 voice pool existence required for gain updates.
+- [x] T6-06 sample capacity bounded before ownership transfer.
+- [x] T6-07 post-move sample capacity revalidated.
+- [x] T6-08 spatial sample capacity revalidated.
+- [x] T6-09 mix output size remains bounded.
+- [x] T6-10 voice cursor remains finite during mixing.
+- [x] T6-11 Clear lifecycle remains deterministic.
