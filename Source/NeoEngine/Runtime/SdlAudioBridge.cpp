@@ -173,6 +173,7 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
 
     constexpr size_t bytesPerFrame = sizeof(int16_t) * kStereoChannels;
+    if (bridge->callbackBufferFrames_ == 0U) return;
     const size_t requestedBytes = static_cast<size_t>(additionalAmount);
     if (requestedBytes > static_cast<size_t>(std::numeric_limits<int>::max()) * 1024U) return;
     const size_t frames = requestedBytes / bytesPerFrame;
@@ -186,6 +187,8 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
         bridge->mixer_.Mix(chunkFrames, bridge->callbackBuffer_);
         const size_t chunkBytes = chunkFrames * bytesPerFrame;
         SDL_PutAudioStreamData(stream, bridge->callbackBuffer_.data(), static_cast<int>(chunkBytes));
+        const uint64_t prior = bridge->framesMixed_.load(std::memory_order_relaxed);
+        if (chunkFrames > std::numeric_limits<uint64_t>::max() - prior) return;
         bridge->framesMixed_.fetch_add(chunkFrames, std::memory_order_relaxed);
         remainingFrames -= chunkFrames;
     }
