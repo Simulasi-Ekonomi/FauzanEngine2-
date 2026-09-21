@@ -17,6 +17,9 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 
 #define NEO_JNI_TAG "NeoEngine-JNI"
 #define NEO_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  NEO_JNI_TAG, __VA_ARGS__)
@@ -308,6 +311,14 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
     NEO_LOGI("nativeShutdown");
     NeoJNI::g_Running     = false;
     NeoJNI::g_Initialized = false;
+    NeoJNI::g_DeltaTime = 0.0f;
+    NeoJNI::g_FrameCount = 0;
+    NeoJNI::g_FPS = 0.0f;
+    NeoJNI::g_Telemetry = {};
+    NeoJNI::g_Actors.clear();
+    NeoJNI::g_ActorsByName.clear();
+    NeoJNI::g_LoadedChunks.clear();
+    NeoJNI::g_ChunkActors.clear();
     if (NeoJNI::g_Activity) {
         env->DeleteGlobalRef(NeoJNI::g_Activity);
         NeoJNI::g_Activity = nullptr;
@@ -387,6 +398,9 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     a.type     = type;
     a.position = {x, y, z};
 
+    if (NeoJNI::g_ActorsByName.find(name) != NeoJNI::g_ActorsByName.end()) {
+        env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
+    }
     NeoJNI::g_Actors[id]        = a;
     NeoJNI::g_ActorsByName[name] = id;
 
@@ -510,7 +524,9 @@ Java_com_neoengine_core_NeoEngineBridge_nativeGetTelemetryJSON(JNIEnv* env, jcla
 
 JNIEXPORT jint JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeGetActorCount(JNIEnv*, jclass) {
-    return static_cast<jint>(NeoJNI::g_Actors.size());
+    std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
+    const size_t count = NeoJNI::g_Actors.size();
+    return static_cast<jint>(std::min(count, static_cast<size_t>(std::numeric_limits<jint>::max())));
 }
 
 JNIEXPORT jboolean JNICALL
