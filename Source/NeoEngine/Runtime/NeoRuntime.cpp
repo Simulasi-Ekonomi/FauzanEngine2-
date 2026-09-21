@@ -416,12 +416,12 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
     }
     RuntimePersistenceError error = RuntimePersistenceError::None;
     std::vector<uint8_t> encoded;
-    if (encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
+    if (payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (!RuntimeSaveCodec::Serialize({kFarmProgressCheckpointKind, revision, std::move(payload)}, encoded, error)) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
     }
-    if (encoded.empty() || encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes || encoded.size() < payload.size()) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
+    if (encoded.empty() || encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     bytes = std::move(encoded);
     m_LastError = RuntimeError::None;
     return true;
@@ -461,8 +461,10 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
         return false;
     }
     const RuntimeTimeSnapshot restoredTime = candidateTime->Snapshot();
+    const RuntimeClockSnapshot currentClock = m_Clock->Snapshot();
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(envelope.revision) || envelope.revision > currentClock.frameCount) { m_LastError = RuntimeError::CheckpointDecodeFailed; return false; }
     RuntimeClock candidateClock = *m_Clock;
-    if (restoredTime.timeScalePermille > RuntimeTimeSystem::kMaxTimeScalePermille || !candidateClock.SetPaused(restoredTime.paused) ||
+    if (restoredTime.timeScalePermille > RuntimeTimeSystem::kMaxTimeScalePermille || restoredTime.fixedStepCount > currentClock.fixedStepCount || !candidateClock.SetPaused(restoredTime.paused) ||
         !candidateClock.SetTimeScale(static_cast<float>(restoredTime.timeScalePermille) / 1000.0F) || !candidateWorld->SyncScene()) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
         return false;
