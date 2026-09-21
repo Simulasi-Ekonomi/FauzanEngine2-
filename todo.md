@@ -599,3 +599,17 @@
 - [x] p4-release-certification-night T4-09: file entries cannot use directory suffix.
 - [x] p4-release-certification-night T4-10: encrypted ZIP entries remain rejected.
 - [x] p4-release-certification-night T4-11: release gate keeps artifact validation fail-closed.
+
+
+## 2026-09-21 — Turn 5 — implementation/integration correction ledger
+- [x] T5 artifact path traversal guard retained.
+- [x] T5 ZIP duplicate-entry rejection retained.
+- [x] T5 required manifest presence retained.
+- [x] T5 local header extent validation retained.
+- [x] T5 compressed data extent validation retained.
+- [x] T5 overlapping entry rejection retained.
+- [x] T5 compression ratio bound retained.
+- [x] T5 unsupported compression rejection retained.
+- [x] T5 special-file rejection retained.
+- [x] T5 UTF-8 filename flag validation retained.
+- [x] T5 signature verification gate retained.
