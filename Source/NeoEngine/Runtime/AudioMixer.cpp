@@ -57,13 +57,22 @@ bool AudioMixer::SetListener(const AudioListener& listener) {
     float forward[3]{listener.forward[0],listener.forward[1],listener.forward[2]},up[3]{listener.up[0],listener.up[1],listener.up[2]};
     if(!Normalize3(forward)||!Normalize3(up))return false;
     const float orthogonality=std::fabs(Dot3(forward,up));if(!std::isfinite(orthogonality)||orthogonality>0.999f)return false;
-    m_Listener=listener;return true;
+    AudioListener canonical = listener;
+    canonical.forward[0]=forward[0]; canonical.forward[1]=forward[1]; canonical.forward[2]=forward[2];
+    canonical.up[0]=up[0]; canonical.up[1]=up[1]; canonical.up[2]=up[2];
+    m_Listener=canonical;return true;
 }
 
 void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
     if(frames>kMaxMixFrames||frames>std::numeric_limits<size_t>::max()/2U||m_Voices.size()>kMaxVoices){out.clear();return;}
     try{out.assign(frames*2U,0);}catch(...){out.clear();return;}
+    if (out.capacity() < out.size() || out.size() > kMaxMixFrames * 2U) { out.clear(); return; }
     if(out.size()!=frames*2U){out.clear();return;}
+    m_Voices.erase(std::remove_if(m_Voices.begin(),m_Voices.end(),[](const auto& voice){
+        return voice.id==0U || voice.samples.empty() || voice.samples.size()>kMaxSamplesPerVoice || !std::isfinite(voice.cursorSubframe) ||
+               !std::isfinite(voice.pitch) || voice.pitch<=0.001F || voice.pitch>8.0F || !std::isfinite(voice.pan) || voice.pan<-1.0F || voice.pan>1.0F;
+    }),m_Voices.end());
+    if (m_Voices.size()>kMaxVoices) { m_Voices.clear(); out.clear(); return; }
     for(size_t f=0;f<frames;++f){
         if (m_Voices.size()>kMaxVoices) { out.clear(); return; }
         int64_t left=0,right=0;
