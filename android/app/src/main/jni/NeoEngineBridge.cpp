@@ -161,7 +161,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     JNIEnv* env, jclass, jint seed, jfloat sizeKm)
 {
-    if (!NeoJNI::g_Initialized || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
         NEO_LOGE("startWorldStreaming: invalid world size %.3f km", sizeKm);
         return;
     }
@@ -224,7 +224,7 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
 
                     // Generate chunk
                     NeoEngine::WorldChunk chunk = NeoJNI::g_WorldGenerator->GenerateChunk(cx, cz);
-                    if (chunk.objects.size() > 100000U) continue;
+                    if (chunk.objects.size() > 100000U || chunk.objects.size() > chunk.objects.max_size()) continue;
                     
                     // Convert to actors and add to scene
                     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
@@ -235,6 +235,7 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
                         a.id = NeoJNI::g_NextActorId++;
                         a.name = obj.type + "_" + std::to_string(a.id);
                         a.type = obj.type;
+                        if (!std::isfinite(obj.position.x) || !std::isfinite(obj.position.y) || !std::isfinite(obj.position.z) || !std::isfinite(obj.rotation.x) || !std::isfinite(obj.rotation.y) || !std::isfinite(obj.rotation.z) || !std::isfinite(obj.scale.x) || !std::isfinite(obj.scale.y) || !std::isfinite(obj.scale.z) || obj.scale.x <= 0.0f || obj.scale.y <= 0.0f || obj.scale.z <= 0.0f) continue;
                         a.position = {obj.position.x, obj.position.y, obj.position.z};
                         a.rotation = {obj.rotation.x, obj.rotation.y, obj.rotation.z};
                         a.scale = {obj.scale.x, obj.scale.y, obj.scale.z};
@@ -288,7 +289,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
     jobject activity, jobject assetManager,
     jint w, jint h)
 {
-    if (env == nullptr || activity == nullptr || assetManager == nullptr || w <= 0 || h <= 0 || w > 16384 || h > 16384) return JNI_FALSE;
+    if (env == nullptr || activity == nullptr || assetManager == nullptr || w <= 0 || h <= 0 || w > 16384 || h > 16384 || static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) > 16ULL * 1024ULL * 1024ULL) return JNI_FALSE;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (NeoJNI::g_Initialized) return JNI_TRUE;
     NEO_LOGI("nativeInit %dx%d", w, h);
@@ -325,6 +326,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
+    if (env == nullptr) return;
     NeoJNI::g_StreamingActive = false;
     if (NeoJNI::g_StreamingThread.joinable()) NeoJNI::g_StreamingThread.join();
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
@@ -398,13 +400,13 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTouchEvent(
     JNIEnv*, jclass, jint action, jfloat x, jfloat y, jint ptr)
 {
-    if (action < 0 || action > 3 || !std::isfinite(x) || !std::isfinite(y) || ptr < 0) return;
+    if (action < 0 || action > 3 || !std::isfinite(x) || !std::isfinite(y) || x < 0.0f || y < 0.0f || ptr < 0 || ptr > 15) return;
     NEO_LOGD("Touch a=%d (%.1f,%.1f) ptr=%d", action, x, y, ptr);
 }
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeKeyEvent(JNIEnv*, jclass, jint key, jint action) {
-    if (key < 0 || key > 0xFFFF || action < 0 || action > 3) return;
+    if (key < 0 || key > 0xFFFF || action < 0 || action > 3 || !NeoJNI::g_Initialized) return;
     NEO_LOGD("Key key=%d action=%d", key, action);
 }
 
@@ -430,7 +432,7 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     if (NeoJNI::g_NextActorId <= 0 || NeoJNI::g_NextActorId == std::numeric_limits<int>::max()) {
         env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
     }
-    int id = NeoJNI::g_NextActorId++;
+    int id = NeoJNI::g_NextActorId;
 
     NeoJNI::Actor a;
     if (std::strlen(name) > 4096U || std::strlen(type) > 1024U) {
@@ -440,7 +442,13 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     a.name     = name;
     a.type     = type;
     a.position = {x, y, z};
+    if (NeoJNI::g_Actors.size() >= 1000000U) {
+        env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
+    }
 
+    if (*name == '\0' || *type == '\0') {
+        env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
+    }
     if (NeoJNI::g_ActorsByName.find(name) != NeoJNI::g_ActorsByName.end()) {
         env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
     }
@@ -448,6 +456,7 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
         env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
     }
     NeoJNI::g_Actors[id] = a;
+    ++NeoJNI::g_NextActorId;
     NeoJNI::g_ActorsByName[name] = id;
 
     NEO_LOGI("addActor: id=%d name=%s type=%s pos=(%.1f,%.1f,%.1f)", id, name, type, x, y, z);
