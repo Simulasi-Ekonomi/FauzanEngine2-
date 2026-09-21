@@ -8,7 +8,7 @@ namespace NeoEngine {
 void EditorSceneSession::PushHistory(std::vector<EditorSceneDocument>& history, const EditorSceneDocument& document) { if (history.size() == kMaxHistory) history.erase(history.begin()); history.push_back(document); }
 bool EditorSceneSession::Open(const EditorSceneDocument& document, const AssetRegistry& assets) {
     if (document.revision == 0U || document.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
-    if (document.actors.size() > EditorSceneDocumentAdapter::kMaxActors) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } if (!OpenCandidate(document, assets, true)) return false; undoHistory_.clear(); redoHistory_.clear(); return true; }
+    if (document.actors.size() > EditorSceneDocumentAdapter::kMaxActors || document.actors.capacity() > EditorSceneDocumentAdapter::kMaxActors) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } if (!OpenCandidate(document, assets, true)) return false; undoHistory_.clear(); redoHistory_.clear(); return true; }
 bool EditorSceneSession::OpenCandidate(const EditorSceneDocument& document, const AssetRegistry& assets, bool markSaved) {
     EditorSceneDocumentAdapter documentAdapter; SceneWorld world;
     if (!documentAdapter.Load(document, assets, world)) { lastError_ = EditorSceneSessionError::DocumentLoadFailed; return false; }
