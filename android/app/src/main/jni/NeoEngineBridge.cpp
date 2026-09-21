@@ -166,7 +166,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     JNIEnv* env, jclass, jint seed, jfloat sizeKm)
 {
-    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_Runtime == nullptr || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
         NEO_LOGE("startWorldStreaming: invalid world size %.3f km", sizeKm);
         return;
     }
@@ -183,6 +183,7 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     NeoJNI::g_NextActorId = 1;
 
     // Initialize world generator
+    if (NeoJNI::g_WorldGenerator != nullptr) return;
     NeoEngine::WorldConfig cfg;
     cfg.worldSizeKm = sizeKm;
     cfg.seed = seed;
@@ -304,6 +305,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
     NEO_LOGI("nativeInit %dx%d", w, h);
 
     NeoJNI::g_Activity  = env->NewGlobalRef(activity);
+    if (NeoJNI::g_Activity == nullptr) return JNI_FALSE;
     NeoJNI::g_AssetMgr  = AAssetManager_fromJava(env, assetManager);
 
     if (!NeoJNI::g_AssetMgr) {
@@ -323,7 +325,11 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
         NeoJNI::g_AssetMgr = nullptr;
         return JNI_FALSE;
     }
-    if (runtime->LastError() != NeoEngine::RuntimeError::None) return JNI_FALSE;
+    if (runtime->LastError() != NeoEngine::RuntimeError::None) {
+        env->DeleteGlobalRef(NeoJNI::g_Activity); NeoJNI::g_Activity = nullptr;
+        NeoJNI::g_AssetMgr = nullptr;
+        return JNI_FALSE;
+    }
     NeoJNI::g_Runtime = std::move(runtime);
     NeoJNI::g_Running     = true;
     NeoJNI::g_Initialized = true;
@@ -356,10 +362,14 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
     NeoJNI::g_RenderHeight = 0;
     NeoJNI::g_FPS = 0.0f;
     NeoJNI::g_Telemetry = {};
+    NeoJNI::g_CameraX = 0.0f;
+    NeoJNI::g_CameraZ = 0.0f;
+    NeoJNI::g_WorldGenerator.reset();
     NeoJNI::g_Actors.clear();
     NeoJNI::g_ActorsByName.clear();
     NeoJNI::g_LoadedChunks.clear();
     NeoJNI::g_ChunkActors.clear();
+    NeoJNI::g_NextActorId = 1;
     if (NeoJNI::g_Activity) {
         env->DeleteGlobalRef(NeoJNI::g_Activity);
         NeoJNI::g_Activity = nullptr;
@@ -368,7 +378,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
-    if (!NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (!NeoJNI::g_Runtime || !NeoJNI::g_Initialized || !NeoJNI::g_Running) return;
     if (!std::isfinite(dt) || dt < 0.0f || dt > 1.0f) return;
@@ -447,7 +457,6 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     }
     int id = NeoJNI::g_NextActorId;
 
-    NeoJNI::Actor a;
     if (std::strlen(name) > 4096U || std::strlen(type) > 1024U) {
         env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
     }
@@ -460,9 +469,6 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     }
 
     if (*name == '\0' || *type == '\0') {
-        env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
-    }
-    if (NeoJNI::g_ActorsByName.find(name) != NeoJNI::g_ActorsByName.end()) {
         env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
     }
     if (NeoJNI::g_ActorsByName.find(name) != NeoJNI::g_ActorsByName.end()) {
