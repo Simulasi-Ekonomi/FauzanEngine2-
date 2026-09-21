@@ -31,6 +31,7 @@ void AnimationPlayer::Stop() noexcept {
 
 bool AnimationPlayer::Update(float dt) {
     if (!playing_ || currentClip_ == nullptr || !std::isfinite(dt) || dt < 0.0F || dt > 3600.0F) return false;
+    if (!std::isfinite(time_) || time_ < 0.0F || time_ > 86400.0F) return false;
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F) return false;
     if (duration <= 0.0F) {
@@ -60,7 +61,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
                                    std::vector<Mat4>& skinningPalette) const {
     if (currentClip_ == nullptr || skeleton_ == nullptr || !skeleton_->IsComplete() || !std::isfinite(time_) || time_ < 0.0F) return false;
     const size_t boneCount = skeleton_->GetBoneCount();
-    if (boneCount == 0U || boneCount > kMaxPaletteBones) return false;
+    if (boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
 
     std::vector<Mat4> candidateLocal;
     try { candidateLocal.reserve(boneCount); } catch (...) { return false; }
