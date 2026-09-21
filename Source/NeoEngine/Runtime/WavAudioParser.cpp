@@ -40,7 +40,7 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
             ++offset;
         }
     }
-    if (offset != bytes.size() || !fmtFound || !dataFound || format != 1 || channels == 0 || channels > 2 || rate == 0 ||
+    if (offset != bytes.size() || !fmtFound || !dataFound || format != 1 || channels == 0 || channels > 2 || rate == 0 || rate > 192000U ||
         (bits != 8 && bits != 16) || dataSize % (static_cast<size_t>(channels) * (bits / 8U)) != 0) return false;
     const size_t bytesPerSample = bits / 8U;
     const size_t frameBytes = static_cast<size_t>(channels) * bytesPerSample;
@@ -52,7 +52,7 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
     if (sampleCount > 0U && sampleCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
     if (sampleCount > std::vector<int16_t>().max_size() || sampleCount > 48000ULL * 60ULL * 60ULL * 2ULL) return false;
     if (dataOffset > bytes.size() || dataSize > bytes.size() - dataOffset) return false;
-    out.sampleRate = rate; out.channels = channels;
+    out.sampleRate = rate; out.channels = 1U;
     try { out.pcmSamples.resize(frameCount); } catch (...) { out = {}; return false; }
     if (out.pcmSamples.size() != frameCount) { out = {}; return false; }
     if (bits == 16) {
@@ -88,6 +88,7 @@ std::vector<uint8_t> WavAudioParser::GenerateSyntheticWav(uint32_t sampleRate, u
     const uint64_t byteRate = static_cast<uint64_t>(sampleRate) * channels * 2U;
     if (dataBytes > std::numeric_limits<uint32_t>::max() - 36U || byteRate > std::numeric_limits<uint32_t>::max()) return {};
     const uint64_t outputBytes = 44U + dataBytes;
+    if (frequencyHz > static_cast<float>(sampleRate) * 0.5F) return {};
     if (outputBytes > std::vector<uint8_t>().max_size()) return {};
     std::vector<uint8_t> b;
     try { b.reserve(static_cast<size_t>(outputBytes)); } catch (...) { return {}; }
@@ -95,6 +96,7 @@ std::vector<uint8_t> WavAudioParser::GenerateSyntheticWav(uint32_t sampleRate, u
     b.insert(b.end(), {'f','m','t',' '}); Put32(b, 16); Put16(b, 1); Put16(b, channels); Put32(b, sampleRate); Put32(b, static_cast<uint32_t>(byteRate)); Put16(b, static_cast<uint16_t>(channels * 2U)); Put16(b, 16);
     b.insert(b.end(), {'d','a','t','a'}); Put32(b, static_cast<uint32_t>(dataBytes));
     for (uint32_t f = 0; f < frames; ++f) { const int16_t s = static_cast<int16_t>(std::sin(2.0 * 3.141592653589793 * frequencyHz * f / sampleRate) * 12000.0); for (uint16_t c = 0; c < channels; ++c) Put16(b, static_cast<uint16_t>(s)); }
+    if (b.size() != static_cast<size_t>(outputBytes)) return {};
     return b;
 }
 } // namespace NeoEngine
