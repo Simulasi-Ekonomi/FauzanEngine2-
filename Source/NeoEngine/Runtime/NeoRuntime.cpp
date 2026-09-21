@@ -398,9 +398,11 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
         return false;
     }
     const std::vector<uint8_t> worldBytes = m_FarmWorld->Serialize();
+    if (worldBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     std::vector<uint8_t> timeBytes;
     std::vector<uint8_t> curriculumBytes;
     const std::vector<uint8_t> authorityBytes = m_FarmAuthority->SerializeAuthorityLedger();
+    if (authorityBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (worldBytes.empty() || !m_Time->Serialize(timeBytes) || timeBytes.empty() || authorityBytes.empty() ||
         (m_Curriculum != nullptr && (!m_Curriculum->Serialize(curriculumBytes) || curriculumBytes.empty()))) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
@@ -419,7 +421,7 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
     }
-    if (encoded.empty() || encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::PersistenceFailed; return false; }
+    if (encoded.empty() || encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes || encoded.size() < payload.size()) { m_LastError = RuntimeError::PersistenceFailed; return false; }
     bytes = std::move(encoded);
     m_LastError = RuntimeError::None;
     return true;
@@ -432,13 +434,13 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     }
     RuntimeSaveEnvelope envelope{};
     RuntimePersistenceError error = RuntimePersistenceError::None;
-    if (!RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kFarmProgressCheckpointKind || envelope.revision == 0U || envelope.payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) {
+    if (bytes.empty() || bytes.size() > RuntimeSaveCodec::kMaxPayloadBytes + 4096U || !RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kFarmProgressCheckpointKind || envelope.revision == 0U || envelope.revision == std::numeric_limits<uint64_t>::max() || envelope.payload.empty() || envelope.payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
         return false;
     }
     size_t offset = 0U;
     std::vector<uint8_t> worldBytes, timeBytes, authorityBytes, curriculumBytes;
-    if (!ReadBlob(envelope.payload, offset, worldBytes) || !ReadBlob(envelope.payload, offset, timeBytes) || !ReadBlob(envelope.payload, offset, authorityBytes) ||
+    if (!ReadBlob(envelope.payload, offset, worldBytes) || worldBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes || !ReadBlob(envelope.payload, offset, timeBytes) || timeBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes || !ReadBlob(envelope.payload, offset, authorityBytes) || authorityBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes ||
         (offset < envelope.payload.size() && !ReadBlob(envelope.payload, offset, curriculumBytes)) || offset != envelope.payload.size() ||
         (m_Curriculum == nullptr && !curriculumBytes.empty())) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
