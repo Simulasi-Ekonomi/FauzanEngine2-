@@ -478,10 +478,26 @@ bool ReplicationWorld::SetInterpolationAlphaPermille(uint16_t alphaPermille) {
 bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
     if (role_ != ReplicationRole::Client) return Fail(ReplicationError::NotClient);
     uint16_t interpolated = 0U;
-    for (const Slot& slot : slots_) {
+    std::array<Transform3, kMaxEntities> previousTransforms{};
+    std::array<bool, kMaxEntities> changed{};
+    changed.fill(false);
+    for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
+        const Slot& slot = slots_[slotIndex];
         if (!slot.registered || slot.ownerId == localClientId_ || !slot.hasAuthoritative) continue;
+        const Transform3* previous = sceneWorld_.GetTransform(slot.entity);
+        if (previous == nullptr) {
+            for (uint16_t rollbackIndex = 0U; rollbackIndex < kMaxEntities; ++rollbackIndex)
+                if (changed[rollbackIndex]) (void)sceneWorld_.SetTransform(slots_[rollbackIndex].entity, previousTransforms[rollbackIndex]);
+            return Fail(ReplicationError::InvalidEntity);
+        }
+        previousTransforms[slotIndex] = *previous;
         const Transform3 candidate = Lerp(slot.previousAuthoritative, slot.authoritative, interpolationAlphaPermille_);
-        if (!sceneWorld_.SetTransform(slot.entity, candidate)) return Fail(ReplicationError::SceneApplyRejected);
+        if (!sceneWorld_.SetTransform(slot.entity, candidate)) {
+            for (uint16_t rollbackIndex = 0U; rollbackIndex < kMaxEntities; ++rollbackIndex)
+                if (changed[rollbackIndex]) (void)sceneWorld_.SetTransform(slots_[rollbackIndex].entity, previousTransforms[rollbackIndex]);
+            return Fail(ReplicationError::SceneApplyRejected);
+        }
+        changed[slotIndex] = true;
         ++interpolated;
     }
     ReplicationApplyReceipt candidateReceipt{};
