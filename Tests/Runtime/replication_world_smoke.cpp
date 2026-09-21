@@ -200,7 +200,7 @@ int main() {
     atomicSnapshot.states[0] = {700U, 7U, 1U, {2.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
     atomicSnapshot.states[1] = {701U, 8U, 1U, {std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
     ReplicationApplyReceipt atomicReceipt{41U, 42U, 43U, 44U, 45U, 46U, 47U, true};
-    if (atomicClient.ApplyServerSnapshot(atomicSnapshot, atomicReceipt) || atomicClient.LastError() != ReplicationError::InvalidSnapshot || atomicClient.RegisteredCount() != 1U || atomicClient.IsRegistered(701U) || atomicReceipt.sequence != 41U || atomicReceipt.appliedEntities != 43U || atomicReceipt.accepted) return 32;
+    if (atomicClient.ApplyServerSnapshot(atomicSnapshot, atomicReceipt) || atomicClient.LastError() != ReplicationError::InvalidSnapshot || atomicClient.RegisteredCount() != 1U || atomicClient.IsRegistered(701U) || atomicReceipt.sequence != 41U || atomicReceipt.serverTick != 42U || atomicReceipt.appliedEntities != 43U || atomicReceipt.spawnedEntities != 44U || atomicReceipt.despawnedEntities != 45U || atomicReceipt.interpolatedEntities != 46U || atomicReceipt.reconciledPredictions != 47U || atomicReceipt.accepted) return 32;
     const Transform3* atomicTransform = atomicScene.GetTransform(atomicExisting);
     if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) return 32;
     return 0;
