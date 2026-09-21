@@ -133,6 +133,9 @@ bool SdlAudioBridge::SetListener(const AudioListener& listener) {
             return false;
         }
     }
+    const float forwardLen2 = listener.forward[0]*listener.forward[0] + listener.forward[1]*listener.forward[1] + listener.forward[2]*listener.forward[2];
+    const float upLen2 = listener.up[0]*listener.up[0] + listener.up[1]*listener.up[1] + listener.up[2]*listener.up[2];
+    if (!std::isfinite(forwardLen2) || !std::isfinite(upLen2) || forwardLen2 <= 1.0e-8F || upLen2 <= 1.0e-8F) { lastError_ = SdlAudioBridgeError::MixerRejected; return false; }
     SDL_LockAudioStream(stream_);
     mixer_.SetListener(listener);
     SDL_UnlockAudioStream(stream_);
@@ -176,6 +179,7 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     if (bridge->callbackBufferFrames_ == 0U) return;
     const size_t requestedBytes = static_cast<size_t>(additionalAmount);
     if (requestedBytes > static_cast<size_t>(std::numeric_limits<int>::max()) * 1024U) return;
+    if (requestedBytes % bytesPerFrame != 0U && requestedBytes / bytesPerFrame >= bridge->callbackBufferFrames_) return;
     const size_t frames = requestedBytes / bytesPerFrame;
     if (frames == 0) {
         return;
@@ -184,11 +188,11 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     size_t remainingFrames = frames;
     while (remainingFrames > 0) {
         const size_t chunkFrames = std::min(remainingFrames, bridge->callbackBufferFrames_);
+        if (chunkFrames > bridge->callbackBufferFrames_ || bridge->callbackBuffer_.size() < chunkFrames * kStereoChannels) return;
         bridge->mixer_.Mix(chunkFrames, bridge->callbackBuffer_);
         const size_t chunkBytes = chunkFrames * bytesPerFrame;
+        if (chunkBytes > static_cast<size_t>(std::numeric_limits<int>::max())) return;
         SDL_PutAudioStreamData(stream, bridge->callbackBuffer_.data(), static_cast<int>(chunkBytes));
-        const uint64_t prior = bridge->framesMixed_.load(std::memory_order_relaxed);
-        if (chunkFrames > std::numeric_limits<uint64_t>::max() - prior) return;
         const uint64_t prior = bridge->framesMixed_.load(std::memory_order_relaxed);
         if (chunkFrames > std::numeric_limits<uint64_t>::max() - prior) return;
         bridge->framesMixed_.fetch_add(chunkFrames, std::memory_order_relaxed);
