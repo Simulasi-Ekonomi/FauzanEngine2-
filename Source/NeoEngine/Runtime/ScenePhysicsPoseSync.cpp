@@ -1,6 +1,7 @@
 #include "Runtime/ScenePhysicsPoseSync.h"
 
 #include <cmath>
+#include <new>
 
 namespace NeoEngine {
 bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity) {
@@ -10,7 +11,8 @@ bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity)
     bindings_.push_back({sceneEntity, physicsEntity}); lastError_ = ScenePhysicsPoseSyncError::None; return true;
 }
 bool ScenePhysicsPoseSync::Sync(const SceneWorld& world, ArchetypeManager& entities) {
-    struct Candidate { EntityID physics = 0; float x = 0.0F; float z = 0.0F; }; std::vector<Candidate> candidate; candidate.reserve(bindings_.size());
+    struct Candidate { EntityID physics = 0; float x = 0.0F; float z = 0.0F; }; std::vector<Candidate> candidate;
+    try { candidate.reserve(bindings_.size()); } catch (...) { lastError_ = ScenePhysicsPoseSyncError::Capacity; return false; }
     for (const Binding& binding : bindings_) { const Transform3* transform = world.GetTransform(binding.scene); if (transform == nullptr) { lastError_ = ScenePhysicsPoseSyncError::MissingWorldTransform; return false; } if (!std::isfinite(transform->x) || !std::isfinite(transform->z)) { lastError_ = ScenePhysicsPoseSyncError::InvalidTransform; return false; } if (!entities.HasPosition(binding.physics)) { lastError_ = ScenePhysicsPoseSyncError::MissingPhysicsPosition; return false; } candidate.push_back({binding.physics, transform->x, transform->z}); }
     for (const Candidate& pose : candidate) { entities.SetPosX(pose.physics, pose.x); entities.SetPosZ(pose.physics, pose.z); }
     lastError_ = ScenePhysicsPoseSyncError::None; return true;
