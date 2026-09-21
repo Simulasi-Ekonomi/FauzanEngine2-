@@ -89,7 +89,7 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
         if (!binding.physicsAuthoritative) continue;
         bool found = false;
         for (ArchetypeChunk* chunk : entities.GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
-            if (chunk == nullptr || chunk->count > chunk->capacity || chunk->count > entities.GetMaxEntities()) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
+            if (chunk == nullptr || chunk->count > chunk->capacity || chunk->count > entities.EntityCount()) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
             if (chunk->posX == nullptr || chunk->posZ == nullptr || chunk->radius == nullptr || chunk->invMass == nullptr || chunk->entities == nullptr) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
             for (size_t index = 0U; index < chunk->count; ++index) {
                 if (chunk->entities[index] != binding.physics) continue;
