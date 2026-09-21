@@ -78,11 +78,99 @@ bool VulkanRHI::CreateSwapchainResources(uint32_t, uint32_t) {
     VkFenceCreateInfo fence{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; fence.flags = VK_FENCE_CREATE_SIGNALED_BIT; return vkCreateFence(m_Device, &fence, nullptr, &m_InFlight) == VK_SUCCESS;
 }
 
+bool VulkanRHI::RecreateSwapchainResources(uint32_t width, uint32_t height) {
+    if (m_Device == VK_NULL_HANDLE || m_Surface == VK_NULL_HANDLE || m_GPU == VK_NULL_HANDLE ||
+        width == 0 || height == 0) return false;
+
+    if (vkDeviceWaitIdle(m_Device) != VK_SUCCESS) return false;
+    DestroySwapchainResources();
+
+    uint32_t formatCount = 0;
+    uint32_t modeCount = 0;
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(m_GPU, m_Surface, &formatCount, nullptr) != VK_SUCCESS ||
+        formatCount == 0 ||
+        vkGetPhysicalDeviceSurfacePresentModesKHR(m_GPU, m_Surface, &modeCount, nullptr) != VK_SUCCESS ||
+        modeCount == 0) return false;
+
+    std::vector<VkSurfaceFormatKHR> formats(formatCount);
+    std::vector<VkPresentModeKHR> modes(modeCount);
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(m_GPU, m_Surface, &formatCount, formats.data()) != VK_SUCCESS ||
+        vkGetPhysicalDeviceSurfacePresentModesKHR(m_GPU, m_Surface, &modeCount, modes.data()) != VK_SUCCESS) return false;
+
+    VkSurfaceCapabilitiesKHR caps{};
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_GPU, m_Surface, &caps) != VK_SUCCESS) return false;
+
+    const VkSurfaceFormatKHR surfaceFormat = ChooseFormat(formats);
+    const VkPresentModeKHR presentMode = ChoosePresentMode(modes);
+    const VkExtent2D extent = ChooseExtent(caps, width, height);
+
+    uint32_t imageCount = caps.minImageCount + 1;
+    if (caps.maxImageCount != 0 && imageCount > caps.maxImageCount) imageCount = caps.maxImageCount;
+
+    VkSwapchainCreateInfoKHR swapInfo{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+    swapInfo.surface = m_Surface;
+    swapInfo.minImageCount = imageCount;
+    swapInfo.imageFormat = surfaceFormat.format;
+    swapInfo.imageColorSpace = surfaceFormat.colorSpace;
+    swapInfo.imageExtent = extent;
+    swapInfo.imageArrayLayers = 1;
+    swapInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapInfo.preTransform = caps.currentTransform;
+    swapInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapInfo.presentMode = presentMode;
+    swapInfo.clipped = VK_TRUE;
+
+    if (vkCreateSwapchainKHR(m_Device, &swapInfo, nullptr, &m_Swapchain) != VK_SUCCESS) {
+        m_Swapchain = VK_NULL_HANDLE;
+        return false;
+    }
+
+    m_SwapchainFormat = surfaceFormat.format;
+    m_Width = static_cast<int>(extent.width);
+    m_Height = static_cast<int>(extent.height);
+    if (!CreateSwapchainResources(extent.width, extent.height)) {
+        DestroySwapchainResources();
+        return false;
+    }
+    return true;
+}
+
 void VulkanRHI::DestroySwapchainResources() {
     if (m_Device == VK_NULL_HANDLE) return; if (m_InFlight != VK_NULL_HANDLE) vkDestroyFence(m_Device, m_InFlight, nullptr); if (m_RenderFinished != VK_NULL_HANDLE) vkDestroySemaphore(m_Device, m_RenderFinished, nullptr); if (m_ImageAvailable != VK_NULL_HANDLE) vkDestroySemaphore(m_Device, m_ImageAvailable, nullptr); if (m_CommandPool != VK_NULL_HANDLE) vkDestroyCommandPool(m_Device, m_CommandPool, nullptr); for (auto fb : m_Framebuffers) if (fb != VK_NULL_HANDLE) vkDestroyFramebuffer(m_Device, fb, nullptr); if (m_RenderPass != VK_NULL_HANDLE) vkDestroyRenderPass(m_Device, m_RenderPass, nullptr); for (auto view : m_SwapchainViews) if (view != VK_NULL_HANDLE) vkDestroyImageView(m_Device, view, nullptr); if (m_Swapchain != VK_NULL_HANDLE) vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr); m_Framebuffers.clear(); m_SwapchainViews.clear(); m_SwapchainImages.clear(); m_InFlight = VK_NULL_HANDLE; m_RenderFinished = VK_NULL_HANDLE; m_ImageAvailable = VK_NULL_HANDLE; m_CommandPool = VK_NULL_HANDLE; m_CommandBuffer = VK_NULL_HANDLE; m_RenderPass = VK_NULL_HANDLE; m_Swapchain = VK_NULL_HANDLE;
 }
 void VulkanRHI::Shutdown() { if (m_Device != VK_NULL_HANDLE) vkDeviceWaitIdle(m_Device); DestroySwapchainResources(); if (m_Device != VK_NULL_HANDLE) vkDestroyDevice(m_Device, nullptr); if (m_Surface != VK_NULL_HANDLE && m_Instance != VK_NULL_HANDLE) vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr); if (m_Instance != VK_NULL_HANDLE) vkDestroyInstance(m_Instance, nullptr); m_Instance = VK_NULL_HANDLE; m_GPU = VK_NULL_HANDLE; m_Device = VK_NULL_HANDLE; m_GraphicsQueue = VK_NULL_HANDLE; m_Surface = VK_NULL_HANDLE; m_SwapchainFormat = VK_FORMAT_UNDEFINED; m_QueueFamily = UINT32_MAX; m_ImageIndex = UINT32_MAX; m_Width = 0; m_Height = 0; m_FrameActive = false; m_ImageAcquired = false; m_FrameSubmitted = false; m_Initialized = false; }
-void VulkanRHI::BeginFrame() { if (!m_Initialized || m_FrameActive || m_Swapchain == VK_NULL_HANDLE) return; if (vkWaitForFences(m_Device, 1, &m_InFlight, VK_TRUE, UINT64_MAX) != VK_SUCCESS) return; if (vkResetFences(m_Device, 1, &m_InFlight) != VK_SUCCESS) return; const VkResult acquired = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, m_ImageAvailable, VK_NULL_HANDLE, &m_ImageIndex); if (acquired != VK_SUCCESS && acquired != VK_SUBOPTIMAL_KHR) return; if (vkResetCommandBuffer(m_CommandBuffer, 0) != VK_SUCCESS) return; VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}; if (vkBeginCommandBuffer(m_CommandBuffer, &begin) != VK_SUCCESS) return; VkClearValue clear{}; clear.color = {{0.02F, 0.02F, 0.025F, 1.0F}}; VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO}; pass.renderPass = m_RenderPass; pass.framebuffer = m_Framebuffers[m_ImageIndex]; pass.renderArea.extent = {static_cast<uint32_t>(m_Width), static_cast<uint32_t>(m_Height)}; pass.clearValueCount = 1; pass.pClearValues = &clear; vkCmdBeginRenderPass(m_CommandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE); m_ImageAcquired = true; m_FrameActive = true; m_FrameSubmitted = false; }
+void VulkanRHI::BeginFrame() {
+    if (!m_Initialized || m_FrameActive || m_Swapchain == VK_NULL_HANDLE) return;
+    if (vkWaitForFences(m_Device, 1, &m_InFlight, VK_TRUE, UINT64_MAX) != VK_SUCCESS) return;
+
+    const VkResult acquired = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, m_ImageAvailable, VK_NULL_HANDLE, &m_ImageIndex);
+    if (acquired == VK_ERROR_OUT_OF_DATE_KHR) {
+        RecreateSwapchainResources(static_cast<uint32_t>(std::max(m_Width, 1)), static_cast<uint32_t>(std::max(m_Height, 1)));
+        return;
+    }
+    if (acquired != VK_SUCCESS && acquired != VK_SUBOPTIMAL_KHR) return;
+
+    // Reset only after a successful acquire. This prevents the unsignaled-fence
+    // deadlock that occurs when acquire returns OUT_OF_DATE before submission.
+    if (vkResetFences(m_Device, 1, &m_InFlight) != VK_SUCCESS) return;
+    if (vkResetCommandBuffer(m_CommandBuffer, 0) != VK_SUCCESS) return; VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}; if (vkBeginCommandBuffer(m_CommandBuffer, &begin) != VK_SUCCESS) return; VkClearValue clear{}; clear.color = {{0.02F, 0.02F, 0.025F, 1.0F}}; VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO}; pass.renderPass = m_RenderPass; pass.framebuffer = m_Framebuffers[m_ImageIndex]; pass.renderArea.extent = {static_cast<uint32_t>(m_Width), static_cast<uint32_t>(m_Height)}; pass.clearValueCount = 1; pass.pClearValues = &clear; vkCmdBeginRenderPass(m_CommandBuffer, &pass, VK_SUBPASS_CONTENTS_INLINE); m_ImageAcquired = true; m_FrameActive = true; m_FrameSubmitted = false; }
 void VulkanRHI::EndFrame() { if (!m_FrameActive || !m_ImageAcquired) return; vkCmdEndRenderPass(m_CommandBuffer); if (vkEndCommandBuffer(m_CommandBuffer) != VK_SUCCESS) { m_FrameActive = false; m_ImageAcquired = false; m_FrameSubmitted = false; return; } VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO}; submit.waitSemaphoreCount = 1; submit.pWaitSemaphores = &m_ImageAvailable; submit.pWaitDstStageMask = &waitStage; submit.commandBufferCount = 1; submit.pCommandBuffers = &m_CommandBuffer; submit.signalSemaphoreCount = 1; submit.pSignalSemaphores = &m_RenderFinished; if (vkQueueSubmit(m_GraphicsQueue, 1, &submit, m_InFlight) != VK_SUCCESS) { m_FrameActive = false; m_ImageAcquired = false; m_FrameSubmitted = false; return; } m_FrameActive = false; m_FrameSubmitted = true; }
-void VulkanRHI::Present() { if (m_Swapchain == VK_NULL_HANDLE || m_ImageIndex == UINT32_MAX || !m_FrameSubmitted) return; VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR}; present.waitSemaphoreCount = 1; present.pWaitSemaphores = &m_RenderFinished; present.swapchainCount = 1; present.pSwapchains = &m_Swapchain; present.pImageIndices = &m_ImageIndex; vkQueuePresentKHR(m_GraphicsQueue, &present); m_ImageAcquired = false; m_FrameSubmitted = false; m_ImageIndex = UINT32_MAX; }
+void VulkanRHI::Present() {
+    if (m_Swapchain == VK_NULL_HANDLE || m_ImageIndex == UINT32_MAX || !m_FrameSubmitted) return;
+    VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    present.waitSemaphoreCount = 1;
+    present.pWaitSemaphores = &m_RenderFinished;
+    present.swapchainCount = 1;
+    present.pSwapchains = &m_Swapchain;
+    present.pImageIndices = &m_ImageIndex;
+    const VkResult result = vkQueuePresentKHR(m_GraphicsQueue, &present);
+    m_ImageAcquired = false;
+    m_FrameSubmitted = false;
+    m_ImageIndex = UINT32_MAX;
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        RecreateSwapchainResources(static_cast<uint32_t>(std::max(m_Width, 1)), static_cast<uint32_t>(std::max(m_Height, 1)));
+    }
+}
 } // namespace NeoEngine
