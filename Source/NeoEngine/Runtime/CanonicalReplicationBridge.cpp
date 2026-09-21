@@ -32,6 +32,7 @@ bool CanonicalReplicationBridge::Unregister(uint32_t networkId) {
 }
 
 bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot) {
+    if (serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = ReplicationError::InvalidSnapshot; return false; }
     snapshot = {};
     if (!replication_.BuildServerSnapshot(serverTick, snapshot)) {
         lastError_ = CanonicalReplicationBridgeError::SnapshotFailed;
@@ -63,6 +64,7 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
 
 bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
     bytes.clear();
+    if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes) bytes.shrink_to_fit();
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error)) {
         lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
