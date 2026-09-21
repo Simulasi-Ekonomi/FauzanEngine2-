@@ -50,9 +50,11 @@ bash tools/release_manifest.sh p4-release-manifest.sha256
 python3 tools/generate_source_sbom.py
 python3 tools/p4_release_gate.py
 python3 tools/p4_release_artifact_gate.py "$ARTIFACT"
+python3 tools/p4_release_artifact_gate.py "$REFERENCE_ARTIFACT"
 python3 tools/p4_reproducibility_gate.py "$ARTIFACT" "$REFERENCE_ARTIFACT"
 
 ARTIFACT_SHA256="$(sha256sum -- "$ARTIFACT" | awk '{print $1}')"
+REFERENCE_ARTIFACT_SHA256="$(sha256sum -- "$REFERENCE_ARTIFACT" | awk '{print $1}')"
 MANIFEST_SHA256="$(sha256sum -- p4-release-manifest.sha256 | awk '{print $1}')"
 SBOM_SHA256="$(sha256sum -- p4-source-sbom.json | awk '{print $1}')"
 PROVENANCE="p4-release-provenance.txt"
@@ -62,6 +64,8 @@ PROVENANCE="p4-release-provenance.txt"
   printf 'tree=%s\n' "$(git rev-parse HEAD^{tree})"
   printf 'artifact=%s\n' "$ARTIFACT"
   printf 'artifact_sha256=%s\n' "$ARTIFACT_SHA256"
+  printf 'reference_artifact=%s\n' "$REFERENCE_ARTIFACT"
+  printf 'reference_artifact_sha256=%s\n' "$REFERENCE_ARTIFACT_SHA256"
   printf 'manifest_sha256=%s\n' "$MANIFEST_SHA256"
   printf 'sbom_sha256=%s\n' "$SBOM_SHA256"
 } > "$PROVENANCE"
