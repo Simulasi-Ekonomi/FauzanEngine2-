@@ -438,6 +438,10 @@ Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     if (receipt->telemetry.harvestActions > 1000000000ULL) return;
     if (receipt->telemetry.coins < -1000000000000LL || receipt->telemetry.coins > 1000000000000LL) return;
     if (receipt->telemetry.questCompleted && receipt->telemetry.questHarvestProgress == 0U) return;
+    if (receipt->telemetry.energy > 1000000U || receipt->telemetry.maxEnergy > 1000000U) return;
+    if (receipt->telemetry.questHarvestProgress > receipt->telemetry.harvestedUnits && receipt->telemetry.harvestedUnits < 1000000ULL) return;
+    if (receipt->telemetry.harvestActions > receipt->telemetry.harvestedUnits && receipt->telemetry.harvestedUnits > 0ULL) return;
+    if (receipt->telemetry.eventSequence > receipt->telemetry.simulationTick + 1000000ULL && receipt->telemetry.simulationTick < std::numeric_limits<uint64_t>::max() - 1000000ULL) return;
     if (receipt->telemetry.tilledTiles + receipt->telemetry.growingTiles > 1000000U) return;
     if (receipt->telemetry.harvestableTiles + receipt->telemetry.animals > 1000000U) return;
     if (receipt->telemetry.tilledTiles > 1000000U || receipt->telemetry.growingTiles > 1000000U || receipt->telemetry.harvestableTiles > 1000000U || receipt->telemetry.animals > 1000000U) return;
