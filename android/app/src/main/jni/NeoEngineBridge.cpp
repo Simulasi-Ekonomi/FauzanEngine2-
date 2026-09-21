@@ -194,6 +194,7 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
         NEO_LOGI("World streaming thread started");
         
         while (NeoJNI::g_StreamingActive) {
+            if (!NeoJNI::g_WorldGenerator) break;
             // Get camera position
             float camX, camZ;
             {
@@ -320,12 +321,6 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
     NeoJNI::g_Telemetry = {};
     NeoJNI::g_Actors.clear();
     NeoJNI::g_ActorsByName.clear();
-    NeoJNI::g_DeltaTime = 0.0f;
-    NeoJNI::g_FrameCount = 0;
-    NeoJNI::g_FPS = 0.0f;
-    NeoJNI::g_Telemetry = {};
-    NeoJNI::g_Actors.clear();
-    NeoJNI::g_ActorsByName.clear();
     NeoJNI::g_LoadedChunks.clear();
     NeoJNI::g_ChunkActors.clear();
     if (NeoJNI::g_Activity) {
@@ -338,6 +333,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
     if (!NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
     NeoJNI::g_DeltaTime = dt;
+    if (NeoJNI::g_FrameCount == std::numeric_limits<uint64_t>::max()) return;
     NeoJNI::g_FrameCount++;
 
     static float fpsTimer  = 0.0f;
@@ -355,7 +351,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     if (!NeoJNI::g_Running) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
-    NeoJNI::g_Telemetry.entities = static_cast<int>(NeoJNI::g_Actors.size());
+    NeoJNI::g_Telemetry.entities = NeoJNI::g_Actors.size() > static_cast<size_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(NeoJNI::g_Actors.size());
     NeoJNI::g_Telemetry.drawCalls = NeoJNI::g_Telemetry.entities;
     NeoJNI::g_Telemetry.triangles = NeoJNI::g_Telemetry.entities > std::numeric_limits<int>::max() / 12 ? std::numeric_limits<int>::max() : NeoJNI::g_Telemetry.entities * 12;
 }
@@ -364,13 +360,13 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTouchEvent(
     JNIEnv*, jclass, jint action, jfloat x, jfloat y, jint ptr)
 {
-    if (!std::isfinite(x) || !std::isfinite(y) || ptr < 0) return;
+    if (action < 0 || action > 3 || !std::isfinite(x) || !std::isfinite(y) || ptr < 0) return;
     NEO_LOGD("Touch a=%d (%.1f,%.1f) ptr=%d", action, x, y, ptr);
 }
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeKeyEvent(JNIEnv*, jclass, jint key, jint action) {
-    if (key < 0 || action < 0) return;
+    if (key < 0 || key > 0xFFFF || action < 0 || action > 3) return;
     NEO_LOGD("Key key=%d action=%d", key, action);
 }
 
