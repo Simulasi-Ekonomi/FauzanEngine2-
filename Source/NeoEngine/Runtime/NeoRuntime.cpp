@@ -392,7 +392,7 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Clock) { m_LastError = RuntimeError::InvalidState; return false; }
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(revision)) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     const auto clockSnapshot = m_Clock->Snapshot();
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(clockSnapshot.frameCount) || revision > clockSnapshot.frameCount) { m_LastError = RuntimeError::PersistenceFailed; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(clockSnapshot.frameCount) || revision > clockSnapshot.frameCount) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (m_State != RuntimeState::Initialized || revision == 0U || !m_FarmWorld || !m_Time || !m_FarmAuthority || m_Events == nullptr || m_Events->PendingCount() != 0U) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
@@ -416,12 +416,12 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
     }
     RuntimePersistenceError error = RuntimePersistenceError::None;
     std::vector<uint8_t> encoded;
-    if (encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::PersistenceFailed; return false; }
+    if (encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (!RuntimeSaveCodec::Serialize({kFarmProgressCheckpointKind, revision, std::move(payload)}, encoded, error)) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
     }
-    if (encoded.empty() || encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes || encoded.size() < payload.size()) { m_LastError = RuntimeError::PersistenceFailed; return false; }
+    if (encoded.empty() || encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes || encoded.size() < payload.size()) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     bytes = std::move(encoded);
     m_LastError = RuntimeError::None;
     return true;
