@@ -13,6 +13,8 @@ def sha256(path: Path) -> str:
 if len(sys.argv) != 3:
     raise SystemExit('usage: tools/p4_reproducibility_gate.py <artifact-a> <artifact-b>')
 a, b = map(Path, sys.argv[1:])
+if any(ch in str(p) for p in (a, b) for ch in ("\x00", "\n", "\r")):
+    raise SystemExit("P4_REPRODUCIBILITY_FAIL unsafe_artifact_path")
 if a.resolve() == b.resolve():
     raise SystemExit('P4_REPRODUCIBILITY_FAIL artifacts_must_be_distinct_paths')
 for p in (a, b):
