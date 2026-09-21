@@ -39,7 +39,7 @@ Java_com_neoengine_core_NeoEngineCanonicalBridge_nativeLifecycleEvent(JNIEnv*, j
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_neoengine_core_NeoEngineCanonicalBridge_nativeRenderFrame(JNIEnv*, jclass) {
-    if (!g_lifecycle.IsRunning() || !g_rendererReady) return 0L;
+    if (g_lifecycle.State() != NeoEngine::AndroidLifecycleState::Active || !g_rendererReady) return 0L;
     if (g_renderer.Width() == 0U || g_renderer.Height() == 0U) return 0L;
     if (g_renderer.Width() > 4096U || g_renderer.Height() > 4096U) return 0L;
     if (static_cast<uint64_t>(g_renderer.Width()) * static_cast<uint64_t>(g_renderer.Height()) > 16ULL * 1024ULL * 1024ULL) return 0L;
