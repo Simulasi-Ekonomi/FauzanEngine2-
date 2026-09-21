@@ -69,6 +69,22 @@ int main() {
     TEST_CHECK(!agent.Execute(R"({"operation":"delete","actorId":42})", session, assets, response), "delete with children was accepted");
     TEST_CHECK(session.LastError() == EditorSceneSessionError::ActorHasChildren, "wrong error for delete with children");
     TEST_CHECK(session.InspectActor(44, inspected) && inspected.parentId == 42U, "failed delete changed child state");
+    EditorScenePrefab prefab{};
+    TEST_CHECK(session.CapturePrefab(42U, prefab) && prefab.rootSourceId == 42U && prefab.actors.size() == 2U,
+               "prefab capture did not preserve the reparented subtree");
+    const auto beforePrefabInstance = session.HierarchySnapshot();
+    TEST_CHECK(session.InstantiatePrefab(prefab, 0U, std::vector<uint32_t>{100U, 101U}, assets),
+               "prefab instantiation failed");
+    TEST_CHECK(session.InspectActor(100U, inspected) && inspected.parentId == 0U,
+               "prefab root instance has incorrect parent");
+    const auto afterPrefabInstance = session.HierarchySnapshot();
+    TEST_CHECK(afterPrefabInstance.size() == beforePrefabInstance.size() + prefab.actors.size(),
+               "prefab instantiation did not add the complete subtree");
+    const auto beforeBadPrefab = session.HierarchySnapshot();
+    TEST_CHECK(!session.InstantiatePrefab(prefab, 0U, std::vector<uint32_t>{100U, 102U}, assets),
+               "duplicate prefab instance id was accepted");
+    TEST_CHECK(session.HierarchySnapshot().size() == beforeBadPrefab.size(),
+               "failed prefab instantiation changed document state");
 
     TEST_CHECK(agent.Execute(R"({"operation":"selectMany","actorIds":[42,44]})", session, assets, response),
                "multi-select command failed");
