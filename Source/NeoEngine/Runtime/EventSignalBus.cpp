@@ -23,8 +23,14 @@ bool EventSignalBus::Queue(RuntimeEvent event) {
     return true;
 }
 bool EventSignalBus::Dispatch(EventSignalDispatchReceipt* receipt) {
-    const std::vector<RuntimeEventListener*> listenersSnapshot = listeners_;
-    const std::vector<RuntimeEvent> eventsSnapshot = pending_;
+    std::vector<RuntimeEventListener*> listenersSnapshot;
+    std::vector<RuntimeEvent> eventsSnapshot;
+    try {
+        listenersSnapshot = listeners_;
+        eventsSnapshot = pending_;
+    } catch (const std::bad_alloc&) {
+        return Fail(EventSignalError::Capacity);
+    }
     uint64_t digest = 1469598103934665603ULL;
     const auto mix = [&digest](uint64_t value) { for (uint8_t index = 0U; index < 8U; ++index) { digest ^= static_cast<uint8_t>(value >> (index * 8U)); digest *= 1099511628211ULL; } };
     for (const RuntimeEvent& event : eventsSnapshot) { mix(static_cast<uint8_t>(event.kind)); mix(event.subjectId); mix(static_cast<uint32_t>(event.value)); mix(event.tick); }
