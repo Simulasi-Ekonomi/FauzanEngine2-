@@ -572,3 +572,16 @@
 - [ ] P2.2: Reproduce broad non-Vulkan Release and ASAN `detect_leaks=1` suites on a single tip revision under a storage-aware build strategy before making cross-engine readiness claims.
 - [x] P2.2a: Execute a bounded representative non-Vulkan smoke matrix on one canonical tip in Release and AddressSanitizer with leak detection, recording exact target coverage and any external-driver exceptions without claiming whole-engine coverage; do not expand to every duplicate-heavy executable target. `docs/BROAD_NON_VULKAN_SMOKE_EVIDENCE_V1.md` records the exact 35-target set; all 35/35 pass in Release and ASAN `detect_leaks=1`. The run is headless with dummy SDL drivers; Vulkan `glslc` discovery is an external configuration exception and Vulkan presentation is not counted.
 \n## 2026-09-21 — Turn 2: PR44 audio parser/mixer production hardening\n- [x] B5-01 bounded parsed WAV sample rate to the canonical PCM limit.\n- [x] B5-02 bounded parsed PCM byte-rate representation.\n- [x] B5-03 aligned WavAudioData::channels with the parser's mono downmix output.\n- [x] B5-04 preserved frame/sample count bounds before allocation and decode.\n- [x] B5-05 verified generated WAV output size exactly matches its declared payload.\n- [x] B5-06 rejected synthetic frequencies above Nyquist.\n- [x] B5-07 bounded owned voice vector capacity in AudioMixer::Play.\n- [x] B5-08 bounded spatial voice capacity before ownership copy.\n- [x] B5-09 revalidated spatial position finiteness at the attenuation/pan commit boundary.\n- [x] B5-10 canonicalized listener forward/up vectors after normalization.\n- [x] B5-11 evicted malformed persistent voices before mixing rather than silently carrying invalid state.\n- [x] B5-12 bounded stereo output capacity before the mixing loop.\n
+
+## 2026-09-21 — Turn 3 — 11+ substantive implementation/integration ledger
+- [x] p3-pr44-advanced-port T3-01: voice admission rejects full mixer.
+- [x] p3-pr44-advanced-port T3-02: sample vector capacity bounded.
+- [x] p3-pr44-advanced-port T3-03: sample vector max_size checked.
+- [x] p3-pr44-advanced-port T3-04: spatial voice sample max_size checked.
+- [x] p3-pr44-advanced-port T3-05: duplicate voice IDs rejected.
+- [x] p3-pr44-advanced-port T3-06: pitch finite and bounded.
+- [x] p3-pr44-advanced-port T3-07: gain nonzero invariant preserved.
+- [x] p3-pr44-advanced-port T3-08: listener basis normalized.
+- [x] p3-pr44-advanced-port T3-09: listener orthogonality checked.
+- [x] p3-pr44-advanced-port T3-10: mix frame count bounded.
+- [x] p3-pr44-advanced-port T3-11: output stereo cardinality verified.
