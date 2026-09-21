@@ -338,6 +338,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
 
     static float fpsTimer  = 0.0f;
     static int   fpsFrames = 0;
+    if (!std::isfinite(fpsTimer) || fpsTimer > 2.0F) { fpsTimer = 0.0F; fpsFrames = 0; }
     fpsTimer += dt; fpsFrames++;
     if (fpsTimer >= 1.0f) {
         NeoJNI::g_FPS = static_cast<float>(fpsFrames) / fpsTimer;
@@ -349,7 +350,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
-    if (!NeoJNI::g_Running) return;
+    if (!NeoJNI::g_Running || !NeoJNI::g_Initialized) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     NeoJNI::g_Telemetry.entities = NeoJNI::g_Actors.size() > static_cast<size_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(NeoJNI::g_Actors.size());
     NeoJNI::g_Telemetry.drawCalls = NeoJNI::g_Telemetry.entities;
