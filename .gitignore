@@ -79,3 +79,7 @@ active_code_context.json
 cpp_symbols.json
 build-sdl3-check/
 build_new/
+# P4 release certification receipts (generated, never source-controlled)
+p4-release-manifest.sha256
+p4-source-sbom.json
+p4-release-provenance.txt
