@@ -393,12 +393,38 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         ++candidateReceipt.appliedEntities;
     }
     std::array<SceneEntity, kMaxEntities> despawnedEntities{};
+    std::array<Transform3, kMaxEntities> despawnedTransforms{};
+    std::array<Slot, kMaxEntities> despawnedSlots{};
+    std::array<uint16_t, kMaxEntities> despawnedSlotIndices{};
     uint16_t despawnedIndex = 0U;
     if (allowDynamicLifecycle_) {
         for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
             if (!slots_[slotIndex].registered || presentSlots[slotIndex]) continue;
-            despawnedEntities[despawnedIndex++] = slots_[slotIndex].entity;
+            const Transform3* transform = sceneWorld_.GetTransform(slots_[slotIndex].entity);
+            if (transform == nullptr) {
+                rollbackMutations();
+                return Fail(ReplicationError::InvalidEntity);
+            }
+            despawnedEntities[despawnedIndex] = slots_[slotIndex].entity;
+            despawnedTransforms[despawnedIndex] = *transform;
+            despawnedSlots[despawnedIndex] = slots_[slotIndex];
+            despawnedSlotIndices[despawnedIndex] = slotIndex;
+            ++despawnedIndex;
             if (!sceneWorld_.Destroy(slots_[slotIndex].entity)) {
+                // Restore every entity already destroyed in this transaction.
+                // SceneWorld may issue a fresh generation, so restore the Slot
+                // with the recreated handle rather than reusing the old handle.
+                while (despawnedIndex > 0U) {
+                    --despawnedIndex;
+                    SceneEntity restored{};
+                    if (sceneWorld_.Create(restored) &&
+                        sceneWorld_.SetTransform(restored, despawnedTransforms[despawnedIndex])) {
+                        slots_[despawnedSlotIndices[despawnedIndex]] = despawnedSlots[despawnedIndex];
+                        slots_[despawnedSlotIndices[despawnedIndex]].entity = restored;
+                    } else {
+                        return Fail(ReplicationError::DespawnRejected);
+                    }
+                }
                 rollbackMutations();
                 return Fail(ReplicationError::DespawnRejected);
             }
