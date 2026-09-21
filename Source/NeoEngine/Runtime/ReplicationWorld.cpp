@@ -361,9 +361,19 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         }
         ++candidateReceipt.appliedEntities;
     }
-    if (allowDynamicLifecycle_) for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) if (slots_[slotIndex].registered && !presentSlots[slotIndex]) {
-        if (!sceneWorld_.Destroy(slots_[slotIndex].entity)) return Fail(ReplicationError::DespawnRejected);
-        ++candidateReceipt.despawnedEntities;
+    std::array<SceneEntity, kMaxEntities> despawnedEntities{};
+    uint16_t despawnedIndex = 0U;
+    if (allowDynamicLifecycle_) {
+        for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
+            if (!slots_[slotIndex].registered || presentSlots[slotIndex]) continue;
+            despawnedEntities[despawnedIndex++] = slots_[slotIndex].entity;
+            if (!sceneWorld_.Destroy(slots_[slotIndex].entity)) {
+                for (uint16_t rollback = 0U; rollback < spawnedIndex; ++rollback)
+                    (void)sceneWorld_.Destroy(spawnedEntities[rollback]);
+                return Fail(ReplicationError::DespawnRejected);
+            }
+            ++candidateReceipt.despawnedEntities;
+        }
     }
     uint16_t spawnedCommitIndex = 0U;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
