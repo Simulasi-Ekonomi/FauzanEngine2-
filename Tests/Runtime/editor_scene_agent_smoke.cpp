@@ -30,6 +30,11 @@ int main() {
                "duplicate command failed");
     TEST_CHECK(response.find("\"ok\":true") != std::string::npos, "duplicate response was not successful");
     TEST_CHECK(session.HierarchySnapshot().size() == 2U, "duplicate did not add actor");
+    const auto beforeInvalidMutation = session.HierarchySnapshot();
+    TEST_CHECK(!agent.Execute(R"({"operation":"transform","actorId":9999,"transform":{"x":1,"y":0,"z":0,"rx":0,"ry":0,"rz":0,"sx":1,"sy":1,"sz":1}})", session, assets, response), "unknown actor mutation was accepted");
+    TEST_CHECK(session.HierarchySnapshot() == beforeInvalidMutation, "failed mutation changed document state");
+    TEST_CHECK(!agent.Execute(R"({"operation":"duplicate","actorId":44,"newActorId":42})", session, assets, response), "duplicate actor id mutation was accepted");
+    TEST_CHECK(session.HierarchySnapshot() == beforeInvalidMutation, "duplicate failure changed document state");
 
     TEST_CHECK(agent.Execute(R"({"operation":"properties","actorId":44,"name":"Edited","materialAssetId":"","textureAssetId":"","spriteRgba":4294967295})",
                              session, assets, response),
