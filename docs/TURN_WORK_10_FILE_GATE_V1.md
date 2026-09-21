@@ -31,3 +31,11 @@ This document changes the turn accounting rule. A turn is not counted as complet
 
 ## Stop condition
 Do not mark a turn complete until all counted files are actually changed, integrated where required, and their validation status is explicitly recorded.
+
+## Mandatory execution rule — no idle turns
+- When the user says **Lanjut**, immediately execute the identified real gap work. Do not spend the turn explaining, deferring, or asking for permission when the required source/API evidence is already available.
+- **No excuse / no delay:** gap discovery and implementation are the work. Do not replace implementation with workflow discussion, generic reports, or repeated scans once actionable gaps are known.
+- If fewer than 10 real gaps remain on a branch, close every remaining real gap in that branch; then immediately proceed to tests, CI, sandbox/release gates, and merge readiness as applicable.
+- If additional real gaps exist in `main`, they may be ported to the active branch and implemented there; they must be genuine source-level gaps, not fabricated accounting items.
+- Per-turn accounting remains **10 distinct real source files per branch whenever at least 10 independently actionable gaps exist**. Never pad the count with documentation, tests alone, duplicate guards, or cosmetic changes.
+- Implementation must be integrated into its actual caller/data path and validated. Source edits without integration/validation remain IMPLEMENTED-UNVERIFIED.
