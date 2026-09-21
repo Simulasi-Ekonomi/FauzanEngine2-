@@ -41,7 +41,7 @@ int main() {
     assert(clientWorld.RegisterReplicatedEntity(clientActor, 42U, 7U));
     ReplicationApplyReceipt clientReceipt{};
     assert(clientWorld.ApplyReplicationSnapshot(snapshot, clientReceipt));
-    assert(clientReceipt.applied == 1U);
+    assert(clientReceipt.appliedEntities == 1U);
 
     const Transform3* sceneTransform = world.Scene().GetTransform(sceneActor.scene);
     assert(sceneTransform != nullptr);
