@@ -724,3 +724,17 @@
 - [x] T7-09 software light intensity finite validation retained.
 - [x] T7-10 checkpoint error enum remains canonical.
 - [x] T7-11 CMake smoke target set now matches R2 workflow.
+
+
+## 2026-09-21 — Turn 8 — implementation/integration ledger
+- [x] T8-01 linked FarmProgressCheckpointFile.cpp into NeoEngineRuntime.
+- [x] T8-02 provisioned SDL3 in R10 security workflow.
+- [x] T8-03 passed SDL3 prefix to R10 configure.
+- [x] T8-04 linked R2 progress-file smoke implementation.
+- [x] T8-05 linked R2 balance-profile smoke target.
+- [x] T8-06 checkpoint payload is bounded before serialization.
+- [x] T8-07 checkpoint encoded payload bound is checked after serialization.
+- [x] T8-08 checkpoint restore revision is bounded against current clock.
+- [x] T8-09 restored fixed-step count cannot exceed current clock.
+- [x] T8-10 world checkpoint blob remains bounded after decode.
+- [x] T8-11 authority checkpoint blob remains bounded after decode.
