@@ -261,7 +261,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
 }
 
 bool ReplicationWorld::ValidateSnapshot(const ReplicationSnapshot& snapshot) const {
-    if (snapshot.sequence == 0U || snapshot.count > kMaxEntities || snapshot.checksum == 0U || snapshot.checksum != SnapshotChecksum(snapshot)) return false;
+    if (snapshot.sequence == 0U || snapshot.count > kMaxEntities || snapshot.count > 1024U || snapshot.checksum == 0U || snapshot.checksum != SnapshotChecksum(snapshot)) return false;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) return false;
@@ -409,7 +409,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                 return failTransaction(ReplicationError::SceneApplyRejected);
             }
         }
-        if (candidateReceipt.appliedEntities >= kMaxEntities) return failTransaction(ReplicationError::Capacity);
+        if (candidateReceipt.appliedEntities >= kMaxEntities || candidateReceipt.spawnedEntities + candidateReceipt.despawnedEntities > kMaxEntities) return failTransaction(ReplicationError::Capacity);
         ++candidateReceipt.appliedEntities;
     }
     std::array<SceneEntity, kMaxEntities> despawnedEntities{};
@@ -433,7 +433,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                 return failTransaction(ReplicationError::DespawnRejected);
             }
             ++despawnedIndex;
-            if (candidateReceipt.despawnedEntities >= kMaxEntities) return failTransaction(ReplicationError::Capacity);
+            if (candidateReceipt.despawnedEntities >= kMaxEntities || candidateReceipt.spawnedEntities + candidateReceipt.despawnedEntities > kMaxEntities) return failTransaction(ReplicationError::Capacity);
             ++candidateReceipt.despawnedEntities;
         }
     }
