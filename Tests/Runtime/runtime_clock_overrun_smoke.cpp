@@ -8,7 +8,6 @@ int main() {
     if (clock.Snapshot().pendingFixedSteps != 2U) return 3;
     if (clock.Snapshot().droppedFixedStepCount == 0U || clock.Snapshot().droppedFixedSeconds <= 0.0F) return 4;
     if (clock.LastError() != RuntimeClockError::FixedStepOverrun) return 5;
-    std::printf("RUNTIME_CLOCK_OVERRUN_SMOKE_OK bounded=1 accounted=1
-");
+    std::printf("RUNTIME_CLOCK_OVERRUN_SMOKE_OK bounded=1 accounted=1\\n");
     return 0;
 }
