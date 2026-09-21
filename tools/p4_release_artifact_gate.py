@@ -41,6 +41,10 @@ def main() -> int:
             if len(names) != len(set(names)):
                 raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
             required_entries = {"AndroidManifest.xml"} if artifact.suffix.lower() == ".apk" else {"base/manifest/AndroidManifest.xml", "BundleConfig.pb"}
+            for required_entry in required_entries:
+                info = archive.getinfo(required_entry)
+                if info.is_dir() or info.file_size == 0:
+                    raise SystemExit(f"P4_ARTIFACT_GATE_FAIL invalid_required_entry={required_entry}")
             missing_entries = sorted(required_entries.difference(names))
             if missing_entries:
                 raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_required_entries={",".join(missing_entries)}")
