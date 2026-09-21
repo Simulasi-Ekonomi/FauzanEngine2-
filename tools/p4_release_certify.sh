@@ -16,6 +16,18 @@ if [[ -z "$ARTIFACT" ]]; then
   echo "usage: tools/p4_release_certify.sh <release.apk|release.aab>" >&2
   exit 2
 fi
+if [[ ! -f "$ARTIFACT" || -L "$ARTIFACT" ]]; then
+  echo "P4_RELEASE_CERTIFICATION_FAIL artifact_not_regular_file" >&2
+  exit 3
+fi
+case "$ARTIFACT" in
+  *.apk|*.aab) ;;
+  *) echo "P4_RELEASE_CERTIFICATION_FAIL unsupported_artifact_extension" >&2; exit 3 ;;
+esac
+if [[ ! -s "$ARTIFACT" ]]; then
+  echo "P4_RELEASE_CERTIFICATION_FAIL empty_artifact" >&2
+  exit 3
+fi
 
 bash tools/release_manifest.sh p4-release-manifest.sha256
 python3 tools/generate_source_sbom.py
