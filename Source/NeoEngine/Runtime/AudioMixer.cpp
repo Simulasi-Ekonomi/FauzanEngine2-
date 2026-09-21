@@ -148,6 +148,7 @@ bool AudioMixer::Stop(uint32_t id) {
 void AudioMixer::Clear() { m_Voices.clear(); }
 
 void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
+    if (frames > kMaxMixFrames) { out.clear(); return; }
     out.assign(frames * 2U, 0);
     for (size_t f = 0; f < frames; ++f) {
         int64_t left = 0;
