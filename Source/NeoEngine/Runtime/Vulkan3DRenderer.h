@@ -61,6 +61,10 @@ public:
                               std::span<const float> modelViewProjections4x4);
 
     bool EndFrame();
+
+    // Copies the last successfully presented swapchain image into RGBA8 CPU memory.
+    // Must be called after EndFrame() and before the next BeginFrame().
+    bool ReadbackLastFrame(std::vector<uint8_t>& rgba8);
     void Reset();
 
     // Resource-owned GPU upload path; valid only while a frame is active.
