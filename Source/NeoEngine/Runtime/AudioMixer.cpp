@@ -77,20 +77,22 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
     try{out.assign(frames*2U,0);}catch(...){out.clear();return;}
     if (out.capacity() < out.size() || out.size() > kMaxMixFrames * 2U || out.size() > std::numeric_limits<size_t>::max() / sizeof(int16_t)) { out.clear(); return; }
     if(out.size()!=frames*2U){out.clear();return;}
+    if (out.size() != frames * 2U) { out.clear(); return; }
     m_Voices.erase(std::remove_if(m_Voices.begin(),m_Voices.end(),[](const auto& voice){
         return voice.id==0U || voice.samples.empty() || voice.samples.size()>kMaxSamplesPerVoice || voice.samples.capacity()>kMaxSamplesPerVoice || !std::isfinite(voice.cursorSubframe) ||
                !std::isfinite(voice.pitch) || voice.pitch<=0.001F || voice.pitch>8.0F || !std::isfinite(voice.pan) || voice.pan<-1.0F || voice.pan>1.0F;
     }),m_Voices.end());
     if (m_Voices.size()>kMaxVoices || m_Voices.capacity()>kMaxVoices) { out.clear(); return; }
     for(size_t f=0;f<frames;++f){
-        if (m_Voices.size()>kMaxVoices) { out.clear(); return; }
+        if (frames == 0U || frames > kMaxMixFrames) { out.clear(); return; }
+    if (m_Voices.size()>kMaxVoices) { out.clear(); return; }
         int64_t left=0,right=0;
         for(auto& voice:m_Voices){
             if(voice.samples.empty()||voice.samples.size()>kMaxSamplesPerVoice||voice.samples.capacity()>kMaxSamplesPerVoice||!std::isfinite(voice.cursorSubframe)||!std::isfinite(voice.pitch)||voice.pitch<=0.001f||voice.pitch>8.0f)continue;
             if(voice.cursorSubframe>=static_cast<double>(voice.samples.size())){if(voice.looping)voice.cursorSubframe=std::fmod(voice.cursorSubframe,static_cast<double>(voice.samples.size()));else continue;}
             if(voice.samples.empty() || voice.samples.size()>kMaxSamplesPerVoice || voice.samples.capacity()>kMaxSamplesPerVoice || !std::isfinite(voice.cursorSubframe)||voice.cursorSubframe<0.0)continue;
             const double position=voice.cursorSubframe;const size_t idx0=static_cast<size_t>(position);if(idx0>=voice.samples.size())continue;const size_t idx1=idx0+1U<voice.samples.size()?idx0+1U:(voice.looping?0U:idx0);const double frac=position-static_cast<double>(idx0);
-            const int32_t s0=voice.samples[idx0],s1=voice.samples[idx1];const double interpolatedValue=static_cast<double>(s0)+frac*static_cast<double>(s1-s0);if(!std::isfinite(interpolatedValue))continue;const int32_t interpolated=static_cast<int32_t>(std::llround(interpolatedValue));
+            const int32_t s0=voice.samples[idx0],s1=voice.samples[idx1];const double interpolatedValue=static_cast<double>(s0)+frac*static_cast<double>(s1-s0);if(!std::isfinite(interpolatedValue)||interpolatedValue>static_cast<double>(std::numeric_limits<int32_t>::max())||interpolatedValue<static_cast<double>(std::numeric_limits<int32_t>::min()))continue;const int32_t interpolated=static_cast<int32_t>(std::llround(interpolatedValue));
             float dynamicGain=static_cast<float>(voice.gain)/256.0f,dynamicPan=voice.pan;
             if(voice.spatialized){
                 if(!std::isfinite(voice.attenuation.minDistance)||!std::isfinite(voice.attenuation.maxDistance)||!std::isfinite(voice.attenuation.minVolume)||voice.attenuation.minDistance<0.0f||voice.attenuation.maxDistance<=0.0f||voice.attenuation.maxDistance<voice.attenuation.minDistance||voice.attenuation.minVolume<0.0f||voice.attenuation.minVolume>1.0f)continue;
@@ -99,7 +101,7 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
                 if(distance>=maxD)attenuation=minVolume;else if(distance>minD){const float t=(distance-minD)/(maxD-minD);if(!std::isfinite(t))continue;if(voice.attenuation.model==AudioAttenuationModel::Linear)attenuation=1.0f-t;else if(voice.attenuation.model==AudioAttenuationModel::Logarithmic)attenuation=1.0f-std::log10(1.0f+9.0f*t);else attenuation=1.0f/(1.0f+t*t*(maxD/minD));attenuation=std::max(minVolume,attenuation);}dynamicGain*=attenuation;
                 if(distance>0.001f){float forward[3]{m_Listener.forward[0],m_Listener.forward[1],m_Listener.forward[2]},up[3]{m_Listener.up[0],m_Listener.up[1],m_Listener.up[2]};if(Normalize3(forward)&&Normalize3(up)){const float fu=Dot3(forward,up);up[0]-=forward[0]*fu;up[1]-=forward[1]*fu;up[2]-=forward[2]*fu;if(Normalize3(up)){const float rightAxis[3]{up[1]*forward[2]-up[2]*forward[1],up[2]*forward[0]-up[0]*forward[2],up[0]*forward[1]-up[1]*forward[0]};dynamicPan=std::clamp((dx*rightAxis[0]+dy*rightAxis[1]+dz*rightAxis[2])/distance,-1.0f,1.0f);}}}
             }
-            if(!std::isfinite(voice.cursorSubframe)||voice.cursorSubframe<0.0||!std::isfinite(dynamicGain)||!std::isfinite(dynamicPan)||dynamicGain<0.0f||dynamicGain>256.0f||dynamicPan<-1.0f||dynamicPan>1.0f)continue;
+            if(!std::isfinite(voice.cursorSubframe)||voice.cursorSubframe<0.0||voice.cursorSubframe>static_cast<double>(std::numeric_limits<size_t>::max())||!std::isfinite(dynamicGain)||!std::isfinite(dynamicPan)||dynamicGain<0.0f||dynamicGain>256.0f||dynamicPan<-1.0f||dynamicPan>1.0f)continue;
             if (voice.spatialized && !ValidAttenuationModel(voice.attenuation.model)) continue;
             const double scaledSample=static_cast<double>(interpolated)*static_cast<double>(dynamicGain);if(!std::isfinite(scaledSample)||scaledSample>static_cast<double>(std::numeric_limits<int64_t>::max())||scaledSample<static_cast<double>(std::numeric_limits<int64_t>::min()))continue;
             const double roundedSample=std::llround(scaledSample); if(!std::isfinite(roundedSample)) continue; const int64_t sample=static_cast<int64_t>(roundedSample);const double nextCursor=voice.cursorSubframe+voice.pitch;
