@@ -8,7 +8,7 @@ ANDROID_DIR="$ROOT/android"
 GRADLEW="$ANDROID_DIR/gradlew"
 TASK="${1:-assembleRelease}"
 
-if [[ ! -x "$GRADLEW" ]]; then
+if [[ ! -x "$GRADLEW" || -L "$GRADLEW" ]]; then
   echo "P4_RELEASE_BUILD_FAIL missing_gradle_wrapper" >&2
   exit 2
 fi
@@ -26,7 +26,7 @@ for name in "${required[@]}"; do
   fi
 done
 
-if [[ ! -f "$NEO_ANDROID_KEYSTORE" || -L "$NEO_ANDROID_KEYSTORE" ]]; then
+if [[ ! -f "$NEO_ANDROID_KEYSTORE" || -L "$NEO_ANDROID_KEYSTORE" || ! -r "$NEO_ANDROID_KEYSTORE" ]]; then
   echo "P4_RELEASE_BUILD_FAIL invalid_signing_keystore=$NEO_ANDROID_KEYSTORE" >&2
   exit 3
 fi
@@ -42,7 +42,7 @@ case "$TASK" in
     ;;
 esac
 
-if [[ ! -f "$artifact" || -L "$artifact" || ! -s "$artifact" ]]; then
+if [[ ! -f "$artifact" || -L "$artifact" || ! -s "$artifact" || ! -r "$artifact" ]]; then
   echo "P4_RELEASE_BUILD_FAIL missing_artifact=$artifact" >&2
   exit 4
 fi
