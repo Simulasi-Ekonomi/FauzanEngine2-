@@ -572,3 +572,16 @@
 - [ ] P2.2: Reproduce broad non-Vulkan Release and ASAN `detect_leaks=1` suites on a single tip revision under a storage-aware build strategy before making cross-engine readiness claims.
 - [x] P2.2a: Execute a bounded representative non-Vulkan smoke matrix on one canonical tip in Release and AddressSanitizer with leak detection, recording exact target coverage and any external-driver exceptions without claiming whole-engine coverage; do not expand to every duplicate-heavy executable target. `docs/BROAD_NON_VULKAN_SMOKE_EVIDENCE_V1.md` records the exact 35-target set; all 35/35 pass in Release and ASAN `detect_leaks=1`. The run is headless with dummy SDL drivers; Vulkan `glslc` discovery is an external configuration exception and Vulkan presentation is not counted.
 \n## 2026-09-21 — Turn 2: animation structural contract hardening\n- [x] B2-01 added canonical AnimationClip::IsValid() API.\n- [x] B2-02 bounded clip duration and finite duration state.\n- [x] B2-03 bounded animation track count to the skeleton contract.\n- [x] B2-04 bounded per-bone keyframe counts.\n- [x] B2-05 bounded aggregate keyframe count.\n- [x] B2-06 validated every keyframe timestamp and transform matrix.\n- [x] B2-07 enforced strictly ordered keyframes per track.\n- [x] B2-08 rejected keyframes outside canonical clip duration.\n- [x] B2-09 constrained direct sampling to the clip time domain.\n- [x] B2-10 made AnimationPlayer reject structurally invalid clips before playback.\n- [x] B2-11 made pose evaluation enforce the same clip contract before CPU/GPU palette generation.\n- [x] B2-12 fixed duration recomputation when replacing the final keyframe and avoided global validation on every sample.\n
+
+## 2026-09-21 — Turn 3 — 11+ substantive implementation/integration ledger
+- [x] p1-renderer-asset-animation-night T3-01: canonical Skeleton::GetBoneCount API used.
+- [x] p1-renderer-asset-animation-night T3-02: local pose count matched skeleton bone count.
+- [x] p1-renderer-asset-animation-night T3-03: skin palette count matched skeleton bone count.
+- [x] p1-renderer-asset-animation-night T3-04: empty pose rejected.
+- [x] p1-renderer-asset-animation-night T3-05: palette bone count bounded by engine contract.
+- [x] p1-renderer-asset-animation-night T3-06: every local matrix checked finite.
+- [x] p1-renderer-asset-animation-night T3-07: every skinning matrix checked finite.
+- [x] p1-renderer-asset-animation-night T3-08: palette generation kept transactional.
+- [x] p1-renderer-asset-animation-night T3-09: animation evaluation rejects size mismatch.
+- [x] p1-renderer-asset-animation-night T3-10: GPU palette cannot commit malformed matrices.
+- [x] p1-renderer-asset-animation-night T3-11: animation update remains fail-closed on invalid clip state.
