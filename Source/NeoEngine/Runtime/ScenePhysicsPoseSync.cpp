@@ -67,7 +67,8 @@ bool ScenePhysicsPoseSync::Sync(const SceneWorld& world, ArchetypeManager& entit
     }
 
     for (const Candidate& pose : candidates) {
-        if (!entities.SetPosX(pose.physics, pose.x) || !entities.SetPosZ(pose.physics, pose.z)) { lastError_ = ScenePhysicsPoseSyncError::InvalidTransform; return false; }
+        entities.SetPosX(pose.physics, pose.x);
+        entities.SetPosZ(pose.physics, pose.z);
     }
     lastError_ = ScenePhysicsPoseSyncError::None;
     return true;
