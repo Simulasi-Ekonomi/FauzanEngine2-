@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #define TEST_CHECK(cond, msg) \
     do { \
