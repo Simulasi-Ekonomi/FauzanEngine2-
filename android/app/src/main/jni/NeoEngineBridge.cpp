@@ -85,8 +85,9 @@ JNIEnv* GetJNIEnv() {
     JNIEnv* env = nullptr;
     if (!g_JavaVM) return nullptr;
     int st = g_JavaVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
-    if (st == JNI_EDETACHED)
-        g_JavaVM->AttachCurrentThread(&env, nullptr);
+    if (st == JNI_EDETACHED) {
+        if (g_JavaVM->AttachCurrentThread(&env, nullptr) != JNI_OK) return nullptr;
+    }
     return env;
 }
 
@@ -129,6 +130,7 @@ static std::string actorToJSON(const Actor& a) {
 extern "C" {
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
+    if (vm == nullptr) return JNI_ERR;
     NeoJNI::g_JavaVM = vm;
     NEO_LOGI("JNI_OnLoad: NeoEngine native loaded with World Streaming");
     return JNI_VERSION_1_6;
@@ -250,6 +252,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_updateCameraPosition(
     JNIEnv*, jclass, jfloat x, jfloat y, jfloat z)
 {
+    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_StreamMutex);
     NeoJNI::g_CameraX = x;
     NeoJNI::g_CameraZ = z;
@@ -276,7 +279,9 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
     jobject activity, jobject assetManager,
     jint w, jint h)
 {
+    if (env == nullptr || activity == nullptr || assetManager == nullptr || w <= 0 || h <= 0 || w > 16384 || h > 16384) return JNI_FALSE;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
+    if (NeoJNI::g_Initialized) return JNI_TRUE;
     NEO_LOGI("nativeInit %dx%d", w, h);
 
     NeoJNI::g_Activity  = env->NewGlobalRef(activity);
@@ -327,17 +332,25 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
 }
 
 JNIEXPORT void JNICALL
-Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {}
+Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
+    if (!NeoJNI::g_Running) return;
+    std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
+    NeoJNI::g_Telemetry.entities = static_cast<int>(NeoJNI::g_Actors.size());
+    NeoJNI::g_Telemetry.drawCalls = NeoJNI::g_Telemetry.entities;
+    NeoJNI::g_Telemetry.triangles = NeoJNI::g_Telemetry.entities * 12;
+}
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTouchEvent(
     JNIEnv*, jclass, jint action, jfloat x, jfloat y, jint ptr)
 {
+    if (!std::isfinite(x) || !std::isfinite(y) || ptr < 0) return;
     NEO_LOGD("Touch a=%d (%.1f,%.1f) ptr=%d", action, x, y, ptr);
 }
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeKeyEvent(JNIEnv*, jclass, jint key, jint action) {
+    if (key < 0 || action < 0) return;
     NEO_LOGD("Key key=%d action=%d", key, action);
 }
 
