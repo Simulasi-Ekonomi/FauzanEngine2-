@@ -10,7 +10,7 @@
 namespace NeoEngine {
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
-    if (output == nullptr || contents == nullptr || nmemb != 0U && size > std::numeric_limits<size_t>::max() / nmemb) return 0U;
+    if (output == nullptr || contents == nullptr || (nmemb != 0U && size > std::numeric_limits<size_t>::max() / nmemb)) return 0U;
     const size_t totalSize = size * nmemb;
     if (totalSize > 16U * 1024U * 1024U || output->size() > 16U * 1024U * 1024U - totalSize) return 0U;
     output->append(static_cast<char*>(contents), totalSize);
