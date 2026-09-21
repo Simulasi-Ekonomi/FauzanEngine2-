@@ -326,7 +326,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
     uint16_t spawnedIndex = 0U;
-    const auto rollbackSpawns = [this, &spawnedEntities, spawnedIndex]() mutable {
+    const auto rollbackSpawns = [this, &spawnedEntities, &spawnedIndex]() {
         while (spawnedIndex > 0U) {
             --spawnedIndex;
             (void)sceneWorld_.Destroy(spawnedEntities[spawnedIndex]);
