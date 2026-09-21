@@ -100,14 +100,14 @@ bool AIManager::IsReady() const noexcept {
 
 std::string AIManager::Think(const std::string& context) {
     constexpr std::size_t kMaxContext = 16U * 1024U * 1024U;
-    if (context.size() > kMaxContext || context.size() == std::string::npos || context.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
+    if (context.size() > kMaxContext || context.size() == std::string::npos || context.capacity() < context.size() || context.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
     if (context.empty()) { lastError = Error::InvalidContext; return {}; }
     if (context.capacity() > kMaxContext) { lastError = Error::InvalidContext; return {}; }
     if (!IsReady()) { lastError = Error::BackendUnavailable; return {}; }
     if (hermes && hermes->IsReady()) {
         const HermesResponse response = hermes->GenerateText(context);
         if (response.text.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
-        if (response.text.size() <= kMaxContext && !response.text.empty() && response.text.find('\0') == std::string::npos) return response.text;
+        if (response.text.size() <= kMaxContext && response.text.capacity() >= response.text.size() && !response.text.empty() && response.text.find('\0') == std::string::npos) return response.text;
     }
     if (gemma4 && gemma4->IsReady()) {
         const Gemma4Response response = gemma4->GenerateText(context);
@@ -116,13 +116,13 @@ std::string AIManager::Think(const std::string& context) {
     }
     if (ruflo && ruflo->IsReady()) {
         const ExecutionResult response = ruflo->ExecuteCode(context, "text");
-        if (response.success && response.stdout.size() <= kMaxContext && !response.stdout.empty() && response.stdout.find('\0') == std::string::npos &&
+        if (response.success && response.stdout.size() <= kMaxContext && response.stdout.capacity() >= response.stdout.size() && !response.stdout.empty() && response.stdout.find('\0') == std::string::npos &&
             std::isfinite(response.executionTime) && response.executionTime >= 0.0f && response.executionTime <= 86400.0f) return response.stdout;
     }
     if (opencode && opencode->IsReady()) {
         const GeneratedCode response = opencode->GenerateFromDescription(context);
         if (response.code.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
-        if (!response.code.empty() && response.code.size() <= kMaxContext && response.code.find('\0') == std::string::npos) return response.code;
+        if (!response.code.empty() && response.code.size() <= kMaxContext && response.code.capacity() >= response.code.size() && response.code.find('\0') == std::string::npos) return response.code;
     }
     lastError = Error::BackendUnavailable;
     return {};
@@ -130,14 +130,14 @@ std::string AIManager::Think(const std::string& context) {
 
 std::string AIManager::PlanAction(const std::string& state) {
     constexpr std::size_t kMaxContext = 16U * 1024U * 1024U;
-    if (state.size() > kMaxContext || state.size() == std::string::npos || state.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
+    if (state.size() > kMaxContext || state.size() == std::string::npos || state.capacity() < state.size() || state.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
     if (state.empty()) { lastError = Error::InvalidContext; return {}; }
     if (state.capacity() > kMaxContext) { lastError = Error::InvalidContext; return {}; }
     constexpr std::size_t kPrefixSize = sizeof("Plan an action for the following game state:\n") - 1U;
     if (state.size() > kMaxContext - kPrefixSize) { lastError = Error::InvalidContext; return {}; }
     const std::string prompt = "Plan an action for the following game state:\n" + state;
     if (prompt.capacity() > kMaxContext) { lastError = Error::InvalidContext; return {}; }
-    if (prompt.size() > kMaxContext || prompt.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
+    if (prompt.size() > kMaxContext || prompt.capacity() < prompt.size() || prompt.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
     return Think(prompt);
 }
 
