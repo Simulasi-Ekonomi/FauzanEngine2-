@@ -9,11 +9,11 @@ bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity)
 }
 
 bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity, bool physicsAuthoritative) {
-    if (sceneEntity.index == 0xFFFFU || physicsEntity == 0U) {
+    if (sceneEntity.index == 0xFFFFU || sceneEntity.generation == 0U || physicsEntity == 0U || physicsEntity == std::numeric_limits<EntityID>::max()) {
         lastError_ = ScenePhysicsPoseSyncError::InvalidSceneEntity;
         return false;
     }
-    if (bindings_.size() >= kMaxBindings) {
+    if (bindings_.size() >= kMaxBindings || bindings_.capacity() > kMaxBindings) {
         lastError_ = ScenePhysicsPoseSyncError::Capacity;
         return false;
     }
@@ -89,11 +89,14 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
         if (!binding.physicsAuthoritative) continue;
         bool found = false;
         for (ArchetypeChunk* chunk : entities.GetChunks<PositionComponent, VelocityComponent, ColliderComponent>()) {
+            if (chunk == nullptr || chunk->count > chunk->capacity || chunk->count > entities.GetMaxEntities()) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
+            if (chunk->posX == nullptr || chunk->posZ == nullptr || chunk->radius == nullptr || chunk->invMass == nullptr || chunk->entities == nullptr) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
             for (size_t index = 0U; index < chunk->count; ++index) {
                 if (chunk->entities[index] != binding.physics) continue;
+                if (index >= chunk->count) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
                 const float x = chunk->posX[index];
                 const float z = chunk->posZ[index];
-                if (index >= chunk->count || chunk->posX == nullptr || chunk->posZ == nullptr || chunk->radius == nullptr || chunk->invMass == nullptr || chunk->entities == nullptr) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
+                if (chunk->posX == nullptr || chunk->posZ == nullptr || chunk->radius == nullptr || chunk->invMass == nullptr || chunk->entities == nullptr) { lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose; return false; }
                 const float radius = chunk->radius[index];
                 const float inverseMass = chunk->invMass[index];
                 if (!std::isfinite(x) || !std::isfinite(z) || !std::isfinite(radius) ||
