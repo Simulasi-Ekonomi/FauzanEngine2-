@@ -1,17 +1,42 @@
 #pragma once
 
-#include <vector>
+#include "Runtime/VulkanGPUBuffer.h"
+#include "Runtime/VulkanDescriptorManager.h"
+
+#include <vulkan/vulkan.h>
 #include <array>
+#include <cstdint>
+#include <vector>
 
 class SkinningGPU
 {
 public:
+    static constexpr uint32_t MaxBones = 64U;
+    using BoneMatrix = std::array<float, 16>;
 
-    void UploadBones(const std::vector<std::array<float,16>>& matrices);
+    SkinningGPU() = default;
+    ~SkinningGPU();
 
-    void Bind();
+    SkinningGPU(const SkinningGPU&) = delete;
+    SkinningGPU& operator=(const SkinningGPU&) = delete;
+    SkinningGPU(SkinningGPU&& other) noexcept;
+    SkinningGPU& operator=(SkinningGPU&& other) noexcept;
+
+    bool Initialize(VkDevice device, VkPhysicalDevice physicalDevice);
+    bool UploadBones(const std::vector<BoneMatrix>& matrices);
+    bool Bind(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
+    void Destroy();
+
+    [[nodiscard]] VkDescriptorSetLayout GetDescriptorSetLayout() const { return descriptorManager_.GetLayout(); }
+    [[nodiscard]] VkDescriptorSet GetDescriptorSet() const { return descriptorSet_; }
+    [[nodiscard]] VkBuffer GetBoneBuffer() const { return boneBuffer_.GetBuffer(); }
+    [[nodiscard]] bool IsValid() const { return boneBuffer_.IsValid() && descriptorManager_.IsValid() && descriptorSet_ != VK_NULL_HANDLE; }
 
 private:
+    static bool IsFiniteMatrix(const BoneMatrix& matrix);
+    static std::array<BoneMatrix, MaxBones> IdentityPalette();
 
-    [[maybe_unused]] unsigned int boneBuffer;
+    NeoEngine::VulkanGPUBuffer boneBuffer_;
+    NeoEngine::VulkanDescriptorManager descriptorManager_;
+    VkDescriptorSet descriptorSet_ = VK_NULL_HANDLE;
 };
