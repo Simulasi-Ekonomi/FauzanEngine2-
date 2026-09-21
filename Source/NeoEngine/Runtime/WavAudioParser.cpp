@@ -41,7 +41,8 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
         }
     }
     if (offset != bytes.size() || !fmtFound || !dataFound || format != 1 || channels == 0 || channels > 2 || rate == 0 || rate > 192000U ||
-        (bits != 8 && bits != 16) || dataSize % (static_cast<size_t>(channels) * (bits / 8U)) != 0) return false;
+        (bits != 8 && bits != 16) || dataSize % (static_cast<size_t>(channels) * (bits / 8U)) != 0 ||
+        static_cast<uint64_t>(rate) * channels * (bits / 8U) > std::numeric_limits<uint32_t>::max()) return false;
     const size_t bytesPerSample = bits / 8U;
     const size_t frameBytes = static_cast<size_t>(channels) * bytesPerSample;
     if (frameBytes == 0U || dataSize < frameBytes) return false;
