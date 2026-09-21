@@ -1,3 +1,12 @@
+# Gap-closure execution log — 2026-09-21
+
+- [x] Establish canonical active-source manifest generated from canonical CMake and add duplicate/missing-source verifier.
+- [x] Make runtime frame composition evidence-bearing with per-stage digests and completion receipt.
+- [x] Make event dispatch reentrancy-safe by snapshotting listeners/events and preserving events queued during callbacks.
+- [x] Account bounded RuntimeClock fixed-step overruns explicitly instead of silently discarding accumulated simulation time.
+- [x] Harden timer fire-count lifetime against uint32 wraparound.
+- [x] Add executable smoke coverage for source-manifest integrity, clock overrun accounting, frame composition evidence, and event dispatch reentrancy.
+
 # FauzanEngine Runtime TODO
 
 - [ ] Verify the canonical FauzanEngine source tree, active CMake targets, toolchain versions, and executable entry point on a clean build.
