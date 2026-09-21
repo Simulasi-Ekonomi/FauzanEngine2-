@@ -1,5 +1,6 @@
 #include "AnimationGraph.h"
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <utility>
 namespace NeoEngine {
