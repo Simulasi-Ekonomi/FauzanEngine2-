@@ -132,8 +132,46 @@ bool EditorSceneSession::SelectActor(uint32_t actorId) { const auto found = std:
 bool EditorSceneSession::Save(EditorSceneDocument& document) const { if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } document = document_; savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true; }
 bool EditorSceneSession::SaveBytes(std::vector<uint8_t>& bytes) const { if (document_.revision == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } EditorSceneDocumentCodec codec; if (!codec.Encode(document_, bytes)) { lastError_ = EditorSceneSessionError::CodecEncodeFailed; return false; } savedDocument_ = document_; savedRevision_ = document_.revision; lastError_ = EditorSceneSessionError::None; return true; }
 bool EditorSceneSession::RevertToSaved(const AssetRegistry& assets) { if (document_.revision == 0U || savedRevision_ == 0) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } if (!OpenCandidate(savedDocument_, assets, true)) return false; undoHistory_.clear(); redoHistory_.clear(); return true; }
-bool EditorSceneSession::Undo(const AssetRegistry& assets) { if (undoHistory_.empty()) { lastError_ = EditorSceneSessionError::HistoryUnavailable; return false; } const EditorSceneDocument prior = document_; const EditorSceneDocument target = undoHistory_.back(); if (!OpenCandidate(target, assets, false)) return false; undoHistory_.pop_back(); PushHistory(redoHistory_, prior); return true; }
-bool EditorSceneSession::Redo(const AssetRegistry& assets) { if (redoHistory_.empty()) { lastError_ = EditorSceneSessionError::HistoryUnavailable; return false; } const EditorSceneDocument prior = document_; const EditorSceneDocument target = redoHistory_.back(); if (!OpenCandidate(target, assets, false)) return false; redoHistory_.pop_back(); PushHistory(undoHistory_, prior); return true; }
+bool EditorSceneSession::Undo(const AssetRegistry& assets) {
+    if (undoHistory_.empty()) { lastError_ = EditorSceneSessionError::HistoryUnavailable; return false; }
+    const EditorSceneDocument prior = document_;
+    const EditorSceneDocument target = undoHistory_.back();
+    std::vector<EditorSceneDocument> nextRedo;
+    std::vector<EditorSceneDocument> nextUndo;
+    try {
+        nextRedo = redoHistory_;
+        PushHistory(nextRedo, prior);
+        nextUndo = undoHistory_;
+        nextUndo.pop_back();
+    } catch (const std::bad_alloc&) {
+        lastError_ = EditorSceneSessionError::HistoryUnavailable;
+        return false;
+    }
+    if (!OpenCandidate(target, assets, false)) return false;
+    redoHistory_ = std::move(nextRedo);
+    undoHistory_ = std::move(nextUndo);
+    return true;
+}
+bool EditorSceneSession::Redo(const AssetRegistry& assets) {
+    if (redoHistory_.empty()) { lastError_ = EditorSceneSessionError::HistoryUnavailable; return false; }
+    const EditorSceneDocument prior = document_;
+    const EditorSceneDocument target = redoHistory_.back();
+    std::vector<EditorSceneDocument> nextUndo;
+    std::vector<EditorSceneDocument> nextRedo;
+    try {
+        nextUndo = undoHistory_;
+        PushHistory(nextUndo, prior);
+        nextRedo = redoHistory_;
+        nextRedo.pop_back();
+    } catch (const std::bad_alloc&) {
+        lastError_ = EditorSceneSessionError::HistoryUnavailable;
+        return false;
+    }
+    if (!OpenCandidate(target, assets, false)) return false;
+    undoHistory_ = std::move(nextUndo);
+    redoHistory_ = std::move(nextRedo);
+    return true;
+}
 std::vector<EditorSceneActor> EditorSceneSession::HierarchySnapshot() const { std::vector<EditorSceneActor> snapshot = document_.actors; std::sort(snapshot.begin(), snapshot.end(), [](const EditorSceneActor& left, const EditorSceneActor& right) { return left.id < right.id; }); return snapshot; }
 bool EditorSceneSession::InspectActor(uint32_t actorId, EditorSceneActor& actor) const { const auto found = std::find_if(document_.actors.begin(), document_.actors.end(), [actorId](const EditorSceneActor& candidate) { return candidate.id == actorId; }); if (found == document_.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; } actor = *found; lastError_ = EditorSceneSessionError::None; return true; }
 bool EditorSceneSession::InspectSelected(EditorSceneActor& actor) const { if (selectedActorId_ == 0U) { lastError_ = EditorSceneSessionError::NoSelection; return false; } return InspectActor(selectedActorId_, actor); }
