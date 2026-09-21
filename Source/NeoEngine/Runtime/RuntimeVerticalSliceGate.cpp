@@ -28,8 +28,8 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     }
 
     const uint64_t sceneEntities = runtime.Scene()->AliveCount();
-    if (sceneEntities > std::numeric_limits<uint32_t>::max() ||
-        sceneEntities == std::numeric_limits<uint64_t>::max() ||
+    if (sceneEntities == std::numeric_limits<uint64_t>::max() ||
+        sceneEntities > std::numeric_limits<uint32_t>::max() ||
         sceneEcs.sceneCount > std::numeric_limits<uint32_t>::max() ||
         sceneEcs.ecsCount > std::numeric_limits<uint32_t>::max()) {
         receipt.error = VerticalSliceGateError::SceneECSMismatch;
@@ -48,6 +48,10 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     }
 
     const uint64_t physicsRevision = runtime.ECS()->GetPhysicsRevision();
+    if (physicsRevision == std::numeric_limits<uint64_t>::max()) {
+        receipt.error = VerticalSliceGateError::SceneECSRevisionMismatch;
+        return false;
+    }
     receipt.sceneECSRevisionValid =
         physicsRevision != 0U &&
         physicsRevision != std::numeric_limits<uint64_t>::max() &&
@@ -77,6 +81,10 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
         return false;
     }
     receipt.replicationValid = runtime.Replication() != nullptr;
+    if (runtime.SceneMeshes()->Size() > std::numeric_limits<uint32_t>::max()) {
+        receipt.error = VerticalSliceGateError::SceneMeshMissing;
+        return false;
+    }
     if (!receipt.replicationValid) {
         receipt.error = VerticalSliceGateError::ReplicationMissing;
         return false;
@@ -89,7 +97,8 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
 
     const uint32_t preSceneEntities = receipt.sceneEntities;
     const uint64_t prePhysicsRevision = physicsRevision;
-    if (preSceneEntities != sceneEcs.sceneCount || preSceneEntities != sceneEcs.ecsCount || prePhysicsRevision != initialRevision) {
+    if (preSceneEntities != sceneEcs.sceneCount || preSceneEntities != sceneEcs.ecsCount || prePhysicsRevision != initialRevision ||
+        sceneEcs.revision == std::numeric_limits<uint64_t>::max()) {
         receipt.error = VerticalSliceGateError::SceneECSMismatch;
         return false;
     }
@@ -98,6 +107,10 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
         return false;
     }
     receipt.tickAccepted = true;
+    if (runtime.State() != RuntimeState::Initialized) {
+        receipt.error = VerticalSliceGateError::TickRejected;
+        return false;
+    }
 
     if (runtime.State() != RuntimeState::Initialized || runtime.Scene() == nullptr || runtime.ECS() == nullptr ||
         runtime.SceneMeshes() == nullptr || runtime.Assets() == nullptr || runtime.Resources() == nullptr ||
@@ -113,7 +126,8 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     }
     if (postSceneEntities > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().sceneCount > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().ecsCount > std::numeric_limits<uint32_t>::max() ||
         postSceneEntities != runtime.SceneECS().sceneCount ||
-        postSceneEntities != runtime.SceneECS().ecsCount || runtime.SceneECS().sceneCount != runtime.SceneECS().ecsCount) {
+        postSceneEntities != runtime.SceneECS().ecsCount || runtime.SceneECS().sceneCount != runtime.SceneECS().ecsCount ||
+        runtime.SceneECS().revision < prePhysicsRevision) {
         receipt.error = VerticalSliceGateError::SceneECSMismatch;
         return false;
     }
@@ -125,6 +139,9 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
     }
     receipt.sceneEntities = static_cast<uint32_t>(postSceneEntities);
     receipt.ecsEntities = static_cast<uint32_t>(runtime.SceneECS().ecsCount);
+    receipt.sceneECSRevisionValid = runtime.SceneECS().revision != 0U &&
+        runtime.SceneECS().revision != std::numeric_limits<uint64_t>::max() &&
+        postPhysicsRevision == runtime.SceneECS().revision;
     if (receipt.sceneEntities != receipt.ecsEntities || !receipt.sceneECSRevisionValid) {
         receipt.error = VerticalSliceGateError::SceneECSMismatch;
         return false;
