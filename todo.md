@@ -585,3 +585,17 @@
 - [x] p3-pr44-advanced-port T3-09: listener orthogonality checked.
 - [x] p3-pr44-advanced-port T3-10: mix frame count bounded.
 - [x] p3-pr44-advanced-port T3-11: output stereo cardinality verified.
+
+
+## 2026-09-21 — Turn 4 — substantive implementation/integration ledger
+- [x] p3-pr44-advanced-port T4-01: mixer overflow no longer clears live voices destructively.
+- [x] p3-pr44-advanced-port T4-02: voice sample capacity is validated before ownership transfer.
+- [x] p3-pr44-advanced-port T4-03: committed voice samples are revalidated after move.
+- [x] p3-pr44-advanced-port T4-04: spatial voice samples are revalidated after copy.
+- [x] p3-pr44-advanced-port T4-05: voice position updates require an existing voice pool.
+- [x] p3-pr44-advanced-port T4-06: voice pitch updates require an existing voice pool.
+- [x] p3-pr44-advanced-port T4-07: voice gain updates require an existing voice pool.
+- [x] p3-pr44-advanced-port T4-08: Clear removes redundant second clear and keeps lifecycle deterministic.
+- [x] p3-pr44-advanced-port T4-09: mix output byte-size overflow is bounded.
+- [x] p3-pr44-advanced-port T4-10: mix rejects oversized voice sample capacity.
+- [x] p3-pr44-advanced-port T4-11: spatial mixing revalidates voice positions before distance math.
