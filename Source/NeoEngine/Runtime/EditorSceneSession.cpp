@@ -77,6 +77,7 @@ bool EditorSceneSession::DuplicateActor(uint32_t actorId, uint32_t newActorId, c
 }
 
 bool EditorSceneSession::UpdateActorProperties(uint32_t actorId, std::string_view name, std::string_view materialAssetId, std::string_view textureAssetId, uint32_t spriteRgba, const AssetRegistry& assets) {
+    if (name.size() > kMaxSceneStringBytes || materialAssetId.size() > kMaxSceneStringBytes || textureAssetId.size() > kMaxSceneStringBytes) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     EditorSceneDocument candidate = document_;
     const auto found = std::find_if(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
@@ -100,6 +101,7 @@ bool EditorSceneSession::CapturePrefab(uint32_t rootActorId, EditorScenePrefab& 
 bool EditorSceneSession::InstantiatePrefab(const EditorScenePrefab& prefab, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets) { if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } EditorScenePrefabAdapter adapter; EditorSceneDocument candidate{}; if (!adapter.AppendInstance(document_, prefab, parentActorId, instanceActorIds, candidate)) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } return CommitMutation(candidate, assets); }
 bool EditorSceneSession::InstantiateStagedPrefab(const PrefabStagingStore& prefabs, std::string_view assetId, uint32_t parentActorId, const std::vector<uint32_t>& instanceActorIds, const AssetRegistry& assets) { const CpuPrefabResource* resource = prefabs.Find(assetId); if (resource == nullptr || !prefabs.IsCurrent(assets, assetId)) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } return InstantiatePrefab(resource->prefab, parentActorId, instanceActorIds, assets); }
 bool EditorSceneSession::MultiSelectActors(const std::vector<uint32_t>& actorIds) {
+    if (actorIds.size() > kMaxMultiSelectActors) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     std::vector<uint32_t> validated;
     validated.reserve(actorIds.size());
     for (uint32_t id : actorIds) {
