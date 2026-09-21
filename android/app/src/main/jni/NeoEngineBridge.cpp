@@ -20,9 +20,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <cstdint>
-#include <cstring>
-#include <limits>
 
 #define NEO_JNI_TAG "NeoEngine-JNI"
 #define NEO_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  NEO_JNI_TAG, __VA_ARGS__)
@@ -160,7 +157,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     JNIEnv* env, jclass, jint seed, jfloat sizeKm)
 {
-    if (!NeoJNI::g_Initialized || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
+    if (!NeoJNI::g_Initialized || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
         NEO_LOGE("startWorldStreaming: invalid world size %.3f km", sizeKm);
         return;
     }
@@ -223,6 +220,7 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
 
                     // Generate chunk
                     NeoEngine::WorldChunk chunk = NeoJNI::g_WorldGenerator->GenerateChunk(cx, cz);
+                    if (chunk.objects.size() > 100000U) continue;
                     
                     // Convert to actors and add to scene
                     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
