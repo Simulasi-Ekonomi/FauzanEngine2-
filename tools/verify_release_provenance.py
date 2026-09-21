@@ -33,6 +33,8 @@ expected_keys = [
     "tree=",
     "artifact=",
     "artifact_sha256=",
+    "reference_artifact=",
+    "reference_artifact_sha256=",
     "manifest_sha256=",
     "sbom_sha256=",
 ]
@@ -47,12 +49,23 @@ if values["commit"] != head or values["tree"] != tree:
 
 if values["artifact"] != sys.argv[1]:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_identity_mismatch")
+reference = Path(values["reference_artifact"])
+if not reference.is_absolute():
+    reference = ROOT / reference
+reference = reference.resolve()
+if not reference.is_file() or reference.is_symlink() or reference.suffix != artifact.suffix:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL invalid_reference_artifact")
+if values["reference_artifact"] == sys.argv[1]:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL reference_artifact_identity_mismatch")
 
 artifact_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
+reference_sha = hashlib.sha256(reference.read_bytes()).hexdigest()
 manifest_sha = hashlib.sha256((ROOT / "p4-release-manifest.sha256").read_bytes()).hexdigest()
 sbom_sha = hashlib.sha256((ROOT / "p4-source-sbom.json").read_bytes()).hexdigest()
 if values["artifact_sha256"] != artifact_sha:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_hash_mismatch")
+if values["reference_artifact_sha256"] != reference_sha:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL reference_artifact_hash_mismatch")
 if values["manifest_sha256"] != manifest_sha:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL manifest_hash_mismatch")
 if values["sbom_sha256"] != sbom_sha:
