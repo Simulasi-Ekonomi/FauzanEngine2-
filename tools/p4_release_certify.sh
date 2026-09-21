@@ -21,6 +21,22 @@ if [[ ! -f "$ARTIFACT" || -L "$ARTIFACT" ]]; then
   echo "P4_RELEASE_CERTIFICATION_FAIL artifact_not_regular_file" >&2
   exit 3
 fi
+if [[ ! -f "$REFERENCE_ARTIFACT" || -L "$REFERENCE_ARTIFACT" ]]; then
+  echo "P4_RELEASE_CERTIFICATION_FAIL reference_artifact_not_regular_file" >&2
+  exit 3
+fi
+if [[ "$ARTIFACT" == "$REFERENCE_ARTIFACT" ]]; then
+  echo "P4_RELEASE_CERTIFICATION_FAIL reference_artifact_must_be_distinct" >&2
+  exit 3
+fi
+case "$REFERENCE_ARTIFACT" in
+  *.apk|*.aab) ;;
+  *) echo "P4_RELEASE_CERTIFICATION_FAIL unsupported_reference_artifact_extension" >&2; exit 3 ;;
+esac
+if [[ "${ARTIFACT##*.}" != "${REFERENCE_ARTIFACT##*.}" ]]; then
+  echo "P4_RELEASE_CERTIFICATION_FAIL artifact_extension_mismatch" >&2
+  exit 3
+fi
 case "$ARTIFACT" in
   *.apk|*.aab) ;;
   *) echo "P4_RELEASE_CERTIFICATION_FAIL unsupported_artifact_extension" >&2; exit 3 ;;
