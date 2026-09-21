@@ -272,10 +272,21 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
 }
 
 bool ReplicationWorld::ValidateSnapshot(const ReplicationSnapshot& snapshot) const {
-    if (snapshot.sequence == 0U || snapshot.count > kMaxEntities || snapshot.count > 1024U || snapshot.checksum == 0U || snapshot.checksum != SnapshotChecksum(snapshot)) return false;
+    if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max()) return false;
+    if (snapshot.serverTick == std::numeric_limits<uint64_t>::max()) return false;
+    if (snapshot.count > kMaxEntities || snapshot.count > 1024U) return false;
+    if (snapshot.checksum == 0U || snapshot.checksum == std::numeric_limits<uint64_t>::max()) return false;
+    if (snapshot.checksum != SnapshotChecksum(snapshot)) return false;
+    if (snapshot.count > 0U && snapshot.states[0U].networkId == std::numeric_limits<uint32_t>::max()) return false;
+    if (snapshot.count > 0U && snapshot.states[0U].ownerId == std::numeric_limits<uint32_t>::max()) return false;
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
-        if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) return false;
+        if (!ValidTransform(state.transform)) return false;
+        if (state.stateRevision == std::numeric_limits<uint64_t>::max()) return false;
+        if (state.ownerId == std::numeric_limits<uint32_t>::max()) return false;
+        if (state.networkId == std::numeric_limits<uint32_t>::max()) return false;
+        if (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId) return false;
+        if (index > 0U && snapshot.states[index - 1U].stateRevision > state.stateRevision && snapshot.states[index - 1U].networkId == state.networkId) return false;
     }
     return true;
 }
