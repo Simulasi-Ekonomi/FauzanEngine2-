@@ -655,3 +655,16 @@
 - p3-pr44-advanced-port: 10 runtime contract upgrades integrated.
 - p4-release-certification-night: 10 runtime contract upgrades integrated.
 \n## 2026-09-21 — Turn 2: runtime contract correction and production hardening\n- [x] B1-01 reordered Tick state validation before clock dereference.\n- [x] B1-02 restored zero as valid initial runtime revision; terminal uint64 remains invalid.\n- [x] B1-03 made input-motion entity validation conditional on the subsystem being enabled.\n- [x] B1-04 made route entity validation conditional on route motion being active.\n- [x] B1-05 replaced hard-coded delta validation with the actual tick-delta contract.\n- [x] B1-06 bounded FarmWorld dimensions before tick execution.\n- [x] B1-07 bounded canonical asset/resource counts using existing APIs.\n- [x] B1-08 bounded timer-fire batch size.\n- [x] B1-09 bounded timer fire counts before event enqueue.\n- [x] B1-10 validated frame receipt/event-count bounds before committing receipt state.\n- [x] B1-11 enforced monotonic frame-revision transition without unsigned underflow.\n- [x] B1-12 verified source against canonical AssetResourceManager counters after correction.\n
+
+## 2026-09-21 — Turn 3 — 11+ substantive implementation/integration ledger
+- [x] gap-closure-all-branches-night T3-01: state ownership checked before checkpoint mutation.
+- [x] gap-closure-all-branches-night T3-02: checkpoint revision validated against canonical clock.
+- [x] gap-closure-all-branches-night T3-03: terminal revision rejected.
+- [x] gap-closure-all-branches-night T3-04: checkpoint payload size bounded.
+- [x] gap-closure-all-branches-night T3-05: encoded checkpoint emptiness rejected.
+- [x] gap-closure-all-branches-night T3-06: checkpoint byte output bounded.
+- [x] gap-closure-all-branches-night T3-07: checkpoint error mapped to canonical enum.
+- [x] gap-closure-all-branches-night T3-08: clock snapshot provenance captured.
+- [x] gap-closure-all-branches-night T3-09: save operation requires initialized runtime.
+- [x] gap-closure-all-branches-night T3-10: save operation requires farm/world/clock ownership.
+- [x] gap-closure-all-branches-night T3-11: checkpoint output is fail-closed before commit.
