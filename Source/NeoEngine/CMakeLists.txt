@@ -328,6 +328,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_service_smoke.cpp")
     add_xpbd_executable(farm_authoritative_service_smoke ../../Tests/Farm/farm_authoritative_service_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_balance_profile_smoke.cpp")
+    add_xpbd_executable(farm_balance_profile_smoke ../../Tests/Farm/farm_balance_profile_smoke.cpp)
+endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
 
