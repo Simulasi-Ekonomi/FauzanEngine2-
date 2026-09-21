@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <new>
 
 namespace NeoEngine {
 void EditorSceneSession::PushHistory(std::vector<EditorSceneDocument>& history, const EditorSceneDocument& document) { if (history.size() == kMaxHistory) history.erase(history.begin()); history.push_back(document); }
@@ -25,8 +26,18 @@ bool EditorSceneSession::OpenCandidate(const EditorSceneDocument& document, cons
 }
 bool EditorSceneSession::CommitMutation(const EditorSceneDocument& candidate, const AssetRegistry& assets) {
     const EditorSceneDocument prior = document_;
+    std::vector<EditorSceneDocument> nextUndo;
+    try {
+        nextUndo = undoHistory_;
+        PushHistory(nextUndo, prior);
+    } catch (const std::bad_alloc&) {
+        lastError_ = EditorSceneSessionError::HistoryUnavailable;
+        return false;
+    }
     if (!OpenCandidate(candidate, assets, false)) return false;
-    PushHistory(undoHistory_, prior); redoHistory_.clear(); return true;
+    undoHistory_ = std::move(nextUndo);
+    redoHistory_.clear();
+    return true;
 }
 bool EditorSceneSession::OpenBytes(const std::vector<uint8_t>& bytes, const AssetRegistry& assets) { EditorSceneDocument candidate{}; EditorSceneDocumentCodec codec; if (!codec.Decode(bytes, candidate)) { lastError_ = EditorSceneSessionError::CodecDecodeFailed; return false; } return Open(candidate, assets); }
 bool EditorSceneSession::UpdateTransform(uint32_t actorId, const Transform3& transform, const AssetRegistry& assets) {
