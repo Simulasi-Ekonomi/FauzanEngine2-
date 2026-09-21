@@ -76,6 +76,10 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
         return false;
     }
     receipt.resourcesValid = runtime.Resources() != nullptr;
+    if (runtime.SceneECS().sceneCount > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().ecsCount > std::numeric_limits<uint32_t>::max()) {
+        receipt.error = VerticalSliceGateError::SceneECSMismatch;
+        return false;
+    }
     if (!receipt.resourcesValid) {
         receipt.error = VerticalSliceGateError::ResourcesMissing;
         return false;
@@ -132,6 +136,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime, bool executeTick, V
         return false;
     }
     if (runtime.SceneECS().revision < prePhysicsRevision || runtime.SceneECS().revision == 0U ||
+        runtime.SceneECS().revision < initialRevision ||
         runtime.SceneECS().revision == std::numeric_limits<uint64_t>::max() ||
         postPhysicsRevision != runtime.SceneECS().revision) {
         receipt.error = VerticalSliceGateError::SceneECSRevisionMismatch;
