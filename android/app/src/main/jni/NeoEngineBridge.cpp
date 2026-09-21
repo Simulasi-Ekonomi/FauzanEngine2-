@@ -400,7 +400,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTouchEvent(
     JNIEnv*, jclass, jint action, jfloat x, jfloat y, jint ptr)
 {
-    if (action < 0 || action > 3 || !std::isfinite(x) || !std::isfinite(y) || x < 0.0f || y < 0.0f || ptr < 0 || ptr > 15) return;
+    if (action < 0 || action > 3 || !std::isfinite(x) || !std::isfinite(y) || x < 0.0f || y < 0.0f || ptr < 0 || ptr > 15 || !NeoJNI::g_Running) return;
     NEO_LOGD("Touch a=%d (%.1f,%.1f) ptr=%d", action, x, y, ptr);
 }
 
@@ -442,7 +442,7 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     a.name     = name;
     a.type     = type;
     a.position = {x, y, z};
-    if (NeoJNI::g_Actors.size() >= 1000000U) {
+    if (NeoJNI::g_Actors.size() >= 1000000U || NeoJNI::g_ActorsByName.size() >= 1000000U) {
         env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
     }
 
