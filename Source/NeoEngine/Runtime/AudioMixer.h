@@ -21,7 +21,7 @@ public:
     bool UpdateVoiceGain(uint32_t id, uint16_t gainQ8);
  bool Stop(uint32_t id);
  void Clear();
- void SetListener(const AudioListener& listener){m_Listener=listener;}
+ bool SetListener(const AudioListener& listener);
  void Mix(size_t frames,std::vector<int16_t>& stereo);
  size_t ActiveVoices()const{return m_Voices.size();}
 private:
