@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <limits>
 #include <cmath>
+#include <exception>
 
 namespace NeoEngine {
 
@@ -23,7 +24,8 @@ bool SdlAudioBridge::Initialize(uint16_t framesPerCallback) {
         lastError_ = SdlAudioBridgeError::InvalidConfiguration;
         return false;
     }
-    callbackBuffer_.assign(callbackBufferFrames_ * kStereoChannels, 0);
+    try { callbackBuffer_.assign(callbackBufferFrames_ * kStereoChannels, 0); }
+    catch (const std::bad_alloc&) { callbackBufferFrames_ = 0; lastError_ = SdlAudioBridgeError::InvalidConfiguration; return false; }
 
     if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
         callbackBuffer_.clear();
@@ -52,6 +54,9 @@ bool SdlAudioBridge::Initialize(uint16_t framesPerCallback) {
 }
 
 bool SdlAudioBridge::Play(uint32_t id, std::vector<int16_t> mono, uint16_t gainQ8, bool looping, float pitch) {
+    if (mono.empty() || mono.size() > 48000U * 60U || !std::isfinite(pitch) || pitch <= 0.0f || pitch > 8.0f) {
+        lastError_ = SdlAudioBridgeError::InvalidConfiguration; return false;
+    }
     if (stream_ == nullptr) {
         lastError_ = SdlAudioBridgeError::NotInitialized;
         return false;
@@ -94,6 +99,7 @@ bool SdlAudioBridge::Stop(uint32_t id) {
 }
 
 bool SdlAudioBridge::UpdateVoicePosition(uint32_t id, const float position[3]) {
+    if (position == nullptr) { lastError_ = SdlAudioBridgeError::InvalidConfiguration; return false; }
     if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
     SDL_LockAudioStream(stream_);
     const bool ok = mixer_.UpdateVoicePosition(id, position);
@@ -104,6 +110,7 @@ bool SdlAudioBridge::UpdateVoicePosition(uint32_t id, const float position[3]) {
 }
 
 bool SdlAudioBridge::UpdateVoicePitch(uint32_t id, float pitch) {
+    if (!std::isfinite(pitch) || pitch <= 0.0f || pitch > 8.0f) { lastError_ = SdlAudioBridgeError::InvalidConfiguration; return false; }
     if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
     SDL_LockAudioStream(stream_);
     const bool ok = mixer_.UpdateVoicePitch(id, pitch);
@@ -114,6 +121,7 @@ bool SdlAudioBridge::UpdateVoicePitch(uint32_t id, float pitch) {
 }
 
 bool SdlAudioBridge::UpdateVoiceGain(uint32_t id, uint16_t gainQ8) {
+    if (gainQ8 > 1024U) { lastError_ = SdlAudioBridgeError::InvalidConfiguration; return false; }
     if (stream_ == nullptr) { lastError_ = SdlAudioBridgeError::NotInitialized; return false; }
     SDL_LockAudioStream(stream_);
     const bool ok = mixer_.UpdateVoiceGain(id, gainQ8);
@@ -174,6 +182,7 @@ void SdlAudioBridge::Reset() {
 void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int additionalAmount, int /*totalAmount*/) {
     auto* bridge = static_cast<SdlAudioBridge*>(userdata);
     if (bridge == nullptr || stream == nullptr || additionalAmount <= 0) return;
+    if (!bridge->audioInitialized_ || bridge->stream_ != stream) return;
 
     constexpr size_t bytesPerFrame = sizeof(int16_t) * kStereoChannels;
     if (bridge->callbackBufferFrames_ == 0U) return;
