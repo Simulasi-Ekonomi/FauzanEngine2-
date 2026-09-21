@@ -45,7 +45,7 @@ bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationS
         return false;
     }
     if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
-        snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count > snapshot.states.size()) {
+        snapshot.serverTick != serverTick || snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count > snapshot.states.size() || snapshot.checksum == 0U) {
         snapshot = {};
         lastError_ = CanonicalReplicationBridgeError::SnapshotFailed;
         return false;
@@ -126,7 +126,7 @@ bool CanonicalReplicationBridge::EncodeAcknowledgement(const ReplicationAcknowle
     if (acknowledgement.sequence == std::numeric_limits<uint64_t>::max() || acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::EncodeFailed; return false; }
     if (bytes.capacity() > ReplicationAcknowledgementCodec::kMaxBytes || bytes.capacity() < bytes.size()) std::vector<uint8_t>().swap(bytes);
     ReplicationError error = ReplicationError::None;
-    if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement, bytes, error) || bytes.empty() || bytes.size() > ReplicationAcknowledgementCodec::kMaxBytes) {
+    if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement, bytes, error) || bytes.size() != 38U || bytes.size() > ReplicationAcknowledgementCodec::kMaxBytes) {
         lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
         return false;
     }
@@ -182,7 +182,8 @@ bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float
     if (receipt.networkId != networkId || receipt.predictionSequence == 0U || receipt.predictionSequence == std::numeric_limits<uint64_t>::max() ||
         !std::isfinite(receipt.predictedTransform.x) || !std::isfinite(receipt.predictedTransform.y) || !std::isfinite(receipt.predictedTransform.z) ||
         !std::isfinite(receipt.predictedTransform.rx) || !std::isfinite(receipt.predictedTransform.ry) || !std::isfinite(receipt.predictedTransform.rz) ||
-        !std::isfinite(receipt.predictedTransform.sx) || !std::isfinite(receipt.predictedTransform.sy) || !std::isfinite(receipt.predictedTransform.sz)) {
+        !std::isfinite(receipt.predictedTransform.sx) || !std::isfinite(receipt.predictedTransform.sy) || !std::isfinite(receipt.predictedTransform.sz) ||
+        receipt.predictedTransform.sx <= 0.0F || receipt.predictedTransform.sy <= 0.0F || receipt.predictedTransform.sz <= 0.0F || receipt.predictionSequence != replication_.PredictionSequence()) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
     }
