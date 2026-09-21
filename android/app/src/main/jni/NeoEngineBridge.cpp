@@ -100,10 +100,13 @@ JNIEnv* GetJNIEnv() {
 
 static std::string jsonEscape(const std::string& s) {
     std::string out;
+    out.reserve(std::min<size_t>(s.size() * 2U + 1U, 2048U));
     for (char c : s) {
         if (c == '"')  out += "\\\"";
         else if (c == '\\') out += "\\\\";
         else if (c == '\n') out += "\\n";
+        else if (c == '\r') out += "\\r";
+        else if (static_cast<unsigned char>(c) < 0x20U) { char tmp[7]; snprintf(tmp, sizeof(tmp), "\\u%04x", static_cast<unsigned int>(static_cast<unsigned char>(c))); out += tmp; }
         else out += c;
     }
     return out;
@@ -112,7 +115,7 @@ static std::string jsonEscape(const std::string& s) {
 static std::uint64_t chunkKey(int x, int z) { return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(x)) << 32U) | static_cast<std::uint32_t>(z); }
 
 static std::string actorToJSON(const Actor& a) {
-    if (a.id <= 0 || a.name.size() > 256U || a.type.size() > 128U || a.color.size() > 32U || !std::isfinite(a.roughness) || !std::isfinite(a.metalness) || a.roughness < 0.0f || a.roughness > 1.0f || a.metalness < 0.0f || a.metalness > 1.0f) return "{}";
+    if (!std::isfinite(a.position.x) || !std::isfinite(a.position.y) || !std::isfinite(a.position.z) || !std::isfinite(a.rotation.x) || !std::isfinite(a.rotation.y) || !std::isfinite(a.rotation.z) || !std::isfinite(a.scale.x) || !std::isfinite(a.scale.y) || !std::isfinite(a.scale.z) || a.scale.x <= 0.0f || a.scale.y <= 0.0f || a.scale.z <= 0.0f || a.id <= 0 || a.name.empty() || a.type.empty() || a.name.size() > 256U || a.type.size() > 128U || a.color.empty() || a.color.size() > 32U || !std::isfinite(a.roughness) || !std::isfinite(a.metalness) || a.roughness < 0.0f || a.roughness > 1.0f || a.metalness < 0.0f || a.metalness > 1.0f || a.position.x < -1.0e9f || a.position.x > 1.0e9f || a.position.y < -1.0e9f || a.position.y > 1.0e9f || a.position.z < -1.0e9f || a.position.z > 1.0e9f) return "{}";
     char buf[2048];
     const int written = snprintf(buf, sizeof(buf),
         "{\"id\":%d,\"name\":\"%s\",\"type\":\"%s\","
