@@ -338,6 +338,28 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             return Fail(ReplicationError::Capacity);
     }
 
+    // Capture the complete pre-transaction state before the first SceneWorld mutation.
+    // SceneWorld serialization preserves entity indices/generations, so rollback can
+    // restore exact handles instead of attempting best-effort recreation.
+    std::vector<uint8_t> sceneBackup;
+    try {
+        sceneBackup = sceneWorld_.Serialize();
+    } catch (const std::bad_alloc&) {
+        return Fail(ReplicationError::Capacity);
+    }
+    const auto slotsBackup = slots_;
+    const uint16_t registeredCountBackup = registeredCount_;
+    const auto rollbackTransaction = [this, &sceneBackup, &slotsBackup, registeredCountBackup]() -> bool {
+        if (!sceneWorld_.Deserialize(sceneBackup)) return false;
+        slots_ = slotsBackup;
+        registeredCount_ = registeredCountBackup;
+        return true;
+    };
+    const auto failTransaction = [this, &rollbackTransaction](ReplicationError error) -> bool {
+        if (!rollbackTransaction()) return Fail(ReplicationError::DespawnRejected);
+        return Fail(error);
+    };
+
     ReplicationApplyReceipt candidateReceipt{};
     candidateReceipt.sequence = snapshot.sequence;
     candidateReceipt.serverTick = snapshot.serverTick;
@@ -360,8 +382,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         if (slot == nullptr) {
             SceneEntity entity{};
             if (!sceneWorld_.Create(entity)) {
-                rollbackMutations();
-                return Fail(ReplicationError::SpawnRejected);
+                return failTransaction(ReplicationError::SpawnRejected);
             }
             if (!sceneWorld_.SetTransform(entity, state.transform)) {
                 (void)sceneWorld_.Destroy(entity);
@@ -380,14 +401,12 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             if (slot->hasPrediction && !SameTransform(slot->predictedTransform, state.transform)) ++candidateReceipt.reconciledPredictions;
             const Transform3* previousTransform = sceneWorld_.GetTransform(slot->entity);
             if (previousTransform == nullptr) {
-                rollbackMutations();
-                return Fail(ReplicationError::InvalidEntity);
+                return failTransaction(ReplicationError::InvalidEntity);
             }
             previousSceneTransforms[slotIndex] = *previousTransform;
             changedSceneTransforms[slotIndex] = true;
             if (!sceneWorld_.SetTransform(slot->entity, state.transform)) {
-                rollbackMutations();
-                return Fail(ReplicationError::SceneApplyRejected);
+                return failTransaction(ReplicationError::SceneApplyRejected);
             }
         }
         ++candidateReceipt.appliedEntities;
@@ -424,8 +443,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                         return Fail(ReplicationError::DespawnRejected);
                     }
                 }
-                rollbackMutations();
-                return Fail(ReplicationError::DespawnRejected);
+                return failTransaction(ReplicationError::DespawnRejected);
             }
             ++despawnedIndex;
             ++candidateReceipt.despawnedEntities;
