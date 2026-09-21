@@ -26,9 +26,9 @@ public:
     [[nodiscard]] bool Configure(size_t boneCount);
     [[nodiscard]] bool SetTrack(size_t boneIndex, const std::vector<SkeletalPoseKeyframe>& keys);
     // Samples a complete local affine pose without replacing caller output if any track/key is invalid.
-    [[nodiscard]] bool Sample(float time, std::vector<Mat4>& output);
+    [[nodiscard]] bool Sample(float time, std::vector<Mat4>& output) const;
     // Wraps positive sample time by the complete clip duration; static clips intentionally reject looping.
-    [[nodiscard]] bool SampleLooped(float time, std::vector<Mat4>& output);
+    [[nodiscard]] bool SampleLooped(float time, std::vector<Mat4>& output) const;
     // Samples two compatible clips and blends their TRS components into a candidate local pose.
     [[nodiscard]] bool SampleBlended(const SkeletalPoseClip& other, float time, float otherTime, float blendFactor, std::vector<Mat4>& output);
     [[nodiscard]] float Duration() const;
@@ -37,7 +37,7 @@ public:
 
 private:
     std::vector<std::vector<SkeletalPoseKeyframe>> tracks_;
-    SkeletalPoseError lastError_ = SkeletalPoseError::NotConfigured;
+    mutable SkeletalPoseError lastError_ = SkeletalPoseError::NotConfigured;
 };
 
 } // namespace NeoEngine
