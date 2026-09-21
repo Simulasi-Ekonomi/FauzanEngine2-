@@ -1,5 +1,6 @@
 #include "SkinningGPU.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <utility>
