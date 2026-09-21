@@ -30,14 +30,19 @@ def main() -> int:
     if artifact.suffix.lower() not in {".apk", ".aab"}:
         raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_artifact_type")
 
-    if artifact.stat().st_size == 0:
+    artifact_size = artifact.stat().st_size
+    if artifact_size == 0:
         raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_artifact")
+    if artifact_size > 512 * 1024 * 1024:
+        raise SystemExit("P4_ARTIFACT_GATE_FAIL artifact_too_large")
 
     try:
         with zipfile.ZipFile(artifact) as archive:
             if archive.testzip() is not None:
                 raise SystemExit("P4_ARTIFACT_GATE_FAIL corrupt_zip")
             names = archive.namelist()
+            if len(names) > 100000:
+                raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
             if len(names) != len(set(names)):
                 raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
             required_entries = {"AndroidManifest.xml"} if artifact.suffix.lower() == ".apk" else {"base/manifest/AndroidManifest.xml", "BundleConfig.pb"}
@@ -52,6 +57,12 @@ def main() -> int:
                 name = info.filename
                 if "\x00" in name or "\\" in name or name.startswith("/") or ".." in Path(name).parts:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_path")
+                if info.file_size > 256 * 1024 * 1024:
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
+                if info.compress_size == 0 and info.file_size > 0:
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_compression_size")
+                if info.compress_size > 0 and info.file_size / info.compress_size > 200.0:
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL suspicious_compression_ratio")
                 # A release archive must never contain a POSIX symlink entry.
                 if (info.external_attr >> 16) & 0o170000 == 0o120000:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL symlink_zip_entry")
