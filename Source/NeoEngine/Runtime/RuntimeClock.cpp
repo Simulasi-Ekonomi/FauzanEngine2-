@@ -16,7 +16,16 @@ bool RuntimeClock::Advance(float realDeltaSeconds) {
     snapshot_.scaledDeltaSeconds = snapshot_.paused ? 0.0F : snapshot_.unscaledDeltaSeconds * snapshot_.timeScale;
     snapshot_.unscaledTimeSeconds += snapshot_.unscaledDeltaSeconds; snapshot_.scaledTimeSeconds += snapshot_.scaledDeltaSeconds; ++snapshot_.frameCount;
     accumulator_ += snapshot_.scaledDeltaSeconds; uint8_t steps = 0; while (accumulator_ >= config_.fixedStepSeconds && steps < config_.maxFixedStepsPerFrame) { accumulator_ -= config_.fixedStepSeconds; ++steps; }
-    if (steps == config_.maxFixedStepsPerFrame && accumulator_ >= config_.fixedStepSeconds) accumulator_ = 0.0F;
+    if (steps == config_.maxFixedStepsPerFrame && accumulator_ >= config_.fixedStepSeconds) {
+        const float dropped = std::floor(accumulator_ / config_.fixedStepSeconds) * config_.fixedStepSeconds;
+        if (!std::isfinite(dropped) || dropped < 0.0F) return Fail(RuntimeClockError::Overflow);
+        accumulator_ -= dropped;
+        snapshot_.droppedFixedSeconds += dropped;
+        snapshot_.droppedFixedStepCount += static_cast<uint64_t>(dropped / config_.fixedStepSeconds);
+        lastError_ = RuntimeClockError::FixedStepOverrun;
+        snapshot_.pendingFixedSteps = steps;
+        return true;
+    }
     snapshot_.pendingFixedSteps = steps; lastError_ = RuntimeClockError::None; return true;
 }
 bool RuntimeClock::ConsumeFixedStep() { if (!initialized_ || snapshot_.pendingFixedSteps == 0) return false; --snapshot_.pendingFixedSteps; ++snapshot_.fixedStepCount; return true; }
