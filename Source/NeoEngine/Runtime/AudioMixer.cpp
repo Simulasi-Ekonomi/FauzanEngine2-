@@ -72,6 +72,16 @@ bool AudioMixer::SetListener(const AudioListener& listener) {
 }
 
 void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
+    out.clear();
+    if (frames == 0U || frames > kMaxMixFrames) return;
+    if (frames > std::numeric_limits<size_t>::max() / 2U) return;
+    if (frames * 2U > std::numeric_limits<size_t>::max() / sizeof(int16_t)) return;
+    if (m_Voices.size() > kMaxVoices || m_Voices.capacity() > kMaxVoices) return;
+    if (!std::isfinite(m_Listener.position[0]) || !std::isfinite(m_Listener.position[1]) || !std::isfinite(m_Listener.position[2])) return;
+    if (!std::isfinite(m_Listener.forward[0]) || !std::isfinite(m_Listener.forward[1]) || !std::isfinite(m_Listener.forward[2])) return;
+    if (!std::isfinite(m_Listener.up[0]) || !std::isfinite(m_Listener.up[1]) || !std::isfinite(m_Listener.up[2])) return;
+    if (frames * 2U > kMaxMixFrames * 2U) return;
+void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
     if (frames == 0U) { out.clear(); return; }
     if(frames==0U){out.clear();return;}if(frames>kMaxMixFrames||frames>std::numeric_limits<size_t>::max()/2U||m_Voices.size()>kMaxVoices||frames>static_cast<size_t>(std::numeric_limits<uint32_t>::max())){out.clear();return;}
     try{out.assign(frames*2U,0);}catch(...){out.clear();return;}
