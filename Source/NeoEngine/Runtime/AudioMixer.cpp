@@ -13,6 +13,7 @@ bool Normalize3(float v[3]) { const float length=Length3(v); if(!std::isfinite(l
 
 bool AudioMixer::Play(uint32_t id,std::vector<int16_t> samples,uint16_t gainQ8,bool looping,float pitch) {
     if (m_Voices.size()>kMaxVoices) return false;
+    if (m_Voices.size() == kMaxVoices && id == 0) return false;
     if(id==0||samples.empty()||samples.size()>kMaxSamplesPerVoice||samples.capacity()>kMaxSamplesPerVoice||gainQ8==0||!std::isfinite(pitch)||pitch<=0.001f||pitch>8.0f)return false;
     for(const auto& voice:m_Voices)if(voice.id==id)return false;
     if(m_Voices.size()>=kMaxVoices||m_Voices.size()==std::numeric_limits<size_t>::max())return false;
@@ -83,13 +84,13 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
         for(auto& voice:m_Voices){
             if(voice.samples.empty()||voice.samples.size()>kMaxSamplesPerVoice||voice.samples.capacity()>kMaxSamplesPerVoice||!std::isfinite(voice.cursorSubframe)||!std::isfinite(voice.pitch)||voice.pitch<=0.001f||voice.pitch>8.0f)continue;
             if(voice.cursorSubframe>=static_cast<double>(voice.samples.size())){if(voice.looping)voice.cursorSubframe=std::fmod(voice.cursorSubframe,static_cast<double>(voice.samples.size()));else continue;}
-            if(!std::isfinite(voice.cursorSubframe)||voice.cursorSubframe<0.0)continue;
+            if(voice.samples.empty() || voice.samples.size()>kMaxSamplesPerVoice || voice.samples.capacity()>kMaxSamplesPerVoice || !std::isfinite(voice.cursorSubframe)||voice.cursorSubframe<0.0)continue;
             const double position=voice.cursorSubframe;const size_t idx0=static_cast<size_t>(position);if(idx0>=voice.samples.size())continue;const size_t idx1=idx0+1U<voice.samples.size()?idx0+1U:(voice.looping?0U:idx0);const double frac=position-static_cast<double>(idx0);
             const int32_t s0=voice.samples[idx0],s1=voice.samples[idx1];const double interpolatedValue=static_cast<double>(s0)+frac*static_cast<double>(s1-s0);if(!std::isfinite(interpolatedValue))continue;const int32_t interpolated=static_cast<int32_t>(std::llround(interpolatedValue));
             float dynamicGain=static_cast<float>(voice.gain)/256.0f,dynamicPan=voice.pan;
             if(voice.spatialized){
                 if(!std::isfinite(voice.attenuation.minDistance)||!std::isfinite(voice.attenuation.maxDistance)||!std::isfinite(voice.attenuation.minVolume)||voice.attenuation.minDistance<0.0f||voice.attenuation.maxDistance<=0.0f||voice.attenuation.maxDistance<voice.attenuation.minDistance||voice.attenuation.minVolume<0.0f||voice.attenuation.minVolume>1.0f)continue;
-                if(!std::isfinite(voice.position[0])||!std::isfinite(voice.position[1])||!std::isfinite(voice.position[2]))continue; const float dx=voice.position[0]-m_Listener.position[0],dy=voice.position[1]-m_Listener.position[1],dz=voice.position[2]-m_Listener.position[2];const float distance=std::sqrt(dx*dx+dy*dy+dz*dz);if(!std::isfinite(distance))continue;
+                if(!std::isfinite(voice.position[0])||!std::isfinite(voice.position[1])||!std::isfinite(voice.position[2]))continue; const float dx=voice.position[0]-m_Listener.position[0],dy=voice.position[1]-m_Listener.position[1],dz=voice.position[2]-m_Listener.position[2];const float distance=std::sqrt(dx*dx+dy*dy+dz*dz);if(!std::isfinite(distance)||distance>1.0e9f)continue;
                 const float minD=std::max(0.001f,voice.attenuation.minDistance),maxD=std::max(minD+0.001f,voice.attenuation.maxDistance),minVolume=std::clamp(voice.attenuation.minVolume,0.0f,1.0f);float attenuation=1.0f;
                 if(distance>=maxD)attenuation=minVolume;else if(distance>minD){const float t=(distance-minD)/(maxD-minD);if(!std::isfinite(t))continue;if(voice.attenuation.model==AudioAttenuationModel::Linear)attenuation=1.0f-t;else if(voice.attenuation.model==AudioAttenuationModel::Logarithmic)attenuation=1.0f-std::log10(1.0f+9.0f*t);else attenuation=1.0f/(1.0f+t*t*(maxD/minD));attenuation=std::max(minVolume,attenuation);}dynamicGain*=attenuation;
                 if(distance>0.001f){float forward[3]{m_Listener.forward[0],m_Listener.forward[1],m_Listener.forward[2]},up[3]{m_Listener.up[0],m_Listener.up[1],m_Listener.up[2]};if(Normalize3(forward)&&Normalize3(up)){const float fu=Dot3(forward,up);up[0]-=forward[0]*fu;up[1]-=forward[1]*fu;up[2]-=forward[2]*fu;if(Normalize3(up)){const float rightAxis[3]{up[1]*forward[2]-up[2]*forward[1],up[2]*forward[0]-up[0]*forward[2],up[0]*forward[1]-up[1]*forward[0]};dynamicPan=std::clamp((dx*rightAxis[0]+dy*rightAxis[1]+dz*rightAxis[2])/distance,-1.0f,1.0f);}}}
