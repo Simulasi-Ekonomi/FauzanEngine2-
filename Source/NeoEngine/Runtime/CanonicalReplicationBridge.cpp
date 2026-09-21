@@ -11,7 +11,8 @@ CanonicalReplicationBridge::CanonicalReplicationBridge(CanonicalRuntimeWorld& wo
     : world_(world), replication_(world.Scene(), role, localClientId, allowDynamicLifecycle) {}
 
 bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_t networkId, uint32_t ownerId) {
-    if (entity.scene.index == 0xFFFFU || world_.Scene().GetTransform(entity.scene) == nullptr) {
+    if (entity.scene.index == 0xFFFFU || world_.Scene().GetTransform(entity.scene) == nullptr ||
+        networkId == std::numeric_limits<uint32_t>::max() || ownerId == std::numeric_limits<uint32_t>::max()) {
         lastError_ = CanonicalReplicationBridgeError::InvalidEntity;
         return false;
     }
@@ -24,6 +25,10 @@ bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_
 }
 
 bool CanonicalReplicationBridge::Unregister(uint32_t networkId) {
+    if (networkId == std::numeric_limits<uint32_t>::max()) {
+        lastError_ = CanonicalReplicationBridgeError::RegistrationFailed;
+        return false;
+    }
     if (!replication_.UnregisterEntity(networkId)) {
         lastError_ = CanonicalReplicationBridgeError::RegistrationFailed;
         return false;
@@ -39,13 +44,20 @@ bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationS
         lastError_ = CanonicalReplicationBridgeError::SnapshotFailed;
         return false;
     }
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+        snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count != snapshot.entities.size()) {
+        snapshot = {};
+        lastError_ = CanonicalReplicationBridgeError::SnapshotFailed;
+        return false;
+    }
     lastError_ = CanonicalReplicationBridgeError::None;
     return true;
 }
 
 bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     receipt = {};
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+        snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count != snapshot.entities.size()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
     if (!replication_.ApplyServerSnapshot(snapshot, receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
@@ -60,13 +72,20 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
         lastError_ = CanonicalReplicationBridgeError::AcknowledgementFailed;
         return false;
     }
+    if (acknowledgement.sequence == std::numeric_limits<uint64_t>::max() ||
+        acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) {
+        acknowledgement = {};
+        lastError_ = CanonicalReplicationBridgeError::AcknowledgementFailed;
+        return false;
+    }
     lastError_ = CanonicalReplicationBridgeError::None;
     return true;
 }
 
 bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
     bytes.clear();
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::EncodeFailed; return false; }
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+        snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count != snapshot.entities.size()) { lastError_ = CanonicalReplicationBridgeError::EncodeFailed; return false; }
     if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes) std::vector<uint8_t>().swap(bytes);
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error) || bytes.size() > ReplicationSnapshotCodec::kMaxBytes) {
@@ -82,6 +101,12 @@ bool CanonicalReplicationBridge::DecodeSnapshot(std::span<const uint8_t> bytes, 
     if (bytes.empty() || bytes.size() > ReplicationSnapshotCodec::kMaxBytes) { lastError_ = CanonicalReplicationBridgeError::DecodeFailed; return false; }
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Deserialize(bytes, snapshot, error)) {
+        lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
+        return false;
+    }
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count != snapshot.entities.size() ||
+        snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) {
+        snapshot = {};
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
         return false;
     }
@@ -112,6 +137,12 @@ bool CanonicalReplicationBridge::DecodeAcknowledgement(std::span<const uint8_t> 
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
         return false;
     }
+    if (acknowledgement.sequence == std::numeric_limits<uint64_t>::max() ||
+        acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) {
+        acknowledgement = {};
+        lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
+        return false;
+    }
     lastError_ = CanonicalReplicationBridgeError::None;
     return true;
 }
@@ -129,7 +160,8 @@ bool CanonicalReplicationBridge::ApplyAcknowledgement(const ReplicationAcknowled
 bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float deltaZ,
                                          ReplicationPredictionReceipt& receipt) {
     receipt = {};
-    if (!std::isfinite(deltaX) || !std::isfinite(deltaZ) || std::abs(deltaX) > ReplicationWorld::kMaxPredictionDelta || std::abs(deltaZ) > ReplicationWorld::kMaxPredictionDelta) {
+    if (networkId == std::numeric_limits<uint32_t>::max() || !std::isfinite(deltaX) || !std::isfinite(deltaZ) ||
+        std::abs(deltaX) > ReplicationWorld::kMaxPredictionDelta || std::abs(deltaZ) > ReplicationWorld::kMaxPredictionDelta) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
     }
@@ -143,7 +175,7 @@ bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float
 
 bool CanonicalReplicationBridge::Interpolate(ReplicationApplyReceipt& receipt) {
     receipt = {};
-    if (replication_.SnapshotSequence() == 0U) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
+    if (replication_.SnapshotSequence() == 0U || replication_.SnapshotSequence() == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
     if (!replication_.ApplyInterpolation(receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
