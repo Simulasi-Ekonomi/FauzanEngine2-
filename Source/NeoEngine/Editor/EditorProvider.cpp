@@ -16,6 +16,7 @@ bool EditorProvider::ExecuteCommand(const std::string& action, const std::string
         m_LastError = EditorProviderError::CallbackFailure;
         return false;
     }
+    if (data.size() > std::numeric_limits<std::uint64_t>::max() - action.size()) { m_LastError = EditorProviderError::Capacity; return false; }
     EditorCommand command{action, data, m_CommandSequence + 1U};
     try {
         m_OnCommand(command);
