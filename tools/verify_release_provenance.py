@@ -20,6 +20,8 @@ if artifact.is_symlink():
     raise SystemExit('P4_PROVENANCE_VERIFY_FAIL artifact_symlink')
 artifact = artifact.resolve(strict=True)
 provenance = ROOT / "p4-release-provenance.txt"
+manifest_path = ROOT / "p4-release-manifest.sha256"
+sbom_path = ROOT / "p4-source-sbom.json"
 
 if not artifact.is_file():
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_not_regular_file")
@@ -62,10 +64,12 @@ if not reference.is_file() or reference.suffix != artifact.suffix:
 if values["reference_artifact"] == sys.argv[1] or artifact == reference:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL reference_artifact_identity_mismatch")
 
+if not manifest_path.is_file() or manifest_path.is_symlink() or not sbom_path.is_file() or sbom_path.is_symlink():
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL missing_or_symlink_attestation")
 artifact_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
 reference_sha = hashlib.sha256(reference.read_bytes()).hexdigest()
-manifest_sha = hashlib.sha256((ROOT / "p4-release-manifest.sha256").read_bytes()).hexdigest()
-sbom_sha = hashlib.sha256((ROOT / "p4-source-sbom.json").read_bytes()).hexdigest()
+manifest_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+sbom_sha = hashlib.sha256(sbom_path.read_bytes()).hexdigest()
 if values["artifact_sha256"] != artifact_sha:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_hash_mismatch")
 if values["reference_artifact_sha256"] != reference_sha:
