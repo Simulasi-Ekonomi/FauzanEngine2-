@@ -18,7 +18,7 @@ bool ValidReceipt(const NeoRuntime& runtime) {
     if (receipt->clock.deltaSeconds < 0.0 || !std::isfinite(receipt->clock.deltaSeconds)) return false;
     if (receipt->time.timeScalePermille > 4000U) return false;
     if (receipt->sceneAliveEntityCount > 1000000U) return false;
-    if (receipt->farm.tilesTilled > 1000000U) return false;
+    if (receipt->farm.worldWidth > 4096U || receipt->farm.worldHeight > 4096U || receipt->farm.buildings > 1000000U || receipt->farm.npcs > 1000000U || receipt->farm.quests > 1000000U) return false;
     if (receipt->farm.animals > 1000000U) return false;
     if (receipt->eventDispatch.eventCount > 512U) return false;
     if (receipt->assets.assetCount > 4096U) return false;
