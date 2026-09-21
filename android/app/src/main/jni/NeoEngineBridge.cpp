@@ -432,6 +432,14 @@ Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     if (receipt->telemetry.stateRevision == std::numeric_limits<uint64_t>::max()) return;
     if (receipt->telemetry.eventSequence == std::numeric_limits<uint64_t>::max()) return;
     if (receipt->telemetry.energy > receipt->telemetry.maxEnergy && receipt->telemetry.maxEnergy != 0U) return;
+    if (receipt->telemetry.maxEnergy > 1000000U) return;
+    if (receipt->telemetry.questHarvestProgress > 1000000U) return;
+    if (receipt->telemetry.harvestedUnits > 1000000000ULL) return;
+    if (receipt->telemetry.harvestActions > 1000000000ULL) return;
+    if (receipt->telemetry.coins < -1000000000000LL || receipt->telemetry.coins > 1000000000000LL) return;
+    if (receipt->telemetry.questCompleted && receipt->telemetry.questHarvestProgress == 0U) return;
+    if (receipt->telemetry.tilledTiles + receipt->telemetry.growingTiles > 1000000U) return;
+    if (receipt->telemetry.harvestableTiles + receipt->telemetry.animals > 1000000U) return;
     if (receipt->telemetry.tilledTiles > 1000000U || receipt->telemetry.growingTiles > 1000000U || receipt->telemetry.harvestableTiles > 1000000U || receipt->telemetry.animals > 1000000U) return;
     if (receipt->telemetry.entities > 1000000U || receipt->telemetry.drawCalls > 1000000U || receipt->telemetry.triangles > 100000000U) return;
     NeoJNI::g_Telemetry.entities = receipt->telemetry.entities > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.entities);
