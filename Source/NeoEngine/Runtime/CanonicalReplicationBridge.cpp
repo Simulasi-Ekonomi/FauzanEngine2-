@@ -32,6 +32,7 @@ bool CanonicalReplicationBridge::Unregister(uint32_t networkId) {
 }
 
 bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot) {
+    snapshot = {};
     if (!replication_.BuildServerSnapshot(serverTick, snapshot)) {
         lastError_ = CanonicalReplicationBridgeError::SnapshotFailed;
         return false;
@@ -41,6 +42,7 @@ bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationS
 }
 
 bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
+    receipt = {};
     if (!replication_.ApplyServerSnapshot(snapshot, receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
@@ -50,6 +52,7 @@ bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapsh
 }
 
 bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement& acknowledgement) const {
+    acknowledgement = {};
     if (!replication_.BuildClientAcknowledgement(acknowledgement)) {
         lastError_ = CanonicalReplicationBridgeError::AcknowledgementFailed;
         return false;
@@ -59,6 +62,7 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
 }
 
 bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
+    bytes.clear();
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error)) {
         lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
@@ -80,6 +84,7 @@ bool CanonicalReplicationBridge::DecodeSnapshot(std::span<const uint8_t> bytes, 
 
 bool CanonicalReplicationBridge::EncodeAcknowledgement(const ReplicationAcknowledgement& acknowledgement,
                                                        std::vector<uint8_t>& bytes) {
+    bytes.clear();
     ReplicationError error = ReplicationError::None;
     if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement, bytes, error)) {
         lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
@@ -111,6 +116,7 @@ bool CanonicalReplicationBridge::ApplyAcknowledgement(const ReplicationAcknowled
 
 bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float deltaZ,
                                          ReplicationPredictionReceipt& receipt) {
+    receipt = {};
     if (!std::isfinite(deltaX) || !std::isfinite(deltaZ)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
@@ -124,6 +130,7 @@ bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float
 }
 
 bool CanonicalReplicationBridge::Interpolate(ReplicationApplyReceipt& receipt) {
+    receipt = {};
     if (!replication_.ApplyInterpolation(receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
