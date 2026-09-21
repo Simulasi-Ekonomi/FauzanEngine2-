@@ -45,7 +45,8 @@ static std::thread g_StreamingThread;
 static std::atomic<bool> g_StreamingActive{false};
 static float g_CameraX = 0.0f, g_CameraZ = 0.0f;
 static std::mutex g_StreamMutex;
-static std::vector<NeoEngine::PlacedObject> g_PendingObjects;
+static std::unordered_set<std::uint64_t> g_LoadedChunks;
+static std::unordered_map<std::uint64_t, std::vector<int>> g_ChunkActors;
 
 struct Vec3 { float x = 0, y = 0, z = 0; };
 
@@ -97,6 +98,8 @@ static std::string jsonEscape(const std::string& s) {
     }
     return out;
 }
+
+static std::uint64_t chunkKey(int x, int z) { return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(x)) << 32U) | static_cast<std::uint32_t>(z); }
 
 static std::string actorToJSON(const Actor& a) {
     char buf[512];
@@ -161,6 +164,8 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     // Clear existing actors
     NeoJNI::g_Actors.clear();
     NeoJNI::g_ActorsByName.clear();
+    NeoJNI::g_LoadedChunks.clear();
+    NeoJNI::g_ChunkActors.clear();
     NeoJNI::g_NextActorId = 1;
 
     // Initialize world generator
@@ -201,19 +206,19 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
                     int cx = camChunkX + dx;
                     int cz = camChunkZ + dz;
                     
-                    // Check if chunk already loaded (simple check by actor count in area)
-                    bool loaded = false;
+                    const std::uint64_t key = NeoJNI::chunkKey(cx, cz);
                     {
                         std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
-                        // TODO: implement proper chunk tracking
+                        if (NeoJNI::g_LoadedChunks.contains(key)) continue;
                     }
-                    if (loaded) continue;
 
                     // Generate chunk
                     NeoEngine::WorldChunk chunk = NeoJNI::g_WorldGenerator->GenerateChunk(cx, cz);
                     
                     // Convert to actors and add to scene
                     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
+                    auto& chunkActors = NeoJNI::g_ChunkActors[key];
+                    chunkActors.reserve(chunk.objects.size());
                     for (const auto& obj : chunk.objects) {
                         NeoJNI::Actor a;
                         a.id = NeoJNI::g_NextActorId++;
@@ -225,8 +230,9 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
                         
                         NeoJNI::g_Actors[a.id] = a;
                         NeoJNI::g_ActorsByName[a.name] = a.id;
+                        chunkActors.push_back(a.id);
                     }
-                    
+                    NeoJNI::g_LoadedChunks.insert(key);
                     NEO_LOGD("Loaded chunk (%d, %d) with %zu objects", cx, cz, chunk.objects.size());
                 }
             }
