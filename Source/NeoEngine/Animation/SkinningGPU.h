@@ -30,7 +30,8 @@ public:
     [[nodiscard]] VkDescriptorSetLayout GetDescriptorSetLayout() const { return descriptorManager_.GetLayout(); }
     [[nodiscard]] VkDescriptorSet GetDescriptorSet() const { return descriptorSet_; }
     [[nodiscard]] VkBuffer GetBoneBuffer() const { return boneBuffer_.GetBuffer(); }
-    [[nodiscard]] bool IsValid() const { return boneBuffer_.IsValid() && descriptorManager_.IsValid() && descriptorSet_ != VK_NULL_HANDLE; }
+    [[nodiscard]] bool IsValid() const { return boneBuffer_.IsValid() && descriptorManager_.IsValid() && descriptorSet_ != VK_NULL_HANDLE && uploadedBoneCount_ <= MaxBones; }
+    [[nodiscard]] uint32_t UploadedBoneCount() const { return uploadedBoneCount_; }
 
 private:
     static bool IsFiniteMatrix(const BoneMatrix& matrix);
@@ -39,4 +40,5 @@ private:
     NeoEngine::VulkanGPUBuffer boneBuffer_;
     NeoEngine::VulkanDescriptorManager descriptorManager_;
     VkDescriptorSet descriptorSet_ = VK_NULL_HANDLE;
+    uint32_t uploadedBoneCount_ = 0U;
 };
