@@ -240,7 +240,7 @@ bool NeoRuntime::Tick() {
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidElapsedDelta(tickDelta) || !m_Clock->Advance(tickDelta)) { m_LastError = RuntimeError::TimeFailed; return false; }
     const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevisionTransition(contractSnapshot.frameCount - 1U, contractSnapshot.frameCount)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (contractSnapshot.frameCount == 0U || !RuntimeContractGuard::RuntimeContractGuard::ValidRevisionTransition(contractSnapshot.frameCount - 1U, contractSnapshot.frameCount)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     if (m_InputMotion != nullptr && !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InputMotionFailed; return false; }
     if (m_RouteFollower != nullptr && !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_RouteMotionEntity_.index)) { m_LastError = RuntimeError::RouteMotionFailed; return false; }
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidWorldExtent(m_FarmWorldConfig.worldWidth, m_FarmWorldConfig.worldHeight)) { m_LastError = RuntimeError::WorldTickFailed; return false; }
