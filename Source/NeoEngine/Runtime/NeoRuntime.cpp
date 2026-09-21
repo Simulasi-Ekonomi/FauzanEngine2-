@@ -243,6 +243,17 @@ bool NeoRuntime::Tick() {
     if (!std::isfinite(tickDelta) || tickDelta <= 0.0F) { m_LastError = RuntimeError::TimeFailed; return false; }
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidElapsedDelta(tickDelta) || !m_Clock->Advance(tickDelta)) { m_LastError = RuntimeError::TimeFailed; return false; }
     const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
+    if (!std::isfinite(contractSnapshot.scaledDeltaSeconds) || contractSnapshot.scaledDeltaSeconds < 0.0F || contractSnapshot.scaledDeltaSeconds > 60.0F) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (!std::isfinite(contractSnapshot.unscaledDeltaSeconds) || contractSnapshot.unscaledDeltaSeconds < 0.0F || contractSnapshot.unscaledDeltaSeconds > 60.0F) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_FixedTicksPerFrame == 0U || m_FixedTicksPerFrame > 1000U) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (contractSnapshot.frameCount == std::numeric_limits<uint64_t>::max()) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (contractSnapshot.fixedStepCount == std::numeric_limits<uint64_t>::max()) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (contractSnapshot.pendingFixedSteps > 1000U) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_Events->PendingCount() > EventSignalBus::kMaxEvents) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
+    if (m_Assets->Summary().assetCount > (1U << 20U)) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
+    if (m_Resources->ActiveResourceCount() > (1U << 20U)) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
+    if (m_FarmWorldConfig.worldWidth == 0U || m_FarmWorldConfig.worldHeight == 0U) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_State != RuntimeState::Initialized) { m_LastError = RuntimeError::InvalidState; return false; }
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     if (contractSnapshot.frameCount == 0U || !RuntimeContractGuard::RuntimeContractGuard::ValidRevisionTransition(contractSnapshot.frameCount - 1U, contractSnapshot.frameCount)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     if (m_InputMotion != nullptr && !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InputMotionFailed; return false; }
