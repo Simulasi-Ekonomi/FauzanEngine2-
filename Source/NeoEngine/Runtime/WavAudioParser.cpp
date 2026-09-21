@@ -19,6 +19,8 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
     bool fmtFound = false, dataFound = false;
     uint16_t format = 0, channels = 0, bits = 0;
     uint32_t rate = 0;
+    uint32_t byteRate = 0;
+    uint16_t blockAlign = 0;
     size_t dataOffset = 0, dataSize = 0, offset = 12;
     while (offset + 8 <= bytes.size()) {
         const uint8_t* header = bytes.data() + offset;
@@ -29,7 +31,7 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
         if (std::memcmp(header, "fmt ", 4) == 0) {
             if (fmtFound || chunkSize < 16U) return false;
             const uint8_t* p = bytes.data() + offset;
-            format = U16(p); channels = U16(p + 2); rate = U32(p + 4); bits = U16(p + 14);
+            format = U16(p); channels = U16(p + 2); rate = U32(p + 4); byteRate = U32(p + 8); blockAlign = U16(p + 12); bits = U16(p + 14);
             fmtFound = true;
         } else if (std::memcmp(header, "data", 4) == 0 && !dataFound) {
             dataOffset = offset; dataSize = chunkSize; dataFound = true;
@@ -42,7 +44,8 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
     }
     if (offset != bytes.size() || !fmtFound || !dataFound || format != 1 || channels == 0 || channels > 2 || rate == 0 || rate > 192000U ||
         (bits != 8 && bits != 16) || dataSize % (static_cast<size_t>(channels) * (bits / 8U)) != 0 ||
-        static_cast<uint64_t>(rate) * channels * (bits / 8U) > std::numeric_limits<uint32_t>::max()) return false;
+        static_cast<uint64_t>(rate) * channels * (bits / 8U) > std::numeric_limits<uint32_t>::max() ||
+        blockAlign != static_cast<uint16_t>(channels * (bits / 8U)) || byteRate != static_cast<uint32_t>(static_cast<uint64_t>(rate) * blockAlign)) return false;
     const size_t bytesPerSample = bits / 8U;
     const size_t frameBytes = static_cast<size_t>(channels) * bytesPerSample;
     if (frameBytes == 0U || dataSize < frameBytes) return false;
