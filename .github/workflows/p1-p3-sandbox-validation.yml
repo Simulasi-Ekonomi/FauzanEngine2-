@@ -39,16 +39,18 @@ jobs:
         run: cmake -S Source/NeoEngine -B build/p1-p3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build Release smoke targets
         run: |
-          cmake --build build/p1-p3-release --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
+          cmake --build build/p1-p3-release --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
       - name: Run Release smoke targets
         run: |
-          for t in canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-p3-release/$t; done
+          for t in canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-p3-release/$t; done
+      - name: Android source lifecycle bridge smoke
+        run: bash tools/android_lifecycle_bridge_source_smoke.sh
       - name: Configure ASAN
         run: cmake -S Source/NeoEngine -B build/p1-p3-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
       - name: Build ASAN smoke targets
-        run: cmake --build build/p1-p3-asan --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
+        run: cmake --build build/p1-p3-asan --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
       - name: Run ASAN smoke targets
         env:
           ASAN_OPTIONS: detect_leaks=1
         run: |
-          for t in canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-p3-asan/$t; done
+          for t in canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-p3-asan/$t; done
