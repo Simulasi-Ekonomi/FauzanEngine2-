@@ -627,3 +627,17 @@
 - [x] T6-09 time accumulation overflow is rejected.
 - [x] T6-10 duration wrap uses finite modulo result.
 - [x] T6-11 malformed playback remains fail-closed.
+
+
+## 2026-09-21 — Turn 7 — implementation/integration ledger
+- [x] T7-01 invalid clip clears stale playback state.
+- [x] T7-02 nonfinite clip duration clears playback state.
+- [x] T7-03 negative clip duration clears playback state.
+- [x] T7-04 null player clip resets time.
+- [x] T7-05 nonfinite delta resets time.
+- [x] T7-06 negative delta resets time.
+- [x] T7-07 excessive delta resets time.
+- [x] T7-08 invalid duration resets time.
+- [x] T7-09 invalid accumulated time resets time.
+- [x] T7-10 duration wrapping remains finite.
+- [x] T7-11 animation playback fails closed.
