@@ -126,6 +126,8 @@ bool SceneRenderAdapter::Draw(const SceneWorld& world, SceneMeshAdapter& meshes,
 bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAdapter& meshes, RenderCamera& camera,
                                       Vulkan3DRenderer& renderer, float clearR, float clearG, float clearB, float clearA, const std::vector<Mat4>* skeletalPalette) {
     if (!renderer.Ready()) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
+    if (!std::isfinite(clearR) || !std::isfinite(clearG) || !std::isfinite(clearB) || !std::isfinite(clearA) ||
+        clearR < 0.0F || clearR > 1.0F || clearG < 0.0F || clearG > 1.0F || clearB < 0.0F || clearB > 1.0F || clearA < 0.0F || clearA > 1.0F) { lastError_ = SceneRenderAdapterError::VulkanFrameFailed; return false; }
     const RenderCameraConfig& config = camera.Config();
     if (config.aspect <= 0.0F || !std::isfinite(config.aspect) || config.nearPlane <= 0.0F || config.farPlane <= config.nearPlane) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
@@ -147,6 +149,9 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
     for (const SceneMeshInstance& instance : meshes.Instances()) {
         const Transform3* transform = world.GetTransform(instance.entity);
         if (!transform) continue;
+        if (!std::isfinite(transform->x) || !std::isfinite(transform->y) || !std::isfinite(transform->z) ||
+            !std::isfinite(transform->rx) || !std::isfinite(transform->ry) || !std::isfinite(transform->rz) ||
+            !std::isfinite(transform->sx) || !std::isfinite(transform->sy) || !std::isfinite(transform->sz)) { lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed; renderer.EndFrame(); return false; }
         if (instance.vertices.empty() || instance.indices.empty() || instance.indices.size() % 3U != 0U) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
