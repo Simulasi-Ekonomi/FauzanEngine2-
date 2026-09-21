@@ -30,6 +30,7 @@ class VulkanRHI {
     bool m_FrameSubmitted = false;
 
     bool CreateSwapchainResources(uint32_t width, uint32_t height);
+    bool RecreateSwapchainResources(uint32_t width, uint32_t height);
     void DestroySwapchainResources();
 
 public:
