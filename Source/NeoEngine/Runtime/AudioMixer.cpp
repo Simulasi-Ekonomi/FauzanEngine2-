@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#include <limits>
 
 namespace NeoEngine {
 namespace {
@@ -147,14 +148,27 @@ bool AudioMixer::Stop(uint32_t id) {
 
 void AudioMixer::Clear() { m_Voices.clear(); }
 
+bool AudioMixer::SetListener(const AudioListener& listener) {
+    for (float value : listener.position) if (!std::isfinite(value)) return false;
+    for (float value : listener.forward) if (!std::isfinite(value)) return false;
+    for (float value : listener.up) if (!std::isfinite(value)) return false;
+    float forward[3]{listener.forward[0], listener.forward[1], listener.forward[2]};
+    float up[3]{listener.up[0], listener.up[1], listener.up[2]};
+    if (!Normalize3(forward) || !Normalize3(up)) return false;
+    const float orthogonality = std::fabs(Dot3(forward, up));
+    if (!std::isfinite(orthogonality) || orthogonality > 0.999f) return false;
+    m_Listener = listener;
+    return true;
+}
+
 void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
-    if (frames > kMaxMixFrames) { out.clear(); return; }
+    if (frames > kMaxMixFrames || frames > (std::numeric_limits<size_t>::max() / 2U)) { out.clear(); return; }
     out.assign(frames * 2U, 0);
     for (size_t f = 0; f < frames; ++f) {
         int64_t left = 0;
         int64_t right = 0;
         for (auto& voice : m_Voices) {
-            if (voice.samples.empty()) continue;
+            if (voice.samples.empty() || !std::isfinite(voice.cursorSubframe) || !std::isfinite(voice.pitch) || voice.pitch <= 0.001f || voice.pitch > 8.0f) continue;
             if (voice.cursorSubframe >= static_cast<double>(voice.samples.size())) {
                 if (voice.looping) voice.cursorSubframe = std::fmod(voice.cursorSubframe, static_cast<double>(voice.samples.size()));
                 else continue;
@@ -174,6 +188,7 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                 const float dy = voice.position[1] - m_Listener.position[1];
                 const float dz = voice.position[2] - m_Listener.position[2];
                 const float distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+                if (!std::isfinite(distance)) continue;
                 const float minD = std::max(0.001f, voice.attenuation.minDistance);
                 const float maxD = std::max(minD + 0.001f, voice.attenuation.maxDistance);
                 const float minVolume = std::clamp(voice.attenuation.minVolume, 0.0f, 1.0f);
@@ -200,6 +215,7 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                     }
                 }
             }
+            if (!std::isfinite(dynamicGain) || !std::isfinite(dynamicPan)) continue;
             const int64_t sample = static_cast<int64_t>(std::llround(static_cast<double>(interpolated) * dynamicGain));
             voice.cursorSubframe += voice.pitch;
             voice.cursor = static_cast<size_t>(voice.cursorSubframe);
