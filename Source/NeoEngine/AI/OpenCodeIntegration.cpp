@@ -57,9 +57,14 @@ GeneratedCode OpenCodeIntegration::GenerateFromDescription(const std::string& de
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     if (res != CURLE_OK || responseStr.empty()) return gc;
+    Json::Value root; Json::Reader reader;
+    if (!reader.parse(responseStr, root) || !root.isObject()) return gc;
+    if (!root["choices"].isArray() || root["choices"].empty() || !root["choices"][0]["message"]["content"].isString()) return gc;
+    const std::string generated = root["choices"][0]["message"]["content"].asString();
+    if (generated.empty() || generated.size() > 16U * 1024U * 1024U) return gc;
 
     gc.language = "cpp";
-    gc.code = responseStr;
+    gc.code = generated;
     gc.description = desc;
     gc.complexity = 5;
     return gc;
@@ -68,11 +73,13 @@ GeneratedCode OpenCodeIntegration::GenerateFromDescription(const std::string& de
 GeneratedCode OpenCodeIntegration::GenerateFromTemplate(const std::string& tmpl,
     const std::map<std::string, std::string>& params) {
     GeneratedCode gc{};
-    if (!ready || tmpl.empty()) return gc;
+    if (!ready || tmpl.empty() || tmpl.size() > 16U * 1024U * 1024U) return gc;
+    if (params.size() > 128U) return gc;
     gc.language = "cpp";
     gc.code = tmpl;
     for (const auto& [k, v] : params) {
-        if (k.empty()) return GeneratedCode{};
+        if (k.empty() || k.size() > 256U || v.size() > 4096U) return GeneratedCode{};
+        if (gc.code.size() > 16U * 1024U * 1024U - k.size() - v.size() - 5U) return GeneratedCode{};
         gc.code += "\n// " + k + " = " + v;
     }
     gc.description = "From template " + tmpl;
