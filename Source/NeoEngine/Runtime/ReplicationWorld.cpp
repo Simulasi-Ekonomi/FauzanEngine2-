@@ -405,22 +405,21 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                 rollbackMutations();
                 return Fail(ReplicationError::InvalidEntity);
             }
-            despawnedEntities[despawnedIndex] = slots_[slotIndex].entity;
-            despawnedTransforms[despawnedIndex] = *transform;
-            despawnedSlots[despawnedIndex] = slots_[slotIndex];
-            despawnedSlotIndices[despawnedIndex] = slotIndex;
-            ++despawnedIndex;
+            const uint16_t restoreIndex = despawnedIndex;
+            despawnedEntities[restoreIndex] = slots_[slotIndex].entity;
+            despawnedTransforms[restoreIndex] = *transform;
+            despawnedSlots[restoreIndex] = slots_[slotIndex];
+            despawnedSlotIndices[restoreIndex] = slotIndex;
             if (!sceneWorld_.Destroy(slots_[slotIndex].entity)) {
-                // Restore every entity already destroyed in this transaction.
-                // SceneWorld may issue a fresh generation, so restore the Slot
-                // with the recreated handle rather than reusing the old handle.
+                // Restore only entities that were actually destroyed. The
+                // failed entity remains alive and must not be recreated.
                 while (despawnedIndex > 0U) {
                     --despawnedIndex;
                     SceneEntity restored{};
                     if (sceneWorld_.Create(restored) &&
                         sceneWorld_.SetTransform(restored, despawnedTransforms[despawnedIndex])) {
                         slots_[despawnedSlotIndices[despawnedIndex]] = despawnedSlots[despawnedIndex];
-                        slots_[despawnedSlotIndices[despawnedIndex]].entity = restored;
+                        slots_[despawnedSlotIndices[despawnedSlotIndices[despawnedIndex]]] = slots_[despawnedSlotIndices[despawnedIndex]];
                     } else {
                         return Fail(ReplicationError::DespawnRejected);
                     }
@@ -428,6 +427,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
                 rollbackMutations();
                 return Fail(ReplicationError::DespawnRejected);
             }
+            ++despawnedIndex;
             ++candidateReceipt.despawnedEntities;
         }
     }
