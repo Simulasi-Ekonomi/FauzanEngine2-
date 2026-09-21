@@ -29,6 +29,10 @@ int main() {
     if (!rhi.Resize(64, 64) || rhi.GetWidth() != 64 || rhi.GetHeight() != 64 || !rhi.HasSwapchain()) {
         rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 6;
     }
+    const VkSwapchainKHR liveSwapchain = rhi.GetSwapchain();
+    if (liveSwapchain == VK_NULL_HANDLE || rhi.Resize(0, 64) || rhi.GetSwapchain() != liveSwapchain || !rhi.HasSwapchain()) {
+        rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 6;
+    }
 
     // Repeated recreation must leave the live frame path usable, not merely the dimensions.
     rhi.BeginFrame();
