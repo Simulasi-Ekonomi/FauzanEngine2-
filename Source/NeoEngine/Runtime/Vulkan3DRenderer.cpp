@@ -149,7 +149,7 @@ bool Vulkan3DRenderer::ReadbackLastFrame(std::vector<uint8_t>& rgba8){
     }
     const uint32_t width=impl_->extent.width;
     const uint32_t height=impl_->extent.height;
-    if(width==0U||height==0U){
+    if(width==0U||height==0U||impl_->lastPresentedImageIndex>=impl_->swapchainImages.size()){
         lastError_=Vulkan3DRendererError::InvalidConfiguration;
         return false;
     }
