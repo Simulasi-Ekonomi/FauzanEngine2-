@@ -19,8 +19,8 @@ void AnimationPlayer::Play(AnimationClip* clip)
 
 void AnimationPlayer::Update(float dt)
 {
-    if (currentClip == nullptr) return;
-    if (!std::isfinite(dt) || dt < 0.0f || dt > 0.25f) return;
+    if (currentClip == nullptr) { time = 0.0f; return; }
+    if (!std::isfinite(dt) || dt < 0.0f || dt > 0.25f) { time = 0.0f; return; }
     const float duration = currentClip->GetDuration();
     if (!std::isfinite(duration) || duration <= 0.0f || duration > 86400.0f) {
         time = 0.0f;
