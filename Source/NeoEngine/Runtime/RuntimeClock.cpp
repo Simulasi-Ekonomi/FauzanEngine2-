@@ -1,6 +1,7 @@
 #include "RuntimeClock.h"
 
 #include <cmath>
+#include <limits>
 
 namespace NeoEngine {
 bool RuntimeClock::Fail(RuntimeClockError error) { lastError_ = error; return false; }
@@ -18,14 +19,19 @@ bool RuntimeClock::Advance(float realDeltaSeconds) {
     const float nextUnscaled = snapshot_.unscaledTimeSeconds + snapshot_.unscaledDeltaSeconds;
     const float nextScaled = snapshot_.scaledTimeSeconds + snapshot_.scaledDeltaSeconds;
     if (!std::isfinite(nextUnscaled) || !std::isfinite(nextScaled)) return Fail(RuntimeClockError::Overflow);
+    if (snapshot_.frameCount == std::numeric_limits<uint64_t>::max()) return Fail(RuntimeClockError::Overflow);
     snapshot_.unscaledTimeSeconds = nextUnscaled; snapshot_.scaledTimeSeconds = nextScaled; ++snapshot_.frameCount;
-    accumulator_ += snapshot_.scaledDeltaSeconds; uint8_t steps = 0; while (accumulator_ >= config_.fixedStepSeconds && steps < config_.maxFixedStepsPerFrame) { accumulator_ -= config_.fixedStepSeconds; ++steps; }
+    accumulator_ += snapshot_.scaledDeltaSeconds;
+    if (!std::isfinite(accumulator_) || accumulator_ < 0.0F) return Fail(RuntimeClockError::Overflow);
+    uint8_t steps = 0; while (accumulator_ >= config_.fixedStepSeconds && steps < config_.maxFixedStepsPerFrame) { accumulator_ -= config_.fixedStepSeconds; ++steps; }
     if (steps == config_.maxFixedStepsPerFrame && accumulator_ >= config_.fixedStepSeconds) {
         const float dropped = std::floor(accumulator_ / config_.fixedStepSeconds) * config_.fixedStepSeconds;
         if (!std::isfinite(dropped) || dropped < 0.0F) return Fail(RuntimeClockError::Overflow);
         accumulator_ -= dropped;
         snapshot_.droppedFixedSeconds += dropped;
-        snapshot_.droppedFixedStepCount += static_cast<uint64_t>(dropped / config_.fixedStepSeconds);
+        const float droppedSteps = dropped / config_.fixedStepSeconds;
+        if (!std::isfinite(droppedSteps) || droppedSteps > static_cast<float>(std::numeric_limits<uint64_t>::max())) return Fail(RuntimeClockError::Overflow);
+        snapshot_.droppedFixedStepCount += static_cast<uint64_t>(droppedSteps);
         lastError_ = RuntimeClockError::FixedStepOverrun;
         snapshot_.pendingFixedSteps = steps;
         return true;
