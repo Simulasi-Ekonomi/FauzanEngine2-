@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -28,7 +29,9 @@ def run_checked(command:list[str],label:str)->None:
 
 def main()->int:
     parser=argparse.ArgumentParser(description="Verify a release APK/AAB before certification.")
-    parser.add_argument("artifact",type=Path);args=parser.parse_args()
+    parser.add_argument("artifact",type=Path)
+    parser.add_argument("--expected-sha256",default="")
+    args=parser.parse_args()
     raw_path=str(args.artifact)
     raw_parts=Path(raw_path).parts
     if ".." in raw_parts: raise SystemExit("P4_ARTIFACT_GATE_FAIL parent_artifact_path")
@@ -41,6 +44,14 @@ def main()->int:
     try: artifact_size=artifact.stat().st_size
     except OSError as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL artifact_stat_failed={artifact}") from exc
     if artifact_size<=0 or artifact_size>MAX_ARTIFACT_SIZE: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_size")
+    if args.expected_sha256 and (len(args.expected_sha256)!=64 or any(ch not in "0123456789abcdefABCDEF" for ch in args.expected_sha256)): raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_expected_sha256")
+    digest=hashlib.sha256()
+    try:
+        with artifact.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024*1024), b""): digest.update(block)
+    except OSError as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL artifact_read_failed={exc}") from exc
+    artifact_sha256=digest.hexdigest()
+    if args.expected_sha256 and artifact_sha256.lower()!=args.expected_sha256.lower(): raise SystemExit("P4_ARTIFACT_GATE_FAIL sha256_mismatch")
     try:
         with zipfile.ZipFile(artifact) as archive:
             if archive.testzip() is not None: raise SystemExit("P4_ARTIFACT_GATE_FAIL corrupt_zip")
@@ -67,9 +78,11 @@ def main()->int:
                 if len(name.encode("utf-8"))>MAX_NAME_BYTES or len(Path(name).parts)>MAX_PATH_DEPTH or any(len(part)>255 for part in Path(name).parts) or name.endswith("/../"): raise SystemExit("P4_ARTIFACT_GATE_FAIL zip_name_too_long")
                 if any(ord(ch)<0x20 or ord(ch)==0x7f for ch in name): raise SystemExit("P4_ARTIFACT_GATE_FAIL control_character_zip_name")
                 if len(info.extra)>MAX_EXTRA_FIELD: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_extra")
+                if len(info.extra) % 2 == 1 and info.extra: raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_extra_alignment")
                 if len(info.comment)>MAX_ENTRY_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
                 if info.flag_bits & 0x1 or info.flag_bits & ((1<<5)|(1<<6)|(1<<13)|(1<<14)|(1<<15)): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_flags")
                 if info.header_offset < 0 or info.header_offset >= artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_header_offset")
+                if info.header_offset % 4 != 0 and info.create_system == 3 and info.filename.endswith(".so"): raise SystemExit("P4_ARTIFACT_GATE_FAIL unaligned_native_library")
                 if info.compress_size == 0 and info.file_size == 0 and not info.is_dir() and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
                 header_end=info.header_offset+30+len(name.encode("utf-8"))+len(info.extra)
                 if header_end>artifact_size or header_end<info.header_offset: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_extent")
@@ -79,6 +92,7 @@ def main()->int:
                 previous_entry_end=data_end
                 if len(info.comment)>MAX_ENTRY_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
                 if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0 or info.volume!=0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_volume")
+                if info.compress_type == zipfile.ZIP_STORED and info.compress_size != info.file_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL stored_size_mismatch")
                 if info.file_size > artifact_size or info.compress_size > artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL entry_exceeds_artifact")
                 if info.date_time < (1980, 1, 1, 0, 0, 0) or info.date_time > (2107, 12, 31, 23, 59, 58): raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_timestamp")
                 if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0 or info.header_offset + info.compress_size > artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
@@ -119,6 +133,6 @@ def main()->int:
         if jarsigner is None: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_tool=jarsigner")
         run_checked([jarsigner,"-verify","-strict",str(artifact)],"aab_signature")
         run_checked([jarsigner,"-verify","-strict","-certs",str(artifact)],"aab_certificate_verification")
-    print(f"P4_ARTIFACT_GATE_OK artifact={artifact}")
+    print(f"P4_ARTIFACT_GATE_OK artifact={artifact} sha256={artifact_sha256}")
     return 0
 if __name__=="__main__": sys.exit(main())
