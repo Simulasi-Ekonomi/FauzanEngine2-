@@ -29,7 +29,7 @@ bool RuntimeTimerQueue::Advance(float delta, std::vector<RuntimeTimerFire>& fire
         uint32_t timerFires = 0;
         while (remaining <= 0.000001F) {
             ++timerFires;
-            if (timerFires > kMaxFiresPerAdvance || fireCount + timerFires > kMaxFiresPerAdvance) return Fail(RuntimeTimerError::FireCapacity);
+            if (timerFires > kMaxFiresPerAdvance || fireCount + timerFires > kMaxFiresPerAdvance || timer.fireCount > std::numeric_limits<uint64_t>::max() - timerFires) return Fail(timer.fireCount > std::numeric_limits<uint64_t>::max() - timerFires ? RuntimeTimerError::FireCountOverflow : RuntimeTimerError::FireCapacity);
             remaining += timer.interval;
         }
         fireCount += timerFires;
@@ -49,7 +49,7 @@ bool RuntimeTimerQueue::Advance(float delta, std::vector<RuntimeTimerFire>& fire
         while (timer.active && timer.remaining <= 0.000001F) {
             if (timer.fireCount == std::numeric_limits<uint64_t>::max()) { lastError_ = RuntimeTimerError::FireCountOverflow; return false; }
             ++timer.fireCount;
-            fires.push_back({{index, timer.generation}, timer.userTag, timer.fireCount > std::numeric_limits<uint32_t>::max() ? std::numeric_limits<uint32_t>::max() : static_cast<uint32_t>(timer.fireCount)});
+            fires.push_back({{index, timer.generation}, timer.userTag, timer.fireCount});
             if (!timer.repeating) {
                 timer.active = false;
                 ++timer.generation;
