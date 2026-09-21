@@ -20,7 +20,7 @@ int main() {
     if(session.UpdateTransform(10,{0,0,3,0,0,0,0,1,1},assets)||session.LastError()!=EditorSceneSessionError::DocumentLoadFailed||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
     if(!session.UpdateTransform(10,{1.0F,0,3,0,0,0,1,1,1},assets)||session.Document().revision!=8U||session.HasUnsavedChanges()||!session.CanUndo()||session.CanRedo())return 1;
     if(!session.Undo(assets)||session.Document().revision!=7U||session.HasUnsavedChanges()||!session.CanRedo())return 1;
-    if(!session.Redo(assets)||session.Document().revision!=8U||!session.HasUnsavedChanges())return 1;
+    if(!session.Redo(assets)||session.Document().revision!=8U||!session.HasUnsavedChanges()||!session.CanUndo()||session.CanRedo())return 1;
     if(!session.RevertToSaved(assets)||session.Document().revision!=7U||session.HasUnsavedChanges()||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
     if(!session.SelectActor(10))return 1; EditorSceneDocument invalid=document; invalid.revision=2; invalid.actors[1].assetId="missing.sprite"; if(session.Open(invalid,assets)||session.LastError()!=EditorSceneSessionError::DocumentLoadFailed||session.SelectedActorId()!=10U||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
     EditorSceneDocument reduced{EditorSceneDocument::kVersion,"reduced",1,{{5,0,EditorSceneActorKind::Empty,{}}}}; if(!session.Open(reduced,assets)||session.HasSelection())return 1;
