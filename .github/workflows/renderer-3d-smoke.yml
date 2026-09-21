@@ -19,7 +19,6 @@ on:
     branches:
       - 'feature/renderer-3d-100'
       - 'feature/r3-gpu-indirect'
-      - 'p1-renderer-asset-animation-night'
     paths:
       - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
@@ -81,17 +80,8 @@ jobs:
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
             -I. -I../../ \
             Runtime/Vulkan3DRenderer.cpp \
-            Runtime/VulkanAssetUploader.cpp \
-            Runtime/VulkanGPUBuffer.cpp \
-            Runtime/VulkanGraphicsPipeline.cpp \
-            Runtime/VulkanMeshBufferBuilder.cpp \
-            Runtime/VulkanPresentProbe.cpp \
-            Runtime/VulkanTexturedPresent.cpp \
-            Runtime/NeoRuntime.cpp \
-            Runtime/NeoRuntimeVulkan3D.cpp \
-            Animation/GPUSkinningPaletteBuffer.cpp \
             Tests/vulkan_3d_renderer_smoke.cpp \
-            -DNEO_SHADER_DIR='\"$PWD/Shaders\"' \
+            -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
             $(pkg-config --cflags --libs sdl3) -lvulkan \
             -o vulkan_3d_renderer_smoke
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
