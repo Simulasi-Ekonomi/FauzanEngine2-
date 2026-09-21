@@ -154,6 +154,14 @@ int main() {
     if (client.SetInterpolationAlphaPermille(1001U) || client.LastError() != ReplicationError::InvalidInput) return 26;
     if (server.ApplyServerSnapshot(snapshot, apply) || server.LastError() != ReplicationError::NotClient || server.BuildServerSnapshot(2U, snapshot) == false) return 27;
     ReplicationAcknowledgement acknowledgement2{snapshot.sequence, snapshot.serverTick, snapshot.checksum};
+    ReplicationAcknowledgement codecRoundTrip{};
+    std::vector<uint8_t> acknowledgementBytes;
+    if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement2, acknowledgementBytes, codecError) ||
+        !ReplicationAcknowledgementCodec::Deserialize(acknowledgementBytes, codecRoundTrip, codecError) ||
+        codecRoundTrip.sequence != acknowledgement2.sequence ||
+        codecRoundTrip.serverTick != acknowledgement2.serverTick ||
+        codecRoundTrip.checksum != acknowledgement2.checksum ||
+        codecError != ReplicationError::None) return 28;
     if (!server.ApplyClientAcknowledgement(acknowledgement2) || server.AcknowledgedSequence() != 2U) return 28;
     for (uint64_t tick = 3U; tick <= 66U; ++tick) if (!server.BuildServerSnapshot(tick, snapshot)) return 29;
     if (server.ApplyClientAcknowledgement(acknowledgement2) || server.LastError() != ReplicationError::StaleAcknowledgement || server.AcknowledgedSequence() != 2U || server.ApplyClientAcknowledgement(acknowledgement) || server.LastError() != ReplicationError::StaleAcknowledgement) return 30;
