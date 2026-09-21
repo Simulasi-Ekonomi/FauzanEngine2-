@@ -91,7 +91,7 @@ jobs:
             Runtime/NeoRuntimeVulkan3D.cpp \
             Animation/GPUSkinningPaletteBuffer.cpp \
             Tests/vulkan_3d_renderer_smoke.cpp \
-            -DNEO_SHADER_DIR="$PWD/Shaders" \
+            -DNEO_SHADER_DIR='\"$PWD/Shaders\"' \
             $(pkg-config --cflags --libs sdl3) -lvulkan \
             -o vulkan_3d_renderer_smoke
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
