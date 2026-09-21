@@ -37,6 +37,11 @@ struct RuntimeContractGuard final {
     static constexpr bool ValidPendingFixedSteps(uint32_t value) noexcept {
         return value <= 1000U;
     }
+
+    static constexpr bool ValidEntityId(uint16_t value) noexcept { return value != 0xFFFFU; }
+    static constexpr bool ValidRevision(uint64_t value) noexcept { return value != 0U && value != std::numeric_limits<uint64_t>::max(); }
+    static constexpr bool ValidConnectionCount(uint16_t value, uint16_t maximum) noexcept { return value <= maximum; }
+    static constexpr bool ValidBufferAlignment(size_t value, size_t alignment) noexcept { return alignment != 0U && (value % alignment) == 0U; }
     static constexpr bool ValidPayloadSize(size_t size, size_t maximum) noexcept {
         return size <= maximum;
     }
