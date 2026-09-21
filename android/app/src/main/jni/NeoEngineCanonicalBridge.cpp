@@ -1,8 +1,9 @@
 #include <jni.h>
 
 #include "Runtime/AndroidLifecycleGate.h"
+#include "Runtime/SoftwareRenderer.h"
 
-namespace { NeoEngine::AndroidLifecycleGate g_lifecycle; }
+namespace { NeoEngine::AndroidLifecycleGate g_lifecycle; NeoEngine::SoftwareRenderer g_renderer; bool g_rendererReady = false; }
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*) {
     return JNI_VERSION_1_6;
@@ -17,11 +18,19 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_com_neoengine_core_NeoEngineCanonicalBridge_nativeLifecycleEvent(JNIEnv*, jclass, jint eventCode, jfloat deltaSeconds) {
     bool accepted = false;
     switch (eventCode) {
-        case 0: accepted = g_lifecycle.Initialize(); break;
+        case 0:
+            accepted = g_lifecycle.Initialize();
+            if (accepted) g_rendererReady = g_renderer.Initialize(256U, 256U);
+            accepted = accepted && g_rendererReady;
+            break;
         case 1: accepted = g_lifecycle.Resume(); break;
         case 2: accepted = g_lifecycle.Pause(); break;
         case 3: accepted = g_lifecycle.Tick(deltaSeconds); break;
-        case 4: accepted = g_lifecycle.Shutdown(); break;
+        case 4:
+            g_rendererReady = false;
+            g_renderer = NeoEngine::SoftwareRenderer{};
+            accepted = g_lifecycle.Shutdown();
+            break;
         default: accepted = false; break;
     }
     return accepted ? JNI_TRUE : JNI_FALSE;
