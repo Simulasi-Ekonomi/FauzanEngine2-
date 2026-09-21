@@ -149,6 +149,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/EditorScenePrefab.cpp
     Runtime/PrefabStaging.cpp
     Runtime/EditorSceneSession.cpp
+    Editor/EditorProvider.cpp
     Runtime/EditorSceneAgentAPI.cpp
     Runtime/SoftwareSurfacePresenter.cpp
     Runtime/GridRouteFollower.cpp
