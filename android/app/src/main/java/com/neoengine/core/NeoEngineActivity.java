@@ -7,6 +7,8 @@ import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.net.Uri;
+import org.json.JSONObject;
 import android.view.WindowManager;
 import android.os.Build;
 import android.view.Choreographer;
@@ -63,6 +65,15 @@ public class NeoEngineActivity extends Activity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                Uri target = Uri.parse(url);
+                return !("file".equalsIgnoreCase(target.getScheme())
+                    && "android_asset".equalsIgnoreCase(target.getHost())
+                    && target.getPath() != null
+                    && target.getPath().startsWith("/editor/"));
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 view.evaluateJavascript(
                     "if(window.onNeoEngineReady) window.onNeoEngineReady()", null
@@ -75,7 +86,14 @@ public class NeoEngineActivity extends Activity {
 
     @JavascriptInterface
     public String getDeviceInfo() {
-        return "{\"model\":\"" + Build.MODEL + "\",\"sdk\":" + Build.VERSION.SDK_INT + "}";
+        try {
+            JSONObject info = new JSONObject();
+            info.put("model", Build.MODEL);
+            info.put("sdk", Build.VERSION.SDK_INT);
+            return info.toString();
+        } catch (Exception ignored) {
+            return "{\"model\":\"unknown\",\"sdk\":" + Build.VERSION.SDK_INT + "}";
+        }
     }
 
     @Override
