@@ -23,6 +23,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
  receipt.assetsValid=runtime.Assets()!=nullptr;
  receipt.resourcesValid=runtime.Resources()!=nullptr;
  receipt.replicationValid=runtime.Replication()!=nullptr;
+ if(runtime.SceneECS().sceneCount > std::numeric_limits<uint32_t>::max() || runtime.SceneECS().ecsCount > std::numeric_limits<uint32_t>::max()){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
  if(!receipt.assetsValid){receipt.error=VerticalSliceGateError::AssetsMissing;return false;}
  if(!receipt.resourcesValid){receipt.error=VerticalSliceGateError::ResourcesMissing;return false;}
  if(!receipt.replicationValid){receipt.error=VerticalSliceGateError::ReplicationMissing;return false;}
