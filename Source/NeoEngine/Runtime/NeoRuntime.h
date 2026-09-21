@@ -28,6 +28,7 @@
 #include "RouteRootMotionAdapter.h"
 #include "Systems/FarmSystem.h"
 #include "Systems/FarmAuthoritativeService.h"
+#include "Systems/FarmAuthoritativeSessionHost.h"
 #include "Systems/FarmWorldTool.h"
 #include "Systems/CurriculumSystem.h"
 #include "Systems/AuthoringCatalog.h"
@@ -76,6 +77,8 @@ public:
     const FarmSystem* Farm() const { return m_Farm.get(); }
     FarmWorldTool* FarmWorld() { return m_FarmWorld.get(); }
     const FarmWorldTool* FarmWorld() const { return m_FarmWorld.get(); }
+    FarmAuthoritativeSessionHost* FarmAuthoritySession() { return m_FarmAuthoritySession.get(); }
+    const FarmAuthoritativeSessionHost* FarmAuthoritySession() const { return m_FarmAuthoritySession.get(); }
     FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
     const FarmAuthoritativeService* FarmAuthority() const { return m_FarmAuthority.get(); }
     TrustSafetySystem* TrustSafety() { return m_TrustSafety.get(); }
