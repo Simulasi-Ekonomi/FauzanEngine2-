@@ -8,7 +8,13 @@ namespace NeoEngine {
 
 namespace {
 bool FiniteMatrix(const Mat4& m) {
-    for (float value : m.m) if (!std::isfinite(value)) return false;
+    constexpr float kMaxMatrixMagnitude = 1.0e12F;
+    for (float value : m.m) {
+        if (!std::isfinite(value) || std::fabs(value) > kMaxMatrixMagnitude) return false;
+    }
+    if (!std::isfinite(m.m[0]) || !std::isfinite(m.m[5]) || !std::isfinite(m.m[10]) || !std::isfinite(m.m[15])) return false;
+    if (std::fabs(m.m[0]) > kMaxMatrixMagnitude || std::fabs(m.m[5]) > kMaxMatrixMagnitude ||
+        std::fabs(m.m[10]) > kMaxMatrixMagnitude || std::fabs(m.m[15]) > kMaxMatrixMagnitude) return false;
     return true;
 }
 }
