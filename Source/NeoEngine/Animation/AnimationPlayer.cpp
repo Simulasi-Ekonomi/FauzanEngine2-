@@ -18,6 +18,7 @@ void AnimationPlayer::Play(AnimationClip* clip) {
     time_ = 0.0F;
     playing_ = false;
     if (clip == nullptr) return;
+    if (!clip->IsValid()) return;
     const float duration = clip->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F) return;
     currentClip_ = clip;
@@ -35,6 +36,7 @@ bool AnimationPlayer::Update(float dt) {
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration)) return false;
     if (duration < 0.0F || duration > 86400.0F) return false;
+    if (!currentClip_->IsValid()) return false;
     if (duration <= 0.0F) {
         if (playbackMode_ == AnimationPlaybackMode::Loop && duration == 0.0F) { playing_ = false; return true; }
         time_ = 0.0F;
@@ -68,7 +70,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
                                    std::vector<Mat4>& skinningPalette) const {
     localPose.clear();
     skinningPalette.clear();
-    if (currentClip_ == nullptr || skeleton_ == nullptr || !skeleton_->IsComplete() || !std::isfinite(time_) || time_ < 0.0F) return false;
+    if (currentClip_ == nullptr || skeleton_ == nullptr || !skeleton_->IsComplete() || !currentClip_->IsValid() || !std::isfinite(time_) || time_ < 0.0F) return false;
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F || time_ > duration) return false;
     const size_t boneCount = skeleton_->GetBoneCount();
