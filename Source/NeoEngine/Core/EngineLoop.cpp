@@ -14,14 +14,14 @@ bool ValidReceipt(const NeoRuntime& runtime) {
     if (runtime.State() != RuntimeState::Initialized) return false;
     const NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
     if (receipt == nullptr) return false;
-    if (receipt->clock.frameIndex == std::numeric_limits<uint64_t>::max()) return false;
+    if (receipt->clock.frameCount == std::numeric_limits<uint64_t>::max()) return false;
     if (receipt->clock.deltaSeconds < 0.0 || !std::isfinite(receipt->clock.deltaSeconds)) return false;
-    if (receipt->time.timeScale < 0.0F || !std::isfinite(receipt->time.timeScale)) return false;
+    if (receipt->time.timeScalePermille > 4000U) return false;
     if (receipt->sceneAliveEntityCount > 1000000U) return false;
-    if (receipt->farm.tiles > 1000000U) return false;
+    if (receipt->farm.tilesTilled > 1000000U) return false;
     if (receipt->farm.animals > 1000000U) return false;
-    if (receipt->eventDispatch.dispatchedCount > 1000000U) return false;
-    if (receipt->assets.totalAssets > 1000000U) return false;
+    if (receipt->eventDispatch.eventCount > 512U) return false;
+    if (receipt->assets.assetCount > 4096U) return false;
     return true;
 }
 }
@@ -51,7 +51,7 @@ void EngineLoop::Tick() {
     if (!g_Initialized || g_Runtime == nullptr || g_Runtime->State() != RuntimeState::Initialized) return;
     if (!g_Runtime->Tick()) return;
     if (!ValidReceipt(*g_Runtime)) return;
-    if (g_Runtime->SceneECS().aliveEntities > 1000000U) return;
+    if (g_Runtime->SceneECS().sceneCount > 1000000U) return;
     if (g_Runtime->Scene() == nullptr || g_Runtime->ECS() == nullptr) return;
     if (g_Runtime->Clock() == nullptr || g_Runtime->Time() == nullptr || g_Runtime->Timers() == nullptr) return;
 }
