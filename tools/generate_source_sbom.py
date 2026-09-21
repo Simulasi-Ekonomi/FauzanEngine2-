@@ -47,6 +47,8 @@ bom = {
     "components": components,
 }
 output = root / "p4-source-sbom.json"
+if output.exists() and not output.is_file():
+    raise SystemExit("SOURCE_SBOM_FAIL output_not_regular")
 if output.is_symlink():
     raise SystemExit("SOURCE_SBOM_FAIL output_symlink")
 output.write_text(json.dumps(bom, indent=2, sort_keys=True) + "\n", encoding="utf-8")
