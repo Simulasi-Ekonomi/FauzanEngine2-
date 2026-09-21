@@ -585,3 +585,17 @@
 - [x] p2-physics-networking-night T3-09: snapshot serverTick provenance checked.
 - [x] p2-physics-networking-night T3-10: built snapshot count bounded.
 - [x] p2-physics-networking-night T3-11: built snapshot checksum/sequence remain canonical.
+
+
+## 2026-09-21 — Turn 4 — substantive implementation/integration ledger
+- [x] p2-physics-networking-night T4-01: snapshot serialization reserves exact bounded wire capacity.
+- [x] p2-physics-networking-night T4-02: snapshot serialization verifies exact encoded size.
+- [x] p2-physics-networking-night T4-03: snapshot deserialization verifies exact expected wire size.
+- [x] p2-physics-networking-night T4-04: acknowledgement serialization verifies fixed wire size.
+- [x] p2-physics-networking-night T4-05: server snapshot verifies candidate count consistency.
+- [x] p2-physics-networking-night T4-06: apply rejects snapshot counts above protocol bound.
+- [x] p2-physics-networking-night T4-07: spawn receipt count is bounded transactionally.
+- [x] p2-physics-networking-night T4-08: applied receipt count is bounded transactionally.
+- [x] p2-physics-networking-night T4-09: despawn receipt count is bounded transactionally.
+- [x] p2-physics-networking-night T4-10: apply requires applied count to equal snapshot count.
+- [x] p2-physics-networking-night T4-11: replication transaction remains fail-closed before sequence commit.
