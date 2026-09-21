@@ -183,7 +183,6 @@ Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     NeoJNI::g_NextActorId = 1;
 
     // Initialize world generator
-    if (NeoJNI::g_WorldGenerator != nullptr) return;
     NeoEngine::WorldConfig cfg;
     cfg.worldSizeKm = sizeKm;
     cfg.seed = seed;
