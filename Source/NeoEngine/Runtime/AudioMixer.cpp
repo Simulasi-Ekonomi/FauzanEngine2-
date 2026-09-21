@@ -63,6 +63,7 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     const float minD = std::max(0.001f, params.attenuation.minDistance);
     const float maxD = std::max(minD + 0.001f, params.attenuation.maxDistance);
     const float minVolume = std::clamp(params.attenuation.minVolume, 0.0f, 1.0f);
+    if (params.attenuation.maxDistance < params.attenuation.minDistance || params.attenuation.minDistance < 0.0f || params.attenuation.maxDistance <= 0.0f) return false;
     if (params.spatialized) {
         if (distance >= maxD) {
             attenuation = minVolume;
@@ -106,6 +107,7 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     voice.position[1] = params.position[1];
     voice.position[2] = params.position[2];
     voice.attenuation = params.attenuation;
+    if (voice.attenuation.minVolume < 0.0f || voice.attenuation.minVolume > 1.0f) return false;
     voice.looping = params.looping;
     voice.spatialized = params.spatialized;
     m_Voices.push_back(std::move(voice));
@@ -133,7 +135,7 @@ bool AudioMixer::UpdateVoicePitch(uint32_t id, float pitch) {
 }
 
 bool AudioMixer::UpdateVoiceGain(uint32_t id, uint16_t gainQ8) {
-    if (id == 0 || gainQ8 == 0) return false;
+    if (id == 0 || gainQ8 == 0 || gainQ8 > 65535U) return false;
     for (auto& voice : m_Voices) if (voice.id == id) { voice.gain = gainQ8; return true; }
     return false;
 }
@@ -196,6 +198,7 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                 if (distance >= maxD) attenuation = minVolume;
                 else if (distance > minD) {
                     const float t = (distance - minD) / (maxD - minD);
+                    if (!std::isfinite(t)) continue;
                     if (voice.attenuation.model == AudioAttenuationModel::Linear) attenuation = 1.0f - t;
                     else if (voice.attenuation.model == AudioAttenuationModel::Logarithmic) attenuation = 1.0f - std::log10(1.0f + 9.0f * t);
                     else attenuation = 1.0f / (1.0f + t * t * (maxD / minD));
@@ -215,7 +218,7 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                     }
                 }
             }
-            if (!std::isfinite(dynamicGain) || !std::isfinite(dynamicPan)) continue;
+            if (!std::isfinite(dynamicGain) || !std::isfinite(dynamicPan) || dynamicGain < 0.0f || dynamicGain > 256.0f) continue;
             const int64_t sample = static_cast<int64_t>(std::llround(static_cast<double>(interpolated) * dynamicGain));
             voice.cursorSubframe += voice.pitch;
             voice.cursor = static_cast<size_t>(voice.cursorSubframe);
@@ -226,6 +229,7 @@ void AudioMixer::Mix(size_t frames, std::vector<int16_t>& out) {
                 const float pan = std::clamp(dynamicPan, -1.0f, 1.0f);
                 constexpr float kHalfPi = 1.57079632679489661923f;
                 const float angle = (pan + 1.0f) * 0.5f * kHalfPi;
+                if (!std::isfinite(angle)) continue;
                 const float leftGain = std::cos(angle);
                 const float rightGain = std::sin(angle);
                 left += static_cast<int64_t>(std::llround(static_cast<double>(sample) * leftGain));
