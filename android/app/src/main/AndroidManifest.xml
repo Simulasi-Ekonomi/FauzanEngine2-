@@ -28,6 +28,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="NeoEngine"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
         android:theme="@style/Theme.NeoEngine"
         android:hardwareAccelerated="true">
 
