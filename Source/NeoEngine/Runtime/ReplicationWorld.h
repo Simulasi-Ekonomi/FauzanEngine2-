@@ -30,6 +30,7 @@ enum class ReplicationError : uint8_t {
     SpawnRejected,
     DespawnRejected,
     InvalidAcknowledgement,
+    CorruptAcknowledgement,
     StaleAcknowledgement,
 };
 
