@@ -39,12 +39,19 @@ struct RuntimeContractGuard final {
     }
 
     static constexpr bool ValidEntityId(uint16_t value) noexcept { return value != 0xFFFFU; }
-    static constexpr bool ValidRevision(uint64_t value) noexcept { return value != 0U && value != std::numeric_limits<uint64_t>::max(); }
+    // Zero is a valid initial runtime revision; only the terminal value is invalid.
+    static constexpr bool ValidRevision(uint64_t value) noexcept { return value != std::numeric_limits<uint64_t>::max(); }
     static constexpr bool ValidConnectionCount(uint16_t value, uint16_t maximum) noexcept { return value <= maximum; }
     static constexpr bool ValidBufferAlignment(size_t value, size_t alignment) noexcept { return alignment != 0U && (value % alignment) == 0U; }
-    static constexpr bool ValidPayloadSize(size_t size, size_t maximum) noexcept {
-        return size <= maximum;
-    }
+    static constexpr bool ValidPayloadSize(size_t size, size_t maximum) noexcept { return size <= maximum; }
+    static bool ValidElapsedDelta(float value) noexcept { return std::isfinite(value) && value > 0.0F && value <= 1.0F; }
+    static constexpr bool ValidWorldExtent(uint16_t width, uint16_t height) noexcept { return width > 0U && height > 0U && width <= 4096U && height <= 4096U; }
+    static constexpr bool ValidEntityGeneration(uint32_t generation) noexcept { return generation != std::numeric_limits<uint32_t>::max(); }
+    static constexpr bool ValidEventCount(uint32_t value, uint32_t maximum) noexcept { return value <= maximum; }
+    static constexpr bool ValidTimerCount(size_t value, size_t maximum) noexcept { return value <= maximum; }
+    static constexpr bool ValidReceiptFrame(uint64_t frame) noexcept { return frame != std::numeric_limits<uint64_t>::max(); }
+    static constexpr bool ValidResourceCount(size_t value, size_t maximum) noexcept { return value <= maximum; }
+    static constexpr bool ValidRevisionTransition(uint64_t previous, uint64_t current) noexcept { return current != std::numeric_limits<uint64_t>::max() && current >= previous; }
 };
 
 } // namespace NeoEngine::RuntimeContractGuard
