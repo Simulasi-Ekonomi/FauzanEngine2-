@@ -641,3 +641,17 @@
 - [x] T7-09 actor JSON validates metalness.
 - [x] T7-10 actor JSON validates transform finiteness.
 - [x] T7-11 actor JSON rejects truncated snprintf output.
+
+
+## 2026-09-21 — Turn 8 — implementation/integration ledger
+- [x] T8-01 streamed chunk object count capped.
+- [x] T8-02 streamed chunk coordinates bounded.
+- [x] T8-03 global actor cardinality capped.
+- [x] T8-04 actor ID exhaustion rejected.
+- [x] T8-05 camera updates require running runtime.
+- [x] T8-06 camera coordinates bounded.
+- [x] T8-07 JNI init requires JavaVM.
+- [x] T8-08 JNI init rejects inconsistent existing runtime state.
+- [x] T8-09 runtime error checked before native runtime publication.
+- [x] T8-10 JNI frame telemetry reset on init.
+- [x] T8-11 shutdown disables streaming before runtime destruction.
