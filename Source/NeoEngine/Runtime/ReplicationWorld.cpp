@@ -31,10 +31,10 @@ void AppendFloat(std::vector<uint8_t>& bytes, float value) {
     AppendU32(bytes, raw);
 }
 bool ReadU16(std::span<const uint8_t> bytes, size_t& offset, uint16_t& value) {
-    if (offset > bytes.size() || bytes.size() - offset < 2U) return false;
+    if (offset > bytes.size() || bytes.size() > kMaxBytes || bytes.size() - offset < 2U) return false;
     value = static_cast<uint16_t>(bytes[offset]) | static_cast<uint16_t>(bytes[offset + 1U]) << 8U;
     offset += 2U;
-    if (bytes.size() > kMaxBytes) { error = ReplicationError::Capacity; return false; }
+    if (bytes.empty() || bytes.size() > kMaxBytes) { error = ReplicationError::Capacity; return false; }
     return true;
 }
 bool ReadU32(std::span<const uint8_t> bytes, size_t& offset, uint32_t& value) {
@@ -53,6 +53,7 @@ bool ReadU64(std::span<const uint8_t> bytes, size_t& offset, uint64_t& value) {
 }
 bool ReadFloat(std::span<const uint8_t> bytes, size_t& offset, float& value) {
     uint32_t raw = 0U;
+    if (offset > bytes.size() || bytes.size() > kMaxBytes) return false;
     if (!ReadU32(bytes, offset, raw)) return false;
     std::memcpy(&value, &raw, sizeof(value));
     return true;
@@ -69,6 +70,7 @@ void AppendTransform(std::vector<uint8_t>& bytes, const Transform3& transform) {
 }
 void AppendSnapshotContent(std::vector<uint8_t>& bytes, const ReplicationSnapshot& snapshot) {
     AppendU32(bytes, kMagic); AppendU16(bytes, kVersion); AppendU64(bytes, snapshot.sequence); AppendU64(bytes, snapshot.serverTick); AppendU16(bytes, snapshot.count);
+    if (snapshot.count > kMaxEntities) { error = ReplicationError::Capacity; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         AppendU32(bytes, state.networkId); AppendU32(bytes, state.ownerId); AppendU64(bytes, state.stateRevision); AppendTransform(bytes, state.transform);
@@ -103,10 +105,10 @@ Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPerm
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
     bytes.clear();
     bytes.shrink_to_fit();
-    if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
+    if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
-        if (state.networkId == 0U || state.networkId == std::numeric_limits<uint32_t>::max() || state.ownerId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
+        if (state.networkId == 0U || state.networkId == std::numeric_limits<uint32_t>::max() || state.networkId == std::numeric_limits<uint32_t>::max() || state.ownerId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
     }
     try {
         std::vector<uint8_t> content;
@@ -144,6 +146,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
         if (index > 0U && candidate.states[index - 1U].networkId >= state.networkId) { error = ReplicationError::CorruptSnapshot; return false; }
     }
     uint64_t expected = 0U;
+    if (offset > bytes.size() || bytes.size() > kMaxBytes) return false;
     if (!ReadU64(bytes, offset, expected) || expected == 0U || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.checksum = expected;
     snapshot = std::move(candidate);
