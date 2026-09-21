@@ -10,6 +10,8 @@
 #include <string>
 #include <memory>
 #include <mutex>
+#include <cmath>
+#include <limits>
 
 #define NEO_JNI_TAG "NeoEngine-JNI"
 #define NEO_LOGI(...) __android_log_print(ANDROID_LOG_INFO, NEO_JNI_TAG, __VA_ARGS__)
@@ -70,6 +72,7 @@ JNIEnv* GetJNIEnv() {
 extern "C" {
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* /*reserved*/) {
+    if (vm == nullptr) return JNI_ERR;
     NeoJNI::g_JavaVM = vm;
     NEO_LOGI("JNI_OnLoad: NeoEngine native library loaded");
 
@@ -98,13 +101,16 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
     jint screenWidth, jint screenHeight) {
 
     std::lock_guard<std::mutex> lock(NeoJNI::g_Mutex);
+    if (env == nullptr || activity == nullptr || assetManager == nullptr || screenWidth <= 0 || screenHeight <= 0 ||
+        screenWidth > 16384 || screenHeight > 16384) return JNI_FALSE;
+    if (NeoJNI::g_Initialized) return JNI_TRUE;
 
     NEO_LOGI("nativeInit: Initializing NeoEngine (%dx%d)", screenWidth, screenHeight);
 
     NeoJNI::g_Activity = env->NewGlobalRef(activity);
     NeoJNI::g_AssetManager = AAssetManager_fromJava(env, assetManager);
 
-    if (!NeoJNI::g_AssetManager) {
+    if (!NeoJNI::g_Activity || !NeoJNI::g_AssetManager) {
         NEO_LOGE("nativeInit: Failed to get AssetManager");
         env->DeleteGlobalRef(NeoJNI::g_Activity);
         NeoJNI::g_Activity = nullptr;
@@ -140,7 +146,8 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(
     JNIEnv* /*env*/, jclass /*clazz*/, jfloat deltaTime) {
 
-    if (!NeoJNI::g_EngineRunning) return;
+    if (!NeoJNI::g_EngineRunning || !NeoJNI::g_Initialized) return;
+    if (!std::isfinite(deltaTime) || deltaTime <= 0.0f || deltaTime > 0.25f) return;
 
     NeoJNI::g_DeltaTime = deltaTime;
     NeoJNI::g_FrameCount++;
@@ -162,7 +169,8 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(
     JNIEnv* /*env*/, jclass /*clazz*/) {
 
-    if (!NeoJNI::g_EngineRunning) return;
+    if (!NeoJNI::g_EngineRunning || !NeoJNI::g_Initialized) return;
+    if (!std::isfinite(NeoJNI::g_DeltaTime) || NeoJNI::g_DeltaTime <= 0.0f) return;
     // Rendering is handled by the Vulkan/GLES render thread
 }
 
@@ -175,7 +183,8 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTouchEvent(
     JNIEnv* /*env*/, jclass /*clazz*/,
     jint action, jfloat x, jfloat y, jint pointerId) {
 
-    if (!NeoJNI::g_EngineRunning) return;
+    if (!NeoJNI::g_EngineRunning || !NeoJNI::g_Initialized) return;
+    if (!std::isfinite(x) || !std::isfinite(y) || pointerId < 0 || pointerId > 31) return;
 
     NEO_LOGD("Touch event: action=%d pos=(%.1f, %.1f) pointer=%d",
              action, x, y, pointerId);
