@@ -696,3 +696,17 @@
 - [x] T5 empty envelope rejected.
 - [x] T5 decoded blob bounds retained.
 - [x] T5 checkpoint encode/restore fail-closed.
+
+
+## 2026-09-21 — Turn 6 — implementation/integration ledger
+- [x] T6-01 canonical DirectionalLight fields used in software-render validation.
+- [x] T6-02 software light direction finiteness validated.
+- [x] T6-03 software light intensity finiteness validated.
+- [x] T6-04 negative light intensity rejected.
+- [x] T6-05 farm progress smoke target registered in canonical CMake.
+- [x] T6-06 progress-file smoke source remains conditional on source existence.
+- [x] T6-07 R8 CMake target name now matches workflow target.
+- [x] T6-08 checkpoint error enum uses canonical CheckpointEncodeFailed.
+- [x] T6-09 checkpoint restore input size remains bounded.
+- [x] T6-10 decoded checkpoint blobs remain bounded.
+- [x] T6-11 checkpoint restore remains fail-closed before runtime commit.
