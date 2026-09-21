@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-if ! git diff --quiet --ignore-submodules -- || ! git diff --cached --quiet --ignore-submodules --; then
+if [[ -n "$(git status --porcelain=v1 --untracked-files=all)" ]]; then
   echo "P4_RELEASE_CERTIFICATION_FAIL dirty_worktree" >&2
   exit 1
 fi
