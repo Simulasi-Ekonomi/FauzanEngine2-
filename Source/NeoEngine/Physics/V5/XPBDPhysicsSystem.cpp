@@ -993,7 +993,15 @@ void XPBDPhysicsSystem::BuildLocalIslands() {
         const uint32_t a = m_ContactBlocks[bi].idxA[li];
         const uint32_t b = m_ContactBlocks[bi].idxB[li];
         if (a >= totalEntities || b >= totalEntities) continue;
-        const uint32_t r = find(a);
+        uint32_t rootA = find(a);
+        uint32_t rootB = find(b);
+        if (rootA != rootB) {
+            // Deterministic union-by-root preserves the complete contact graph
+            // while keeping the representative stable across worker counts.
+            if (rootA > rootB) std::swap(rootA, rootB);
+            m_UF_Parent[rootB] = rootA;
+        }
+        const uint32_t r = rootA;
         m_UF_Parent[a] = r;
         m_UF_Parent[b] = r;
         if (m_RootToIslandIndex[r] == UINT32_MAX) {
