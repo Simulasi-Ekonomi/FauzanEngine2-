@@ -348,6 +348,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
     if (!NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
+    std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (!NeoJNI::g_Runtime) return;
     NeoJNI::g_DeltaTime = dt;
     if (NeoJNI::g_FrameCount == std::numeric_limits<int>::max()) return;
