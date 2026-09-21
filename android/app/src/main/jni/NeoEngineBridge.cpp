@@ -422,7 +422,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTouchEvent(
     JNIEnv*, jclass, jint action, jfloat x, jfloat y, jint ptr)
 {
-    if (action < 0 || action > 3 || !std::isfinite(x) || !std::isfinite(y) || x < 0.0f || y < 0.0f || ptr < 0 || ptr > 15 || !NeoJNI::g_Running) return;
+    if (action < 0 || action > 3 || !std::isfinite(x) || !std::isfinite(y) || x < 0.0f || y < 0.0f || ptr < 0 || ptr > 15 || !NeoJNI::g_Initialized || !NeoJNI::g_Running || x > static_cast<float>(NeoJNI::g_RenderWidth) || y > static_cast<float>(NeoJNI::g_RenderHeight)) return;
     NEO_LOGD("Touch a=%d (%.1f,%.1f) ptr=%d", action, x, y, ptr);
 }
 
@@ -514,7 +514,7 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeSetTransform(
 {
     if (env == nullptr || jname == nullptr || !std::isfinite(px) || !std::isfinite(py) || !std::isfinite(pz) ||
         !std::isfinite(rx) || !std::isfinite(ry) || !std::isfinite(rz) ||
-        !std::isfinite(sx) || !std::isfinite(sy) || !std::isfinite(sz) || sx <= 0.0f || sy <= 0.0f || sz <= 0.0f) return;
+        !std::isfinite(sx) || !std::isfinite(sy) || !std::isfinite(sz) || sx <= 0.0f || sy <= 0.0f || sz <= 0.0f || std::fabs(px) > 1.0e9f || std::fabs(py) > 1.0e9f || std::fabs(pz) > 1.0e9f) return;
     const char* name = env->GetStringUTFChars(jname, nullptr);
     if (name == nullptr) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
@@ -536,6 +536,9 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeGetSceneJSON(JNIEnv* env, jo
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
 
     std::ostringstream ss;
+    if (NeoJNI::g_Actors.size() > 1000000U) return nullptr;
+    ss.str("");
+    ss.clear();
     ss << "{\"actors\":[";
     bool first = true;
     for (auto& [id, actor] : NeoJNI::g_Actors) {
