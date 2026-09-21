@@ -66,8 +66,8 @@ def main() -> int:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL encrypted_zip_entry")
                 if info.flag_bits & (1 << 5 | 1 << 6):
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_zip_flags")
-                if info.reserved if hasattr(info, "reserved") else False:
-                    raise SystemExit("P4_ARTIFACT_GATE_FAIL reserved_zip_flags")
+                if info.flag_bits & ((1 << 13) | (1 << 14) | (1 << 15)):
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL reserved_or_encrypted_zip_flags")
                 if info.file_size > 256 * 1024 * 1024:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
                 if info.compress_size == 0 and info.file_size > 0:
@@ -75,8 +75,8 @@ def main() -> int:
                 if info.compress_size > 0 and info.file_size / info.compress_size > 200.0:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL suspicious_compression_ratio")
                 # A release archive must never contain a POSIX symlink entry.
-                if info.compress_size > info.file_size and info.file_size > 4096:
-                    raise SystemExit("P4_ARTIFACT_GATE_FAIL expansion_zip_entry")
+                if info.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED, zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA}:
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_zip_compression")
                 if (info.external_attr >> 16) & 0o170000 == 0o120000:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL symlink_zip_entry")
     except zipfile.BadZipFile as exc:
