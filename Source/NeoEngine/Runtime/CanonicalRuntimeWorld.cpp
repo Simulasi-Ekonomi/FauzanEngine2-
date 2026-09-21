@@ -226,6 +226,73 @@ bool CanonicalRuntimeWorld::InterpolateReplicatedState(ReplicationApplyReceipt& 
     return true;
 }
 
+bool CanonicalRuntimeWorld::ConfigureTrigger(uint8_t triggerIndex, GameplayTriggerCircleConfig config) {
+    if (triggerIndex >= kMaxTriggers) { lastError_ = CanonicalWorldError::Capacity; return false; }
+    if (!triggers_[triggerIndex].Initialize(config)) { lastError_ = CanonicalWorldError::QueryFailed; return false; }
+    triggerConfigured_[triggerIndex] = true;
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+bool CanonicalRuntimeWorld::UpdateTrigger(uint8_t triggerIndex) {
+    if (triggerIndex >= kMaxTriggers || !triggerConfigured_[triggerIndex]) {
+        lastError_ = CanonicalWorldError::InvalidEntity;
+        return false;
+    }
+    if (!triggers_[triggerIndex].Update(physics_)) {
+        lastError_ = CanonicalWorldError::TriggerUpdateFailed;
+        return false;
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
+const GameplayTriggerDelta* CanonicalRuntimeWorld::TriggerDelta(uint8_t triggerIndex) const {
+    if (triggerIndex >= kMaxTriggers || !triggerConfigured_[triggerIndex]) return nullptr;
+    return &triggers_[triggerIndex].LastDelta();
+}
+
+bool CanonicalRuntimeWorld::IsPhysicsEntityAwake(const CanonicalEntity& entity) const {
+    if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) return false;
+    return physics_.IsEntityAwake(entity.ecs);
+}
+
+bool CanonicalRuntimeWorld::WakePhysicsEntity(const CanonicalEntity& entity) {
+    if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
+        lastError_ = CanonicalWorldError::InvalidEntity; return false;
+    }
+    if (!physics_.WakeEntity(entity.ecs)) {
+        lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
+    }
+    lastError_ = CanonicalWorldError::None; return true;
+}
+
+bool CanonicalRuntimeWorld::SleepPhysicsEntity(const CanonicalEntity& entity) {
+    if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
+        lastError_ = CanonicalWorldError::InvalidEntity; return false;
+    }
+    if (!physics_.SleepEntity(entity.ecs)) {
+        lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
+    }
+    lastError_ = CanonicalWorldError::None; return true;
+}
+
+bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntity>& entities) {
+    if (entities.empty()) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
+    for (const CanonicalEntity& entity : entities) {
+        if (!ValidateEntity(entity) || !entity.hasECS || !IsPhysicsBody(entity.componentMask)) {
+            lastError_ = CanonicalWorldError::InvalidEntity; return false;
+        }
+    }
+    for (const CanonicalEntity& entity : entities) {
+        if (!physics_.WakeEntity(entity.ecs)) {
+            lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
+        }
+    }
+    lastError_ = CanonicalWorldError::None;
+    return true;
+}
+
 bool CanonicalRuntimeWorld::Step(float dt) {
     if (bindingCount_ > kMaxBindings) {
         lastError_ = CanonicalWorldError::Capacity;
@@ -239,6 +306,14 @@ bool CanonicalRuntimeWorld::Step(float dt) {
 
     physics_.Step(ecs_, dt);
     if (!ReadBackPhysicsToScene()) return false;
+
+    for (uint8_t triggerIndex = 0U; triggerIndex < kMaxTriggers; ++triggerIndex) {
+        if (!triggerConfigured_[triggerIndex]) continue;
+        if (!triggers_[triggerIndex].Update(physics_)) {
+            lastError_ = CanonicalWorldError::TriggerUpdateFailed;
+            return false;
+        }
+    }
 
     ++frame_;
     lastFrame_.frame = frame_;
