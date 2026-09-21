@@ -42,7 +42,7 @@ def main() -> int:
                 raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
             for info in archive.infolist():
                 name = info.filename
-                if "\\x00" in name or "\\" in name or name.startswith("/") or ".." in Path(name).parts:
+                if "\x00" in name or "\\" in name or name.startswith("/") or ".." in Path(name).parts:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_path")
                 # A release archive must never contain a POSIX symlink entry.
                 if (info.external_attr >> 16) & 0o170000 == 0o120000:
