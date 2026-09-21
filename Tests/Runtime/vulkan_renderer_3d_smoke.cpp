@@ -44,14 +44,28 @@ int main() {
         0.0F, 0.0F, 0.0F, 1.0F
     }};
 
+    std::vector<NeoEngine::Mat4> palette(1U);
+    palette[0].m[0] = palette[0].m[5] = palette[0].m[10] = palette[0].m[15] = 1.0F;
+    palette[0].m[12] = 0.25F;
+    std::array<NeoEngine::Vulkan3DVertex, 3> skinnedVertices = vertices;
+    for (auto& vertex : skinnedVertices) { vertex.boneIndices = {0U, 0U, 0U, 0U}; vertex.boneWeights = {1.0F, 0.0F, 0.0F, 0.0F}; }
+
     TEST_CHECK(renderer.BeginFrame(), "BeginFrame failed");
-    TEST_CHECK(renderer.DrawIndexed(vertices, indices, identity.data()), "DrawIndexed failed");
+    TEST_CHECK(renderer.UploadSkinningPalette(palette), "UploadSkinningPalette failed");
+    TEST_CHECK(renderer.DrawIndexed(skinnedVertices, indices, identity.data()), "DrawIndexed with GPU skinning failed");
     TEST_CHECK(renderer.EndFrame(), "EndFrame failed");
 
     const auto& stats = renderer.LastFrameStats();
     TEST_CHECK(stats.width == 800U && stats.height == 600U, "Frame dimensions mismatch");
     TEST_CHECK(stats.vertexCount == vertices.size(), "Vertex count mismatch");
     TEST_CHECK(stats.indexCount == indices.size(), "Index count mismatch");
+
+    TEST_CHECK(renderer.Resize(640, 480), "Renderer resize failed");
+    TEST_CHECK(renderer.BeginFrame(), "BeginFrame after resize failed");
+    palette[0].m[12] = -0.25F;
+    TEST_CHECK(renderer.UploadSkinningPalette(palette), "Second skinning palette upload failed");
+    TEST_CHECK(renderer.DrawIndexed(skinnedVertices, indices, identity.data()), "Second GPU skinning draw failed");
+    TEST_CHECK(renderer.EndFrame(), "EndFrame after resize failed");
 
     renderer.Reset();
     TEST_CHECK(!renderer.Ready(), "Renderer should not be ready after Reset");
