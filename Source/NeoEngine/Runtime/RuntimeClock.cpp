@@ -14,7 +14,11 @@ bool RuntimeClock::Advance(float realDeltaSeconds) {
     if (!initialized_) return Fail(RuntimeClockError::NotInitialized); if (!(realDeltaSeconds >= 0.0F) || !std::isfinite(realDeltaSeconds)) return Fail(RuntimeClockError::InvalidDelta);
     snapshot_.unscaledDeltaSeconds = realDeltaSeconds > config_.maxFrameDeltaSeconds ? config_.maxFrameDeltaSeconds : realDeltaSeconds;
     snapshot_.scaledDeltaSeconds = snapshot_.paused ? 0.0F : snapshot_.unscaledDeltaSeconds * snapshot_.timeScale;
-    snapshot_.unscaledTimeSeconds += snapshot_.unscaledDeltaSeconds; snapshot_.scaledTimeSeconds += snapshot_.scaledDeltaSeconds; ++snapshot_.frameCount;
+    if (!std::isfinite(snapshot_.scaledDeltaSeconds)) return Fail(RuntimeClockError::Overflow);
+    const float nextUnscaled = snapshot_.unscaledTimeSeconds + snapshot_.unscaledDeltaSeconds;
+    const float nextScaled = snapshot_.scaledTimeSeconds + snapshot_.scaledDeltaSeconds;
+    if (!std::isfinite(nextUnscaled) || !std::isfinite(nextScaled)) return Fail(RuntimeClockError::Overflow);
+    snapshot_.unscaledTimeSeconds = nextUnscaled; snapshot_.scaledTimeSeconds = nextScaled; ++snapshot_.frameCount;
     accumulator_ += snapshot_.scaledDeltaSeconds; uint8_t steps = 0; while (accumulator_ >= config_.fixedStepSeconds && steps < config_.maxFixedStepsPerFrame) { accumulator_ -= config_.fixedStepSeconds; ++steps; }
     if (steps == config_.maxFixedStepsPerFrame && accumulator_ >= config_.fixedStepSeconds) {
         const float dropped = std::floor(accumulator_ / config_.fixedStepSeconds) * config_.fixedStepSeconds;
