@@ -580,3 +580,35 @@
 - [x] P2.1a: Add a fail-closed canonical runtime scope manifest and verifier that enumerates every current NeoEngine placeholder-marker file, explicitly distinguishes the active fail-closed legacy `EngineLoop` from non-active legacy/experimental files, and rejects any unclassified marker or accidental legacy source admission to `XPBD_RUNTIME_SOURCES`. The verifier and adversarial smoke pass with 150 active sources, 29 tracked marker paths, and 2 approved active markers; `runtime_smoke` passes in Release and AddressSanitizer with `detect_leaks=1` on head `31ca16e1abf61b168fa857f5ae57e0be3b9a06a0`. This classifies the current marker inventory only and does not close P2.1 or certify unmarked code, renderer, network, Android, payments, or release readiness.
 - [ ] P2.2: Reproduce broad non-Vulkan Release and ASAN `detect_leaks=1` suites on a single tip revision under a storage-aware build strategy before making cross-engine readiness claims.
 - [x] P2.2a: Execute a bounded representative non-Vulkan smoke matrix on one canonical tip in Release and AddressSanitizer with leak detection, recording exact target coverage and any external-driver exceptions without claiming whole-engine coverage; do not expand to every duplicate-heavy executable target. `docs/BROAD_NON_VULKAN_SMOKE_EVIDENCE_V1.md` records the exact 35-target set; all 35/35 pass in Release and ASAN `detect_leaks=1`. The run is headless with dummy SDL drivers; Vulkan `glslc` discovery is an external configuration exception and Vulkan presentation is not counted.
+
+
+# 2026-09-21 — Cross-branch production gap audit + mandatory execution contract
+
+## [x] Audit baseline recorded
+- [x] Re-scan `main` and active workstreams P1/P2/P3/PR44/P4/gap-closure.
+- [x] Record that P0 is already merged and must not be reopened without evidence of regression.
+- [x] Record current major gap classes: canonical runtime ownership, XPBD gameplay integration, asset→GPU ownership, animation→scene/GPU integration, renderer production path, editor→runtime, networking authority, audio lifecycle, Android delivery, PR44 reconciliation, AI legacy boundary, P4 certification, security/LiveOps, and performance evidence.
+- [x] Record that implementation/source presence is not equivalent to integration, validation, production readiness, or Unreal-like parity.
+
+## [ ] Permanent execution rules for every subsequent room/turn
+- [ ] **No downgrade:** existing working code may only be upgraded/fixed; never simplify, replace with a smaller implementation, remove behavior, weaken assertions, or reduce workload to obtain a pass.
+- [ ] **No stubs/placeholders/minimal replacements:** no new stub, TODO-as-implementation, placeholder return, fake success, empty body, or minimal substitute for an existing real subsystem.
+- [ ] **Implementation + integration are mandatory:** every gap closed must become production-grade code and be wired through the canonical runtime/CMake/ownership graph; source-only additions are not complete.
+- [ ] **Cross-branch integration:** useful implementation from every branch must be reconciled into the canonical architecture before branch deletion; do not merge stale branch heads wholesale.
+- [ ] **Per-turn throughput:** every development turn targets **10+ substantive upgrades/integrations/implementations per active branch**, with each item recorded below and checked off when verified. A turn must not be spent only on workflow/CI housekeeping unless required to unblock substantive work.
+- [ ] **Todo continuity:** every completed upgrade is checked off in this file with evidence/reference; remaining gaps stay explicitly open. This file is the room-to-room handoff source of truth for execution state.
+- [ ] **Method evolution:** when a new reliable engineering method, integration pattern, validation rule, or failure lesson is discovered, record it here so later rooms continue the same method.
+- [ ] **100% gate:** a branch can be declared 100% only when its documented gaps are zero, required cross-system integrations are complete, implementation is production-grade, and no known substantive implementation gap remains.
+- [ ] **Pre-merge gate:** after a branch reaches 100%, run applicable CI, Release smoke, CMake/build validation, ASAN/regression, and sandbox validation. Merge is permitted only after the required gates pass with actual evidence.
+- [ ] **Post-merge cleanup:** after successful merge and verification, the branch may be deleted only after confirming that its useful implementation/integration is present on the target branch and no unique required capability was lost.
+
+## [ ] Cross-branch work ledger
+- [ ] P1: reconcile renderer/asset/animation implementation with canonical runtime ownership.
+- [ ] P2: reconcile XPBD/physics/networking implementation with canonical runtime authority and scene state.
+- [ ] P3: reconcile editor/audio/Android/production services with canonical runtime.
+- [ ] PR44: port verified useful features without resurrecting stale/duplicate implementations.
+- [ ] P4: connect release certification tooling to actual P0–P3 evidence.
+- [ ] Gap closure: absorb main/workstream defects without editing main directly; main-originated gaps are fixed on the designated gap branch and later promoted through the normal gate.
+
+## [ ] Newly identified audit principle
+- [ ] Do not use legacy README/roadmap percentage claims as evidence of readiness when canonical execution/readiness documents contradict them. Recalculate status from implementation + integration + executable evidence.
