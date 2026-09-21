@@ -100,7 +100,7 @@ Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPerm
 }
 
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
-    if (snapshot.sequence == 0U || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
+    if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
@@ -254,7 +254,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
         slot.hasAuthoritative = true;
     }
     snapshot = std::move(snapshotCandidate);
-    if (candidateReceipt.appliedEntities != snapshot.count || candidateReceipt.appliedEntities > kMaxEntities) return failTransaction(ReplicationError::SceneApplyRejected);
+    if (candidateReceipt.appliedEntities > snapshot.count || candidateReceipt.appliedEntities != snapshot.count || candidateReceipt.appliedEntities > kMaxEntities) return failTransaction(ReplicationError::SceneApplyRejected);
     snapshotSequence_ = snapshot.sequence;
     lastServerTick_ = serverTick;
     lastSnapshotChecksum_ = snapshot.checksum;
