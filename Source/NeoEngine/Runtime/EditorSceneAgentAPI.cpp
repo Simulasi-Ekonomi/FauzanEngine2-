@@ -25,6 +25,8 @@ bool HasOnly(const Json::Value& object, std::initializer_list<const char*> allow
 
 constexpr size_t kMaxSceneStringBytes = 4096U;
 constexpr size_t kMaxMultiSelectActors = 4096U;
+constexpr size_t kDefaultScenePageSize = 256U;
+constexpr size_t kMaxScenePageSize = 256U;
 
 bool IsBoundedString(const Json::Value& value) {
     return value.isString() && value.asString().size() <= kMaxSceneStringBytes;
@@ -46,22 +48,39 @@ bool ReadTransform(const Json::Value& value, Transform3& out) {
            ReadFinite(value["sz"], out.sz);
 }
 
-std::string SceneResult(const char* operation, const EditorSceneSession& session) {
+std::string SceneResult(const char* operation, const EditorSceneSession& session, size_t offset = 0U, size_t limit = kDefaultScenePageSize) {
+    const std::vector<EditorSceneActor> snapshot = session.HierarchySnapshot();
+    const size_t safeLimit = std::min(limit, kMaxScenePageSize);
+    const size_t safeOffset = std::min(offset, snapshot.size());
+    const size_t end = std::min(snapshot.size(), safeOffset + safeLimit);
+
     Json::Value root(Json::objectValue);
     root["ok"] = true;
     root["operation"] = operation;
     root["revision"] = Json::UInt64(session.Document().revision);
-    root["actorCount"] = Json::UInt64(session.HierarchySnapshot().size());
+    root["actorCount"] = Json::UInt64(snapshot.size());
+    root["offset"] = Json::UInt64(safeOffset);
+    root["limit"] = Json::UInt64(safeLimit);
+    root["returnedCount"] = Json::UInt64(end - safeOffset);
+    root["hasMore"] = end < snapshot.size();
     root["selectedActorId"] = session.SelectedActorId();
+
     Json::Value actors(Json::arrayValue);
-    for (const auto& actor : session.HierarchySnapshot()) {
+    for (size_t index = safeOffset; index < end; ++index) {
+        const auto& actor = snapshot[index];
         Json::Value item(Json::objectValue);
-        item["id"] = actor.id; item["parentId"] = actor.parentId; item["name"] = actor.name;
-        item["assetId"] = actor.assetId; item["materialAssetId"] = actor.materialAssetId; item["textureAssetId"] = actor.textureAssetId;
+        item["id"] = actor.id;
+        item["parentId"] = actor.parentId;
+        item["name"] = actor.name;
+        item["assetId"] = actor.assetId;
+        item["materialAssetId"] = actor.materialAssetId;
+        item["textureAssetId"] = actor.textureAssetId;
         actors.append(item);
     }
     root["actors"] = actors;
-    Json::StreamWriterBuilder builder; builder["indentation"] = "";
+
+    Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";
     return Json::writeString(builder, root);
 }
 
@@ -145,8 +164,17 @@ bool EditorSceneAgentAPI::Execute(std::string_view request, EditorSceneSession& 
         lastError_ = EditorAgentError::None; response = SceneResult("selectMany", session); return true;
     }
     if (operation == "query") {
-        if (!HasOnly(root, {"operation"})) return Fail(EditorAgentError::UnknownField, response);
-        lastError_ = EditorAgentError::None; response = SceneResult("query", session); return true;
+        if (!HasOnly(root, {"operation", "offset", "limit"}) ||
+            (root.isMember("offset") && !root["offset"].isUInt()) ||
+            (root.isMember("limit") && !root["limit"].isUInt())) {
+            return Fail(EditorAgentError::InvalidArgument, response);
+        }
+        const size_t offset = root.isMember("offset") ? static_cast<size_t>(root["offset"].asUInt()) : 0U;
+        const size_t limit = root.isMember("limit") ? static_cast<size_t>(root["limit"].asUInt()) : kDefaultScenePageSize;
+        if (limit == 0U || limit > kMaxScenePageSize) return Fail(EditorAgentError::InvalidArgument, response);
+        lastError_ = EditorAgentError::None;
+        response = SceneResult("query", session, offset, limit);
+        return true;
     }
     if (operation == "select") {
         if (!HasOnly(root, {"operation", "actorId"}) || !root["actorId"].isUInt()) return Fail(EditorAgentError::InvalidArgument, response);
