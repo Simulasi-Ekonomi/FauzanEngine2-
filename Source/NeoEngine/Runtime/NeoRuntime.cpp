@@ -58,6 +58,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!world->Initialize(*farm, *trustSafety, "runtime-farm-player", worldConfig)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto authority = std::make_unique<FarmAuthoritativeService>();
     if (!authority->Initialize(*world, *trustSafety, "runtime-farm-player", "runtime-farm-session")) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto authoritySession = std::make_unique<FarmAuthoritativeSessionHost>();
+    if (!authoritySession->Initialize(*authority)) { m_LastError = RuntimeError::AuthorityFailed; m_State = RuntimeState::Failed; return false; }
     auto assets = std::make_unique<AssetRegistry>();
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
@@ -148,6 +150,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_Farm = std::move(farm);
     m_FarmWorld = std::move(world);
     m_FarmAuthority = std::move(authority);
+    m_FarmAuthoritySession = std::move(authoritySession);
     m_Assets = std::move(assets);
     m_Resources = std::move(resources);
     m_Actors = std::move(actors);
