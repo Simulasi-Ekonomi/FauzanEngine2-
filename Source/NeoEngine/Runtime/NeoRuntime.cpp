@@ -198,6 +198,35 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     return true;
 }
 
+bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
+                                                const FarmSessionCommand& command,
+                                                FarmAuthoritativeCommandReceipt& receipt) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
+    if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
 bool NeoRuntime::Tick() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     std::vector<RuntimeTimerFire> fires;
