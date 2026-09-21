@@ -13,8 +13,8 @@ fi
 
 ARTIFACT="${1:-}"
 REFERENCE_ARTIFACT="${2:-}"
-if [[ -z "$ARTIFACT" ]]; then
-  echo "usage: tools/p4_release_certify.sh <release.apk|release.aab> [reference.apk|reference.aab]" >&2
+if [[ -z "$ARTIFACT" || -z "$REFERENCE_ARTIFACT" ]]; then
+  echo "usage: tools/p4_release_certify.sh <release.apk|release.aab> <reference.apk|reference.aab>" >&2
   exit 2
 fi
 if [[ ! -f "$ARTIFACT" || -L "$ARTIFACT" ]]; then
