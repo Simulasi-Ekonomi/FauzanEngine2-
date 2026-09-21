@@ -76,6 +76,8 @@ public:
     bool ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
     bool BuildReplicationSnapshotPacket(std::vector<uint8_t>& bytes) const;
     bool ApplyReplicationSnapshotPacket(std::span<const uint8_t> bytes, ReplicationApplyReceipt& receipt);
+    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
+    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool StartFarmAuthoritativeLoopback(const FarmSessionPrincipal& principal, uint16_t maxConnections = 1U);
     void StopFarmAuthoritativeLoopback();
     [[nodiscard]] uint16_t FarmAuthoritativeLoopbackPort() const;
