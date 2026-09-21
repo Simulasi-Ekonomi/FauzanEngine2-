@@ -176,7 +176,7 @@ bool CanonicalReplicationBridge::ApplyAcknowledgement(const ReplicationAcknowled
 bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float deltaZ,
                                          ReplicationPredictionReceipt& receipt) {
     receipt = {};
-    if (networkId == std::numeric_limits<uint32_t>::max() || networkId == 0U || !std::isfinite(deltaX) || !std::isfinite(deltaZ) ||
+    if (networkId == std::numeric_limits<uint32_t>::max() || !std::isfinite(deltaX) || !std::isfinite(deltaZ) ||
         std::abs(deltaX) > ReplicationWorld::kMaxPredictionDelta || std::abs(deltaZ) > ReplicationWorld::kMaxPredictionDelta) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
