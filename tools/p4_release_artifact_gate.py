@@ -6,6 +6,9 @@ import shutil
 import subprocess
 import struct
 import sys
+import os
+import stat
+import unicodedata
 import zipfile
 from pathlib import Path
 
@@ -44,6 +47,12 @@ def main()->int:
     except (OSError,RuntimeError) as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL unresolved_artifact_path={exc}") from exc
     if not artifact.is_file() or artifact.is_symlink() or not artifact.exists() or not artifact.stat().st_size: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_or_symlink={args.artifact}")
     if not artifact.is_absolute() or artifact.suffix.lower() not in ALLOWED_SUFFIXES: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_path")
+    if artifact.name in {".",".."} or not artifact.name.strip(): raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_name")
+    if any(part in {".",".."} for part in artifact.parts): raise SystemExit("P4_ARTIFACT_GATE_FAIL unresolved_path_component")
+    try:
+        for parent in artifact.parents:
+            if parent.is_symlink(): raise SystemExit("P4_ARTIFACT_GATE_FAIL symlink_parent_path")
+    except OSError as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL parent_path_check_failed={exc}") from exc
     try: artifact_size=artifact.stat().st_size
     except OSError as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL artifact_stat_failed={artifact}") from exc
     if artifact_size<=0 or artifact_size>MAX_ARTIFACT_SIZE or artifact_size < 64 or artifact_size != artifact.stat().st_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_size")
@@ -70,9 +79,14 @@ def main()->int:
             if len(names)==0 or len(names)>MAX_ENTRIES or len(names) != len(archive.infolist()): raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
             if archive.comment and b"\x00" in archive.comment: raise SystemExit("P4_ARTIFACT_GATE_FAIL nul_archive_comment")
             if len(names)!=len(set(names)): raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
+            normalized_names=[unicodedata.normalize("NFC", name) for name in names]
+            if len(normalized_names)!=len(set(normalized_names)): raise SystemExit("P4_ARTIFACT_GATE_FAIL normalized_duplicate_zip_entries")
+            if any(unicodedata.normalize("NFKC", name) != name for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL compatibility_normalized_zip_name")
             if archive.start_dir <= 0 or archive.sizeCentralDir == 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_central_directory")
             
             if any(not name or "\x00" in name or "\n" in name or "\r" in name or name.strip()!=name or len(name.encode("utf-8"))>65535 for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_zip_name")
+            if any(name.endswith(".") or name.endswith(" ") for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL ambiguous_zip_name")
+            if any("//" in name for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL repeated_separator_zip_name")
             required_entries={"AndroidManifest.xml"} if artifact.suffix.lower()==".apk" else {"base/manifest/AndroidManifest.xml","BundleConfig.pb"}
             missing=sorted(required_entries.difference(names))
             if missing: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_required_entries="+",".join(missing))
@@ -108,6 +122,8 @@ def main()->int:
                 if extra_offset != len(info.extra): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_extra_fields")
                 if len(info.comment)>MAX_ENTRY_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
                 if info.flag_bits & 0x1 or info.flag_bits & ((1<<5)|(1<<6)|(1<<13)|(1<<14)|(1<<15)): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_flags")
+                if info.flag_bits & 0x2 or info.flag_bits & 0x4: raise SystemExit("P4_ARTIFACT_GATE_FAIL legacy_zip_flags")
+                if info.create_system == 0 and info.external_attr & 0xFFFF0000: raise SystemExit("P4_ARTIFACT_GATE_FAIL unexpected_dos_attributes")
                 if info.header_offset < 0 or info.header_offset >= archive.start_dir or info.header_offset + 30 > archive.start_dir or info.header_offset > artifact_size - 30: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_header_offset")
                 if info.compress_size == 0 and info.file_size == 0 and not info.is_dir() and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
                 with artifact.open("rb") as raw:
@@ -149,6 +165,7 @@ def main()->int:
                 if info.compress_size>0 and info.file_size/info.compress_size>MAX_COMPRESSION_RATIO: raise SystemExit("P4_ARTIFACT_GATE_FAIL suspicious_compression_ratio")
                 if info.file_size == 0 and info.compress_size > 0 and not info.is_dir(): raise SystemExit("P4_ARTIFACT_GATE_FAIL compressed_empty_file")
                 if info.compress_type not in {zipfile.ZIP_STORED,zipfile.ZIP_DEFLATED,zipfile.ZIP_BZIP2,zipfile.ZIP_LZMA}: raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_zip_compression")
+                if info.compress_type == zipfile.ZIP_DEFLATED and info.compress_size == 0 and info.file_size > 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_deflate_payload")
                 if info.create_system == 3 and ((info.external_attr >> 16) & 0o170000) not in {0,0o100000,0o040000,0o120000}: raise SystemExit("P4_ARTIFACT_GATE_FAIL special_zip_entry")
                 if info.create_system == 3 and ((info.external_attr >> 16) & 0o170000) == 0o120000: raise SystemExit("P4_ARTIFACT_GATE_FAIL symlink_zip_entry")
                 if info.is_dir() and not name.endswith("/"):
@@ -169,6 +186,7 @@ def main()->int:
                 if not info.is_dir() and info.file_size==0 and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
     except zipfile.BadZipFile as exc: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip") from exc
     if total_uncompressed == 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_uncompressed_archive")
+    if len(names) > MAX_ENTRIES or total_uncompressed > MAX_TOTAL_UNCOMPRESSED: raise SystemExit("P4_ARTIFACT_GATE_FAIL archive_limits_exceeded")
     if total_uncompressed > MAX_TOTAL_UNCOMPRESSED: raise SystemExit("P4_ARTIFACT_GATE_FAIL uncompressed_payload_too_large")
     if artifact.suffix.lower()==".apk":
         if artifact_size < 64U: raise SystemExit("P4_ARTIFACT_GATE_FAIL artifact_too_small_for_zip")
