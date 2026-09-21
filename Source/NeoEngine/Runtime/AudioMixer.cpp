@@ -23,7 +23,7 @@ bool AudioMixer::Play(uint32_t id,std::vector<int16_t> samples,uint16_t gainQ8,b
 
 bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
     if (m_Voices.size()>kMaxVoices) { m_Voices.clear(); return false; }
-    if(params.id==0||params.mono.empty()||params.mono.size()>kMaxSamplesPerVoice||params.gainQ8==0||!std::isfinite(params.pitch)||params.pitch<=0.001f||params.pitch>8.0f)return false;
+    if(params.id==0||params.mono.empty()||params.mono.capacity()<params.mono.size()||params.mono.size()>kMaxSamplesPerVoice||params.gainQ8==0||!std::isfinite(params.pitch)||params.pitch<=0.001f||params.pitch>8.0f)return false;
     for(const auto& voice:m_Voices)if(voice.id==params.id)return false;
     if(m_Voices.size()>=kMaxVoices)return false;
     for(float x:params.position)if(!std::isfinite(x))return false;
@@ -45,7 +45,7 @@ bool AudioMixer::PlaySpatial(const SpatialVoiceParams& params) {
 
 bool AudioMixer::UpdateVoicePosition(uint32_t id,const float position[3]) { if(id==0||position==nullptr||m_Voices.size()>kMaxVoices)return false;for(float value:{position[0],position[1],position[2]})if(!std::isfinite(value))return false;for(auto& voice:m_Voices)if(voice.id==id){voice.position[0]=position[0];voice.position[1]=position[1];voice.position[2]=position[2];return true;}return false; }
 bool AudioMixer::UpdateVoicePitch(uint32_t id,float pitch) { if(id==0||m_Voices.size()>kMaxVoices||!std::isfinite(pitch)||pitch<=0.001f||pitch>8.0f)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.pitch=pitch;return true;}return false; }
-bool AudioMixer::UpdateVoiceGain(uint32_t id,uint16_t gainQ8) { if(id==0||m_Voices.size()>kMaxVoices||gainQ8==0)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.gain=gainQ8;return true;}return false; }
+bool AudioMixer::UpdateVoiceGain(uint32_t id,uint16_t gainQ8) { if(id==0||m_Voices.size()>kMaxVoices||gainQ8==0||gainQ8>65535U)return false;for(auto& voice:m_Voices)if(voice.id==id){voice.gain=gainQ8;return true;}return false; }
 bool AudioMixer::Stop(uint32_t id) { if(id==0)return false;auto it=std::find_if(m_Voices.begin(),m_Voices.end(),[&](const auto& voice){return voice.id==id;});if(it==m_Voices.end())return false;m_Voices.erase(it);return true; }
 void AudioMixer::Clear(){m_Voices.clear(); m_Voices.shrink_to_fit();}
 
@@ -82,8 +82,10 @@ void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
             }
             if(!std::isfinite(dynamicGain)||!std::isfinite(dynamicPan)||dynamicGain<0.0f||dynamicGain>256.0f||dynamicPan<-1.0f||dynamicPan>1.0f)continue;
             const double scaledSample=static_cast<double>(interpolated)*static_cast<double>(dynamicGain);if(!std::isfinite(scaledSample)||scaledSample>static_cast<double>(std::numeric_limits<int64_t>::max())||scaledSample<static_cast<double>(std::numeric_limits<int64_t>::min()))continue;
-            const double roundedSample=std::llround(scaledSample); if(!std::isfinite(roundedSample)) continue; const int64_t sample=static_cast<int64_t>(roundedSample);const double nextCursor=voice.cursorSubframe+voice.pitch;if(!std::isfinite(nextCursor)||nextCursor<voice.cursorSubframe)continue;voice.cursorSubframe=nextCursor;
-            if(voice.cursorSubframe>static_cast<double>(std::numeric_limits<size_t>::max()))continue;voice.cursor=static_cast<size_t>(voice.cursorSubframe);
+            const double roundedSample=std::llround(scaledSample); if(!std::isfinite(roundedSample)) continue; const int64_t sample=static_cast<int64_t>(roundedSample);const double nextCursor=voice.cursorSubframe+voice.pitch;
+            if (nextCursor > static_cast<double>(std::numeric_limits<size_t>::max())) continue;if(!std::isfinite(nextCursor)||nextCursor<voice.cursorSubframe)continue;voice.cursorSubframe=nextCursor;
+            if(voice.cursorSubframe>static_cast<double>(std::numeric_limits<size_t>::max()))continue;
+            if (voice.cursorSubframe < 0.0) continue;voice.cursor=static_cast<size_t>(voice.cursorSubframe);
             if(!voice.spatialized){if ((sample>0 && left>std::numeric_limits<int64_t>::max()-sample) || (sample<0 && left<std::numeric_limits<int64_t>::min()-sample)) continue; if ((sample>0 && right>std::numeric_limits<int64_t>::max()-sample) || (sample<0 && right<std::numeric_limits<int64_t>::min()-sample)) continue; left+=sample;right+=sample;}else{const float pan=std::clamp(dynamicPan,-1.0f,1.0f),angle=(pan+1.0f)*0.5f*1.57079632679489661923f;if(!std::isfinite(angle))continue;const float lg=std::cos(angle),rg=std::sin(angle);if(!std::isfinite(lg)||!std::isfinite(rg))continue;const double leftValue=static_cast<double>(sample)*lg,rightValue=static_cast<double>(sample)*rg;if(!std::isfinite(leftValue)||!std::isfinite(rightValue))continue;if(leftValue>static_cast<double>(std::numeric_limits<int64_t>::max())||leftValue<static_cast<double>(std::numeric_limits<int64_t>::min())||rightValue>static_cast<double>(std::numeric_limits<int64_t>::max())||rightValue<static_cast<double>(std::numeric_limits<int64_t>::min()))continue;left+=static_cast<int64_t>(std::llround(leftValue));right+=static_cast<int64_t>(std::llround(rightValue));}
         }
         out[f*2U]=static_cast<int16_t>(std::clamp<int64_t>(left,-32768,32767));out[f*2U+1U]=static_cast<int16_t>(std::clamp<int64_t>(right,-32768,32767));
