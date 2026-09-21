@@ -70,7 +70,7 @@ void AppendTransform(std::vector<uint8_t>& bytes, const Transform3& transform) {
 }
 void AppendSnapshotContent(std::vector<uint8_t>& bytes, const ReplicationSnapshot& snapshot) {
     AppendU32(bytes, kMagic); AppendU16(bytes, kVersion); AppendU64(bytes, snapshot.sequence); AppendU64(bytes, snapshot.serverTick); AppendU16(bytes, snapshot.count);
-    if (snapshot.count > kMaxEntities) { error = ReplicationError::Capacity; return false; }
+
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
         AppendU32(bytes, state.networkId); AppendU32(bytes, state.ownerId); AppendU64(bytes, state.stateRevision); AppendTransform(bytes, state.transform);
@@ -105,10 +105,10 @@ Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPerm
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
     bytes.clear();
     bytes.shrink_to_fit();
-    if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
+    if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
-        if (state.networkId == 0U || state.networkId == std::numeric_limits<uint32_t>::max() || state.networkId == std::numeric_limits<uint32_t>::max() || state.ownerId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
+        if (state.networkId == 0U || state.networkId == std::numeric_limits<uint32_t>::max() || state.ownerId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
     }
     try {
         std::vector<uint8_t> content;
@@ -142,7 +142,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     if (candidate.count > kMaxEntities) { error = ReplicationError::Capacity; return false; }
     for (uint16_t index = 0U; index < count; ++index) {
         ReplicatedEntityState& state = candidate.states[index];
-        if (!ReadU32(bytes, offset, state.networkId) || !ReadU32(bytes, offset, state.ownerId) || !ReadU64(bytes, offset, state.stateRevision) || !ReadFloat(bytes, offset, state.transform.x) || !ReadFloat(bytes, offset, state.transform.y) || !ReadFloat(bytes, offset, state.transform.z) || !ReadFloat(bytes, offset, state.transform.rx) || !ReadFloat(bytes, offset, state.transform.ry) || !ReadFloat(bytes, offset, state.transform.rz) || !ReadFloat(bytes, offset, state.transform.sx) || !ReadFloat(bytes, offset, state.transform.sy) || !ReadFloat(bytes, offset, state.transform.sz) || state.networkId == 0U || state.ownerId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform)) { error = ReplicationError::CorruptSnapshot; return false; }
+        if (!ReadU32(bytes, offset, state.networkId) || !ReadU32(bytes, offset, state.ownerId) || !ReadU64(bytes, offset, state.stateRevision) || !ReadFloat(bytes, offset, state.transform.x) || !ReadFloat(bytes, offset, state.transform.y) || !ReadFloat(bytes, offset, state.transform.z) || !ReadFloat(bytes, offset, state.transform.rx) || !ReadFloat(bytes, offset, state.transform.ry) || !ReadFloat(bytes, offset, state.transform.rz) || !ReadFloat(bytes, offset, state.transform.sx) || !ReadFloat(bytes, offset, state.transform.sy) || !ReadFloat(bytes, offset, state.transform.sz) || state.networkId == 0U || state.networkId == std::numeric_limits<uint32_t>::max() || state.networkId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform)) { error = ReplicationError::CorruptSnapshot; return false; }
         if (index > 0U && candidate.states[index - 1U].networkId >= state.networkId) { error = ReplicationError::CorruptSnapshot; return false; }
     }
     uint64_t expected = 0U;
