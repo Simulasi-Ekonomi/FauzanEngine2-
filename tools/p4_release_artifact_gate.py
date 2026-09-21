@@ -32,14 +32,14 @@ def main()->int:
     if not artifact.is_absolute() or artifact.suffix.lower() not in ALLOWED_SUFFIXES: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_path")
     try: artifact_size=artifact.stat().st_size
     except OSError as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL artifact_stat_failed={artifact}") from exc
-    if artifact_size==0 or artifact_size>MAX_ARTIFACT_SIZE: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_size")
+    if artifact_size<=0 or artifact_size>MAX_ARTIFACT_SIZE: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_size")
     try:
         with zipfile.ZipFile(artifact) as archive:
             if archive.testzip() is not None: raise SystemExit("P4_ARTIFACT_GATE_FAIL corrupt_zip")
             names=archive.namelist()
-            if len(names)>MAX_ENTRIES: raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
+            if len(names)==0 or len(names)>MAX_ENTRIES: raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
             if len(names)!=len(set(names)): raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
-            if any(not name or "\x00" in name or "\n" in name or "\r" in name for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_zip_name")
+            if any(not name or "\x00" in name or "\n" in name or "\r" in name or name.strip()!=name for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_zip_name")
             required_entries={"AndroidManifest.xml"} if artifact.suffix.lower()==".apk" else {"base/manifest/AndroidManifest.xml","BundleConfig.pb"}
             missing=sorted(required_entries.difference(names))
             if missing: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_required_entries="+",".join(missing))
@@ -49,7 +49,7 @@ def main()->int:
                 if "\\" in name or name.startswith("/") or name.startswith("./") or Path(name).is_absolute() or ".." in Path(name).parts: raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_path")
                 if len(name)>1024 or any(len(part)>255 for part in Path(name).parts): raise SystemExit("P4_ARTIFACT_GATE_FAIL zip_name_too_long")
                 if info.flag_bits & 0x1 or info.flag_bits & ((1<<5)|(1<<6)|(1<<13)|(1<<14)|(1<<15)): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_flags")
-                if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
+                if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
                 if info.compress_size==0 and info.file_size>0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_compression_size")
                 if total_uncompressed > MAX_TOTAL_UNCOMPRESSED - info.file_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL uncompressed_payload_too_large")
                 total_uncompressed+=info.file_size
