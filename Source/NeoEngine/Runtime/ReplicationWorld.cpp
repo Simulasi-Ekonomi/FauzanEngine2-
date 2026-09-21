@@ -124,6 +124,8 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, sequence) || !ReadU64(bytes, offset, serverTick) || !ReadU16(bytes, offset, count) || magic != kMagic || version != kVersion || sequence == 0U || count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::CorruptSnapshot; return false; }
     ReplicationSnapshot candidate{};
     if (serverTick == std::numeric_limits<uint64_t>::max()) { error = ReplicationError::CorruptSnapshot; return false; }
+    constexpr size_t kEntityBytes = 4U + 4U + 8U + 9U * sizeof(float);
+    if (count > (kMaxBytes - (4U + 2U + 8U + 8U + 2U + 8U)) / kEntityBytes) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count;
     for (uint16_t index = 0U; index < count; ++index) {
         ReplicatedEntityState& state = candidate.states[index];
@@ -229,6 +231,7 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     }
     std::sort(candidates.begin(), candidates.begin() + count, [](const CandidateState& left, const CandidateState& right) { return left.state.networkId < right.state.networkId; });
     ReplicationSnapshot snapshotCandidate{};
+    if (snapshotSequence_ == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::Capacity);
     snapshotCandidate.sequence = snapshotSequence_ + 1U;
     snapshotCandidate.serverTick = serverTick;
     snapshotCandidate.count = count;
