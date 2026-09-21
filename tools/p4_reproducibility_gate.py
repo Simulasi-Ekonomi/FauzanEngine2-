@@ -16,6 +16,8 @@ a, b = map(Path, sys.argv[1:])
 for p in (a, b):
     if not p.is_file() or p.is_symlink() or p.stat().st_size == 0:
         raise SystemExit(f'P4_REPRODUCIBILITY_FAIL invalid_artifact={p}')
+if a.stat().st_dev == b.stat().st_dev and a.stat().st_ino == b.stat().st_ino:
+    raise SystemExit('P4_REPRODUCIBILITY_FAIL artifacts_must_be_distinct_files')
 suffix_a = a.suffix.lower()
 suffix_b = b.suffix.lower()
 if suffix_a not in {'.apk', '.aab'} or suffix_b != suffix_a:
