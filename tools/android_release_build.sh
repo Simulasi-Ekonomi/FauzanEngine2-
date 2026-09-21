@@ -9,6 +9,8 @@ GRADLEW="$ANDROID_DIR/gradlew"
 
 [[ -x "$GRADLEW" ]] || { echo "ANDROID_RELEASE_BUILD_FAIL missing_gradle_wrapper" >&2; exit 2; }
 
+"$ROOT/android/scripts/preflight.sh" release
+
 for name in NEO_ANDROID_KEYSTORE NEO_ANDROID_KEY_ALIAS NEO_ANDROID_STORE_PASSWORD NEO_ANDROID_KEY_PASSWORD; do
   [[ -n "${!name:-}" ]] || { echo "ANDROID_RELEASE_BUILD_FAIL missing_signing_env=$name" >&2; exit 3; }
 done
