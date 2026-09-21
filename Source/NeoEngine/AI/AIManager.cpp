@@ -27,6 +27,7 @@ bool AIManager::Initialize() {
     const bool rufloReady = newRuflo->Initialize();
     const bool openCodeReady = newOpenCode->Initialize();
     if (!hermesReady && !gemmaReady && !rufloReady && !openCodeReady) {
+        newHermes->Shutdown(); newGemma4->Shutdown(); newRuflo->Shutdown(); newOpenCode->Shutdown();
         lastError = Error::InitializationFailed;
         return false;
     }
@@ -100,6 +101,8 @@ std::string AIManager::Think(const std::string& context) {
 std::string AIManager::PlanAction(const std::string& state) {
     if (state.size() > 16U * 1024U * 1024U || state.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
     if (state.empty()) { lastError = Error::InvalidContext; return {}; }
+    constexpr std::size_t kPrefixSize = sizeof("Plan an action for the following game state:\n") - 1U;
+    if (state.size() > 16U * 1024U * 1024U - kPrefixSize) { lastError = Error::InvalidContext; return {}; }
     return Think("Plan an action for the following game state:\n" + state);
 }
 
