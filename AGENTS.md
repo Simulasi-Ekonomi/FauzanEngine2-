@@ -133,3 +133,7 @@ Every agent that changes the repository must leave enough information for the ne
 - PR number when applicable.
 
 The authoritative long-form procedure is `docs/AI_ENGINE_WORK_STANDARD.md`.
+
+## Mandatory multi-room governance
+
+Before changing this branch, every room/agent MUST read [`docs/ROOM_WORK_GOVERNANCE_V1.md`](docs/ROOM_WORK_GOVERNANCE_V1.md). It is binding across the six work branches and defines ownership, gap status, canonical CMake, Release/ASAN evidence, handover, and zero-conflict merge rules.
