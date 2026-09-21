@@ -20,6 +20,9 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 
 #define NEO_JNI_TAG "NeoEngine-JNI"
 #define NEO_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  NEO_JNI_TAG, __VA_ARGS__)
@@ -309,8 +312,14 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
     if (NeoJNI::g_StreamingThread.joinable()) NeoJNI::g_StreamingThread.join();
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     NEO_LOGI("nativeShutdown");
-    NeoJNI::g_Running     = false;
+    NeoJNI::g_Running = false;
     NeoJNI::g_Initialized = false;
+    NeoJNI::g_DeltaTime = 0.0f;
+    NeoJNI::g_FrameCount = 0;
+    NeoJNI::g_FPS = 0.0f;
+    NeoJNI::g_Telemetry = {};
+    NeoJNI::g_Actors.clear();
+    NeoJNI::g_ActorsByName.clear();
     NeoJNI::g_DeltaTime = 0.0f;
     NeoJNI::g_FrameCount = 0;
     NeoJNI::g_FPS = 0.0f;
@@ -401,7 +410,10 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeAddActor(
     if (NeoJNI::g_ActorsByName.find(name) != NeoJNI::g_ActorsByName.end()) {
         env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
     }
-    NeoJNI::g_Actors[id]        = a;
+    if (NeoJNI::g_ActorsByName.find(name) != NeoJNI::g_ActorsByName.end()) {
+        env->ReleaseStringUTFChars(jtype, type); env->ReleaseStringUTFChars(jname, name); return -1;
+    }
+    NeoJNI::g_Actors[id] = a;
     NeoJNI::g_ActorsByName[name] = id;
 
     NEO_LOGI("addActor: id=%d name=%s type=%s pos=(%.1f,%.1f,%.1f)", id, name, type, x, y, z);
