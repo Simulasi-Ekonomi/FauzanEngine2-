@@ -1,0 +1,60 @@
+name: R3 Farm renderer path
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
+      - '.github/workflows/r3-farm-render.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
+      - '.github/workflows/r3-farm-render.yml'
+  workflow_dispatch:
+
+jobs:
+  farm-render:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools ninja-build xvfb mesa-vulkan-drivers libx11-xcb1 libxcb1 libxrandr2 libxinerama1 libxcursor1 libxi6 libvulkan1 vulkan-tools libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev libxfixes-dev libxss-dev libxtst-dev libdrm-dev libgbm-dev libudev-dev
+          VULKAN_ICD="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name '*.json' -print | grep -E '/(lvp|lavapipe|swrast).*\.json$' | head -n 1)"
+          test -n "${VULKAN_ICD}"
+          echo "VULKAN_ICD=${VULKAN_ICD}" >> "${GITHUB_ENV}"
+          echo "Using software Vulkan ICD: ${VULKAN_ICD}"
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        with:
+          version: 3.4.14
+          install-linux-dependencies: true
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/r3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build and run Release smoke under Xvfb
+        run: |
+          cmake --build build/r3-release --target farm_vulkan_textured_present_smoke -j2
+          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-release/farm_vulkan_textured_present_smoke
+
+      - name: Configure AddressSanitizer
+        run: |
+          cmake -S Source/NeoEngine -B build/r3-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build and run ASAN smoke under Xvfb
+        env:
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
+        run: |
+          cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke -j2
+          xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-asan/farm_vulkan_textured_present_smoke
