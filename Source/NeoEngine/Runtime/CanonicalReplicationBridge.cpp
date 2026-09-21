@@ -65,10 +65,9 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
 
 bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
     bytes.clear();
-    if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes) bytes.shrink_to_fit();
-    if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes) bytes.shrink_to_fit();
+    if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes) std::vector<uint8_t>().swap(bytes);
     ReplicationError error = ReplicationError::None;
-    if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error)) {
+    if (!ReplicationSnapshotCodec::Serialize(snapshot, bytes, error) || bytes.size() > ReplicationSnapshotCodec::kMaxBytes) {
         lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
         return false;
     }
@@ -77,6 +76,7 @@ bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snaps
 }
 
 bool CanonicalReplicationBridge::DecodeSnapshot(std::span<const uint8_t> bytes, ReplicationSnapshot& snapshot) {
+    if (bytes.size() > ReplicationSnapshotCodec::kMaxBytes) { lastError_ = CanonicalReplicationBridgeError::DecodeFailed; return false; }
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Deserialize(bytes, snapshot, error)) {
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
@@ -89,8 +89,9 @@ bool CanonicalReplicationBridge::DecodeSnapshot(std::span<const uint8_t> bytes, 
 bool CanonicalReplicationBridge::EncodeAcknowledgement(const ReplicationAcknowledgement& acknowledgement,
                                                        std::vector<uint8_t>& bytes) {
     bytes.clear();
+    if (bytes.capacity() > ReplicationAcknowledgementCodec::kMaxBytes) std::vector<uint8_t>().swap(bytes);
     ReplicationError error = ReplicationError::None;
-    if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement, bytes, error)) {
+    if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement, bytes, error) || bytes.size() > ReplicationAcknowledgementCodec::kMaxBytes) {
         lastError_ = CanonicalReplicationBridgeError::EncodeFailed;
         return false;
     }
@@ -100,6 +101,7 @@ bool CanonicalReplicationBridge::EncodeAcknowledgement(const ReplicationAcknowle
 
 bool CanonicalReplicationBridge::DecodeAcknowledgement(std::span<const uint8_t> bytes,
                                                         ReplicationAcknowledgement& acknowledgement) {
+    if (bytes.size() > ReplicationAcknowledgementCodec::kMaxBytes) { lastError_ = CanonicalReplicationBridgeError::DecodeFailed; return false; }
     ReplicationError error = ReplicationError::None;
     if (!ReplicationAcknowledgementCodec::Deserialize(bytes, acknowledgement, error)) {
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
