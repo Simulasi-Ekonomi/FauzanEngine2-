@@ -49,10 +49,12 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
     if (frameCount == 0U || frameCount > 48000U * 60U * 60U) return false;
     if (frameCount > std::numeric_limits<size_t>::max() / static_cast<size_t>(channels)) return false;
     const size_t sampleCount = frameCount * channels;
+    if (sampleCount > 0U && sampleCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
     if (sampleCount > std::vector<int16_t>().max_size() || sampleCount > 48000ULL * 60ULL * 60ULL * 2ULL) return false;
     if (dataOffset > bytes.size() || dataSize > bytes.size() - dataOffset) return false;
     out.sampleRate = rate; out.channels = channels;
     try { out.pcmSamples.resize(frameCount); } catch (...) { out = {}; return false; }
+    if (out.pcmSamples.size() != frameCount) { out = {}; return false; }
     if (bits == 16) {
         for (size_t frame = 0; frame < frameCount; ++frame) {
             int32_t sum = 0;
@@ -74,11 +76,11 @@ bool WavAudioParser::Parse(const std::vector<uint8_t>& bytes, WavAudioData& out)
 }
 
 std::vector<uint8_t> WavAudioParser::GenerateSyntheticWav(uint32_t sampleRate, uint16_t channels, float frequencyHz, float durationSeconds) {
-    if (sampleRate == 0 || channels == 0 || channels > 2 || !std::isfinite(frequencyHz) || frequencyHz < 0.0f || !std::isfinite(durationSeconds) || durationSeconds <= 0.0f) return {};
+    if (sampleRate == 0 || channels == 0 || channels > 2 || sampleRate > 192000U || !std::isfinite(frequencyHz) || frequencyHz < 0.0f || !std::isfinite(durationSeconds) || durationSeconds <= 0.0f) return {};
     const double requested = static_cast<double>(sampleRate) * static_cast<double>(durationSeconds);
     if (requested > static_cast<double>(std::numeric_limits<uint32_t>::max()) || requested < 1.0) return {};
     const uint32_t frames = static_cast<uint32_t>(std::llround(requested));
-    if (frames == 0) return {};
+    if (frames == 0 || frames > 48000U * 60U * 60U) return {};
     if (static_cast<uint64_t>(frames) > std::numeric_limits<uint64_t>::max() / channels) return {};
     const uint64_t sampleCount = static_cast<uint64_t>(frames) * channels;
     if (sampleCount > std::numeric_limits<uint64_t>::max() / 2U) return {};
@@ -87,7 +89,8 @@ std::vector<uint8_t> WavAudioParser::GenerateSyntheticWav(uint32_t sampleRate, u
     if (dataBytes > std::numeric_limits<uint32_t>::max() - 36U || byteRate > std::numeric_limits<uint32_t>::max()) return {};
     const uint64_t outputBytes = 44U + dataBytes;
     if (outputBytes > std::vector<uint8_t>().max_size()) return {};
-    std::vector<uint8_t> b; b.reserve(static_cast<size_t>(outputBytes));
+    std::vector<uint8_t> b;
+    try { b.reserve(static_cast<size_t>(outputBytes)); } catch (...) { return {}; }
     b.insert(b.end(), {'R','I','F','F'}); Put32(b, static_cast<uint32_t>(36U + dataBytes)); b.insert(b.end(), {'W','A','V','E'});
     b.insert(b.end(), {'f','m','t',' '}); Put32(b, 16); Put16(b, 1); Put16(b, channels); Put32(b, sampleRate); Put32(b, static_cast<uint32_t>(byteRate)); Put16(b, static_cast<uint16_t>(channels * 2U)); Put16(b, 16);
     b.insert(b.end(), {'d','a','t','a'}); Put32(b, static_cast<uint32_t>(dataBytes));
