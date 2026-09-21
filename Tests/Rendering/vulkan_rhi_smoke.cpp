@@ -20,6 +20,9 @@ int main() {
         rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 4;
     }
 
+    if (rhi.Resize(0, 72) || rhi.GetWidth() != 64 || rhi.GetHeight() != 64 || !rhi.HasSwapchain()) {
+        rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 5;
+    }
     if (!rhi.Resize(96, 72) || rhi.GetWidth() != 96 || rhi.GetHeight() != 72 || !rhi.HasSwapchain()) {
         rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 5;
     }
