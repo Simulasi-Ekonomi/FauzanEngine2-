@@ -46,9 +46,20 @@ int main() {
         instanceTransforms[i * 16U + 13U] = -0.95F + static_cast<float>(i / 64U) * 0.03F;
     }
 
+    std::vector<NeoEngine::Mat4> palette(1);
+    palette[0].m[0] = palette[0].m[5] = palette[0].m[10] = palette[0].m[15] = 1.0F;
+    palette[0].m[12] = 0.02F;
     if (!renderer.BeginFrame()) {
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL begin1 error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 2;
+    }
+    if (!renderer.UploadSkinningPalette(palette)) {
+        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL skinning upload error=%u\n", static_cast<unsigned>(renderer.LastError()));
+        return 3;
+    }
+    for (auto& vertex : triangle) {
+        vertex.boneIndices = {0U, 0U, 0U, 0U};
+        vertex.boneWeights = {1.0F, 0.0F, 0.0F, 0.0F};
     }
     if (!renderer.DrawIndexed(bulkVertices, bulkIndices, identity.data()) ||
         !renderer.DrawIndexedInstanced(triangle, triangleIndices, instanceTransforms)) {
