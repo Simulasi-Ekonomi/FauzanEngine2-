@@ -10,8 +10,6 @@ ItemSerialTracker::ItemSerialTracker() {
 
 std::string ItemSerialTracker::GenerateSerial(const std::string& itemType, const std::string& itemName) {
     std::lock_guard<std::mutex> lock(m_Mutex);
-    if (m_TotalItems == std::numeric_limits<int>::max()) return {};
-    m_TotalItems++;
     auto now = std::chrono::system_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
     std::string typeCode = "XX";
