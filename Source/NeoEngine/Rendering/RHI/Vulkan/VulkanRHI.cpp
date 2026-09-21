@@ -150,6 +150,12 @@ void VulkanRHI::BeginFrame() {
         return;
     }
     if (acquired != VK_SUCCESS && acquired != VK_SUBOPTIMAL_KHR) return;
+    if (m_ImageIndex >= m_Framebuffers.size() || m_ImageIndex >= m_SwapchainViews.size()) {
+        m_ImageIndex = UINT32_MAX;
+        m_ImageAcquired = false;
+        RecreateSwapchainResources(static_cast<uint32_t>(std::max(m_Width, 1)), static_cast<uint32_t>(std::max(m_Height, 1)));
+        return;
+    }
 
     // Do all command-buffer setup before resetting the fence. If any setup step
     // fails, the fence remains signaled and the next frame cannot deadlock waiting
