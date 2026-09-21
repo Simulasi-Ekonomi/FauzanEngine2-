@@ -45,8 +45,8 @@ def main()->int:
     if not artifact.is_absolute() or artifact.suffix.lower() not in ALLOWED_SUFFIXES: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_path")
     try: artifact_size=artifact.stat().st_size
     except OSError as exc: raise SystemExit(f"P4_ARTIFACT_GATE_FAIL artifact_stat_failed={artifact}") from exc
-    if artifact_size<=0 or artifact_size>MAX_ARTIFACT_SIZE: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_size")
-    if args.expected_size < 0 or args.expected_size > MAX_ARTIFACT_SIZE: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_expected_size")
+    if artifact_size<=0 or artifact_size>MAX_ARTIFACT_SIZE or artifact_size < 64: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_artifact_size")
+    if args.expected_size < 0 or args.expected_size > MAX_ARTIFACT_SIZE or (args.expected_size and args.expected_size < 64): raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_expected_size")
     if args.expected_size and artifact_size != args.expected_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL size_mismatch")
     if args.expected_sha256 and (len(args.expected_sha256)!=64 or any(ch not in "0123456789abcdefABCDEF" for ch in args.expected_sha256)): raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_expected_sha256")
     digest=hashlib.sha256()
@@ -61,15 +61,15 @@ def main()->int:
         with zipfile.ZipFile(artifact) as archive:
             if archive.testzip() is not None: raise SystemExit("P4_ARTIFACT_GATE_FAIL corrupt_zip")
             if len(archive.comment)>MAX_ARCHIVE_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_archive_comment")
-            if archive.start_dir < 0 or archive.start_dir >= artifact_size or archive.start_dir < 22: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_central_directory_offset")
+            if archive.start_dir < 0 or archive.start_dir >= artifact_size or archive.start_dir % 1 != 0 or archive.start_dir < 22: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_central_directory_offset")
             if archive.start_dir + archive.sizeCentralDir > artifact_size or archive.sizeCentralDir < 0 or archive.start_dir + archive.sizeCentralDir < archive.start_dir: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_central_directory_extent")
             names=archive.namelist()
-            if len(names)==0 or len(names)>MAX_ENTRIES: raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
+            if len(names)==0 or len(names)>MAX_ENTRIES or len(names) > archive.sizeCentralDir // 46 + 1: raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
             if archive.comment and b"\x00" in archive.comment: raise SystemExit("P4_ARTIFACT_GATE_FAIL nul_archive_comment")
             if len(names)!=len(set(names)): raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
             if archive.start_dir <= 0 or archive.sizeCentralDir == 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_central_directory")
             if len(archive.infolist()) != len(names): raise SystemExit("P4_ARTIFACT_GATE_FAIL inconsistent_zip_entry_index")
-            if any(not name or "\x00" in name or "\n" in name or "\r" in name or name.strip()!=name or len(name.encode("utf-8"))>65535 for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_zip_name")
+            if len(names) != len(archive.infolist()) or any(not name or "\x00" in name or "\n" in name or "\r" in name or name.strip()!=name or len(name.encode("utf-8"))>65535 for name in names): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_zip_name")
             required_entries={"AndroidManifest.xml"} if artifact.suffix.lower()==".apk" else {"base/manifest/AndroidManifest.xml","BundleConfig.pb"}
             missing=sorted(required_entries.difference(names))
             if missing: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_required_entries="+",".join(missing))
@@ -87,7 +87,7 @@ def main()->int:
                 if len(info.extra)>MAX_EXTRA_FIELD: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_extra")
                 if len(info.comment)>MAX_ENTRY_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
                 if info.flag_bits & 0x1 or info.flag_bits & ((1<<5)|(1<<6)|(1<<13)|(1<<14)|(1<<15)): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_flags")
-                if info.header_offset < 0 or info.header_offset >= archive.start_dir or info.header_offset + 30 > archive.start_dir: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_header_offset")
+                if info.header_offset < 0 or info.header_offset >= archive.start_dir or info.header_offset % 1 != 0 or info.header_offset + 30 > archive.start_dir: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_header_offset")
                 if info.compress_size == 0 and info.file_size == 0 and not info.is_dir() and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
                 with artifact.open("rb") as raw:
                     raw.seek(info.header_offset)
@@ -100,7 +100,7 @@ def main()->int:
                 if data_end > archive.start_dir: raise SystemExit("P4_ARTIFACT_GATE_FAIL entry_overlaps_central_directory")
                 previous_entry_end=data_end
                 if len(info.comment)>MAX_ENTRY_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
-                if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0 or info.volume!=0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_volume")
+                if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.header_offset > artifact_size or info.file_size<0 or info.compress_size<0 or info.volume!=0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_volume")
                 if info.compress_type == zipfile.ZIP_STORED and info.compress_size != info.file_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL stored_size_mismatch")
                 if info.file_size > artifact_size or info.compress_size > artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL entry_exceeds_artifact")
                 if info.date_time < (1980, 1, 1, 0, 0, 0) or info.date_time > (2107, 12, 31, 23, 59, 58): raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_timestamp")
@@ -131,9 +131,10 @@ def main()->int:
                 if not info.is_dir() and name.endswith("/"): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_file_entry")
                 if not info.is_dir() and info.file_size==0 and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
     except zipfile.BadZipFile as exc: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip") from exc
-    if total_uncompressed == 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_uncompressed_archive")
+    if total_uncompressed == 0 or total_uncompressed < len(names) - sum(1 for i in archive.infolist() if i.is_dir()): raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_uncompressed_archive")
     if total_uncompressed > MAX_TOTAL_UNCOMPRESSED: raise SystemExit("P4_ARTIFACT_GATE_FAIL uncompressed_payload_too_large")
     if artifact.suffix.lower()==".apk":
+        if artifact_size > MAX_ARTIFACT_SIZE: raise SystemExit("P4_ARTIFACT_GATE_FAIL apk_too_large")
         if artifact_size < 64U: raise SystemExit("P4_ARTIFACT_GATE_FAIL artifact_too_small_for_zip")
         apksigner=shutil.which("apksigner")
         if apksigner is None: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_tool=apksigner")
@@ -144,6 +145,6 @@ def main()->int:
         if jarsigner is None: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_tool=jarsigner")
         run_checked([jarsigner,"-verify","-strict",str(artifact)],"aab_signature")
         run_checked([jarsigner,"-verify","-strict","-certs",str(artifact)],"aab_certificate_verification")
-    print(f"P4_ARTIFACT_GATE_OK artifact={artifact} sha256={artifact_sha256}")
+    print(f"P4_ARTIFACT_GATE_OK artifact={artifact} size={artifact_size} entries={len(names)} sha256={artifact_sha256}")
     return 0
 if __name__=="__main__": sys.exit(main())
