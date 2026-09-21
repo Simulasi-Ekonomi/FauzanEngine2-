@@ -22,7 +22,7 @@ bool RuntimeVerticalSliceGate::Validate(NeoRuntime& runtime,bool executeTick,Ver
  if(!receipt.sceneECSRevisionValid){receipt.error=VerticalSliceGateError::SceneECSRevisionMismatch;return false;}
  receipt.sceneMeshRegistryValid=runtime.SceneMeshes()!=nullptr;
  if(!receipt.sceneMeshRegistryValid){receipt.error=VerticalSliceGateError::SceneMeshMissing;return false;}
- if(runtime.SceneMeshes()->Size()>std::numeric_limits<uint32_t>::max()){receipt.error=VerticalSliceGateError::SceneECSMismatch;return false;}
+
  receipt.assetsValid=runtime.Assets()!=nullptr;
  receipt.resourcesValid=runtime.Resources()!=nullptr;
  if(!receipt.assetsValid || !receipt.resourcesValid){receipt.error=VerticalSliceGateError::AssetsMissing;return false;}
