@@ -6,7 +6,8 @@
 
 namespace NeoEngine {
 void EditorSceneSession::PushHistory(std::vector<EditorSceneDocument>& history, const EditorSceneDocument& document) { if (history.size() == kMaxHistory) history.erase(history.begin()); history.push_back(document); }
-bool EditorSceneSession::Open(const EditorSceneDocument& document, const AssetRegistry& assets) { if (!OpenCandidate(document, assets, true)) return false; undoHistory_.clear(); redoHistory_.clear(); return true; }
+bool EditorSceneSession::Open(const EditorSceneDocument& document, const AssetRegistry& assets) {
+    if (document.actors.size() > EditorSceneDocumentAdapter::kMaxActors) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; } if (!OpenCandidate(document, assets, true)) return false; undoHistory_.clear(); redoHistory_.clear(); return true; }
 bool EditorSceneSession::OpenCandidate(const EditorSceneDocument& document, const AssetRegistry& assets, bool markSaved) {
     EditorSceneDocumentAdapter documentAdapter; SceneWorld world;
     if (!documentAdapter.Load(document, assets, world)) { lastError_ = EditorSceneSessionError::DocumentLoadFailed; return false; }
@@ -39,7 +40,8 @@ bool EditorSceneSession::CommitMutation(const EditorSceneDocument& candidate, co
     redoHistory_.clear();
     return true;
 }
-bool EditorSceneSession::OpenBytes(const std::vector<uint8_t>& bytes, const AssetRegistry& assets) { EditorSceneDocument candidate{}; EditorSceneDocumentCodec codec; if (!codec.Decode(bytes, candidate)) { lastError_ = EditorSceneSessionError::CodecDecodeFailed; return false; } return Open(candidate, assets); }
+bool EditorSceneSession::OpenBytes(const std::vector<uint8_t>& bytes, const AssetRegistry& assets) {
+    if (bytes.size() > 16U * 1024U * 1024U) { lastError_ = EditorSceneSessionError::CodecDecodeFailed; return false; } EditorSceneDocument candidate{}; EditorSceneDocumentCodec codec; if (!codec.Decode(bytes, candidate)) { lastError_ = EditorSceneSessionError::CodecDecodeFailed; return false; } return Open(candidate, assets); }
 bool EditorSceneSession::UpdateTransform(uint32_t actorId, const Transform3& transform, const AssetRegistry& assets) {
     if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     EditorSceneDocument candidate = document_; const auto found = std::find_if(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
