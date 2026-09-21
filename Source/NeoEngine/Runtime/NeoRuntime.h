@@ -135,6 +135,7 @@ private:
     std::unique_ptr<FarmSystem> m_Farm;
     std::unique_ptr<FarmWorldTool> m_FarmWorld;
     std::unique_ptr<FarmAuthoritativeService> m_FarmAuthority;
+    std::unique_ptr<FarmAuthoritativeSessionHost> m_FarmAuthoritySession;
     std::unique_ptr<AssetRegistry> m_Assets;
     std::unique_ptr<AssetResourceManager> m_Resources;
     std::unique_ptr<ActorComponentWorld> m_Actors;
