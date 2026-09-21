@@ -3,6 +3,8 @@
 #include <json/json.h>
 #include <android/log.h>
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 #define LOG_TAG "RufloIntegration"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -10,8 +12,10 @@
 namespace NeoEngine {
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
+    if (output == nullptr || contents == nullptr || (nmemb != 0U && size > std::numeric_limits<size_t>::max() / nmemb)) return 0U;
     const size_t totalSize = size * nmemb;
-    output->append(static_cast<char*>(contents), totalSize);
+    if (totalSize > 16U * 1024U * 1024U || output->size() > 16U * 1024U * 1024U - totalSize) return 0U;
+    output->append(static_cast<const char*>(contents), totalSize);
     return totalSize;
 }
 
@@ -54,7 +58,7 @@ ExecutionResult RufloIntegration::ExecuteCode(const std::string& code, const std
     const CURLcode res = curl_easy_perform(curl);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-    if (res != CURLE_OK) return {1, "", "Ruflo request failed", 0.0f, false};
+    if (res != CURLE_OK || responseStr.empty() || responseStr.size() > 16U * 1024U * 1024U) return {1, "", "Ruflo request failed", 0.0f, false};
 
     Json::Value root;
     Json::Reader reader;
@@ -66,6 +70,7 @@ ExecutionResult RufloIntegration::ExecuteCode(const std::string& code, const std
     result.stdout = root.get("stdout", "").asString();
     result.stderr = root.get("stderr", "").asString();
     result.executionTime = root.get("executionTime", 0.0f).asFloat();
+    if (!std::isfinite(result.executionTime) || result.executionTime < 0.0f || result.executionTime > 86400.0f) return {1, "", "Invalid execution time", 0.0f, false};
     result.success = root["success"].asBool();
     return result;
 }
