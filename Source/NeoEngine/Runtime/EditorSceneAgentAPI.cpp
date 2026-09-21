@@ -103,7 +103,7 @@ bool EditorSceneAgentAPI::Execute(std::string_view request, EditorSceneSession& 
     if (operation == "spawn") {
         if (!HasOnly(root, {"operation", "actorId", "parentId", "kind", "name", "assetId", "materialAssetId", "textureAssetId", "x", "y", "z"}) ||
             !root["actorId"].isUInt() || !root["parentId"].isUInt() || !root["kind"].isUInt() ||
-            !IsBoundedActorStringSet(root) return Fail(EditorAgentError::InvalidArgument, response);
+            !IsBoundedActorStringSet(root)) return Fail(EditorAgentError::InvalidArgument, response);
         EditorSceneActor actor{};
         actor.id = root["actorId"].asUInt(); actor.parentId = root["parentId"].asUInt();
         actor.kind = static_cast<EditorSceneActorKind>(root["kind"].asUInt()); actor.name = root["name"].asString();
@@ -127,7 +127,7 @@ bool EditorSceneAgentAPI::Execute(std::string_view request, EditorSceneSession& 
     }
     if (operation == "properties") {
         if (!HasOnly(root, {"operation", "actorId", "name", "materialAssetId", "textureAssetId", "spriteRgba"}) ||
-            !root["actorId"].isUInt() || !root["name"].isString() || !root["materialAssetId"].isString() || !root["textureAssetId"].isString() || !root["spriteRgba"].isUInt()) return Fail(EditorAgentError::InvalidArgument, response);
+            !root["actorId"].isUInt() || !IsBoundedString(root["name"]) || !IsBoundedString(root["materialAssetId"]) || !IsBoundedString(root["textureAssetId"]) || !root["spriteRgba"].isUInt()) return Fail(EditorAgentError::InvalidArgument, response);
         if (!session.UpdateActorProperties(root["actorId"].asUInt(), root["name"].asString(), root["materialAssetId"].asString(), root["textureAssetId"].asString(), root["spriteRgba"].asUInt(), assets)) return Fail(EditorAgentError::OperationFailed, response);
         lastError_ = EditorAgentError::None; response = SceneResult("properties", session); return true;
     }
