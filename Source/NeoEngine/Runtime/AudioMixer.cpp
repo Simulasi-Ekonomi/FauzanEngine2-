@@ -73,6 +73,11 @@ bool AudioMixer::SetListener(const AudioListener& listener) {
 
 void AudioMixer::Mix(size_t frames,std::vector<int16_t>& out) {
     if (frames == 0U) { out.clear(); return; }
+    if (m_Voices.capacity() > kMaxVoices) { out.clear(); return; }
+    if (!ValidWorldCoordinate(m_Listener.position[0]) || !ValidWorldCoordinate(m_Listener.position[1]) || !ValidWorldCoordinate(m_Listener.position[2])) { out.clear(); return; }
+    if (!Normalize3(m_Listener.forward)) { out.clear(); return; }
+    if (!Normalize3(m_Listener.up)) { out.clear(); return; }
+    if (std::fabs(Dot3(m_Listener.forward, m_Listener.up)) > 0.999f) { out.clear(); return; }
     if(frames==0U){out.clear();return;}if(frames>kMaxMixFrames||frames>std::numeric_limits<size_t>::max()/2U||m_Voices.size()>kMaxVoices||frames>static_cast<size_t>(std::numeric_limits<uint32_t>::max())){out.clear();return;}
     try{out.assign(frames*2U,0);}catch(...){out.clear();return;}
     if (out.capacity() < out.size() || out.size() > kMaxMixFrames * 2U || out.size() > std::numeric_limits<size_t>::max() / sizeof(int16_t)) { out.clear(); return; }
