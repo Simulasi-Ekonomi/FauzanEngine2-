@@ -5,6 +5,8 @@ on:
     branches: [ main ]
     paths:
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Runtime/NeoRuntime.*'
+      - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
       - 'Source/NeoEngine/Runtime/NeoRuntimeCheckpoint.*'
       - 'Source/NeoEngine/Systems/FarmCommerceCheckpoint*'
@@ -17,6 +19,8 @@ on:
     branches: [ main ]
     paths:
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
+      - 'Source/NeoEngine/Runtime/NeoRuntime.*'
+      - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
       - 'Source/NeoEngine/Runtime/NeoRuntimeCheckpoint.*'
       - 'Source/NeoEngine/Systems/FarmCommerceCheckpoint*'
