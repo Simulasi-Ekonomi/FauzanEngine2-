@@ -20,11 +20,18 @@ int main() {
         rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 4;
     }
 
+    if (!rhi.Resize(96, 72) || rhi.GetWidth() != 96 || rhi.GetHeight() != 72 || !rhi.HasSwapchain()) {
+        rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 5;
+    }
+    if (!rhi.Resize(64, 64) || rhi.GetWidth() != 64 || rhi.GetHeight() != 64 || !rhi.HasSwapchain()) {
+        rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 6;
+    }
+
     for (int frame = 0; frame < 3; ++frame) {
         rhi.BeginFrame();
-        if (!rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 5; }
+        if (!rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 7; }
         rhi.EndFrame();
-        if (rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 6; }
+        if (rhi.IsFrameActive()) { rhi.Shutdown(); SDL_DestroyWindow(window); SDL_Quit(); return 8; }
         rhi.Present();
     }
 
