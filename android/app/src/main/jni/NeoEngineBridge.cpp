@@ -112,20 +112,22 @@ static std::string jsonEscape(const std::string& s) {
 static std::uint64_t chunkKey(int x, int z) { return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(x)) << 32U) | static_cast<std::uint32_t>(z); }
 
 static std::string actorToJSON(const Actor& a) {
-    char buf[512];
-    snprintf(buf, sizeof(buf),
+    if (a.id <= 0 || a.name.size() > 256U || a.type.size() > 128U || a.color.size() > 32U || !std::isfinite(a.roughness) || !std::isfinite(a.metalness) || a.roughness < 0.0f || a.roughness > 1.0f || a.metalness < 0.0f || a.metalness > 1.0f) return "{}";
+    char buf[2048];
+    const int written = snprintf(buf, sizeof(buf),
         "{\"id\":%d,\"name\":\"%s\",\"type\":\"%s\","
         "\"transform\":{\"position\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f},"
         "\"rotation\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f},"
         "\"scale\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f}},"
         "\"visible\":%s,\"color\":\"%s\",\"roughness\":%.2f,\"metalness\":%.2f}",
-        a.id, jsonEscape(a.name).c_str(), a.type.c_str(),
+        a.id, jsonEscape(a.name).c_str(), jsonEscape(a.type).c_str(),
         a.position.x, a.position.y, a.position.z,
         a.rotation.x, a.rotation.y, a.rotation.z,
         a.scale.x,    a.scale.y,    a.scale.z,
         a.visible ? "true" : "false",
-        a.color.c_str(), a.roughness, a.metalness
+        jsonEscape(a.color).c_str(), a.roughness, a.metalness
     );
+    if (written < 0 || static_cast<size_t>(written) >= sizeof(buf)) return "{}";
     return buf;
 }
 
