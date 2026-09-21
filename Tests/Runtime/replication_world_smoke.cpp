@@ -32,6 +32,7 @@ int main() {
 
     ReplicationWorld server(serverScene, ReplicationRole::Server, 0U);
     ReplicationWorld client(clientScene, ReplicationRole::Client, 7U);
+    ReplicationError codecError = ReplicationError::None;
     ReplicationWorld invalidRole(serverScene, static_cast<ReplicationRole>(255U));
     if (invalidRole.RegisterEntity(serverLocal, 999U, 0U) || invalidRole.LastError() != ReplicationError::InvalidInput || invalidRole.RegisteredCount() != 0U || invalidRole.UnregisterEntity(999U) || invalidRole.LastError() != ReplicationError::InvalidInput) return 3;
     if (!server.RegisterEntity(serverLocal, 100U, 7U) || !server.RegisterEntity(serverRemote, 200U, 8U) || !client.RegisterEntity(clientLocal, 100U, 7U) || !client.RegisterEntity(clientRemote, 200U, 8U)) return 3;
