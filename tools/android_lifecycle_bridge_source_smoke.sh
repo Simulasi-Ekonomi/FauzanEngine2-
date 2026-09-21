@@ -10,6 +10,9 @@ legacy_bridge="$repo_root/android/app/src/main/java/com/neoengine/core/NeoEngine
 for path in "$activity" "$bridge" "$jni_bridge" "$legacy_bridge"; do test -f "$path"; done
 grep -q 'nativeInitialized = NeoEngineCanonicalBridge.initialize();' "$activity"
 grep -q 'NeoEngineCanonicalBridge.resume()' "$activity"
+grep -q 'NeoEngineCanonicalBridge.tick(deltaSeconds)' "$activity"
+grep -q 'Choreographer.getInstance().postFrameCallback' "$activity"
+grep -q 'Choreographer.getInstance().removeFrameCallback' "$activity"
 grep -q 'NeoEngineCanonicalBridge.pause()' "$activity"
 grep -q 'NeoEngineCanonicalBridge.shutdown()' "$activity"
 grep -q 'private static native boolean nativeLifecycleEvent' "$bridge"
