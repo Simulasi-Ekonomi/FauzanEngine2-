@@ -1,6 +1,8 @@
 #include "AnimationClip.h"
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <new>
 
 namespace NeoEngine {
 
@@ -24,11 +26,20 @@ Mat4 LerpMatrix(const Mat4& a, const Mat4& b, float t) {
 void AnimationClip::AddKeyframe(int bone, const Keyframe& frame) {
     if (bone < 0 || static_cast<size_t>(bone) >= kMaxBones ||
         !std::isfinite(frame.time) || frame.time < 0.0F || !FiniteMatrix(frame.transform)) return;
-    if (tracks.size() <= static_cast<size_t>(bone)) tracks.resize(static_cast<size_t>(bone) + 1U);
+    if (tracks.size() <= static_cast<size_t>(bone)) {
+        try {
+            tracks.resize(static_cast<size_t>(bone) + 1U);
+        } catch (const std::bad_alloc&) {
+            return;
+        }
+    }
     auto& track = tracks[static_cast<size_t>(bone)];
     if (track.size() >= kMaxKeyframesPerBone) return;
     size_t total = 0U;
-    for (const auto& t : tracks) total += t.size();
+    for (const auto& t : tracks) {
+        if (total > kMaxTotalKeyframes - std::min(t.size(), kMaxTotalKeyframes)) return;
+        total += t.size();
+    }
     if (total >= kMaxTotalKeyframes) return;
 
     auto it = std::lower_bound(track.begin(), track.end(), frame.time,
@@ -36,7 +47,11 @@ void AnimationClip::AddKeyframe(int bone, const Keyframe& frame) {
     if (it != track.end() && std::fabs(it->time - frame.time) <= 1.0e-6F) {
         *it = frame;
     } else {
-        track.insert(it, frame);
+        try {
+            track.insert(it, frame);
+        } catch (const std::bad_alloc&) {
+            return;
+        }
     }
     duration = std::max(duration, frame.time);
 }
@@ -57,11 +72,13 @@ bool AnimationClip::Sample(int bone, float time, Mat4& out) const {
 
     auto upper = std::upper_bound(track.begin(), track.end(), time,
                                   [](float value, const Keyframe& frame) { return value < frame.time; });
+    if (upper == track.end() || upper == track.begin()) return false;
     const auto& b = *upper;
     const auto& a = *(upper - 1);
     const float span = b.time - a.time;
-    if (!(span > 0.0F)) return false;
+    if (!(span > 0.0F) || !std::isfinite(span)) return false;
     const float alpha = std::clamp((time - a.time) / span, 0.0F, 1.0F);
+    if (!std::isfinite(alpha)) return false;
     Mat4 candidate = LerpMatrix(a.transform, b.transform, alpha);
     if (!FiniteMatrix(candidate)) return false;
     out = candidate;
