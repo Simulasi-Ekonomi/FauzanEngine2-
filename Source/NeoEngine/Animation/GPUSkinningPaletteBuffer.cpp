@@ -15,7 +15,7 @@ bool GPUSkinningPaletteBuffer::UploadPalette(const std::vector<Mat4>& palette) {
  constexpr size_t maxBytes = std::numeric_limits<VkDeviceSize>::max();
  if (palette.size() > maxBytes / sizeof(Mat4)) return false;
  const VkDeviceSize byteSize = static_cast<VkDeviceSize>(palette.size() * sizeof(Mat4));
- if(!buffer_.UploadData(palette.data(), byteSize)) return false;
+ if(!buffer_.UploadData(palette.data(), byteSize)) { boneCount_=0U; return false; }
  boneCount_=palette.size();
  return true;
 }
