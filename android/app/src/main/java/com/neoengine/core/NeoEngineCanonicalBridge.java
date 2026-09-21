@@ -25,7 +25,7 @@ public final class NeoEngineCanonicalBridge {
     public static boolean initialize() { return invoke(0, 0.0f); }
     public static boolean resume() { return invoke(1, 0.0f); }
     public static boolean pause() { return invoke(2, 0.0f); }
-    public static boolean tick(float deltaSeconds) { return invoke(3, deltaSeconds); }
+    public static boolean tick(float deltaSeconds) { return invoke(3, deltaSeconds) && renderFrame() != 0L; }
     public static boolean shutdown() { return invoke(4, 0.0f); }
     public static long renderFrame() {
         if (!nativeAvailable) return 0L;
