@@ -10,6 +10,7 @@ namespace {
 constexpr size_t kMaxBones = 64U;
 constexpr size_t kMaxKeyframesPerBone = 256U;
 constexpr size_t kMaxTotalKeyframes = 4096U;
+constexpr float kMaxAnimationTime = 86400.0F;
 
 bool FiniteMatrix(const Mat4& m) {
     for (float v : m.m) if (!std::isfinite(v)) return false;
@@ -25,7 +26,7 @@ Mat4 LerpMatrix(const Mat4& a, const Mat4& b, float t) {
 
 void AnimationClip::AddKeyframe(int bone, const Keyframe& frame) {
     if (bone < 0 || static_cast<size_t>(bone) >= kMaxBones ||
-        !std::isfinite(frame.time) || frame.time < 0.0F || !FiniteMatrix(frame.transform)) return;
+        !std::isfinite(frame.time) || frame.time < 0.0F || frame.time > kMaxAnimationTime || !FiniteMatrix(frame.transform)) return;
     if (tracks.size() <= static_cast<size_t>(bone)) {
         try {
             tracks.resize(static_cast<size_t>(bone) + 1U);
@@ -62,7 +63,7 @@ const std::vector<Keyframe>& AnimationClip::GetFrames(int bone) const {
     return tracks[static_cast<size_t>(bone)];
 }
 
-float AnimationClip::GetDuration() const { return duration; }
+float AnimationClip::GetDuration() const { return std::isfinite(duration) && duration >= 0.0F && duration <= kMaxAnimationTime ? duration : 0.0F; }
 
 bool AnimationClip::Sample(int bone, float time, Mat4& out) const {
     const auto& track = GetFrames(bone);
