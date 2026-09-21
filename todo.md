@@ -585,3 +585,17 @@
 - [x] p3-editor-android-production-night T3-09: native render requires canonical runtime receipt.
 - [x] p3-editor-android-production-night T3-10: render telemetry entity bound enforced.
 - [x] p3-editor-android-production-night T3-11: render telemetry triangle/draw-call bounds enforced.
+
+
+## 2026-09-21 — Turn 4 — substantive implementation/integration ledger
+- [x] p3-editor-android-production-night T4-01: world streaming requires running canonical runtime.
+- [x] p3-editor-android-production-night T4-02: streamed chunk object count bounded before allocation.
+- [x] p3-editor-android-production-night T4-03: streamed object transforms must be finite.
+- [x] p3-editor-android-production-night T4-04: streamed object scales must be positive.
+- [x] p3-editor-android-production-night T4-05: native init bounds framebuffer pixel budget.
+- [x] p3-editor-android-production-night T4-06: shutdown rejects null JNI environment before JNI calls.
+- [x] p3-editor-android-production-night T4-07: actor IDs are allocated transactionally.
+- [x] p3-editor-android-production-night T4-08: actor creation has global cardinality cap.
+- [x] p3-editor-android-production-night T4-09: actor names and types cannot be empty.
+- [x] p3-editor-android-production-night T4-10: touch pointer IDs are bounded.
+- [x] p3-editor-android-production-night T4-11: key events require initialized native runtime.
