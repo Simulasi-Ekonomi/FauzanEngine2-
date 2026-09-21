@@ -88,6 +88,24 @@ def main()->int:
                 if len(name.encode("utf-8"))>MAX_NAME_BYTES or len(Path(name).parts)>MAX_PATH_DEPTH or any(len(part)>255 for part in Path(name).parts) or name.endswith("/../"): raise SystemExit("P4_ARTIFACT_GATE_FAIL zip_name_too_long")
                 if any(ord(ch)<0x20 or ord(ch)==0x7f for ch in name): raise SystemExit("P4_ARTIFACT_GATE_FAIL control_character_zip_name")
                 if len(info.extra)>MAX_EXTRA_FIELD: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_extra")
+                try:
+                    encoded_name=name.encode("utf-8")
+                    if encoded_name.decode("utf-8") != name: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_utf8_zip_name")
+                except UnicodeError as exc:
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_utf8_zip_name") from exc
+                if info.create_version < 10 or info.create_version > 63: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_creator_version")
+                if info.extract_version < 10 or info.extract_version > 63: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_extract_version")
+                if info.create_system not in (0, 3): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_creator_system")
+                if info.header_offset % 1 != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_header_alignment")
+                if len(info.extra) % 1 != 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_extra_alignment")
+                extra_offset=0
+                while extra_offset < len(info.extra):
+                    if len(info.extra)-extra_offset < 4: raise SystemExit("P4_ARTIFACT_GATE_FAIL truncated_extra_field")
+                    extra_length=int.from_bytes(info.extra[extra_offset+2:extra_offset+4],"little")
+                    extra_offset += 4
+                    if extra_length > len(info.extra)-extra_offset: raise SystemExit("P4_ARTIFACT_GATE_FAIL extra_field_extent")
+                    extra_offset += extra_length
+                if extra_offset != len(info.extra): raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_extra_fields")
                 if len(info.comment)>MAX_ENTRY_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
                 if info.flag_bits & 0x1 or info.flag_bits & ((1<<5)|(1<<6)|(1<<13)|(1<<14)|(1<<15)): raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_zip_flags")
                 if info.header_offset < 0 or info.header_offset >= archive.start_dir or info.header_offset + 30 > archive.start_dir or info.header_offset > artifact_size - 30: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_header_offset")
