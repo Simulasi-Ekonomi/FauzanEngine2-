@@ -613,3 +613,17 @@
 - [x] T5 special-file rejection retained.
 - [x] T5 UTF-8 filename flag validation retained.
 - [x] T5 signature verification gate retained.
+
+
+## 2026-09-21 — Turn 6 — implementation/integration ledger
+- [x] T6-01 encrypted ZIP entries rejected.
+- [x] T6-02 data-descriptor ZIP entries rejected.
+- [x] T6-03 directory compressed size remains zero.
+- [x] T6-04 directory uncompressed size remains zero.
+- [x] T6-05 required entries cannot be empty.
+- [x] T6-06 entry extents remain inside artifact.
+- [x] T6-07 duplicate entries remain rejected.
+- [x] T6-08 path traversal remains rejected.
+- [x] T6-09 non-UTF8 filename flag mismatch remains rejected.
+- [x] T6-10 compression ratio remains bounded.
+- [x] T6-11 signature/certificate validation remains a release gate.
