@@ -68,7 +68,7 @@ bool SkeletalPoseClip::SetTrack(const size_t boneIndex, const std::vector<Skelet
     tracks_[boneIndex] = keys; lastError_ = SkeletalPoseError::None; return true;
 }
 
-bool SkeletalPoseClip::Sample(const float time, std::vector<Mat4>& output) {
+bool SkeletalPoseClip::Sample(const float time, std::vector<Mat4>& output) const {
     if (tracks_.empty()) { lastError_ = SkeletalPoseError::NotConfigured; return false; }
     if (!Finite(time) || time < 0.0F) { lastError_ = SkeletalPoseError::InvalidSampleTime; return false; }
     std::vector<Mat4> candidate; candidate.reserve(tracks_.size());
@@ -89,7 +89,7 @@ float SkeletalPoseClip::Duration() const {
     return duration;
 }
 
-bool SkeletalPoseClip::SampleLooped(const float time, std::vector<Mat4>& output) {
+bool SkeletalPoseClip::SampleLooped(const float time, std::vector<Mat4>& output) const {
     if (tracks_.empty()) { lastError_ = SkeletalPoseError::NotConfigured; return false; }
     if (!Finite(time) || time < 0.0F) { lastError_ = SkeletalPoseError::InvalidSampleTime; return false; }
     for (const auto& track : tracks_) if (track.empty()) { lastError_ = SkeletalPoseError::IncompleteClip; return false; }
