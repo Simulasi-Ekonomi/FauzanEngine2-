@@ -203,5 +203,22 @@ int main() {
     if (atomicClient.ApplyServerSnapshot(atomicSnapshot, atomicReceipt) || atomicClient.LastError() != ReplicationError::InvalidSnapshot || atomicClient.RegisteredCount() != 1U || atomicClient.IsRegistered(701U) || atomicReceipt.sequence != 41U || atomicReceipt.serverTick != 42U || atomicReceipt.appliedEntities != 43U || atomicReceipt.spawnedEntities != 44U || atomicReceipt.despawnedEntities != 45U || atomicReceipt.interpolatedEntities != 46U || atomicReceipt.reconciledPredictions != 47U || atomicReceipt.accepted) return 32;
     const Transform3* atomicTransform = atomicScene.GetTransform(atomicExisting);
     if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) return 32;
+
+    // Lifecycle rollback: an omitted registered entity would normally despawn, but an
+    // invalid incoming spawn must reject the whole transaction and preserve that entity.
+    ReplicationSnapshot lifecycleRollback{};
+    lifecycleRollback.sequence = 2U;
+    lifecycleRollback.serverTick = 2U;
+    lifecycleRollback.count = 1U;
+    lifecycleRollback.states[0] = {701U, 8U, 1U, {std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
+    ReplicationApplyReceipt lifecycleReceipt{51U, 52U, 53U, 54U, 55U, 56U, 57U, true};
+    if (atomicClient.ApplyServerSnapshot(lifecycleRollback, lifecycleReceipt) ||
+        atomicClient.LastError() != ReplicationError::InvalidSnapshot ||
+        atomicClient.RegisteredCount() != 1U || !atomicClient.IsRegistered(700U) || atomicClient.IsRegistered(701U) ||
+        lifecycleReceipt.sequence != 51U || lifecycleReceipt.serverTick != 52U || lifecycleReceipt.appliedEntities != 53U ||
+        lifecycleReceipt.spawnedEntities != 54U || lifecycleReceipt.despawnedEntities != 55U ||
+        lifecycleReceipt.interpolatedEntities != 56U || lifecycleReceipt.reconciledPredictions != 57U || lifecycleReceipt.accepted) return 33;
+    atomicTransform = atomicScene.GetTransform(atomicExisting);
+    if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) return 33;
     return 0;
 }
