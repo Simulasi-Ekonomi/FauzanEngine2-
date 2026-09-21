@@ -44,7 +44,6 @@ bool AnimationPlayer::Update(float dt) {
     if (dt > 86400.0F - time_) return false;
     const float nextTime = time_ + dt;
     if (!std::isfinite(nextTime) || nextTime < time_ || nextTime > 86400.0F) return false;
-    if (duration > 0.0F && nextTime > duration + std::numeric_limits<float>::epsilon()) { time_ = duration; playing_ = false; return true; }
     time_ = nextTime;
     if (playbackMode_ == AnimationPlaybackMode::Loop) {
         if (duration <= 0.0F) return false;
