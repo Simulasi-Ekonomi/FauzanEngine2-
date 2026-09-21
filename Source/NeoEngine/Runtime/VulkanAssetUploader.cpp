@@ -58,8 +58,14 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
         return false;
     }
 
-    pendingUploads_.push_back({stagingBuffer, stagingMemory, targetImage, targetLayout,
-                               static_cast<uint32_t>(requestedMB64), VK_NULL_HANDLE});
+    try {
+        pendingUploads_.push_back({stagingBuffer, stagingMemory, targetImage, targetLayout,
+                                   static_cast<uint32_t>(requestedMB64), VK_NULL_HANDLE});
+    } catch (...) {
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingMemory, nullptr);
+        return false;
+    }
     currentStagingUsedMB_ += static_cast<uint32_t>(requestedMB64);
     return true;
 }
@@ -116,11 +122,31 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     vkCmdCopyBuffer(cmd, vertexStaging, vertexBuffer, 1, &vertexRegion);
     vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &indexRegion);
 
-    const uint32_t vertexMB = static_cast<uint32_t>((vertexData.size() + 1024U * 1024U - 1U) / (1024U * 1024U));
-    const uint32_t indexMB = static_cast<uint32_t>((indexData.size() + 1024U * 1024U - 1U) / (1024U * 1024U));
-    pendingUploads_.push_back({vertexStaging, vertexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, vertexMB, VK_NULL_HANDLE});
-    pendingUploads_.push_back({indexStaging, indexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED, indexMB, VK_NULL_HANDLE});
-    currentStagingUsedMB_ += vertexMB + indexMB;
+    const uint64_t vertexMB64 = (static_cast<uint64_t>(vertexData.size()) + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
+    const uint64_t indexMB64 = (static_cast<uint64_t>(indexData.size()) + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
+    if (vertexMB64 > UINT32_MAX || indexMB64 > UINT32_MAX ||
+        vertexMB64 + indexMB64 > stagingPoolSizeMB_ ||
+        currentStagingUsedMB_ > stagingPoolSizeMB_ - static_cast<uint32_t>(vertexMB64 + indexMB64)) {
+        vkDestroyBuffer(device, vertexStaging, nullptr);
+        vkFreeMemory(device, vertexMemory, nullptr);
+        vkDestroyBuffer(device, indexStaging, nullptr);
+        vkFreeMemory(device, indexMemory, nullptr);
+        return false;
+    }
+    try {
+        pendingUploads_.reserve(pendingUploads_.size() + 2U);
+        pendingUploads_.push_back({vertexStaging, vertexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
+                                   static_cast<uint32_t>(vertexMB64), VK_NULL_HANDLE});
+        pendingUploads_.push_back({indexStaging, indexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
+                                   static_cast<uint32_t>(indexMB64), VK_NULL_HANDLE});
+    } catch (...) {
+        vkDestroyBuffer(device, vertexStaging, nullptr);
+        vkFreeMemory(device, vertexMemory, nullptr);
+        vkDestroyBuffer(device, indexStaging, nullptr);
+        vkFreeMemory(device, indexMemory, nullptr);
+        return false;
+    }
+    currentStagingUsedMB_ += static_cast<uint32_t>(vertexMB64 + indexMB64);
     return true;
 }
 
