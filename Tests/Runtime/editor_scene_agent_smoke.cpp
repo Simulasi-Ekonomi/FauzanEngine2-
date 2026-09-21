@@ -28,7 +28,7 @@ int main() {
 
     TEST_CHECK(agent.Execute(R"({"operation":"duplicate","actorId":42,"newActorId":44})", session, assets, response),
                "duplicate command failed");
-    TEST_CHECK(response.find(""ok":true") != std::string::npos, "duplicate response was not successful");
+    TEST_CHECK(response.find(R"("ok":true)") != std::string::npos, "duplicate response was not successful");
     TEST_CHECK(session.HierarchySnapshot().size() == 2U, "duplicate did not add actor");
     const auto beforeInvalidMutation = session.HierarchySnapshot();
     EditorSceneActor beforeInvalidActor{};
