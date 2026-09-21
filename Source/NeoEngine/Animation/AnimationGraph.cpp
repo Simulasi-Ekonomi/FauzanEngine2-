@@ -6,22 +6,34 @@
 namespace NeoEngine {
 bool AnimationGraph::AddNode(const AnimationNode& node) {
     if (!node.update || nodes.size() >= kMaxNodes || updating_ || revision_ == std::numeric_limits<uint64_t>::max() || nodes.capacity() > kMaxNodes) return false;
+    const std::size_t sizeBefore = nodes.size();
     try {
         nodes.push_back(node);
     } catch (...) {
         return false;
     }
+    if (nodes.size() != sizeBefore + 1U || nodes.size() > kMaxNodes) {
+        if (nodes.size() > sizeBefore) nodes.pop_back();
+        return false;
+    }
     ++revision_;
+    if (revision_ == 0U) {
+        nodes.pop_back();
+        return false;
+    }
     return true;
 }
 bool AnimationGraph::RemoveNode(std::size_t index) {
     if (updating_ || index >= nodes.size() || revision_ == std::numeric_limits<uint64_t>::max() || nodes.capacity() > kMaxNodes) return false;
+    const std::size_t sizeBefore = nodes.size();
     try {
         nodes.erase(nodes.begin() + static_cast<std::ptrdiff_t>(index));
     } catch (...) {
         return false;
     }
+    if (nodes.size() + 1U != sizeBefore) return false;
     ++revision_;
+    if (revision_ == 0U) return false;
     return true;
 }
 void AnimationGraph::Clear() noexcept {
@@ -38,7 +50,15 @@ bool AnimationGraph::Update() {
     const uint64_t revisionBeforeUpdate = revision_;
     try {
         for (std::size_t i = 0; i < count; ++i) {
-            if (nodes[i].update) nodes[i].update();
+            if (!nodes[i].update) {
+                updating_ = false;
+                return false;
+            }
+            nodes[i].update();
+            if (nodes.size() != count || nodes.capacity() > kMaxNodes || revision_ != revisionBeforeUpdate) {
+                updating_ = false;
+                return false;
+            }
         }
     } catch (...) {
         updating_ = false;
