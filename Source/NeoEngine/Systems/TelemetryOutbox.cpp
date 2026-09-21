@@ -181,32 +181,25 @@ bool TelemetryOutbox::PruneOlderThan(uint64_t nowMs, uint64_t maxAgeMs) {
         bool changed = false;
 
         for (const TelemetryEnvelope& envelope : m_Pending) {
-            constexpr char kOccurredAtKey[] = "\"occurredAtMs\":";
-            const size_t marker = envelope.json.find(kOccurredAtKey);
-            if (marker == std::string::npos) {
+            Json::CharReaderBuilder builder;
+            Json::Value root;
+            std::string errors;
+            std::istringstream input(envelope.json);
+            if (!Json::parseFromStream(builder, input, &root, &errors) ||
+                !root.isObject()) {
                 retained.push_back(envelope);
                 continue;
             }
 
-            size_t begin = marker + sizeof(kOccurredAtKey) - 1U;
-            size_t end = begin;
-            while (end < envelope.json.size() &&
-                   envelope.json[end] >= '0' && envelope.json[end] <= '9') {
-                ++end;
-            }
-
-            if (end == begin) {
+            const Json::Value& occurredAt = root["occurredAtMs"];
+            if (!occurredAt.isUInt64() && !occurredAt.isUInt()) {
                 retained.push_back(envelope);
                 continue;
             }
 
-            uint64_t occurredAtMs = 0U;
-            try {
-                occurredAtMs = std::stoull(envelope.json.substr(begin, end - begin));
-            } catch (...) {
-                retained.push_back(envelope);
-                continue;
-            }
+            const uint64_t occurredAtMs = occurredAt.isUInt64()
+                ? occurredAt.asUInt64()
+                : static_cast<uint64_t>(occurredAt.asUInt());
 
             if (occurredAtMs >= cutoff) retained.push_back(envelope);
             else changed = true;
@@ -218,5 +211,4 @@ bool TelemetryOutbox::PruneOlderThan(uint64_t nowMs, uint64_t maxAgeMs) {
         return false;
     }
 }
-
 } // namespace NeoEngine
