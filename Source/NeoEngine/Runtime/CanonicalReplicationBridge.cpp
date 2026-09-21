@@ -25,7 +25,7 @@ bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_
 }
 
 bool CanonicalReplicationBridge::Unregister(uint32_t networkId) {
-    if (networkId == 0U || networkId == std::numeric_limits<uint32_t>::max()) {
+    if (networkId == std::numeric_limits<uint32_t>::max()) {
         lastError_ = CanonicalReplicationBridgeError::RegistrationFailed;
         return false;
     }
@@ -40,15 +40,14 @@ bool CanonicalReplicationBridge::Unregister(uint32_t networkId) {
 
 bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot) {
     snapshot = {};
-    if (serverTick == 0U || serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotFailed; return false; }
+    if (serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotFailed; return false; }
 
-    if (serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = ReplicationError::InvalidSnapshot; return false; }
     snapshot = {};
     if (!replication_.BuildServerSnapshot(serverTick, snapshot)) {
         lastError_ = CanonicalReplicationBridgeError::SnapshotFailed;
         return false;
     }
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size() || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
         snapshot.serverTick != serverTick || snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count > snapshot.states.size() || snapshot.checksum == 0U) {
         snapshot = {};
         lastError_ = CanonicalReplicationBridgeError::SnapshotFailed;
@@ -60,11 +59,11 @@ bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationS
 
 bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     receipt = {};
-    if (snapshot.serverTick == 0U || snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
-    if (snapshot.count > ReplicationWorld::kMaxEntities) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
+    if (snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size()) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
 
     receipt = {};
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size() || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
         snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
     if (!replication_.ApplyServerSnapshot(snapshot, receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
@@ -77,7 +76,6 @@ bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapsh
         return false;
     }
     lastError_ = CanonicalReplicationBridgeError::None;
-    if (snapshot.serverTick != serverTick || snapshot.entities.size() > ReplicationWorld::kMaxReplicatedEntities) { lastError_ = CanonicalReplicationBridgeError::SnapshotBuildFailed; return false; }
     return true;
 }
 
@@ -87,7 +85,7 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
         lastError_ = CanonicalReplicationBridgeError::AcknowledgementFailed;
         return false;
     }
-    if (acknowledgement.sequence == 0U || acknowledgement.sequence == std::numeric_limits<uint64_t>::max() ||
+    if (acknowledgement.sequence == std::numeric_limits<uint64_t>::max() ||
         acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) {
         acknowledgement = {};
         lastError_ = CanonicalReplicationBridgeError::AcknowledgementFailed;
@@ -99,7 +97,7 @@ bool CanonicalReplicationBridge::BuildAcknowledgement(ReplicationAcknowledgement
 
 bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes) {
     bytes.clear();
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size() || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
         snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::EncodeFailed; return false; }
     if (bytes.capacity() > ReplicationSnapshotCodec::kMaxBytes || bytes.capacity() < bytes.size()) std::vector<uint8_t>().swap(bytes);
     ReplicationError error = ReplicationError::None;
@@ -113,13 +111,13 @@ bool CanonicalReplicationBridge::EncodeSnapshot(const ReplicationSnapshot& snaps
 
 bool CanonicalReplicationBridge::DecodeSnapshot(std::span<const uint8_t> bytes, ReplicationSnapshot& snapshot) {
     snapshot = {};
-    if (bytes.empty() || bytes.size() > ReplicationSnapshotCodec::kMaxBytes) { lastError_ = CanonicalReplicationBridgeError::DecodeFailed; return false; }
+    if (bytes.size() > ReplicationSnapshotCodec::kMaxBytes) { lastError_ = CanonicalReplicationBridgeError::DecodeFailed; return false; }
     ReplicationError error = ReplicationError::None;
     if (!ReplicationSnapshotCodec::Deserialize(bytes, snapshot, error)) {
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
         return false;
     }
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.sequence == 0U ||
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size() || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
         snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.checksum == 0U) {
         snapshot = {};
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
@@ -152,7 +150,7 @@ bool CanonicalReplicationBridge::DecodeAcknowledgement(std::span<const uint8_t> 
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
         return false;
     }
-    if (acknowledgement.sequence == 0U || acknowledgement.sequence == std::numeric_limits<uint64_t>::max() ||
+    if (acknowledgement.sequence == std::numeric_limits<uint64_t>::max() ||
         acknowledgement.serverTick == std::numeric_limits<uint64_t>::max() || acknowledgement.checksum == 0U) {
         acknowledgement = {};
         lastError_ = CanonicalReplicationBridgeError::DecodeFailed;
