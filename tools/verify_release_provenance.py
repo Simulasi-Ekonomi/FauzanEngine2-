@@ -70,10 +70,10 @@ if values["reference_artifact"] == sys.argv[1] or artifact == reference:
 
 if not manifest_path.is_file() or manifest_path.is_symlink() or not sbom_path.is_file() or sbom_path.is_symlink():
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL missing_or_symlink_attestation")
-artifact_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
-reference_sha = hashlib.sha256(reference.read_bytes()).hexdigest()
-manifest_sha = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-sbom_sha = hashlib.sha256(sbom_path.read_bytes()).hexdigest()
+artifact_sha = file_sha256(artifact)
+reference_sha = file_sha256(reference)
+manifest_sha = file_sha256(manifest_path)
+sbom_sha = file_sha256(sbom_path)
 if values["artifact_sha256"] != artifact_sha:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_hash_mismatch")
 if values["reference_artifact_sha256"] != reference_sha:
