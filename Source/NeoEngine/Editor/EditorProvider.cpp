@@ -12,6 +12,7 @@ bool EditorProvider::ExecuteCommand(const std::string& action, const std::string
         m_LastError = EditorProviderError::Capacity;
         return false;
     }
+    if (action.size() + data.size() > 8192U) { m_LastError = EditorProviderError::InvalidCommand; return false; }
     if (!m_OnCommand) {
         m_LastError = EditorProviderError::CallbackFailure;
         return false;
@@ -31,6 +32,7 @@ bool EditorProvider::ExecuteCommand(const std::string& action, const std::string
 
 std::string EditorProvider::GetEditorStateJSON() const {
     if (m_CommandSequence == std::numeric_limits<uint64_t>::max()) return "{}";
+    if (m_CommandSequence == 0U && m_Paused) return "{}";
     const std::string paused = m_Paused ? "true" : "false";
     return "{\"paused\":" + paused +
            ",\"commandSequence\":" + std::to_string(m_CommandSequence) + "}";
