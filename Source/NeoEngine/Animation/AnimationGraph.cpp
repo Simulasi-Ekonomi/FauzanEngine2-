@@ -30,6 +30,7 @@ void AnimationGraph::Clear() noexcept {
 }
 bool AnimationGraph::Update() {
     if (updating_) return false;
+    if (nodes.size() > kMaxNodes || nodes.size() > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) return false;
     if (nodes.empty()) return true;
     if (nodes.size() > kMaxNodes || revision_ == std::numeric_limits<uint64_t>::max()) return false;
     updating_ = true;
@@ -44,6 +45,7 @@ bool AnimationGraph::Update() {
         return false;
     }
     updating_ = false;
+    if (nodes.size() != count) return false;
     return revision_ == revisionBeforeUpdate;
 }
 } // namespace NeoEngine
