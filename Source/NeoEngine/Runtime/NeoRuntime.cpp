@@ -1,4 +1,5 @@
 #include "NeoRuntime.h"
+#include "RuntimeContractGuard.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
@@ -42,7 +43,7 @@ bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uin
 } // namespace
 
 bool NeoRuntime::Initialize(const RuntimeConfig& config) {
-    if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFixedTicks(config.fixedTicksPerFrame) || !RuntimeContractGuard::RuntimeContractGuard::ValidInitialCoins(config.initialCoins) || !RuntimeContractGuard::RuntimeContractGuard::ValidNpcCount(config.farmNpcCount, FarmWorldTool::kMaxNpcs) || !RuntimeContractGuard::RuntimeContractGuard::ValidRenderExtent(config.renderWidth, config.renderHeight) || !RuntimeContractGuard::RuntimeContractGuard::ValidTimeScale(static_cast<float>(config.timeConfig.defaultTimeScalePermille) / 1000.0F) || !RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(config.renderWidth * static_cast<uint32_t>(config.renderHeight), 16U * 1024U * 1024U) || m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
         m_LastError = RuntimeError::InvalidConfiguration;
         m_State = RuntimeState::Failed;
         return false;
@@ -233,10 +234,14 @@ bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, 
 
 bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
                                                 const FarmSessionCommandbool NeoRuntime::Tick() {
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidDelta(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     RuntimeFrameContract frameContract;
     if (!frameContract.Begin(m_Clock->Snapshot().frameCount, m_SceneECSBridge.LastReceipt().revision)) { m_LastError = RuntimeError::InvalidState; return false; }
     const auto failFrame = [&]() -> bool { frameContract.Fail(); return false; };
+    const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(contractSnapshot.pendingFixedSteps, 1000U)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     std::vector<RuntimeTimerFire> fires;
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
