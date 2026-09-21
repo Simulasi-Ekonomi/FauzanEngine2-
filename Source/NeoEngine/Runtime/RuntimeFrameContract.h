@@ -54,14 +54,13 @@ public:
     }
 
     bool CommitStageDigest(RuntimeFrameStage stage, uint64_t digest) {
-        if (!m_Active || stage != m_Stage) return false;
-        if (digest == 0U) return false;
+        if (!m_Active || stage != m_Stage || digest == 0U) return false;
         switch (stage) {
-            case RuntimeFrameStage::InputSnapshot: m_Receipt.inputDigest = digest; break;
-            case RuntimeFrameStage::Simulation: m_Receipt.simulationDigest = digest; break;
-            case RuntimeFrameStage::SceneSnapshot: m_Receipt.sceneDigest = digest; break;
-            case RuntimeFrameStage::RenderCommands: m_Receipt.renderDigest = digest; break;
-            case RuntimeFrameStage::AudioEvents: m_Receipt.audioDigest = digest; break;
+            case RuntimeFrameStage::InputSnapshot: if (m_Receipt.inputDigest != 0U) return false; m_Receipt.inputDigest = digest; break;
+            case RuntimeFrameStage::Simulation: if (m_Receipt.simulationDigest != 0U) return false; m_Receipt.simulationDigest = digest; break;
+            case RuntimeFrameStage::SceneSnapshot: if (m_Receipt.sceneDigest != 0U) return false; m_Receipt.sceneDigest = digest; break;
+            case RuntimeFrameStage::RenderCommands: if (m_Receipt.renderDigest != 0U) return false; m_Receipt.renderDigest = digest; break;
+            case RuntimeFrameStage::AudioEvents: if (m_Receipt.audioDigest != 0U) return false; m_Receipt.audioDigest = digest; break;
             case RuntimeFrameStage::Completed: break;
             case RuntimeFrameStage::Failed: return false;
         }
