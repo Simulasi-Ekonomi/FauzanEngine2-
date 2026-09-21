@@ -24,6 +24,7 @@ public:
 
     float GetDuration() const;
     bool Sample(int bone, float time, Mat4& out) const;
+    [[nodiscard]] bool IsValid() const noexcept;
 
 private:
 
