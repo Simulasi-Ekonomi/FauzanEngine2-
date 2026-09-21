@@ -93,7 +93,13 @@ int main() {
 
     TEST_CHECK(agent.Execute(R"({"operation":"query"})", session, assets, response),
                "query command failed");
-    TEST_CHECK(response.find(R"("actorCount":2)") != std::string::npos, "query did not report actor count");
+    TEST_CHECK(response.find(R"("actorCount":4)") != std::string::npos, "query did not report actor count after prefab instantiation");
+    TEST_CHECK(agent.Execute(R"({"operation":"query","offset":2,"limit":2})", session, assets, response), "paginated query command failed");
+    TEST_CHECK(response.find(R"("actorCount":4)") != std::string::npos &&
+               response.find(R"("offset":2)") != std::string::npos &&
+               response.find(R"("returnedCount":2)") != std::string::npos &&
+               response.find(R"("hasMore":false)") != std::string::npos,
+               "paginated query metadata mismatch");
 
     TEST_CHECK(!agent.Execute(R"({"operation":"query","unexpected":1})", session, assets, response),
                "unknown query field was accepted");
