@@ -34,9 +34,7 @@ bash tools/release_manifest.sh p4-release-manifest.sha256
 python3 tools/generate_source_sbom.py
 python3 tools/p4_release_gate.py
 python3 tools/p4_release_artifact_gate.py "$ARTIFACT"
-if [[ -n "$REFERENCE_ARTIFACT" ]]; then
-  python3 tools/p4_reproducibility_gate.py "$ARTIFACT" "$REFERENCE_ARTIFACT"
-fi
+python3 tools/p4_reproducibility_gate.py "$ARTIFACT" "$REFERENCE_ARTIFACT"
 
 ARTIFACT_SHA256="$(sha256sum -- "$ARTIFACT" | awk '{print $1}')"
 MANIFEST_SHA256="$(sha256sum -- p4-release-manifest.sha256 | awk '{print $1}')"
