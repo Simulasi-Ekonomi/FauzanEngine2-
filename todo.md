@@ -599,3 +599,17 @@
 - [x] p3-editor-android-production-night T4-09: actor names and types cannot be empty.
 - [x] p3-editor-android-production-night T4-10: touch pointer IDs are bounded.
 - [x] p3-editor-android-production-night T4-11: key events require initialized native runtime.
+
+
+## 2026-09-21 — Turn 5 — implementation/integration correction ledger
+- [x] T5 running-state streaming gate retained.
+- [x] T5 stream object cardinality cap retained.
+- [x] T5 finite transform validation retained.
+- [x] T5 positive scale validation retained.
+- [x] T5 framebuffer pixel budget retained.
+- [x] T5 JNI shutdown null guard retained.
+- [x] T5 actor ID allocation corrected to transactional increment.
+- [x] T5 actor cardinality cap retained.
+- [x] T5 empty actor metadata rejected.
+- [x] T5 touch pointer range bounded.
+- [x] T5 key event lifecycle guard retained.
