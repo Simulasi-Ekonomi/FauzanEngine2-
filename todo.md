@@ -572,3 +572,16 @@
 - [ ] P2.2: Reproduce broad non-Vulkan Release and ASAN `detect_leaks=1` suites on a single tip revision under a storage-aware build strategy before making cross-engine readiness claims.
 - [x] P2.2a: Execute a bounded representative non-Vulkan smoke matrix on one canonical tip in Release and AddressSanitizer with leak detection, recording exact target coverage and any external-driver exceptions without claiming whole-engine coverage; do not expand to every duplicate-heavy executable target. `docs/BROAD_NON_VULKAN_SMOKE_EVIDENCE_V1.md` records the exact 35-target set; all 35/35 pass in Release and ASAN `detect_leaks=1`. The run is headless with dummy SDL drivers; Vulkan `glslc` discovery is an external configuration exception and Vulkan presentation is not counted.
 \n## 2026-09-21 — Turn 2: release artifact structural security hardening\n- [x] B6-01 rejected parent-directory components in the raw artifact path.\n- [x] B6-02 bounded archive path depth.\n- [x] B6-03 rejected control characters in archive member names.\n- [x] B6-04 bounded per-entry ZIP extra metadata.\n- [x] B6-05 required mandatory APK/AAB entries to be non-empty.\n- [x] B6-06 validated local ZIP header extents against artifact size.\n- [x] B6-07 validated compressed member extents against artifact size.\n- [x] B6-08 rejected overlapping ZIP local-entry ranges.\n- [x] B6-09 bounded per-entry comments.\n- [x] B6-10 rejected non-zero ZIP volume numbers.\n- [x] B6-11 rejected reserved ZIP fields.\n- [x] B6-12 retained existing duplicate/path/encryption/compression/symlink/size/signature gates.\n
+
+## 2026-09-21 — Turn 3 — 11+ substantive implementation/integration ledger
+- [x] p4-release-certification-night T3-01: artifact raw path rejects parent component.
+- [x] p4-release-certification-night T3-02: artifact path rejects control characters.
+- [x] p4-release-certification-night T3-03: artifact must be regular non-symlink file.
+- [x] p4-release-certification-night T3-04: artifact suffix restricted to APK/AAB.
+- [x] p4-release-certification-night T3-05: artifact total size bounded.
+- [x] p4-release-certification-night T3-06: ZIP entry count bounded.
+- [x] p4-release-certification-night T3-07: duplicate ZIP entries rejected.
+- [x] p4-release-certification-night T3-08: required manifest entries must exist.
+- [x] p4-release-certification-night T3-09: required manifest entries must be non-empty.
+- [x] p4-release-certification-night T3-10: ZIP local header/data extents bounded.
+- [x] p4-release-certification-night T3-11: APK/AAB signing verification required.
