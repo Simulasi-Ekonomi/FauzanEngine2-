@@ -19,7 +19,7 @@ void AnimationPlayer::Play(AnimationClip* clip) {
     playing_ = false;
     if (clip == nullptr) return;
     const float duration = clip->GetDuration();
-    if (!std::isfinite(duration) || duration < 0.0F) return;
+    if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F) return;
     currentClip_ = clip;
     playing_ = true;
 }
@@ -30,7 +30,7 @@ void AnimationPlayer::Stop() noexcept {
 }
 
 bool AnimationPlayer::Update(float dt) {
-    if (!playing_ || currentClip_ == nullptr || !std::isfinite(dt) || dt < 0.0F) return false;
+    if (!playing_ || currentClip_ == nullptr || !std::isfinite(dt) || dt < 0.0F || dt > 3600.0F) return false;
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F) return false;
     if (duration <= 0.0F) {
