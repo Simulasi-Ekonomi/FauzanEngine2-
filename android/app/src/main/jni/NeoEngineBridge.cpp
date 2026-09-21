@@ -382,7 +382,9 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
     if (!NeoJNI::g_Runtime || !NeoJNI::g_Initialized || !NeoJNI::g_Running) return;
     if (!std::isfinite(dt) || dt < 0.0f || dt > 1.0f) return;
     NeoJNI::g_DeltaTime = dt;
+    if (!std::isfinite(NeoJNI::g_DeltaTime) || NeoJNI::g_DeltaTime <= 0.0F || NeoJNI::g_DeltaTime > 1.0F) return;
     if (NeoJNI::g_FrameCount == std::numeric_limits<int>::max()) return;
+    if (NeoJNI::g_FrameCount < 0) return;
     if (!NeoJNI::g_Runtime->Tick()) {
         NEO_LOGE("nativeTick: canonical NeoRuntime::Tick rejected frame");
         return;
@@ -403,15 +405,15 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
-    if (!NeoJNI::g_Running || !NeoJNI::g_Initialized || !NeoJNI::g_Runtime) return;
-    if (NeoJNI::g_RenderWidth <= 0 || NeoJNI::g_RenderHeight <= 0 || NeoJNI::g_RenderWidth > 8192 || NeoJNI::g_RenderHeight > 8192) return;
+    if (!NeoJNI::g_Running || !NeoJNI::g_Initialized || !NeoJNI::g_Runtime || !NeoJNI::g_JavaVM) return;
+    if (NeoJNI::g_RenderWidth <= 0 || NeoJNI::g_RenderHeight <= 0 || NeoJNI::g_RenderWidth > 8192 || NeoJNI::g_RenderHeight > 8192 || static_cast<int64_t>(NeoJNI::g_RenderWidth) * static_cast<int64_t>(NeoJNI::g_RenderHeight) > 67108864LL) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (!NeoJNI::g_Runtime->RenderFarm()) {
         NEO_LOGE("nativeRender: canonical NeoRuntime::RenderFarm rejected frame");
         return;
     }
     const auto* receipt = NeoJNI::g_Runtime->LastFarmRenderReceipt();
-    if (receipt == nullptr) return;
+    if (receipt == nullptr || !std::isfinite(receipt->telemetry.fps)) return;
     if (receipt->telemetry.entities > 1000000U || receipt->telemetry.drawCalls > 1000000U || receipt->telemetry.triangles > 100000000U) return;
     NeoJNI::g_Telemetry.entities = receipt->telemetry.entities > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.entities);
     NeoJNI::g_Telemetry.drawCalls = receipt->telemetry.drawCalls > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.drawCalls);
