@@ -234,6 +234,7 @@ bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, 
 
 bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
                                                 const FarmSessionCommandbool NeoRuntime::Tick() {
+    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InvalidState; return false; }
     if (!RuntimeContractGuard::RuntimeContractGuard::ValidDelta(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     RuntimeFrameContract frameContract;
