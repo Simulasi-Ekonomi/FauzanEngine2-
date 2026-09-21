@@ -270,7 +270,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_updateCameraPosition(
     JNIEnv*, jclass, jfloat x, jfloat y, jfloat z)
 {
-    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return;
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || std::fabs(x) > 1.0e9f || std::fabs(y) > 1.0e9f || std::fabs(z) > 1.0e9f) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_StreamMutex);
     NeoJNI::g_CameraX = x;
     NeoJNI::g_CameraZ = z;
