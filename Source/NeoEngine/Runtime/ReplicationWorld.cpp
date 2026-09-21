@@ -100,16 +100,17 @@ Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPerm
 }
 
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
+    bytes.clear();
     if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
-        if (state.networkId == 0U || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
+        if (state.networkId == 0U || state.ownerId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform) || (index > 0U && snapshot.states[index - 1U].networkId >= state.networkId)) { error = ReplicationError::InvalidSnapshot; return false; }
     }
     try {
         std::vector<uint8_t> content;
         content.reserve(4U + 2U + 8U + 8U + 2U + static_cast<size_t>(snapshot.count) * (4U + 4U + 8U + 9U * sizeof(float)) + 8U);
         AppendSnapshotContent(content, snapshot);
-        if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
+        if (content.size() > kMaxBytes - sizeof(uint64_t)) { error = ReplicationError::Capacity; return false; }
         const uint64_t checksum = Hash(content);
         AppendU64(content, checksum);
         if (content.size() != 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(snapshot.count) * (4U + 4U + 8U + 9U * sizeof(float)) + 8U) { error = ReplicationError::Capacity; return false; }
@@ -133,14 +134,14 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     if (count > (kMaxBytes - (4U + 2U + 8U + 8U + 2U + 8U)) / kEntityBytes) { error = ReplicationError::CorruptSnapshot; return false; }
     const size_t expectedSize = 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(count) * kEntityBytes + 8U;
     if (bytes.size() != expectedSize || expectedSize > kMaxBytes) { error = ReplicationError::CorruptSnapshot; return false; }
-    candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count;
+    candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count; candidate.checksum = 0U;
     for (uint16_t index = 0U; index < count; ++index) {
         ReplicatedEntityState& state = candidate.states[index];
-        if (!ReadU32(bytes, offset, state.networkId) || !ReadU32(bytes, offset, state.ownerId) || !ReadU64(bytes, offset, state.stateRevision) || !ReadFloat(bytes, offset, state.transform.x) || !ReadFloat(bytes, offset, state.transform.y) || !ReadFloat(bytes, offset, state.transform.z) || !ReadFloat(bytes, offset, state.transform.rx) || !ReadFloat(bytes, offset, state.transform.ry) || !ReadFloat(bytes, offset, state.transform.rz) || !ReadFloat(bytes, offset, state.transform.sx) || !ReadFloat(bytes, offset, state.transform.sy) || !ReadFloat(bytes, offset, state.transform.sz) || state.networkId == 0U || !ValidTransform(state.transform)) { error = ReplicationError::CorruptSnapshot; return false; }
+        if (!ReadU32(bytes, offset, state.networkId) || !ReadU32(bytes, offset, state.ownerId) || !ReadU64(bytes, offset, state.stateRevision) || !ReadFloat(bytes, offset, state.transform.x) || !ReadFloat(bytes, offset, state.transform.y) || !ReadFloat(bytes, offset, state.transform.z) || !ReadFloat(bytes, offset, state.transform.rx) || !ReadFloat(bytes, offset, state.transform.ry) || !ReadFloat(bytes, offset, state.transform.rz) || !ReadFloat(bytes, offset, state.transform.sx) || !ReadFloat(bytes, offset, state.transform.sy) || !ReadFloat(bytes, offset, state.transform.sz) || state.networkId == 0U || state.ownerId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform)) { error = ReplicationError::CorruptSnapshot; return false; }
         if (index > 0U && candidate.states[index - 1U].networkId >= state.networkId) { error = ReplicationError::CorruptSnapshot; return false; }
     }
     uint64_t expected = 0U;
-    if (!ReadU64(bytes, offset, expected) || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptSnapshot; return false; }
+    if (!ReadU64(bytes, offset, expected) || expected == 0U || offset != bytes.size() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.checksum = expected;
     snapshot = std::move(candidate);
     error = ReplicationError::None;
@@ -148,14 +149,15 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
 }
 
 bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement& acknowledgement, std::vector<uint8_t>& bytes, ReplicationError& error) {
-    if (acknowledgement.sequence == 0U || acknowledgement.checksum == 0U || acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) { error = ReplicationError::InvalidAcknowledgement; return false; }
+    bytes.clear();
+    if (acknowledgement.sequence == 0U || acknowledgement.sequence == std::numeric_limits<uint64_t>::max() || acknowledgement.checksum == 0U || acknowledgement.checksum == std::numeric_limits<uint64_t>::max() || acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) { error = ReplicationError::InvalidAcknowledgement; return false; }
     try {
         std::vector<uint8_t> content;
         content.reserve(30U);
         AppendU32(content, kAcknowledgementMagic); AppendU16(content, kVersion); AppendU64(content, acknowledgement.sequence); AppendU64(content, acknowledgement.serverTick); AppendU64(content, acknowledgement.checksum);
         if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
         AppendU64(content, Hash(content));
-        if (content.size() != 38U) { error = ReplicationError::Capacity; return false; }
+        if (content.size() != 38U || content.size() > kMaxBytes) { error = ReplicationError::Capacity; return false; }
         bytes = std::move(content);
         error = ReplicationError::None;
         return true;
@@ -169,7 +171,7 @@ bool ReplicationAcknowledgementCodec::Deserialize(std::span<const uint8_t> bytes
     if (bytes.size() != 38U) { error = ReplicationError::CorruptAcknowledgement; return false; }
     size_t offset = 0U;
     uint32_t magic = 0U; uint16_t version = 0U; ReplicationAcknowledgement candidate{}; uint64_t expected = 0U;
-    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, candidate.sequence) || !ReadU64(bytes, offset, candidate.serverTick) || !ReadU64(bytes, offset, candidate.checksum) || !ReadU64(bytes, offset, expected) || magic != kAcknowledgementMagic || version != kVersion || candidate.sequence == 0U || candidate.checksum == 0U || candidate.serverTick == std::numeric_limits<uint64_t>::max() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptAcknowledgement; return false; }
+    if (!ReadU32(bytes, offset, magic) || !ReadU16(bytes, offset, version) || !ReadU64(bytes, offset, candidate.sequence) || !ReadU64(bytes, offset, candidate.serverTick) || !ReadU64(bytes, offset, candidate.checksum) || !ReadU64(bytes, offset, expected) || magic != kAcknowledgementMagic || version != kVersion || candidate.sequence == 0U || candidate.sequence == std::numeric_limits<uint64_t>::max() || candidate.checksum == 0U || candidate.checksum == std::numeric_limits<uint64_t>::max() || candidate.serverTick == std::numeric_limits<uint64_t>::max() || Hash(bytes.first(bytes.size() - sizeof(uint64_t))) != expected) { error = ReplicationError::CorruptAcknowledgement; return false; }
     acknowledgement = candidate;
     error = ReplicationError::None;
     return true;
