@@ -1,5 +1,6 @@
 #include "ItemSerialTracker.h"
 #include <mutex>
+#include <limits>
 
 namespace NeoEngine {
 
@@ -9,6 +10,7 @@ ItemSerialTracker::ItemSerialTracker() {
 
 std::string ItemSerialTracker::GenerateSerial(const std::string& itemType, const std::string& itemName) {
     std::lock_guard<std::mutex> lock(m_Mutex);
+    if (m_TotalItems == std::numeric_limits<int>::max()) return {};
     m_TotalItems++;
     auto now = std::chrono::system_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
@@ -30,7 +32,7 @@ std::string ItemSerialTracker::GenerateSerial(const std::string& itemType, const
 
 SerialNumber* ItemSerialTracker::RegisterItem(const std::string& ownerId, const std::string& itemType,
                                               const std::string& itemName, int quantity, const std::string& source) {
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    if (ownerId.empty() || itemType.empty() || itemName.empty() || source.empty() || quantity <= 0) return nullptr;
     std::string serial = GenerateSerial(itemType, itemName);
     SerialNumber sn;
     sn.number = serial;
@@ -40,8 +42,13 @@ SerialNumber* ItemSerialTracker::RegisterItem(const std::string& ownerId, const 
     sn.source = source;
     sn.ownerId = ownerId;
     sn.timestamp = std::chrono::system_clock::now();
-    m_Registry[sn.number] = sn;
-    return &m_Registry[sn.number];
+    std::lock_guard<std::mutex> lock(m_Mutex);
+    if (m_Registry.find(sn.number) != m_Registry.end()) return nullptr;
+    if (m_TotalItems == std::numeric_limits<int>::max()) return nullptr;
+    m_Registry.emplace(sn.number, std::move(sn));
+    m_PendingVerification.push_back(serial);
+    ++m_TotalItems;
+    return &m_Registry.find(serial)->second;
 }
 
 bool ItemSerialTracker::VerifyItemSilently(const std::string& internalItemId, const std::string& playerId) {
@@ -81,7 +88,16 @@ bool ItemSerialTracker::ConsumeItem(const std::string& serialNumber) {
     return false;
 }
 
-int ItemSerialTracker::VerifyPendingBatch(int maxBatch) { return 0; }
+int ItemSerialTracker::VerifyPendingBatch(int maxBatch) {
+    if (maxBatch <= 0) return 0;
+    int verified = 0;
+    while (verified < maxBatch) {
+        std::string serial;
+        { std::lock_guard<std::mutex> lock(m_Mutex); if (m_PendingVerification.empty()) break; serial = m_PendingVerification.front(); m_PendingVerification.erase(m_PendingVerification.begin()); }
+        if (VerifyWithServer(serial)) ++verified; else { std::lock_guard<std::mutex> lock(m_Mutex); if (m_RejectedCount != std::numeric_limits<int>::max()) ++m_RejectedCount; }
+    }
+    return verified;
+}
 
 std::string ItemSerialTracker::GenerateCurrencySerial(const std::string& currencyType, int amount, const std::string& source) {
     return GenerateSerial("currency", currencyType + ":" + std::to_string(amount));
@@ -102,11 +118,14 @@ std::string ItemSerialTracker::GetAuditTrail(const std::string& playerId) const 
 }
 
 void ItemSerialTracker::MarkAllPlayerItemsContaminated(const std::string& playerId, const std::string& playerName) {
-    // Implementation placeholder
+    if (playerId.empty()) return;
+    std::lock_guard<std::mutex> lock(m_Mutex);
+    for (auto& [serial, item] : m_Registry) if (item.ownerId == playerId) item.serverSignature = "CONTAMINATED:" + playerName;
 }
 
 std::string ItemSerialTracker::GenerateTransferHash(const std::string& serial, const std::string& from,
                                                     const std::string& to, const std::string& method) const {
+    if (serial.empty() || from.empty() || to.empty() || method.empty()) return {};
     return std::to_string(std::hash<std::string>{}(serial + from + to + method));
 }
 
