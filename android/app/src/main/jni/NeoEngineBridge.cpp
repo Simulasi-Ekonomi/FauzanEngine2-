@@ -304,7 +304,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
     NEO_LOGI("nativeInit %dx%d", w, h);
 
     NeoJNI::g_Activity  = env->NewGlobalRef(activity);
-    if (NeoJNI::g_Activity == nullptr) return JNI_FALSE;
+    if (NeoJNI::g_Activity == nullptr || NeoJNI::g_AssetMgr == nullptr) return JNI_FALSE;
     NeoJNI::g_AssetMgr  = AAssetManager_fromJava(env, assetManager);
 
     if (!NeoJNI::g_AssetMgr) {
@@ -377,7 +377,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
 
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
-    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_Runtime == nullptr || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (!NeoJNI::g_Runtime || !NeoJNI::g_Initialized || !NeoJNI::g_Running) return;
     if (!std::isfinite(dt) || dt < 0.0f || dt > 1.0f) return;
@@ -548,7 +548,9 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeGetSceneJSON(JNIEnv* env, jo
     }
     ss << "],\"actorCount\":" << NeoJNI::g_Actors.size() << "}";
 
-    return env->NewStringUTF(ss.str().c_str());
+    const std::string json = ss.str();
+    if (json.size() > 16U * 1024U * 1024U) return nullptr;
+    return env->NewStringUTF(json.c_str());
 }
 
 JNIEXPORT jstring JNICALL
