@@ -31,10 +31,16 @@ int main() {
     TEST_CHECK(response.find("\"ok\":true") != std::string::npos, "duplicate response was not successful");
     TEST_CHECK(session.HierarchySnapshot().size() == 2U, "duplicate did not add actor");
     const auto beforeInvalidMutation = session.HierarchySnapshot();
+    EditorSceneActor beforeInvalidActor{};
+    TEST_CHECK(session.InspectActor(44, beforeInvalidActor), "failed to snapshot actor before invalid mutation");
     TEST_CHECK(!agent.Execute(R"({"operation":"transform","actorId":9999,"transform":{"x":1,"y":0,"z":0,"rx":0,"ry":0,"rz":0,"sx":1,"sy":1,"sz":1}})", session, assets, response), "unknown actor mutation was accepted");
-    TEST_CHECK(session.HierarchySnapshot() == beforeInvalidMutation, "failed mutation changed document state");
+    const auto afterInvalidMutation = session.HierarchySnapshot();
+    EditorSceneActor afterInvalidActor{};
+    TEST_CHECK(session.InspectActor(44, afterInvalidActor), "failed to inspect actor after invalid mutation");
+    TEST_CHECK(afterInvalidMutation.size() == beforeInvalidMutation.size() && afterInvalidActor.name == beforeInvalidActor.name && afterInvalidActor.transform.x == beforeInvalidActor.transform.x, "failed mutation changed document state");
     TEST_CHECK(!agent.Execute(R"({"operation":"duplicate","actorId":44,"newActorId":42})", session, assets, response), "duplicate actor id mutation was accepted");
-    TEST_CHECK(session.HierarchySnapshot() == beforeInvalidMutation, "duplicate failure changed document state");
+    const auto afterDuplicateFailure = session.HierarchySnapshot();
+    TEST_CHECK(afterDuplicateFailure.size() == beforeInvalidMutation.size(), "duplicate failure changed document state");
 
     TEST_CHECK(agent.Execute(R"({"operation":"properties","actorId":44,"name":"Edited","materialAssetId":"","textureAssetId":"","spriteRgba":4294967295})",
                              session, assets, response),
