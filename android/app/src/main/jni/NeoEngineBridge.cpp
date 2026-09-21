@@ -407,6 +407,16 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     if (!NeoJNI::g_Running || !NeoJNI::g_Initialized || !NeoJNI::g_Runtime || !NeoJNI::g_JavaVM) return;
     if (NeoJNI::g_RenderWidth <= 0 || NeoJNI::g_RenderHeight <= 0 || NeoJNI::g_RenderWidth > 8192 || NeoJNI::g_RenderHeight > 8192 || static_cast<int64_t>(NeoJNI::g_RenderWidth) * static_cast<int64_t>(NeoJNI::g_RenderHeight) > 67108864LL) return;
+    if (NeoJNI::g_FrameCount < 0) return;
+    if (!std::isfinite(NeoJNI::g_DeltaTime) || NeoJNI::g_DeltaTime < 0.0F || NeoJNI::g_DeltaTime > 1.0F) return;
+    if (!std::isfinite(NeoJNI::g_FPS) || NeoJNI::g_FPS < 0.0F || NeoJNI::g_FPS > 1000.0F) return;
+    if (NeoJNI::g_Telemetry.entities < 0 || NeoJNI::g_Telemetry.drawCalls < 0 || NeoJNI::g_Telemetry.triangles < 0) return;
+    if (NeoJNI::g_Telemetry.entities > 1000000 || NeoJNI::g_Telemetry.drawCalls > 1000000 || NeoJNI::g_Telemetry.triangles > 100000000) return;
+    if (NeoJNI::g_RenderWidth <= 0 || NeoJNI::g_RenderHeight <= 0) return;
+    if (static_cast<int64_t>(NeoJNI::g_RenderWidth) * static_cast<int64_t>(NeoJNI::g_RenderHeight) > 67108864LL) return;
+    if (NeoJNI::g_JavaVM == nullptr || !NeoJNI::g_Initialized || !NeoJNI::g_Running) return;
+    if (NeoJNI::g_Runtime == nullptr) return;
+    if (NeoJNI::g_Actors.size() > 1000000U) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (!NeoJNI::g_Runtime->RenderFarm()) {
         NEO_LOGE("nativeRender: canonical NeoRuntime::RenderFarm rejected frame");
