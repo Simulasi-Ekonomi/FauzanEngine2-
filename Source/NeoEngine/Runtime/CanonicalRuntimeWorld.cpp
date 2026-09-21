@@ -74,8 +74,10 @@ bool CanonicalRuntimeWorld::GetEntity(SceneEntity sceneEntity, CanonicalEntity& 
 
 bool CanonicalRuntimeWorld::DestroyEntity(CanonicalEntity entity) {
     if (!ValidateEntity(entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-    if (entity.hasECS) ecs_.DestroyEntity(entity.ecs);
+    // Destroy the Scene entity first. ECS destruction has no failure channel, so doing
+    // it first could leave the canonical world split if SceneWorld rejects the handle.
     if (!scene_.Destroy(entity.scene)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
+    if (entity.hasECS) ecs_.DestroyEntity(entity.ecs);
 
     for (uint16_t i = 0U; i < bindingCount_; ++i) {
         if (bindings_[i].entity.scene == entity.scene) {
@@ -246,16 +248,23 @@ bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntit
             lastError_ = CanonicalWorldError::InvalidEntity; return false;
         }
     }
+    std::vector<CanonicalEntity> changed;
+    changed.reserve(entities.size());
     for (const CanonicalEntity& entity : entities) {
+        if (physics_.IsEntityAwake(entity.ecs)) continue;
         if (!physics_.WakeEntity(entity.ecs)) {
-            lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
+            for (const CanonicalEntity& rollback : changed) (void)physics_.SleepEntity(rollback.ecs);
+            lastError_ = CanonicalWorldError::PhysicsSyncFailed;
+            return false;
         }
+        changed.push_back(entity);
     }
     lastError_ = CanonicalWorldError::None;
     return true;
 }
 
 bool CanonicalRuntimeWorld::Step(float dt) {
+    lastFrame_.physicsStepped = false;
     if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
     if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) { lastError_ = CanonicalWorldError::PhysicsStepFailed; return false; }
     if (!SyncSceneToPhysics()) return false;
@@ -288,6 +297,11 @@ bool CanonicalRuntimeWorld::Step(float dt) {
 
 bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
                                             const DirectionalLight& light) {
+    if (!std::isfinite(light.direction.x) || !std::isfinite(light.direction.y) || !std::isfinite(light.direction.z) ||
+        !std::isfinite(light.color.x) || !std::isfinite(light.color.y) || !std::isfinite(light.color.z) ||
+        !std::isfinite(light.intensity) || light.intensity < 0.0F) {
+        lastError_ = CanonicalWorldError::RenderFailed; return false;
+    }
     if (!rendererAdapter_.Draw(scene_, meshes_, sprites_, camera, renderer, light)) {
         lastError_ = CanonicalWorldError::RenderFailed; return false;
     }
@@ -297,6 +311,10 @@ bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRendere
 
 bool CanonicalRuntimeWorld::RenderVulkan3D(RenderCamera& camera, Vulkan3DRenderer& renderer,
                                             float clearR, float clearG, float clearB, float clearA) {
+    if (!std::isfinite(clearR) || !std::isfinite(clearG) || !std::isfinite(clearB) || !std::isfinite(clearA) ||
+        clearR < 0.0F || clearR > 1.0F || clearG < 0.0F || clearG > 1.0F || clearB < 0.0F || clearB > 1.0F || clearA < 0.0F || clearA > 1.0F) {
+        lastError_ = CanonicalWorldError::RenderFailed; return false;
+    }
     if (!rendererAdapter_.DrawVulkan3D(scene_, meshes_, camera, renderer, clearR, clearG, clearB, clearA)) {
         lastError_ = CanonicalWorldError::RenderFailed; return false;
     }
