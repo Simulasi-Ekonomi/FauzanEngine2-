@@ -54,14 +54,14 @@ bool EditorSceneSession::ReparentActor(uint32_t actorId, uint32_t parentId, cons
 }
 bool EditorSceneSession::AddActor(const EditorSceneActor& actor, const AssetRegistry& assets) {
     if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
-    if (actor.id == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    if (actor.id == 0U || document_.actors.size() >= EditorSceneDocumentAdapter::kMaxActors || actor.name.size() > kMaxSceneStringBytes || actor.assetId.size() > kMaxSceneStringBytes || actor.materialAssetId.size() > kMaxSceneStringBytes || actor.materialName.size() > kMaxSceneStringBytes || actor.textureAssetId.size() > kMaxSceneStringBytes) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     if (std::any_of(document_.actors.begin(), document_.actors.end(), [&actor](const EditorSceneActor& existing) { return existing.id == actor.id; })) { lastError_ = EditorSceneSessionError::DuplicateActorId; return false; }
     if (actor.parentId == actor.id) { lastError_ = EditorSceneSessionError::InvalidHierarchy; return false; }
     if (actor.parentId != 0U && std::none_of(document_.actors.begin(), document_.actors.end(), [&actor](const EditorSceneActor& existing) { return existing.id == actor.parentId; })) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
     EditorSceneDocument candidate = document_; candidate.actors.push_back(actor); ++candidate.revision; return CommitMutation(candidate, assets);
 }
 bool EditorSceneSession::DuplicateActor(uint32_t actorId, uint32_t newActorId, const AssetRegistry& assets) {
-    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max() || newActorId == 0U) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
+    if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max() || newActorId == 0U || document_.actors.size() >= EditorSceneDocumentAdapter::kMaxActors) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     if (std::any_of(document_.actors.begin(), document_.actors.end(), [newActorId](const EditorSceneActor& actor) { return actor.id == newActorId; })) {
         lastError_ = EditorSceneSessionError::DuplicateActorId; return false;
     }
@@ -71,6 +71,7 @@ bool EditorSceneSession::DuplicateActor(uint32_t actorId, uint32_t newActorId, c
     EditorSceneActor duplicate = *found;
     duplicate.id = newActorId;
     duplicate.name = duplicate.name.empty() ? std::string("Actor_") + std::to_string(newActorId) : duplicate.name + "_Copy";
+    if (duplicate.name.size() > kMaxSceneStringBytes || duplicate.assetId.size() > kMaxSceneStringBytes || duplicate.materialAssetId.size() > kMaxSceneStringBytes || duplicate.materialName.size() > kMaxSceneStringBytes || duplicate.textureAssetId.size() > kMaxSceneStringBytes) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
     candidate.actors.push_back(std::move(duplicate));
     ++candidate.revision;
     return CommitMutation(candidate, assets);
