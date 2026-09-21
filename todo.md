@@ -641,3 +641,17 @@
 - [x] T7-09 listener vectors remain normalized.
 - [x] T7-10 voice pitch remains finite and bounded.
 - [x] T7-11 mixer lifecycle remains deterministic.
+
+
+## 2026-09-21 — Turn 8 — implementation/integration ledger
+- [x] T8-01 invalid mixer voice count no longer clears state.
+- [x] T8-02 spatial sample capacity checked.
+- [x] T8-03 spatial sample emptiness checked.
+- [x] T8-04 mix frame count bounded by integer output range.
+- [x] T8-05 listener position finiteness validated.
+- [x] T8-06 listener basis finiteness validated.
+- [x] T8-07 listener orthogonality remains validated.
+- [x] T8-08 mix output cardinality remains bounded.
+- [x] T8-09 voice sample capacity rechecked during mix.
+- [x] T8-10 voice gain remains representable.
+- [x] T8-11 voice identity remains bounded.
