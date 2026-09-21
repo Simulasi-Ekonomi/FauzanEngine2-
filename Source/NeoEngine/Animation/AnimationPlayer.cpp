@@ -40,12 +40,14 @@ bool AnimationPlayer::Update(float dt) {
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F || duration == std::numeric_limits<float>::infinity()) return false;
     if (!currentClip_->IsValid() || skeleton_->GetBoneCount() == 0U || !skeleton_->IsComplete()) return false;
     if (duration <= 0.0F) {
+        if (time_ != 0.0F) return false;
         if (playbackMode_ == AnimationPlaybackMode::Loop && duration == 0.0F) { playing_ = false; return true; }
         time_ = 0.0F;
         if (playbackMode_ == AnimationPlaybackMode::Clamp) playing_ = false;
         return true;
     }
     if (dt > 86400.0F - time_) return false;
+    if (time_ + dt < time_) return false;
     if (playbackMode_ != AnimationPlaybackMode::Loop && playbackMode_ != AnimationPlaybackMode::Clamp) return false;
     const float nextTime = time_ + dt;
     if (!std::isfinite(nextTime) || nextTime < time_ || nextTime > 86400.0F) return false;
@@ -53,6 +55,7 @@ bool AnimationPlayer::Update(float dt) {
     if (playbackMode_ == AnimationPlaybackMode::Loop) {
         if (duration <= 0.0F) return false;
         time_ = std::fmod(time_, duration);
+        if (duration <= std::numeric_limits<float>::epsilon()) return false;
         if (!std::isfinite(time_) || time_ < 0.0F) return false;
     if (time_ > 86400.0F) return false;
         if (time_ < 0.0F) time_ += duration;
@@ -61,7 +64,7 @@ bool AnimationPlayer::Update(float dt) {
         time_ = duration;
         playing_ = false;
     }
-    if (!std::isfinite(time_) || time_ < 0.0F || time_ > duration) return false;
+    if (!std::isfinite(time_) || time_ < 0.0F || time_ > duration || time_ > 86400.0F) return false;
     if (playbackMode_ == AnimationPlaybackMode::Clamp && time_ >= duration && playing_) playing_ = false;
     if (playbackMode_ == AnimationPlaybackMode::Loop && (!playing_ || currentClip_ == nullptr)) return false;
     if (playbackMode_ == AnimationPlaybackMode::Clamp && currentClip_ == nullptr) return false;
@@ -106,6 +109,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     if (candidatePalette.capacity() < candidatePalette.size() || candidatePalette.capacity() > kMaxPaletteBones || candidatePalette.empty() || candidatePalette.size() > kMaxPaletteBones || candidatePalette.capacity() > 4096U) return false;
     for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
     if (candidateLocal.size() != boneCount || candidatePalette.size() != boneCount || candidateLocal.capacity() < boneCount || candidatePalette.capacity() < boneCount) return false;
+    if (candidateLocal.size() != skeleton_->BoneCount() || candidatePalette.size() != skeleton_->GetBoneCount()) return false;
     for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
     if (candidatePalette.size() != candidateLocal.size()) return false;
     if (candidatePalette.size() != boneCount) return false;
