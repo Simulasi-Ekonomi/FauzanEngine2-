@@ -32,6 +32,7 @@ artifact="$ANDROID_DIR/app/build/outputs/apk/release/app-release.apk"
 
 if command -v apksigner >/dev/null 2>&1; then
   apksigner verify --verbose --print-certs "$artifact"
+  python3 "$ROOT/tools/p4_release_artifact_gate.py" "$artifact"
 else
   echo "ANDROID_RELEASE_BUILD_FAIL missing_tool=apksigner" >&2
   exit 5
