@@ -45,6 +45,8 @@ static bool          g_Running     = false;
 static float         g_DeltaTime   = 0.0f;
 static int           g_FrameCount  = 0;
 static float         g_FPS         = 0.0f;
+static int           g_RenderWidth = 0;
+static int           g_RenderHeight = 0;
 
 // World streaming state
 static std::unique_ptr<NeoEngine::ProceduralWorldGenerator> g_WorldGenerator;
@@ -315,6 +317,8 @@ Java_com_neoengine_core_NeoEngineBridge_nativeInit(
     NeoJNI::g_Running     = true;
     NeoJNI::g_Initialized = true;
     NeoJNI::g_FrameCount  = 0;
+    NeoJNI::g_RenderWidth = w;
+    NeoJNI::g_RenderHeight = h;
     NEO_LOGI("nativeInit: canonical NeoRuntime bound");
     return JNI_TRUE;
 }
@@ -333,6 +337,8 @@ Java_com_neoengine_core_NeoEngineBridge_nativeShutdown(JNIEnv* env, jclass) {
     NeoJNI::g_Initialized = false;
     NeoJNI::g_DeltaTime = 0.0f;
     NeoJNI::g_FrameCount = 0;
+    NeoJNI::g_RenderWidth = 0;
+    NeoJNI::g_RenderHeight = 0;
     NeoJNI::g_FPS = 0.0f;
     NeoJNI::g_Telemetry = {};
     NeoJNI::g_Actors.clear();
@@ -374,7 +380,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     if (!NeoJNI::g_Running || !NeoJNI::g_Initialized || !NeoJNI::g_Runtime) return;
-    if (NeoJNI::g_Width <= 0 || NeoJNI::g_Height <= 0 || NeoJNI::g_Width > 8192 || NeoJNI::g_Height > 8192) return;
+    if (NeoJNI::g_RenderWidth <= 0 || NeoJNI::g_RenderHeight <= 0 || NeoJNI::g_RenderWidth > 8192 || NeoJNI::g_RenderHeight > 8192) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (!NeoJNI::g_Runtime->RenderFarm()) {
         NEO_LOGE("nativeRender: canonical NeoRuntime::RenderFarm rejected frame");
