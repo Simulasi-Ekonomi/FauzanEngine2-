@@ -349,7 +349,8 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
     if (!NeoJNI::g_Running || !std::isfinite(dt) || dt <= 0.0f || dt > 0.25f) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
-    if (!NeoJNI::g_Runtime) return;
+    if (!NeoJNI::g_Runtime || !NeoJNI::g_Initialized || !NeoJNI::g_Running) return;
+    if (!std::isfinite(dt) || dt < 0.0f || dt > 1.0f) return;
     NeoJNI::g_DeltaTime = dt;
     if (NeoJNI::g_FrameCount == std::numeric_limits<int>::max()) return;
     if (!NeoJNI::g_Runtime->Tick()) {
@@ -373,6 +374,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeTick(JNIEnv*, jclass, jfloat dt) {
 JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     if (!NeoJNI::g_Running || !NeoJNI::g_Initialized || !NeoJNI::g_Runtime) return;
+    if (NeoJNI::g_Width <= 0 || NeoJNI::g_Height <= 0 || NeoJNI::g_Width > 8192 || NeoJNI::g_Height > 8192) return;
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
     if (!NeoJNI::g_Runtime->RenderFarm()) {
         NEO_LOGE("nativeRender: canonical NeoRuntime::RenderFarm rejected frame");
@@ -380,6 +382,7 @@ Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     }
     const auto* receipt = NeoJNI::g_Runtime->LastFarmRenderReceipt();
     if (receipt == nullptr) return;
+    if (receipt->telemetry.entities > 1000000U || receipt->telemetry.drawCalls > 1000000U || receipt->telemetry.triangles > 100000000U) return;
     NeoJNI::g_Telemetry.entities = receipt->telemetry.entities > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.entities);
     NeoJNI::g_Telemetry.drawCalls = NeoJNI::g_Telemetry.entities;
     NeoJNI::g_Telemetry.triangles = NeoJNI::g_Telemetry.entities > std::numeric_limits<int>::max() / 12 ? std::numeric_limits<int>::max() : NeoJNI::g_Telemetry.entities * 12;
