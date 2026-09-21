@@ -599,3 +599,17 @@
 - [x] p3-pr44-advanced-port T4-09: mix output byte-size overflow is bounded.
 - [x] p3-pr44-advanced-port T4-10: mix rejects oversized voice sample capacity.
 - [x] p3-pr44-advanced-port T4-11: spatial mixing revalidates voice positions before distance math.
+
+
+## 2026-09-21 — Turn 5 — implementation/integration correction ledger
+- [x] T5 voice overflow no destructive clear.
+- [x] T5 voice sample capacity bound retained.
+- [x] T5 post-move sample validation retained.
+- [x] T5 spatial sample validation retained.
+- [x] T5 existing-voice requirement for position update.
+- [x] T5 existing-voice requirement for pitch update.
+- [x] T5 existing-voice requirement for gain update.
+- [x] T5 Clear lifecycle simplified without redundant mutation.
+- [x] T5 mix output allocation overflow guard.
+- [x] T5 per-voice capacity guard during mixing.
+- [x] T5 spatial position finiteness guard during mixing.
