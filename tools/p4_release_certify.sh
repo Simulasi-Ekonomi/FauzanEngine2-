@@ -48,5 +48,6 @@ PROVENANCE="p4-release-provenance.txt"
   printf 'sbom_sha256=%s\n' "$SBOM_SHA256"
 } > "$PROVENANCE"
 
+python3 tools/verify_release_provenance.py "$ARTIFACT"
 sha256sum -- "$ARTIFACT"
 printf 'P4_RELEASE_CERTIFICATION_OK artifact=%s commit=%s\n'   "$ARTIFACT" "$(git rev-parse HEAD)"
