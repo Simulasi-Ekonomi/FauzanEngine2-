@@ -641,3 +641,17 @@
 - [x] T7-09 ZIP entry extents remain bounded.
 - [x] T7-10 compression ratio remains bounded.
 - [x] T7-11 APK/AAB signature verification remains mandatory.
+
+
+## 2026-09-21 — Turn 8 — implementation/integration ledger
+- [x] T8-01 release artifact SHA256 calculation added.
+- [x] T8-02 expected SHA256 format validated.
+- [x] T8-03 SHA256 mismatch rejects artifact.
+- [x] T8-04 zero digest rejected.
+- [x] T8-05 central directory extent bounded.
+- [x] T8-06 entry cannot overlap central directory.
+- [x] T8-07 ZIP entry index count consistency checked.
+- [x] T8-08 artifact regular-file validation retained.
+- [x] T8-09 stored entry size equality checked.
+- [x] T8-10 total uncompressed size bounded after scan.
+- [x] T8-11 artifact SHA256 exposed in successful gate output.
