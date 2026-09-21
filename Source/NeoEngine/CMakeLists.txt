@@ -107,6 +107,9 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/SceneECSBridge.cpp
+    Animation/AnimationClip.cpp
+    Animation/AnimationPlayer.cpp
+    Animation/AnimationGraph.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -252,6 +255,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manage
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(farm_vulkan_textured_present_smoke ../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_graph_smoke.cpp")
+    add_xpbd_executable(animation_graph_smoke ../../Tests/Runtime/animation_graph_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gpu_skinning_palette_buffer_smoke.cpp")
     add_xpbd_executable(gpu_skinning_palette_buffer_smoke ../../Tests/Runtime/gpu_skinning_palette_buffer_smoke.cpp)
