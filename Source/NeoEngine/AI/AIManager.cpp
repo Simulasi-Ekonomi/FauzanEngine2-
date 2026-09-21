@@ -86,12 +86,12 @@ std::string AIManager::Think(const std::string& context) {
         if (response.generatedText.size() <= 16U * 1024U * 1024U && !response.generatedText.empty()) return response.generatedText;
     }
     if (ruflo && ruflo->IsReady()) {
-        const auto response = ruflo->Execute(context);
-        if (response.size() <= 16U * 1024U * 1024U && !response.empty()) return response;
+        const ExecutionResult response = ruflo->ExecuteCode(context, "text");
+        if (response.success && response.stdout.size() <= 16U * 1024U * 1024U && !response.stdout.empty()) return response.stdout;
     }
     if (opencode && opencode->IsReady()) {
-        const auto response = opencode->Execute(context);
-        if (response.size() <= 16U * 1024U * 1024U && !response.empty()) return response;
+        const GeneratedCode response = opencode->GenerateFromDescription(context);
+        if (!response.code.empty() && response.code.size() <= 16U * 1024U * 1024U) return response.code;
     }
     lastError = Error::BackendUnavailable;
     return {};
