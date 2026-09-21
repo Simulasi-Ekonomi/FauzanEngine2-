@@ -154,6 +154,11 @@ bool Vulkan3DRenderer::ReadbackLastFrame(std::vector<uint8_t>& rgba8){
         return false;
     }
     const VkDeviceSize size=static_cast<VkDeviceSize>(width)*static_cast<VkDeviceSize>(height)*4U;
+    // A split graphics/present queue must finish presentation before the graphics queue reads the image.
+    if (impl_->presentQueue != impl_->graphicsQueue && vkQueueWaitIdle(impl_->presentQueue) != VK_SUCCESS) {
+        lastError_=Vulkan3DRendererError::FrameFailure;
+        return false;
+    }
     Buffer staging{};
     if(!CreateBuffer(impl_->physical,impl_->device,size,VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,staging)){
@@ -212,6 +217,9 @@ bool Vulkan3DRenderer::ReadbackLastFrame(std::vector<uint8_t>& rgba8){
         rgba8.resize(static_cast<size_t>(size));
         std::memcpy(rgba8.data(),mapped,static_cast<size_t>(size));
         vkUnmapMemory(impl_->device,staging.memory);
+        if (impl_->swapchainFormat == VK_FORMAT_B8G8R8A8_SRGB || impl_->swapchainFormat == VK_FORMAT_B8G8R8A8_UNORM) {
+            for (size_t i=0; i<rgba8.size(); i+=4U) std::swap(rgba8[i], rgba8[i+2U]);
+        }
         ok=true;
     } while(false);
     vkFreeCommandBuffers(impl_->device,impl_->commandPool,1U,&command);
