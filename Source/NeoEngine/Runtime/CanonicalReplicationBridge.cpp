@@ -123,7 +123,7 @@ bool CanonicalReplicationBridge::ApplyAcknowledgement(const ReplicationAcknowled
 bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float deltaZ,
                                          ReplicationPredictionReceipt& receipt) {
     receipt = {};
-    if (!std::isfinite(deltaX) || !std::isfinite(deltaZ)) {
+    if (!std::isfinite(deltaX) || !std::isfinite(deltaZ) || std::abs(deltaX) > ReplicationWorld::kMaxPredictionDelta || std::abs(deltaZ) > ReplicationWorld::kMaxPredictionDelta) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
     }
@@ -137,6 +137,7 @@ bool CanonicalReplicationBridge::Predict(uint32_t networkId, float deltaX, float
 
 bool CanonicalReplicationBridge::Interpolate(ReplicationApplyReceipt& receipt) {
     receipt = {};
+    if (replication_.SnapshotSequence() == 0U) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
     if (!replication_.ApplyInterpolation(receipt)) {
         lastError_ = CanonicalReplicationBridgeError::ApplyFailed;
         return false;
