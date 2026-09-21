@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import shutil
 import subprocess
+import struct
 import sys
 import zipfile
 from pathlib import Path
@@ -93,7 +94,23 @@ def main()->int:
                 if info.compress_size == 0 and info.file_size == 0 and not info.is_dir() and name in required_entries: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_required_entry")
                 with artifact.open("rb") as raw:
                     raw.seek(info.header_offset)
-                    if raw.read(4) != b"PK\x03\x04": raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_signature")
+                    local_header=raw.read(30)
+                    if len(local_header) != 30: raise SystemExit("P4_ARTIFACT_GATE_FAIL truncated_local_header")
+                    if local_header[:4] != b"PK\x03\x04": raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_signature")
+                    _,local_version,local_flags,local_method,local_time,local_date,local_crc,local_compressed,local_uncompressed,local_name_len,local_extra_len=struct.unpack("<IHHHHHIIIHH",local_header)
+                    if local_version < 10 or local_version > 63: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_version")
+                    if local_flags != info.flag_bits: raise SystemExit("P4_ARTIFACT_GATE_FAIL local_central_flags_mismatch")
+                    if local_method != info.compress_type: raise SystemExit("P4_ARTIFACT_GATE_FAIL local_central_method_mismatch")
+                    if local_time == 0 and local_date == 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_timestamp")
+                    if local_name_len != len(name.encode("utf-8")): raise SystemExit("P4_ARTIFACT_GATE_FAIL local_name_length_mismatch")
+                    if local_extra_len != len(info.extra): raise SystemExit("P4_ARTIFACT_GATE_FAIL local_extra_length_mismatch")
+                    if not (info.flag_bits & 0x8):
+                        if local_crc != info.CRC: raise SystemExit("P4_ARTIFACT_GATE_FAIL local_crc_mismatch")
+                        if local_compressed != info.compress_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL local_compressed_size_mismatch")
+                        if local_uncompressed != info.file_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL local_uncompressed_size_mismatch")
+                    raw.seek(info.header_offset + 30)
+                    if raw.read(local_name_len) != name.encode("utf-8"): raise SystemExit("P4_ARTIFACT_GATE_FAIL local_name_mismatch")
+                    if raw.read(local_extra_len) != info.extra: raise SystemExit("P4_ARTIFACT_GATE_FAIL local_extra_mismatch")
                 header_end=info.header_offset+30+len(name.encode("utf-8"))+len(info.extra)
                 if header_end>artifact_size or header_end<info.header_offset: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_local_header_extent")
                 data_end=header_end+info.compress_size
