@@ -23,6 +23,7 @@ RufloIntegration::RufloIntegration() : ready(false), contextType(ExecutionContex
 RufloIntegration::~RufloIntegration() { Shutdown(); }
 
 bool RufloIntegration::Initialize(ExecutionContextType ctx) {
+    if (timeoutMs <= 0 || timeoutMs > 120000) return false;
     contextType = ctx;
     CURL* curl = curl_easy_init();
     if (!curl) { ready = false; return false; }
@@ -79,6 +80,7 @@ ExecutionResult RufloIntegration::ExecuteCode(const std::string& code, const std
 
 ExecutionResult RufloIntegration::ExecuteWithEnvironment(const std::string& code, const std::string& lang,
                                                          const std::map<std::string, std::string>& env) {
+    if (code.find('\\0') != std::string::npos || lang.find('\\0') != std::string::npos) return {1, "", "Invalid code input", 0.0f, false};
     if (env.size() > 128U) return {1, "", "Environment limit exceeded", 0.0f, false};
     for (const auto& [key, value] : env) {
         if (key.empty() || key.size() > 256U || value.size() > 4096U) return {1, "", "Invalid environment", 0.0f, false};
@@ -88,7 +90,7 @@ ExecutionResult RufloIntegration::ExecuteWithEnvironment(const std::string& code
 
 bool RufloIntegration::ValidateCode(const std::string& code, const std::string& lang) {
     const auto languages = GetSupportedLanguages();
-    return ready && !code.empty() && code.size() <= 1024U * 1024U &&
+    return ready && !code.empty() && code.size() <= 1024U * 1024U && code.find('\\0') == std::string::npos && lang.find('\\0') == std::string::npos &&
            std::find(languages.begin(), languages.end(), lang) != languages.end();
 }
 
