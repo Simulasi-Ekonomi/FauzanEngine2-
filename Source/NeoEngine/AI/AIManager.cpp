@@ -1,6 +1,7 @@
 #include "AIManager.h"
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace NeoEngine {
 
@@ -19,6 +20,7 @@ bool AIManager::Initialize() {
     auto newGemma4 = std::make_unique<Gemma4Integration>();
     auto newRuflo = std::make_unique<RufloIntegration>();
     auto newOpenCode = std::make_unique<OpenCodeIntegration>();
+    if (!newHermes || !newGemma4 || !newRuflo || !newOpenCode) { lastError = Error::InitializationFailed; return false; }
 
     const bool hermesReady = newHermes->Initialize();
     const bool gemmaReady = newGemma4->Initialize();
@@ -55,11 +57,12 @@ void AIManager::Shutdown() {
 
 void AIManager::Update(float DeltaTime) {
     if (!initialized) return;
-    if (!std::isfinite(DeltaTime) || DeltaTime < 0.0f || DeltaTime > 0.25f) {
+    if (!std::isfinite(DeltaTime) || !std::isfinite(timeAccumulator) || DeltaTime < 0.0f || DeltaTime > 0.25f) {
         lastError = Error::InvalidDeltaTime;
         return;
     }
     if (DeltaTime > 1.0e6f - timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
+    if (timeAccumulator > std::numeric_limits<float>::max() / 2.0f) { lastError = Error::InvalidDeltaTime; return; }
     timeAccumulator += DeltaTime;
     if (timeAccumulator < 1.0f) return;
     timeAccumulator = std::fmod(timeAccumulator, 1.0f);
@@ -71,6 +74,7 @@ bool AIManager::IsReady() const {
 }
 
 std::string AIManager::Think(const std::string& context) {
+    if (context.size() > 16U * 1024U * 1024U) { lastError = Error::InvalidContext; return {}; }
     if (context.empty()) { lastError = Error::InvalidContext; return {}; }
     if (!IsReady()) { lastError = Error::BackendUnavailable; return {}; }
     if (hermes && hermes->IsReady()) {
@@ -86,6 +90,7 @@ std::string AIManager::Think(const std::string& context) {
 }
 
 std::string AIManager::PlanAction(const std::string& state) {
+    if (state.size() > 16U * 1024U * 1024U) { lastError = Error::InvalidContext; return {}; }
     if (state.empty()) { lastError = Error::InvalidContext; return {}; }
     return Think("Plan an action for the following game state:\n" + state);
 }
