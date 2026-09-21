@@ -572,3 +572,16 @@
 - [ ] P2.2: Reproduce broad non-Vulkan Release and ASAN `detect_leaks=1` suites on a single tip revision under a storage-aware build strategy before making cross-engine readiness claims.
 - [x] P2.2a: Execute a bounded representative non-Vulkan smoke matrix on one canonical tip in Release and AddressSanitizer with leak detection, recording exact target coverage and any external-driver exceptions without claiming whole-engine coverage; do not expand to every duplicate-heavy executable target. `docs/BROAD_NON_VULKAN_SMOKE_EVIDENCE_V1.md` records the exact 35-target set; all 35/35 pass in Release and ASAN `detect_leaks=1`. The run is headless with dummy SDL drivers; Vulkan `glslc` discovery is an external configuration exception and Vulkan presentation is not counted.
 \n## 2026-09-21 — Turn 2: replication bridge correctness hardening\n- [x] B3-01 verified post-ApplySnapshot receipt acceptance and sequence provenance.\n- [x] B3-02 bounded applied/spawned/despawned/interpolated receipt counts.\n- [x] B3-03 rejected empty encoded snapshot payloads.\n- [x] B3-04 required decoded snapshot checksum presence after codec validation.\n- [x] B3-05 rejected empty encoded acknowledgement payloads.\n- [x] B3-06 validated acknowledgement sequence/serverTick/checksum before application.\n- [x] B3-07 verified acknowledgement application advanced exactly to the requested sequence.\n- [x] B3-08 validated prediction receipt network identity and sequence.\n- [x] B3-09 validated prediction transform finiteness and positive scale.\n- [x] B3-10 removed the dead pre-Interpolate receipt check that was unreachable after receipt reset.\n- [x] B3-11 validated interpolation receipt provenance and bounded counts.\n- [x] B3-12 verified built snapshots preserve requested serverTick and non-zero checksum.\n
+
+## 2026-09-21 — Turn 3 — 11+ substantive implementation/integration ledger
+- [x] p2-physics-networking-night T3-01: snapshot receipt reset before mutation.
+- [x] p2-physics-networking-night T3-02: snapshot serverTick terminal value rejected.
+- [x] p2-physics-networking-night T3-03: snapshot entity count bounded.
+- [x] p2-physics-networking-night T3-04: snapshot sequence regression rejected.
+- [x] p2-physics-networking-night T3-05: apply receipt sequence checked.
+- [x] p2-physics-networking-night T3-06: apply receipt applied count bounded.
+- [x] p2-physics-networking-night T3-07: spawn count bounded.
+- [x] p2-physics-networking-night T3-08: despawn count bounded.
+- [x] p2-physics-networking-night T3-09: snapshot serverTick provenance checked.
+- [x] p2-physics-networking-night T3-10: built snapshot count bounded.
+- [x] p2-physics-networking-night T3-11: built snapshot checksum/sequence remain canonical.
