@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cmath>
 #include <utility>
 
 namespace NeoEngine {
