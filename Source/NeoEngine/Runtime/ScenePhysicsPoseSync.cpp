@@ -1,6 +1,7 @@
 #include "Runtime/ScenePhysicsPoseSync.h"
 
 #include <cmath>
+#include <new>
 
 namespace NeoEngine {
 bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity) {
@@ -26,7 +27,12 @@ bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity,
             return false;
         }
     }
-    bindings_.push_back({sceneEntity, physicsEntity, physicsAuthoritative});
+    try {
+        bindings_.push_back({sceneEntity, physicsEntity, physicsAuthoritative});
+    } catch (const std::bad_alloc&) {
+        lastError_ = ScenePhysicsPoseSyncError::Capacity;
+        return false;
+    }
     lastError_ = ScenePhysicsPoseSyncError::None;
     return true;
 }
