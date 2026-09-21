@@ -234,6 +234,14 @@ bool CanonicalRuntimeWorld::Step(float dt) {
     physics_.Step(ecs_, dt);
     if (!ReadBackPhysicsToScene()) return false;
 
+    for (uint8_t triggerIndex = 0U; triggerIndex < kMaxTriggers; ++triggerIndex) {
+        if (!triggerConfigured_[triggerIndex]) continue;
+        if (!triggers_[triggerIndex].Update(physics_)) {
+            lastError_ = CanonicalWorldError::TriggerUpdateFailed;
+            return false;
+        }
+    }
+
     ++frame_;
     lastFrame_.frame = frame_;
     lastFrame_.sceneEntities = scene_.AliveCount();
