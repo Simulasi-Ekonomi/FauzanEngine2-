@@ -5,22 +5,20 @@
 #include "OpenCodeIntegration.h"
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace NeoEngine {
 
 class AIManager {
 public:
-    static AIManager& Get();
+    enum class Error : uint8_t { None, AlreadyInitialized, InitializationFailed, InvalidDeltaTime, InvalidContext, BackendUnavailable };
 
+    static AIManager& Get();
     bool Initialize();
     void Shutdown();
-
     void Update(float DeltaTime);
-
     bool IsReady() const;
+    Error LastError() const { return lastError; }
 
-    // === GAME AI ===
     std::string Think(const std::string& context);
     std::string PlanAction(const std::string& state);
 
@@ -32,9 +30,9 @@ private:
     std::unique_ptr<Gemma4Integration> gemma4;
     std::unique_ptr<RufloIntegration> ruflo;
     std::unique_ptr<OpenCodeIntegration> opencode;
-
     bool initialized;
     float timeAccumulator;
+    Error lastError;
 };
 
 }
