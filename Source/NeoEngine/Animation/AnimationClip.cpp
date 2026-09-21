@@ -65,9 +65,28 @@ const std::vector<Keyframe>& AnimationClip::GetFrames(int bone) const {
 
 float AnimationClip::GetDuration() const { return std::isfinite(duration) && duration >= 0.0F && duration <= kMaxAnimationTime ? duration : 0.0F; }
 
+bool AnimationClip::IsValid() const noexcept {
+    if (!std::isfinite(duration) || duration < 0.0F || duration > kMaxAnimationTime) return false;
+    if (tracks.size() > kMaxBones) return false;
+    size_t total = 0U;
+    for (const auto& track : tracks) {
+        if (track.size() > kMaxKeyframesPerBone) return false;
+        if (track.size() > kMaxTotalKeyframes || total > kMaxTotalKeyframes - track.size()) return false;
+        total += track.size();
+        float previous = -1.0F;
+        for (const Keyframe& frame : track) {
+            if (!std::isfinite(frame.time) || frame.time < 0.0F || frame.time > kMaxAnimationTime || !FiniteMatrix(frame.transform)) return false;
+            if (frame.time <= previous) return false;
+            if (frame.time > duration) return false;
+            previous = frame.time;
+        }
+    }
+    return total <= kMaxTotalKeyframes;
+}
+
 bool AnimationClip::Sample(int bone, float time, Mat4& out) const {
     const auto& track = GetFrames(bone);
-    if (track.empty() || !std::isfinite(time) || !std::isfinite(duration) || time < 0.0F || time > kMaxAnimationTime) return false;
+    if (!IsValid() || track.empty() || !std::isfinite(time) || !std::isfinite(duration) || time < 0.0F || time > duration) return false;
     if (track.size() == 1U || time <= track.front().time) { out = track.front().transform; return true; }
     if (time >= track.back().time) { out = track.back().transform; return true; }
 
