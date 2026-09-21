@@ -24,6 +24,9 @@ def main() -> int:
     parser.add_argument("artifact", type=Path)
     args = parser.parse_args()
 
+    raw_path = str(args.artifact)
+    if not raw_path.strip() or "\x00" in raw_path or "\n" in raw_path or "\r" in raw_path:
+        raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_artifact_path")
     artifact = args.artifact.resolve()
     if not artifact.is_file() or artifact.is_symlink():
         raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_or_symlink={args.artifact}")
@@ -43,6 +46,8 @@ def main() -> int:
             names = archive.namelist()
             if len(names) > 100000:
                 raise SystemExit("P4_ARTIFACT_GATE_FAIL too_many_zip_entries")
+            if any("\x00" in name or "\n" in name or "\r" in name for name in names):
+                raise SystemExit("P4_ARTIFACT_GATE_FAIL malformed_zip_name")
             if len(names) != len(set(names)):
                 raise SystemExit("P4_ARTIFACT_GATE_FAIL duplicate_zip_entries")
             required_entries = {"AndroidManifest.xml"} if artifact.suffix.lower() == ".apk" else {"base/manifest/AndroidManifest.xml", "BundleConfig.pb"}
