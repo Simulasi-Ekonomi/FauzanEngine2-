@@ -62,7 +62,7 @@ void AIManager::Update(float DeltaTime) {
         return;
     }
     if (DeltaTime > 1.0e6f - timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
-    if (timeAccumulator > std::numeric_limits<float>::max() / 2.0f) { lastError = Error::InvalidDeltaTime; return; }
+    if (!std::isfinite(timeAccumulator) || timeAccumulator > std::numeric_limits<float>::max() / 2.0f) { lastError = Error::InvalidDeltaTime; return; }
     timeAccumulator += DeltaTime;
     if (timeAccumulator < 1.0f) return;
     timeAccumulator = std::fmod(timeAccumulator, 1.0f);
