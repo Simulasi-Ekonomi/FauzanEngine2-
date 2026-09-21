@@ -29,7 +29,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                          const std::vector<uint8_t>& mipData,
                                          VkImage targetImage, VkImageLayout targetLayout,
                                          uint32_t width, uint32_t height) noexcept {
-    if (device == VK_NULL_HANDLE || device != lastDevice_ && lastDevice_ != VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
+    if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
         mipData.empty() || targetImage == VK_NULL_HANDLE ||
         targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || width == 0U || height == 0U) return false;
 
@@ -87,6 +87,7 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
                                       VkBuffer vertexBuffer, VkBuffer indexBuffer) noexcept {
     if (device == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
         vertexData.empty() || indexData.empty() || vertexBuffer == VK_NULL_HANDLE || indexBuffer == VK_NULL_HANDLE) return false;
+    if (vertexData.size() > std::numeric_limits<uint64_t>::max() - indexData.size()) return false;
     const uint64_t requestedBytes = static_cast<uint64_t>(vertexData.size()) + static_cast<uint64_t>(indexData.size());
     const uint64_t requestedMB64 = (requestedBytes + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
     if (requestedMB64 == 0ULL || requestedMB64 > UINT32_MAX || requestedMB64 > stagingPoolSizeMB_ ||
@@ -160,7 +161,7 @@ void VulkanAssetUploader::AttachCompletionFence(VkFence fence) noexcept {
 }
 
 void VulkanAssetUploader::Flush(VkDevice device) noexcept {
-    if (device == VK_NULL_HANDLE || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
+    if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
     std::vector<VkFence> destroyedFences;
     for (const UploadTask& task : pendingUploads_) {
         if (task.completionFence != VK_NULL_HANDLE &&
@@ -177,7 +178,7 @@ void VulkanAssetUploader::Flush(VkDevice device) noexcept {
 }
 
 void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
-    if (device == VK_NULL_HANDLE) return;
+    if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_)) return;
     size_t write = 0; uint32_t residentMB = 0;
     std::vector<VkFence> completedFences;
     for (size_t i = 0; i < pendingUploads_.size(); ++i) {
