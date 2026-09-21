@@ -599,3 +599,17 @@
 - [x] p2-physics-networking-night T4-09: despawn receipt count is bounded transactionally.
 - [x] p2-physics-networking-night T4-10: apply requires applied count to equal snapshot count.
 - [x] p2-physics-networking-night T4-11: replication transaction remains fail-closed before sequence commit.
+
+
+## 2026-09-21 — Turn 5 — implementation/integration correction ledger
+- [x] T5 snapshot wire magic/version remain canonical.
+- [x] T5 snapshot sequence guard retained.
+- [x] T5 snapshot count protocol bound retained.
+- [x] T5 exact wire-size validation retained.
+- [x] T5 checksum appended only after content validation.
+- [x] T5 deserializer bounded input retained.
+- [x] T5 entity transform finiteness retained.
+- [x] T5 network ordering invariant retained.
+- [x] T5 ACK fixed-size validation retained.
+- [x] T5 transactional apply bounds retained.
+- [x] T5 sequence commit deferred until receipt validation.
