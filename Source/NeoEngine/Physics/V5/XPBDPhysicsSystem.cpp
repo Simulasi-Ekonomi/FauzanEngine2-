@@ -114,7 +114,9 @@ XPBDPhysicsSystem::XPBDPhysicsSystem() {
 uint32_t XPBDPhysicsSystem::AddHingeJoint(uint32_t idxA, uint32_t idxB,
     float anchorAX, float anchorAZ, float anchorBX, float anchorBZ,
     float axisX, float axisZ, float motorSpeed, float breakThreshold) {
-    if (m_ConstraintCount >= MAX_CONSTRAINTS) return UINT32_MAX;
+    if (m_ConstraintCount >= MAX_CONSTRAINTS || idxA >= PHYS_ENTITIES_MAX || idxB >= PHYS_ENTITIES_MAX || idxA == idxB ||
+        !std::isfinite(anchorAX) || !std::isfinite(anchorAZ) || !std::isfinite(anchorBX) || !std::isfinite(anchorBZ) ||
+        !std::isfinite(axisX) || !std::isfinite(axisZ) || !std::isfinite(motorSpeed) || !std::isfinite(breakThreshold) || breakThreshold < 0.0f) return UINT32_MAX;
     uint32_t id = m_ConstraintCount++;
     Constraint& c = m_Constraints[id];
     c.idxA = idxA; c.idxB = idxB;
@@ -132,7 +134,9 @@ uint32_t XPBDPhysicsSystem::AddHingeJoint(uint32_t idxA, uint32_t idxB,
 uint32_t XPBDPhysicsSystem::AddConeTwistJoint(uint32_t idxA, uint32_t idxB,
     float anchorAX, float anchorAZ, float anchorBX, float anchorBZ,
     float limitLow, float limitHigh) {
-    if (m_ConstraintCount >= MAX_CONSTRAINTS) return UINT32_MAX;
+    if (m_ConstraintCount >= MAX_CONSTRAINTS || idxA >= PHYS_ENTITIES_MAX || idxB >= PHYS_ENTITIES_MAX || idxA == idxB ||
+        !std::isfinite(anchorAX) || !std::isfinite(anchorAZ) || !std::isfinite(anchorBX) || !std::isfinite(anchorBZ) ||
+        !std::isfinite(limitLow) || !std::isfinite(limitHigh) || limitHigh < limitLow) return UINT32_MAX;
     uint32_t id = m_ConstraintCount++;
     Constraint& c = m_Constraints[id];
     c.idxA = idxA; c.idxB = idxB; c.type = ConstraintType::ConeTwist;
@@ -146,7 +150,9 @@ uint32_t XPBDPhysicsSystem::AddConeTwistJoint(uint32_t idxA, uint32_t idxB,
 }
 uint32_t XPBDPhysicsSystem::AddPrismaticJoint(uint32_t idxA, uint32_t idxB,
     float axisX, float axisZ, float limitLow, float limitHigh) {
-    if (m_ConstraintCount >= MAX_CONSTRAINTS) return UINT32_MAX;
+    if (m_ConstraintCount >= MAX_CONSTRAINTS || idxA >= PHYS_ENTITIES_MAX || idxB >= PHYS_ENTITIES_MAX || idxA == idxB ||
+        !std::isfinite(axisX) || !std::isfinite(axisZ) || (axisX == 0.0f && axisZ == 0.0f) ||
+        !std::isfinite(limitLow) || !std::isfinite(limitHigh) || limitHigh < limitLow) return UINT32_MAX;
     uint32_t id = m_ConstraintCount++;
     Constraint& c = m_Constraints[id];
     c.idxA=idxA; c.idxB=idxB; c.type=ConstraintType::Prismatic;
@@ -161,7 +167,8 @@ uint32_t XPBDPhysicsSystem::AddPrismaticJoint(uint32_t idxA, uint32_t idxB,
 void XPBDPhysicsSystem::RemoveConstraint(uint32_t id) { if (id < m_ConstraintCount) m_Constraints[id].active = false; }
 
 uint32_t XPBDPhysicsSystem::AddDistanceJoint(uint32_t a, uint32_t b, float minDist, float maxDist, float stiffness) {
-    if (m_ConstraintCount >= MAX_CONSTRAINTS || a == b || minDist < 0.0f || maxDist < minDist) return UINT32_MAX;
+    if (m_ConstraintCount >= MAX_CONSTRAINTS || a >= PHYS_ENTITIES_MAX || b >= PHYS_ENTITIES_MAX || a == b ||
+        !std::isfinite(minDist) || !std::isfinite(maxDist) || !std::isfinite(stiffness) || minDist < 0.0f || maxDist < minDist || stiffness < 0.0f) return UINT32_MAX;
     Constraint& constraint = m_Constraints[m_ConstraintCount];
     constraint = {};
     constraint.idxA = a; constraint.idxB = b; constraint.type = ConstraintType::Distance;
@@ -172,7 +179,8 @@ uint32_t XPBDPhysicsSystem::AddDistanceJoint(uint32_t a, uint32_t b, float minDi
 
 uint32_t XPBDPhysicsSystem::AddFixedJoint(uint32_t a, uint32_t b, float anchorAX, float anchorAZ,
                                           float anchorBX, float anchorBZ) {
-    if (m_ConstraintCount >= MAX_CONSTRAINTS || a == b) return UINT32_MAX;
+    if (m_ConstraintCount >= MAX_CONSTRAINTS || a >= PHYS_ENTITIES_MAX || b >= PHYS_ENTITIES_MAX || a == b ||
+        !std::isfinite(anchorAX) || !std::isfinite(anchorAZ) || !std::isfinite(anchorBX) || !std::isfinite(anchorBZ)) return UINT32_MAX;
     Constraint& constraint = m_Constraints[m_ConstraintCount];
     constraint = {};
     constraint.idxA = a; constraint.idxB = b; constraint.type = ConstraintType::Fixed;
