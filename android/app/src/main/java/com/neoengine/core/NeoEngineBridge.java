@@ -5,6 +5,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.os.Build;
 import android.util.Log;
+import org.json.JSONObject;
 
 public class NeoEngineBridge {
 
@@ -12,10 +13,6 @@ public class NeoEngineBridge {
     private WebView webView;
     private static final String TAG = "NeoEngineBridge";
 
-    static {
-        try { System.loadLibrary("neo_core"); }
-        catch (UnsatisfiedLinkError e) { Log.w(TAG, "Native lib not found: " + e.getMessage()); }
-    }
 
     public void init(Context ctx) {
         this.context = ctx;
