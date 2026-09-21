@@ -22,12 +22,20 @@ layout(location = 0) out vec3 outWorldPosition;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec2 outUV;
 
+uint ClampBoneIndex(uint index) {
+    return min(index, 63u);
+}
+
 void main() {
-    mat4 skin = mat4(0.0);
-    skin += skinning.bones[boneIndices.x] * boneWeights.x;
-    skin += skinning.bones[boneIndices.y] * boneWeights.y;
-    skin += skinning.bones[boneIndices.z] * boneWeights.z;
-    skin += skinning.bones[boneIndices.w] * boneWeights.w;
+    float weightSum = boneWeights.x + boneWeights.y + boneWeights.z + boneWeights.w;
+    mat4 skin = mat4(1.0);
+    if (weightSum > 0.000001) {
+        skin = mat4(0.0);
+        skin += skinning.bones[ClampBoneIndex(boneIndices.x)] * boneWeights.x;
+        skin += skinning.bones[ClampBoneIndex(boneIndices.y)] * boneWeights.y;
+        skin += skinning.bones[ClampBoneIndex(boneIndices.z)] * boneWeights.z;
+        skin += skinning.bones[ClampBoneIndex(boneIndices.w)] * boneWeights.w;
+    }
 
     mat4 instanceTransform = mat4(instanceM0, instanceM1, instanceM2, instanceM3);
     vec4 skinnedPosition = skin * vec4(inPosition, 1.0);
