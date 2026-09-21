@@ -66,6 +66,7 @@ bool VulkanRHI::Init(void* nativeWindow, int w, int h, const char* appName) {
 
 bool VulkanRHI::CreateSwapchainResources(uint32_t, uint32_t) {
     uint32_t count = 0; if (vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &count, nullptr) != VK_SUCCESS || count == 0) return false; m_SwapchainImages.resize(count); if (vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &count, m_SwapchainImages.data()) != VK_SUCCESS) return false;
+    if (count > 16U) return false;
     m_SwapchainViews.resize(count); m_Framebuffers.resize(count); for (uint32_t i = 0; i < count; ++i) { VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO}; view.image = m_SwapchainImages[i]; view.viewType = VK_IMAGE_VIEW_TYPE_2D; view.format = m_SwapchainFormat; view.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; view.subresourceRange.levelCount = 1; view.subresourceRange.layerCount = 1; if (vkCreateImageView(m_Device, &view, nullptr, &m_SwapchainViews[i]) != VK_SUCCESS) return false; }
     VkAttachmentDescription attachment{}; attachment.format = m_SwapchainFormat; attachment.samples = VK_SAMPLE_COUNT_1_BIT; attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     VkAttachmentReference color{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}; VkSubpassDescription subpass{}; subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS; subpass.colorAttachmentCount = 1; subpass.pColorAttachments = &color;
