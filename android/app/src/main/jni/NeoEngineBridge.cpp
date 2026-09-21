@@ -150,7 +150,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
 
 JNIEXPORT void JNICALL JNI_OnUnload(JavaVM*, void*) {
     NeoJNI::g_StreamingActive = false;
-    if (!NeoJNI::g_StreamingActive && NeoJNI::g_StreamingThread.joinable()) {
+    if (NeoJNI::g_StreamingThread.joinable()) {
         NeoJNI::g_StreamingThread.join();
     }
     NeoJNI::g_WorldGenerator.reset();
@@ -166,7 +166,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     JNIEnv* env, jclass, jint seed, jfloat sizeKm)
 {
-    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_Runtime == nullptr || NeoJNI::g_Runtime == nullptr || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_Runtime == nullptr || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
         NEO_LOGE("startWorldStreaming: invalid world size %.3f km", sizeKm);
         return;
     }
@@ -414,8 +414,8 @@ Java_com_neoengine_core_NeoEngineBridge_nativeRender(JNIEnv*, jclass) {
     if (receipt == nullptr) return;
     if (receipt->telemetry.entities > 1000000U || receipt->telemetry.drawCalls > 1000000U || receipt->telemetry.triangles > 100000000U) return;
     NeoJNI::g_Telemetry.entities = receipt->telemetry.entities > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.entities);
-    NeoJNI::g_Telemetry.drawCalls = NeoJNI::g_Telemetry.entities;
-    NeoJNI::g_Telemetry.triangles = NeoJNI::g_Telemetry.entities > std::numeric_limits<int>::max() / 12 ? std::numeric_limits<int>::max() : NeoJNI::g_Telemetry.entities * 12;
+    NeoJNI::g_Telemetry.drawCalls = receipt->telemetry.drawCalls > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.drawCalls);
+    NeoJNI::g_Telemetry.triangles = receipt->telemetry.triangles > static_cast<uint32_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(receipt->telemetry.triangles);
 }
 
 JNIEXPORT void JNICALL
