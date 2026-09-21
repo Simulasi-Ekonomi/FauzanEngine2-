@@ -47,71 +47,7 @@ case "${ARTIFACT,,}" in
   *.apk|*.aab) ;;
   *) echo "P4_RELEASE_CERTIFICATION_FAIL unsupported_artifact_extension" >&2; exit 3 ;;
 esac
-if [[ "$ARTIFACT" == *
-  echo "P4_RELEASE_CERTIFICATION_FAIL empty_artifact" >&2
-  exit 3
-fi
-
-bash tools/release_manifest.sh p4-release-manifest.sha256
-python3 tools/generate_source_sbom.py
-python3 tools/p4_release_gate.py
-python3 tools/p4_release_artifact_gate.py "$ARTIFACT"
-python3 tools/p4_release_artifact_gate.py "$REFERENCE_ARTIFACT"
-python3 tools/p4_reproducibility_gate.py "$ARTIFACT" "$REFERENCE_ARTIFACT"
-
-ARTIFACT_SHA256="$(sha256sum -- "$ARTIFACT" | awk '{print $1}')"
-REFERENCE_ARTIFACT_SHA256="$(sha256sum -- "$REFERENCE_ARTIFACT" | awk '{print $1}')"
-MANIFEST_SHA256="$(sha256sum -- p4-release-manifest.sha256 | awk '{print $1}')"
-SBOM_SHA256="$(sha256sum -- p4-source-sbom.json | awk '{print $1}')"
-PROVENANCE="p4-release-provenance.txt"
-{
-  printf 'FAUZANENGINE_RELEASE_PROVENANCE_V1\n'
-  printf 'commit=%s\n' "$(git rev-parse HEAD)"
-  printf 'tree=%s\n' "$(git rev-parse HEAD^{tree})"
-  printf 'artifact=%s\n' "$ARTIFACT"
-  printf 'artifact_sha256=%s\n' "$ARTIFACT_SHA256"
-  printf 'reference_artifact=%s\n' "$REFERENCE_ARTIFACT"
-  printf 'reference_artifact_sha256=%s\n' "$REFERENCE_ARTIFACT_SHA256"
-  printf 'manifest_sha256=%s\n' "$MANIFEST_SHA256"
-  printf 'sbom_sha256=%s\n' "$SBOM_SHA256"
-} > "$PROVENANCE"
-
-python3 tools/verify_release_provenance.py "$ARTIFACT"
-sha256sum -- "$ARTIFACT"
-printf 'P4_RELEASE_CERTIFICATION_OK artifact=%s commit=%s\n'   "$ARTIFACT" "$(git rev-parse HEAD)"
-\n'* || "$REFERENCE_ARTIFACT" == *
-  echo "P4_RELEASE_CERTIFICATION_FAIL empty_artifact" >&2
-  exit 3
-fi
-
-bash tools/release_manifest.sh p4-release-manifest.sha256
-python3 tools/generate_source_sbom.py
-python3 tools/p4_release_gate.py
-python3 tools/p4_release_artifact_gate.py "$ARTIFACT"
-python3 tools/p4_release_artifact_gate.py "$REFERENCE_ARTIFACT"
-python3 tools/p4_reproducibility_gate.py "$ARTIFACT" "$REFERENCE_ARTIFACT"
-
-ARTIFACT_SHA256="$(sha256sum -- "$ARTIFACT" | awk '{print $1}')"
-REFERENCE_ARTIFACT_SHA256="$(sha256sum -- "$REFERENCE_ARTIFACT" | awk '{print $1}')"
-MANIFEST_SHA256="$(sha256sum -- p4-release-manifest.sha256 | awk '{print $1}')"
-SBOM_SHA256="$(sha256sum -- p4-source-sbom.json | awk '{print $1}')"
-PROVENANCE="p4-release-provenance.txt"
-{
-  printf 'FAUZANENGINE_RELEASE_PROVENANCE_V1\n'
-  printf 'commit=%s\n' "$(git rev-parse HEAD)"
-  printf 'tree=%s\n' "$(git rev-parse HEAD^{tree})"
-  printf 'artifact=%s\n' "$ARTIFACT"
-  printf 'artifact_sha256=%s\n' "$ARTIFACT_SHA256"
-  printf 'reference_artifact=%s\n' "$REFERENCE_ARTIFACT"
-  printf 'reference_artifact_sha256=%s\n' "$REFERENCE_ARTIFACT_SHA256"
-  printf 'manifest_sha256=%s\n' "$MANIFEST_SHA256"
-  printf 'sbom_sha256=%s\n' "$SBOM_SHA256"
-} > "$PROVENANCE"
-
-python3 tools/verify_release_provenance.py "$ARTIFACT"
-sha256sum -- "$ARTIFACT"
-printf 'P4_RELEASE_CERTIFICATION_OK artifact=%s commit=%s\n'   "$ARTIFACT" "$(git rev-parse HEAD)"
-\n'* ]]; then
+if [[ "$ARTIFACT" == *$'\n'* || "$REFERENCE_ARTIFACT" == *$'\n'* ]]; then
   echo "P4_RELEASE_CERTIFICATION_FAIL invalid_artifact_path" >&2
   exit 3
 fi
