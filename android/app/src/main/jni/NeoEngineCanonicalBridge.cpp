@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <cstdint>
 
 #include "Runtime/AndroidLifecycleGate.h"
 #include "Runtime/SoftwareRenderer.h"
