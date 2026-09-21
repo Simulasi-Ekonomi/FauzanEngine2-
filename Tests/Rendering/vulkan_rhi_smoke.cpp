@@ -37,7 +37,7 @@ int main() {
 
     rhi.Shutdown();
     if (rhi.IsInitialized() || rhi.HasSwapchain() || rhi.GetDevice() != VK_NULL_HANDLE || rhi.IsFrameActive()) {
-        SDL_DestroyWindow(window); SDL_Quit(); return 7;
+        SDL_DestroyWindow(window); SDL_Quit(); return 9;
     }
     SDL_DestroyWindow(window);
     SDL_Quit();
