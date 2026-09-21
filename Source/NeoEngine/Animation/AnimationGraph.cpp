@@ -5,7 +5,7 @@
 #include <utility>
 namespace NeoEngine {
 bool AnimationGraph::AddNode(const AnimationNode& node) {
-    if (!node.update || nodes.size() >= kMaxNodes || updating_ || revision_ == std::numeric_limits<uint64_t>::max()) return false;
+    if (!node.update || nodes.size() >= kMaxNodes || updating_ || revision_ == std::numeric_limits<uint64_t>::max() || nodes.capacity() > kMaxNodes) return false;
     try {
         nodes.push_back(node);
     } catch (...) {
@@ -15,7 +15,7 @@ bool AnimationGraph::AddNode(const AnimationNode& node) {
     return true;
 }
 bool AnimationGraph::RemoveNode(std::size_t index) {
-    if (updating_ || index >= nodes.size() || revision_ == std::numeric_limits<uint64_t>::max()) return false;
+    if (updating_ || index >= nodes.size() || revision_ == std::numeric_limits<uint64_t>::max() || nodes.capacity() > kMaxNodes) return false;
     try {
         nodes.erase(nodes.begin() + static_cast<std::ptrdiff_t>(index));
     } catch (...) {
