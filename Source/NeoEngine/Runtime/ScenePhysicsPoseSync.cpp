@@ -8,7 +8,7 @@ bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity)
 }
 
 bool ScenePhysicsPoseSync::Bind(SceneEntity sceneEntity, EntityID physicsEntity, bool physicsAuthoritative) {
-    if (sceneEntity.index == 0xFFFFU) {
+    if (sceneEntity.index == 0xFFFFU || physicsEntity == 0U) {
         lastError_ = ScenePhysicsPoseSyncError::InvalidSceneEntity;
         return false;
     }
@@ -46,7 +46,7 @@ bool ScenePhysicsPoseSync::Unbind(SceneEntity sceneEntity) {
 bool ScenePhysicsPoseSync::Sync(const SceneWorld& world, ArchetypeManager& entities) {
     struct Candidate { EntityID physics = 0; float x = 0.0F; float z = 0.0F; };
     std::vector<Candidate> candidates;
-    candidates.reserve(bindings_.size());
+    try { candidates.reserve(bindings_.size()); } catch (...) { lastError_ = ScenePhysicsPoseSyncError::Capacity; return false; }
 
     for (const Binding& binding : bindings_) {
         if (binding.physicsAuthoritative) continue;
@@ -63,12 +63,11 @@ bool ScenePhysicsPoseSync::Sync(const SceneWorld& world, ArchetypeManager& entit
             lastError_ = ScenePhysicsPoseSyncError::MissingPhysicsPosition;
             return false;
         }
-        candidates.push_back({binding.physics, transform->x, transform->z});
+        try { candidates.push_back({binding.physics, transform->x, transform->z}); } catch (...) { lastError_ = ScenePhysicsPoseSyncError::Capacity; return false; }
     }
 
     for (const Candidate& pose : candidates) {
-        entities.SetPosX(pose.physics, pose.x);
-        entities.SetPosZ(pose.physics, pose.z);
+        if (!entities.SetPosX(pose.physics, pose.x) || !entities.SetPosZ(pose.physics, pose.z)) { lastError_ = ScenePhysicsPoseSyncError::InvalidTransform; return false; }
     }
     lastError_ = ScenePhysicsPoseSyncError::None;
     return true;
@@ -77,7 +76,7 @@ bool ScenePhysicsPoseSync::Sync(const SceneWorld& world, ArchetypeManager& entit
 bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& entities) {
     struct Candidate { SceneEntity scene{}; Transform3 transform{}; };
     std::vector<Candidate> candidates;
-    candidates.reserve(bindings_.size());
+    try { candidates.reserve(bindings_.size()); } catch (...) { lastError_ = ScenePhysicsPoseSyncError::Capacity; return false; }
 
     for (const Binding& binding : bindings_) {
         if (!binding.physicsAuthoritative) continue;
@@ -106,7 +105,7 @@ bool ScenePhysicsPoseSync::SyncFromPhysics(SceneWorld& world, ArchetypeManager& 
                     lastError_ = ScenePhysicsPoseSyncError::InvalidPhysicsPose;
                     return false;
                 }
-                candidates.push_back({binding.scene, next});
+                try { candidates.push_back({binding.scene, next}); } catch (...) { lastError_ = ScenePhysicsPoseSyncError::Capacity; return false; }
                 found = true;
                 break;
             }
