@@ -343,9 +343,9 @@ bool NeoRuntime::RenderFarm() {
     if (m_RenderedFarmFrames == std::numeric_limits<uint64_t>::max()) { m_LastError = RuntimeError::RenderFailed; return false; }
     if (m_FarmWorldConfig.worldWidth == 0U || m_FarmWorldConfig.worldHeight == 0U) { m_LastError = RuntimeError::WorldTickFailed; return false; }
     if (m_FarmRenderAssets != nullptr && (m_Assets == nullptr || m_Resources == nullptr)) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_SurfacePresenter != nullptr && (m_SurfacePresenter->Width() != m_RenderWidth || m_SurfacePresenter->Height() != m_RenderHeight)) { m_LastError = RuntimeError::PresentationFailed; return false; }
+    if (m_SurfacePresenter != nullptr && (m_SurfacePresenter->WindowWidth() != m_RenderWidth || m_SurfacePresenter->WindowHeight() != m_RenderHeight)) { m_LastError = RuntimeError::PresentationFailed; return false; }
     if (m_HasFarmRenderReceipt && m_LastFarmRenderReceipt.frame > m_RenderedFarmFrames) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_HasFarmRenderReceipt && m_LastFarmRenderReceipt.telemetry.entities > 1000000U) { m_LastError = RuntimeError::RenderFailed; return false; }
+    if (m_HasFarmRenderReceipt && static_cast<uint64_t>(m_LastFarmRenderReceipt.telemetry.tilledTiles) + m_LastFarmRenderReceipt.telemetry.growingTiles + m_LastFarmRenderReceipt.telemetry.harvestableTiles + m_LastFarmRenderReceipt.telemetry.animals > 1000000ULL) { m_LastError = RuntimeError::RenderFailed; return false; }
     SoftwareRenderer candidate = *m_Renderer;
     if ((m_FarmRenderAssets != nullptr && (m_FarmSpriteRenderer == nullptr || m_FarmSpriteTextures == nullptr || !m_FarmRenderAssets->Validate(*m_Assets, *m_Resources) || !m_FarmSpriteRenderer->RenderWorld(*m_Farm, *m_FarmWorld, m_FarmRenderAssets->AssetSet(), *m_Assets, *m_FarmSpriteTextures, candidate))) || (m_FarmRenderAssets == nullptr && !FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate))) { m_LastError = RuntimeError::RenderFailed; return false; }
     const uint64_t worldHash = candidate.FrameHash(); const FarmTelemetrySnapshot telemetry = m_Farm->Snapshot(); uint64_t hudHash = 0U;
