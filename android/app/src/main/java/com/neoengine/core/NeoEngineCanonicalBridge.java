@@ -27,6 +27,10 @@ public final class NeoEngineCanonicalBridge {
     public static boolean pause() { return invoke(2, 0.0f); }
     public static boolean tick(float deltaSeconds) { return invoke(3, deltaSeconds); }
     public static boolean shutdown() { return invoke(4, 0.0f); }
+    public static long renderFrame() {
+        if (!nativeAvailable) return 0L;
+        try { return nativeRenderFrame(); } catch (UnsatisfiedLinkError error) { nativeAvailable = false; Log.w(TAG, "Canonical native render call failed", error); return 0L; }
+    }
 
     public static boolean isNativeAvailable() { return nativeAvailable; }
 
@@ -54,4 +58,5 @@ public final class NeoEngineCanonicalBridge {
 
     private static native boolean nativeLifecycleEvent(int eventCode, float deltaSeconds);
     private static native String nativeCoreProfile();
+    private static native long nativeRenderFrame();
 }
