@@ -27,8 +27,13 @@ bool RufloIntegration::Initialize(ExecutionContextType ctx) {
     contextType = ctx;
     CURL* curl = curl_easy_init();
     if (!curl) { ready = false; return false; }
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:5000/health");
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 3L);
+    const CURLcode urlResult = curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:5000/health");
+    const CURLcode timeoutResult = curl_easy_setopt(curl, CURLOPT_TIMEOUT, 3L);
+    if (urlResult != CURLE_OK || timeoutResult != CURLE_OK) {
+        curl_easy_cleanup(curl);
+        ready = false;
+        return false;
+    }
     const CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
     ready = (res == CURLE_OK);
@@ -50,16 +55,34 @@ ExecutionResult RufloIntegration::ExecuteCode(const std::string& code, const std
     const std::string jsonBody = writer.write(body);
     std::string responseStr;
     struct curl_slist* headers = curl_slist_append(nullptr, "Content-Type: application/json");
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:5000/execute");
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonBody.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseStr);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, std::max(1, timeoutMs / 1000));
+    if (headers == nullptr) {
+        curl_easy_cleanup(curl);
+        return {1, "", "CURL header allocation failed", 0.0f, false};
+    }
+
+    const CURLcode urlResult = curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:5000/execute");
+    const CURLcode postResult = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonBody.c_str());
+    const CURLcode writeResult = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    const CURLcode dataResult = curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseStr);
+    const CURLcode headerResult = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    const long timeoutSeconds = std::max(1, timeoutMs / 1000);
+    const CURLcode timeoutResult = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeoutSeconds);
+    if (urlResult != CURLE_OK || postResult != CURLE_OK || writeResult != CURLE_OK ||
+        dataResult != CURLE_OK || headerResult != CURLE_OK || timeoutResult != CURLE_OK) {
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        return {1, "", "Ruflo CURL configuration failed", 0.0f, false};
+    }
+
     const CURLcode res = curl_easy_perform(curl);
+    long httpStatus = 0;
+    const CURLcode infoResult = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpStatus);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-    if (res != CURLE_OK || responseStr.empty() || responseStr.size() > 16U * 1024U * 1024U) return {1, "", "Ruflo request failed", 0.0f, false};
+    if (res != CURLE_OK || infoResult != CURLE_OK || httpStatus < 200L || httpStatus >= 300L ||
+        responseStr.empty() || responseStr.size() > 16U * 1024U * 1024U) {
+        return {1, "", "Ruflo request failed", 0.0f, false};
+    }
 
     Json::Value root;
     Json::Reader reader;
@@ -73,24 +96,26 @@ ExecutionResult RufloIntegration::ExecuteCode(const std::string& code, const std
     result.stderr = root["stderr"].asString();
     result.executionTime = root["executionTime"].asFloat();
     if (!std::isfinite(result.executionTime) || result.executionTime < 0.0f || result.executionTime > 86400.0f) return {1, "", "Invalid execution time", 0.0f, false};
-    if (result.stdout.size() > 16U * 1024U * 1024U || result.stderr.size() > 16U * 1024U * 1024U) return {1, "", "Ruflo output limit exceeded", 0.0f, false};
+    if (result.stdout.size() > 16U * 1024U * 1024U || result.stderr.size() > 16U * 1024U * 1024U ||
+        result.stdout.find('\0') != std::string::npos || result.stderr.find('\0') != std::string::npos) return {1, "", "Ruflo output limit exceeded", 0.0f, false};
     result.success = root["success"].asBool();
     return result;
 }
 
 ExecutionResult RufloIntegration::ExecuteWithEnvironment(const std::string& code, const std::string& lang,
                                                          const std::map<std::string, std::string>& env) {
-    if (code.find('\\0') != std::string::npos || lang.find('\\0') != std::string::npos) return {1, "", "Invalid code input", 0.0f, false};
+    if (code.find('\0') != std::string::npos || lang.find('\0') != std::string::npos) return {1, "", "Invalid code input", 0.0f, false};
     if (env.size() > 128U) return {1, "", "Environment limit exceeded", 0.0f, false};
     for (const auto& [key, value] : env) {
-        if (key.empty() || key.size() > 256U || value.size() > 4096U) return {1, "", "Invalid environment", 0.0f, false};
+        if (key.empty() || key.size() > 256U || value.size() > 4096U ||
+            key.find('\0') != std::string::npos || value.find('\0') != std::string::npos) return {1, "", "Invalid environment", 0.0f};
     }
     return ExecuteCode(code, lang);
 }
 
 bool RufloIntegration::ValidateCode(const std::string& code, const std::string& lang) {
     const auto languages = GetSupportedLanguages();
-    return ready && !code.empty() && code.size() <= 1024U * 1024U && code.find('\\0') == std::string::npos && lang.find('\\0') == std::string::npos &&
+    return ready && !code.empty() && code.size() <= 1024U * 1024U && code.find('\0') == std::string::npos && lang.find('\0') == std::string::npos &&
            std::find(languages.begin(), languages.end(), lang) != languages.end();
 }
 
