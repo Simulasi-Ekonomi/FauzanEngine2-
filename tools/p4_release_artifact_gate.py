@@ -27,8 +27,10 @@ def main() -> int:
     raw_path = str(args.artifact)
     if not raw_path.strip() or "\x00" in raw_path or "\n" in raw_path or "\r" in raw_path:
         raise SystemExit("P4_ARTIFACT_GATE_FAIL unsafe_artifact_path")
+    if args.artifact.is_symlink():
+        raise SystemExit("P4_ARTIFACT_GATE_FAIL symlink_artifact_path")
     artifact = args.artifact.resolve()
-    if not artifact.is_file() or artifact.is_symlink():
+    if not artifact.is_file():
         raise SystemExit(f"P4_ARTIFACT_GATE_FAIL missing_or_symlink={args.artifact}")
     if artifact.suffix.lower() not in {".apk", ".aab"}:
         raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_artifact_type")
@@ -60,6 +62,7 @@ def main() -> int:
                 info = archive.getinfo(required_entry)
                 if info.is_dir() or info.file_size == 0:
                     raise SystemExit(f"P4_ARTIFACT_GATE_FAIL invalid_required_entry={required_entry}")
+            total_uncompressed = 0
             for info in archive.infolist():
                 name = info.filename
                 if "\x00" in name or "\\" in name or name.startswith("/") or ".." in Path(name).parts or name.startswith("./"):
@@ -70,10 +73,15 @@ def main() -> int:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL unsupported_zip_flags")
                 if info.flag_bits & ((1 << 13) | (1 << 14) | (1 << 15)):
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL reserved_or_encrypted_zip_flags")
+                if len(name) > 1024:
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL zip_name_too_long")
                 if info.file_size > 256 * 1024 * 1024:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
                 if info.compress_size == 0 and info.file_size > 0:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_compression_size")
+                total_uncompressed += info.file_size
+                if total_uncompressed > 1024 * 1024 * 1024:
+                    raise SystemExit("P4_ARTIFACT_GATE_FAIL uncompressed_payload_too_large")
                 if info.compress_size > 0 and info.file_size / info.compress_size > 200.0:
                     raise SystemExit("P4_ARTIFACT_GATE_FAIL suspicious_compression_ratio")
                 # A release archive must never contain a POSIX symlink entry.
