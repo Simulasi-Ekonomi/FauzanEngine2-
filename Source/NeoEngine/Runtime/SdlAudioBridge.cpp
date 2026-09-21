@@ -181,6 +181,7 @@ void SdlAudioBridge::AudioCallback(void* userdata, SDL_AudioStream* stream, int 
     if (requestedBytes > static_cast<size_t>(std::numeric_limits<int>::max()) * 1024U) return;
     if (requestedBytes % bytesPerFrame != 0U && requestedBytes / bytesPerFrame >= bridge->callbackBufferFrames_) return;
     const size_t frames = requestedBytes / bytesPerFrame;
+    if (frames > callbackBufferFrames_) return;
     if (frames == 0) {
         return;
     }
