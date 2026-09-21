@@ -74,7 +74,7 @@ def main()->int:
                 previous_entry_end=data_end
                 if len(info.comment)>MAX_ENTRY_COMMENT: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_entry_comment")
                 if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0 or info.volume!=0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_volume")
-                if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
+                if info.file_size>MAX_ENTRY_SIZE or info.compress_size>MAX_ENTRY_SIZE or info.file_size<0 or info.compress_size<0 or info.header_offset + info.compress_size > artifact_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL oversized_zip_entry")
                 if info.compress_size==0 and info.file_size>0: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip_compression_size")
                 if total_uncompressed > MAX_TOTAL_UNCOMPRESSED - info.file_size: raise SystemExit("P4_ARTIFACT_GATE_FAIL uncompressed_payload_too_large")
                 total_uncompressed+=info.file_size
@@ -95,6 +95,7 @@ def main()->int:
     except zipfile.BadZipFile as exc: raise SystemExit("P4_ARTIFACT_GATE_FAIL invalid_zip") from exc
     if total_uncompressed == 0: raise SystemExit("P4_ARTIFACT_GATE_FAIL empty_uncompressed_archive")
     if artifact.suffix.lower()==".apk":
+        if artifact_size < 64U: raise SystemExit("P4_ARTIFACT_GATE_FAIL artifact_too_small_for_zip")
         apksigner=shutil.which("apksigner")
         if apksigner is None: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_tool=apksigner")
         run_checked([apksigner,"verify","--verbose","--print-certs",str(artifact)],"apk_signature")
@@ -103,6 +104,7 @@ def main()->int:
         jarsigner=shutil.which("jarsigner")
         if jarsigner is None: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_tool=jarsigner")
         run_checked([jarsigner,"-verify","-strict",str(artifact)],"aab_signature")
+        run_checked([jarsigner,"-verify","-strict","-certs",str(artifact)],"aab_certificate_verification")
     print(f"P4_ARTIFACT_GATE_OK artifact={artifact}")
     return 0
 if __name__=="__main__": sys.exit(main())
