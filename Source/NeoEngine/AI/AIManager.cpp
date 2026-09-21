@@ -70,12 +70,15 @@ void AIManager::Shutdown() {
 
 void AIManager::Update(float DeltaTime) {
     if (!initialized) return;
+    if (!IsReady()) { lastError = Error::BackendUnavailable; return; }
     if (!std::isfinite(DeltaTime) || !std::isfinite(timeAccumulator) || DeltaTime < 0.0f || DeltaTime > 0.25f) {
         lastError = Error::InvalidDeltaTime;
         return;
     }
+    if (DeltaTime > 0.25f) { lastError = Error::InvalidDeltaTime; return; }
     if (DeltaTime > 1.0e6f - timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
     if (!std::isfinite(timeAccumulator) || timeAccumulator > std::numeric_limits<float>::max() / 2.0f) { lastError = Error::InvalidDeltaTime; return; }
+    if (timeAccumulator < 0.0f || timeAccumulator >= 1.0f) { lastError = Error::InvalidDeltaTime; return; }
     const float nextAccumulator = timeAccumulator + DeltaTime;
     if (!std::isfinite(nextAccumulator) || nextAccumulator < timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
     timeAccumulator = nextAccumulator;
@@ -100,10 +103,12 @@ std::string AIManager::Think(const std::string& context) {
     if (!IsReady()) { lastError = Error::BackendUnavailable; return {}; }
     if (hermes && hermes->IsReady()) {
         const HermesResponse response = hermes->GenerateText(context);
+        if (response.text.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
         if (response.text.size() <= kMaxContext && !response.text.empty() && response.text.find('\0') == std::string::npos) return response.text;
     }
     if (gemma4 && gemma4->IsReady()) {
         const Gemma4Response response = gemma4->GenerateText(context);
+        if (response.generatedText.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
         if (response.generatedText.size() <= kMaxContext && !response.generatedText.empty() && response.generatedText.find('\0') == std::string::npos) return response.generatedText;
     }
     if (ruflo && ruflo->IsReady()) {
@@ -113,6 +118,7 @@ std::string AIManager::Think(const std::string& context) {
     }
     if (opencode && opencode->IsReady()) {
         const GeneratedCode response = opencode->GenerateFromDescription(context);
+        if (response.code.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
         if (!response.code.empty() && response.code.size() <= kMaxContext && response.code.find('\0') == std::string::npos) return response.code;
     }
     lastError = Error::BackendUnavailable;
