@@ -641,3 +641,17 @@
 - [x] T7-09 transform values remain finite.
 - [x] T7-10 prediction interpolation remains bounded.
 - [x] T7-11 transactional sequence commit remains deferred.
+
+
+## 2026-09-21 — Turn 8 — implementation/integration ledger
+- [x] T8-01 snapshot sequence terminal value rejected.
+- [x] T8-02 entity identity terminal value rejected.
+- [x] T8-03 applied receipt cannot exceed snapshot count.
+- [x] T8-04 wire size cannot exceed protocol maximum.
+- [x] T8-05 snapshot checksum requires bounded entity count.
+- [x] T8-06 decode input remains bounded.
+- [x] T8-07 snapshot count bounded by uint16 wire capacity.
+- [x] T8-08 entity ID remains inside protocol uint32 range.
+- [x] T8-09 serialized content remains bounded.
+- [x] T8-10 interpolation source/target transforms remain validated.
+- [x] T8-11 transactional sequence commit remains fail-closed.
