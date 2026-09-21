@@ -150,7 +150,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
 
 JNIEXPORT void JNICALL JNI_OnUnload(JavaVM*, void*) {
     NeoJNI::g_StreamingActive = false;
-    if (NeoJNI::g_StreamingThread.joinable()) {
+    if (!NeoJNI::g_StreamingActive && NeoJNI::g_StreamingThread.joinable()) {
         NeoJNI::g_StreamingThread.join();
     }
     NeoJNI::g_WorldGenerator.reset();
@@ -166,7 +166,7 @@ JNIEXPORT void JNICALL
 Java_com_neoengine_core_NeoEngineBridge_startWorldStreaming(
     JNIEnv* env, jclass, jint seed, jfloat sizeKm)
 {
-    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_Runtime == nullptr || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
+    if (!NeoJNI::g_Initialized || !NeoJNI::g_Running || NeoJNI::g_Runtime == nullptr || NeoJNI::g_Runtime == nullptr || NeoJNI::g_StreamingActive || !std::isfinite(sizeKm) || sizeKm <= 0.0f || sizeKm > 100000.0f) {
         NEO_LOGE("startWorldStreaming: invalid world size %.3f km", sizeKm);
         return;
     }
@@ -536,7 +536,7 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeGetSceneJSON(JNIEnv* env, jo
     std::lock_guard<std::mutex> lk(NeoJNI::g_Mutex);
 
     std::ostringstream ss;
-    if (NeoJNI::g_Actors.size() > 1000000U) return nullptr;
+    if (NeoJNI::g_Actors.size() > 1000000U || NeoJNI::g_ActorsByName.size() > NeoJNI::g_Actors.size()) return nullptr;
     ss.str("");
     ss.clear();
     ss << "{\"actors\":[";
@@ -549,7 +549,7 @@ Java_com_neoengine_core_NeoEngineBridgeNative_nativeGetSceneJSON(JNIEnv* env, jo
     ss << "],\"actorCount\":" << NeoJNI::g_Actors.size() << "}";
 
     const std::string json = ss.str();
-    if (json.size() > 16U * 1024U * 1024U) return nullptr;
+    if (json.empty() || json.size() > 16U * 1024U * 1024U) return nullptr;
     return env->NewStringUTF(json.c_str());
 }
 
