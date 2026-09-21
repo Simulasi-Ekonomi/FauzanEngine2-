@@ -29,7 +29,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                          const std::vector<uint8_t>& mipData,
                                          VkImage targetImage, VkImageLayout targetLayout,
                                          uint32_t width, uint32_t height) noexcept {
-    if (device == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
+    if (device == VK_NULL_HANDLE || device != lastDevice_ && lastDevice_ != VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
         mipData.empty() || targetImage == VK_NULL_HANDLE ||
         targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || width == 0U || height == 0U) return false;
 
@@ -67,6 +67,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
         vkFreeMemory(device, stagingMemory, nullptr);
         return false;
     }
+    if (currentStagingUsedMB_ > stagingPoolSizeMB_ - static_cast<uint32_t>(requestedMB64)) return false;
     currentStagingUsedMB_ += static_cast<uint32_t>(requestedMB64);
     return true;
 }
