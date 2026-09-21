@@ -26,6 +26,11 @@ for name in "${required[@]}"; do
   fi
 done
 
+if [[ ! -f "$NEO_ANDROID_KEYSTORE" || -L "$NEO_ANDROID_KEYSTORE" ]]; then
+  echo "P4_RELEASE_BUILD_FAIL invalid_signing_keystore=$NEO_ANDROID_KEYSTORE" >&2
+  exit 3
+fi
+
 "$GRADLEW" --no-daemon --stacktrace "$TASK"
 
 case "$TASK" in
