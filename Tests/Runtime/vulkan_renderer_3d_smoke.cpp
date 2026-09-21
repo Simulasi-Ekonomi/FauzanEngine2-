@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <algorithm>
 #include <iostream>
 #include <numeric>
 #include <vector>
@@ -64,6 +65,10 @@ int main() {
     std::vector<uint8_t> firstFrame;
     TEST_CHECK(renderer.ReadbackLastFrame(firstFrame), "First presented-frame readback failed");
     TEST_CHECK(firstFrame.size() == static_cast<size_t>(800U * 600U * 4U), "First readback size mismatch");
+    std::array<bool, 256> firstByteValues{};
+    for (uint8_t byte : firstFrame) firstByteValues[byte] = true;
+    const size_t firstUniqueBytes = static_cast<size_t>(std::count(firstByteValues.begin(), firstByteValues.end(), true));
+    TEST_CHECK(firstUniqueBytes > 4U, "First readback contains no rendered geometry signal");
     const uint64_t firstChecksum = std::accumulate(firstFrame.begin(), firstFrame.end(), uint64_t{0});
 
     const auto& stats = renderer.LastFrameStats();
