@@ -11,7 +11,7 @@ struct AudioListener { float position[3]{0,0,0}; float forward[3]{0,0,1}; float 
 struct SpatialVoiceParams { uint32_t id=0; std::vector<int16_t> mono; bool spatialized=false; float position[3]{0,0,0}; AudioAttenuation attenuation{}; uint16_t gainQ8=256; bool looping=false; float pitch=1.0f; };
 class AudioMixer {
 public:
- static constexpr size_t kMaxVoices=32,kMaxSamplesPerVoice=480000;
+ static constexpr size_t kMaxVoices=32,kMaxSamplesPerVoice=480000,kMaxMixFrames=48000;
  // The optional looping/pitch parameters are additive: existing callers retain the original API
  // behavior while components can request looping without forcing spatialization.
  bool Play(uint32_t id,std::vector<int16_t> mono,uint16_t gainQ8=256,bool looping=false,float pitch=1.0f);
