@@ -39,9 +39,10 @@ bool AnimationPlayer::Update(float dt) {
         return true;
     }
 
-    if (dt > 3600.0F - time_) return false;
+    if (dt > 86400.0F - time_) return false;
     const float nextTime = time_ + dt;
     if (!std::isfinite(nextTime) || nextTime < time_ || nextTime > 86400.0F) return false;
+    if (duration > 0.0F && nextTime > 86400.0F - std::numeric_limits<float>::epsilon()) { time_ = duration; playing_ = playbackMode_ == AnimationPlaybackMode::Loop; return true; }
     time_ = nextTime;
     if (playbackMode_ == AnimationPlaybackMode::Loop) {
         time_ = std::fmod(time_, duration);
