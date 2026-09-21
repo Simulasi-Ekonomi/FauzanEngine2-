@@ -585,3 +585,17 @@
 - [x] p4-release-certification-night T3-09: required manifest entries must be non-empty.
 - [x] p4-release-certification-night T3-10: ZIP local header/data extents bounded.
 - [x] p4-release-certification-night T3-11: APK/AAB signing verification required.
+
+
+## 2026-09-21 — Turn 4 — substantive implementation/integration ledger
+- [x] p4-release-certification-night T4-01: entry header offsets remain inside artifact.
+- [x] p4-release-certification-night T4-02: empty required entries are rejected even when compressed size is zero.
+- [x] p4-release-certification-night T4-03: entry sizes cannot individually exceed artifact size.
+- [x] p4-release-certification-night T4-04: ZIP timestamps are bounded to representable release range.
+- [x] p4-release-certification-night T4-05: reserved ZIP fields remain rejected.
+- [x] p4-release-certification-night T4-06: non-ASCII names require UTF-8 flag.
+- [x] p4-release-certification-night T4-07: directory size remains zero.
+- [x] p4-release-certification-night T4-08: directory compressed size remains zero.
+- [x] p4-release-certification-night T4-09: file entries cannot use directory suffix.
+- [x] p4-release-certification-night T4-10: encrypted ZIP entries remain rejected.
+- [x] p4-release-certification-night T4-11: release gate keeps artifact validation fail-closed.
