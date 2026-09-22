@@ -86,6 +86,16 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/NeoRuntime.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
+    Systems/FarmAuthorityCheckpointFile.cpp
+    Runtime/PhysicsAnimationLocomotionBridge.cpp
+    Runtime/AnimationLocomotionBridge.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
+    Runtime/AssetReloadDiagnostics.cpp
+    Runtime/AssetRefreshExecutor.cpp
+    Runtime/AssetRefreshDiagnostics.cpp
+    Runtime/AssetManifestSnapshot.cpp
+    Runtime/RendererCapability.cpp
+    Runtime/FarmRuntimeSaveCodec.cpp
     Runtime/RuntimeClock.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
