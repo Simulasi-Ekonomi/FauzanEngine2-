@@ -8,6 +8,9 @@ bool GameplayPhysicsQuery::Raycast(const XPBDPhysicsSystem& physics, const Gamep
     if (!std::isfinite(ray.originX) || !std::isfinite(ray.originZ) || !std::isfinite(ray.directionX) || !std::isfinite(ray.directionZ) || !std::isfinite(ray.maxDistance) || ray.maxDistance < 0.0F || ((ray.directionX * ray.directionX) + (ray.directionZ * ray.directionZ)) <= 1.0e-12F) { lastError_ = GameplayPhysicsQueryError::InvalidRay; return false; }
     if (ray.mask == COLLISION_LAYER_NONE) { lastError_ = GameplayPhysicsQueryError::InvalidMask; return false; }
     RayHit raw{}; if (!physics.Raycast(ray.originX, ray.originZ, ray.directionX, ray.directionZ, ray.maxDistance, raw, ray.mask)) { lastError_ = GameplayPhysicsQueryError::NoHit; return false; }
+    if (!std::isfinite(raw.distance) || raw.distance < 0.0F || raw.distance > ray.maxDistance || !std::isfinite(raw.normalX) || !std::isfinite(raw.normalZ)) { lastError_ = GameplayPhysicsQueryError::InvalidHit; return false; }
+    const float normalLengthSq = raw.normalX * raw.normalX + raw.normalZ * raw.normalZ;
+    if (!std::isfinite(normalLengthSq) || normalLengthSq <= 1.0e-12F) { lastError_ = GameplayPhysicsQueryError::InvalidHit; return false; }
     GameplayRayHit2 candidate{}; if (!physics.TryGetEntityId(raw.entityIdx, candidate.entity)) { lastError_ = GameplayPhysicsQueryError::EntityMappingFailed; return false; }
     candidate.distance = raw.distance; candidate.normalX = raw.normalX; candidate.normalZ = raw.normalZ; hit = candidate; lastError_ = GameplayPhysicsQueryError::None; return true;
 }
