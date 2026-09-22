@@ -14,6 +14,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace NeoEngine {
 
@@ -22,7 +23,8 @@ enum class CanonicalTransformAuthority : uint8_t { Scene, Physics };
 enum class CanonicalWorldError : uint8_t {
     None, Capacity, InvalidTransform, InvalidEntity, PhysicsCreationFailed,
     PhysicsSyncFailed, PhysicsStepFailed, PhysicsReadbackFailed,
-    RenderFailed, MeshBindingFailed
+    RenderFailed, MeshBindingFailed, QueryFailed, TransformAuthorityViolation,
+    TriggerUpdateFailed
 };
 
 struct CanonicalEntity {
@@ -69,6 +71,7 @@ public:
     bool WakePhysicsEntity(const CanonicalEntity& entity);
     bool SleepPhysicsEntity(const CanonicalEntity& entity);
     bool WakePhysicsEntities(const std::vector<CanonicalEntity>& entities);
+    [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
     bool RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
@@ -110,10 +113,10 @@ private:
     std::array<Binding, kMaxBindings> bindings_{};
     std::array<GameplayTriggerTracker, kMaxTriggers> triggers_{};
     std::array<bool, kMaxTriggers> triggerConfigured_{};
-    GameplayPhysicsQuery physicsQuery_{};
     uint16_t bindingCount_ = 0U;
     uint64_t frame_ = 0U;
     CanonicalFrameReceipt lastFrame_{};
+    GameplayPhysicsQuery physicsQuery_{};
     CanonicalWorldError lastError_ = CanonicalWorldError::None;
 };
 
