@@ -17,6 +17,11 @@ public:
     static size_t GetPeakAllocated();
     static size_t GetAllocationCount();
     static size_t GetLiveAllocationCount();
+
+private:
+    static size_t totalAllocated;
+    static size_t peakAllocated;
+    static size_t allocationCount;
 };
 
 }
