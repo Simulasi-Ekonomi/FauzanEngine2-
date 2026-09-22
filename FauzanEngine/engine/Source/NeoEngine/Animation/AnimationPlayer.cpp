@@ -1,4 +1,5 @@
 #include "AnimationPlayer.h"
+#include <cmath>
 #include <algorithm>
 namespace NeoEngine {
 void AnimationPlayer::Play(AnimationClip* clip){ currentClip=clip; time=0.0f; }
