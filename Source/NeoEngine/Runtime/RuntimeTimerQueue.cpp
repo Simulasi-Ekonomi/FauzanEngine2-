@@ -1,7 +1,6 @@
 #include "RuntimeTimerQueue.h"
 
 #include <cmath>
-#include <limits>
 
 namespace NeoEngine {
 bool RuntimeTimerQueue::Fail(RuntimeTimerError error) { lastError_ = error; return false; }
@@ -26,13 +25,11 @@ bool RuntimeTimerQueue::Advance(float delta, std::vector<RuntimeTimerFire>& fire
         }
 
         float remaining = nextRemaining;
-        if (!std::isfinite(remaining)) return Fail(RuntimeTimerError::InvalidDuration);
         uint32_t timerFires = 0;
         while (remaining <= 0.000001F) {
             ++timerFires;
-            if (timerFires > kMaxFiresPerAdvance || fireCount + timerFires > kMaxFiresPerAdvance || timer.fireCount > std::numeric_limits<uint64_t>::max() - timerFires) return Fail(timer.fireCount > std::numeric_limits<uint64_t>::max() - timerFires ? RuntimeTimerError::FireCountOverflow : RuntimeTimerError::FireCapacity);
+            if (timerFires > kMaxFiresPerAdvance || fireCount + timerFires > kMaxFiresPerAdvance) return Fail(RuntimeTimerError::FireCapacity);
             remaining += timer.interval;
-            if (!std::isfinite(remaining)) return Fail(RuntimeTimerError::InvalidDuration);
         }
         fireCount += timerFires;
     }
@@ -49,7 +46,6 @@ bool RuntimeTimerQueue::Advance(float delta, std::vector<RuntimeTimerFire>& fire
         if (!timer.active) continue;
         timer.remaining -= delta;
         while (timer.active && timer.remaining <= 0.000001F) {
-            if (timer.fireCount == std::numeric_limits<uint64_t>::max()) { lastError_ = RuntimeTimerError::FireCountOverflow; return false; }
             ++timer.fireCount;
             fires.push_back({{index, timer.generation}, timer.userTag, timer.fireCount});
             if (!timer.repeating) {
