@@ -1,6 +1,7 @@
 #include "ItemSerialTracker.h"
 #include <algorithm>
 #include <cstring>
+#include <memory>
 #include <mutex>
 
 namespace NeoEngine {
