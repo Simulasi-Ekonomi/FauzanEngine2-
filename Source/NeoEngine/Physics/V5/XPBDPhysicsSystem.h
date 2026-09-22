@@ -7,7 +7,6 @@
 #include <atomic>
 #include <cstdint>
 #include <unordered_map>
-#include <chrono>
 
 namespace NeoEngine {
 
@@ -100,7 +99,6 @@ struct StepTimingStats {
     double solveMs = 0.0;
     double mergeMs = 0.0;
     double writeBackMs = 0.0;
-    double totalMs = 0.0;
 };
 struct BVHNode { float minX, minZ, maxX, maxZ; float cachedCost; int left, right, parent; int entityIdx; bool isLeaf; };
 struct IslandRange { uint32_t start, count; };
@@ -153,9 +151,6 @@ public:
     void SetTimingEnabled(bool enabled) { m_TimingEnabled = enabled; }
     void SetProbeMetricsEnabled(bool enabled) { m_ProbeMetricsEnabled = enabled; }
     const StepTimingStats& GetStepTimingStats() const { return m_StepTimingStats; }
-    uint64_t GetLastStepElapsedMicroseconds() const { return m_LastStepElapsedMicroseconds; }
-    uint32_t GetLastStepBodyCount() const { return static_cast<uint32_t>(m_activeFlatEntities); }
-    uint32_t GetLastStepCollisionTests() const { return static_cast<uint32_t>(m_BroadphaseStats.candidatePairs); }
 
     uint32_t AddHingeJoint(uint32_t idxA, uint32_t idxB,
                            float anchorAX, float anchorAZ,
@@ -183,6 +178,9 @@ public:
     bool TryGetEntityId(uint32_t flatIdx, EntityID& entityId) const;
     void SetEntityLayer(uint32_t flatIdx, CollisionMask layer);
     CollisionMask GetEntityLayer(uint32_t flatIdx) const;
+    bool IsEntityAwake(EntityID entityId) const;
+    bool WakeEntity(EntityID entityId);
+    bool SleepEntity(EntityID entityId);
 
     uint32_t AddDistanceJoint(uint32_t a, uint32_t b, float minDist, float maxDist, float stiffness=1000.0f);
     uint32_t AddFixedJoint(uint32_t a, uint32_t b, float anchorAX, float anchorAZ, float anchorBX, float anchorBZ);
@@ -241,7 +239,6 @@ private:
     std::vector<uint64_t> m_PairKeys;
     size_t m_CurrentStamp = 1;
     uint32_t m_FrameCount = 0;
-    uint64_t m_LastStepElapsedMicroseconds = 0U;
 
     std::vector<IslandRange> m_IslandRanges;
     std::vector<uint32_t> m_IslandSizes;
