@@ -1,0 +1,45 @@
+name: P1 Unreal-like parity sandbox
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sandbox-p1-unreal-parity-validation
+
+permissions:
+  contents: read
+
+jobs:
+  p1-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ libvulkan-dev vulkan-tools glslang-tools libsdl3-dev libjsoncpp-dev rapidjson-dev
+
+      - name: Run P1 sandbox
+        run: |
+          chmod +x tools/p1_unreal_parity_sandbox.sh
+          tools/p1_unreal_parity_sandbox.sh
+
+      - name: Scan P1 changed code for stub/minimal/placeholder markers
+        run: |
+          mkdir -p Build/p1_unreal_parity/report
+          git diff --name-only origin/main...HEAD -- 'Source/NeoEngine' 'Tests' > Build/p1_unreal_parity/report/p1_changed_files.txt
+          if [[ -s Build/p1_unreal_parity/report/p1_changed_files.txt ]]; then
+            xargs -r grep -nEi 'TODO|FIXME|placeholder|not implemented|IMPLEMENT_ME|stub|dummy' < Build/p1_unreal_parity/report/p1_changed_files.txt > Build/p1_unreal_parity/report/p1_markers.txt || true
+          fi
+
+      - name: Upload sandbox evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-unreal-parity-sandbox
+          path: Build/p1_unreal_parity/sandbox-report/
+          if-no-files-found: warn
