@@ -23,14 +23,6 @@ int main() {
     invalid[15] = 1.0F;
     invalid[3] = __builtin_nanf("");
     if (skinning.UploadBones({invalid})) return 4;
-    auto invalid = SkinningGPU::BoneMatrix{};
-    invalid.fill(0.0F);
-    invalid[0] = 1.0F;
-    invalid[5] = 1.0F;
-    invalid[10] = 1.0F;
-    invalid[15] = 1.0F;
-    invalid[3] = __builtin_nanf("");
-    if (skinning.UploadBones({invalid})) return 4;
 
     std::vector<SkinningGPU::BoneMatrix> palette(2);
     for (auto& matrix : palette) {
