@@ -102,7 +102,7 @@ bool Skeleton::DeriveInverseBindPose()
     return true;
 }
 
-bool Skeleton::EvaluateSkinningPalette(const std::vector<Mat4>& localPose, std::vector<Mat4>& output)
+bool Skeleton::EvaluateSkinningPalette(const std::vector<Mat4>& localPose, std::vector<Mat4>& output) const
 {
     if (!inverseBindReady_) { lastError_ = SkeletonError::InverseBindUnavailable; return false; }
     if (localPose.size() != bones_.size()) { lastError_ = SkeletonError::PoseCountMismatch; return false; }
