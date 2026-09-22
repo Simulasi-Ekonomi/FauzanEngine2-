@@ -1,21 +1,9 @@
 #include "GLTFMeshBuilder.h"
-
+#include <rapidjson/document.h>
+#include <fstream>
+#include <cstring>
+#include <stdexcept>
 namespace NeoEngine {
-
-MeshData GLTFMeshBuilder::Load(const std::string& path)
-{
-    MeshData meshData{};
-    return meshData;
-}
-
-std::vector<GLTFMesh> GLTFMeshBuilder::BuildMeshes(const std::string& json)
-{
-    std::vector<GLTFMesh> result;
-
-    GLTFMesh mesh;
-    result.push_back(mesh);
-
-    return result;
-}
-
+MeshData GLTFMeshBuilder::Load(const std::string& path){std::ifstream in(path);if(!in.is_open())throw std::runtime_error("GLTFMeshBuilder: cannot open file");const std::string json((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());auto meshes=BuildMeshes(json);return meshes.empty()?MeshData{}:meshes.front().meshData;}
+std::vector<GLTFMesh> GLTFMeshBuilder::BuildMeshes(const std::string& json){std::vector<GLTFMesh> result;rapidjson::Document doc;doc.Parse(json.c_str());if(doc.HasParseError()||!doc.IsObject()||!doc.HasMember("meshes")||!doc["meshes"].IsArray())return result;for(const auto&m:doc["meshes"].GetArray()){if(!m.IsObject()||!m.HasMember("primitives")||!m["primitives"].IsArray())continue;for(const auto&p:m["primitives"].GetArray()){if(!p.IsObject()||!p.HasMember("attributes"))continue;const auto&a=p["attributes"];if(!a.IsObject()||!a.HasMember("POSITION")||!a["POSITION"].IsArray())continue;std::vector<float>pos,nrm,uv,idx;auto read=[&](const rapidjson::Value&v,std::vector<float>&o){if(!v.IsArray())return false;o.reserve(v.Size());for(const auto&x:v.GetArray()){if(!x.IsNumber())return false;o.push_back(x.GetFloat());}return true;};if(!read(a["POSITION"],pos)||pos.size()%3)continue;if(a.HasMember("NORMAL"))read(a["NORMAL"],nrm);if(a.HasMember("TEXCOORD_0"))read(a["TEXCOORD_0"],uv);if(p.HasMember("indices"))read(p["indices"],idx);GLTFMesh out;const size_t count=pos.size()/3;out.meshData.vertices.resize(count);for(size_t i=0;i<count;++i){std::memcpy(out.meshData.vertices[i].position,&pos[i*3],12);if(nrm.size()>=i*3+3)std::memcpy(out.meshData.vertices[i].normal,&nrm[i*3],12);if(uv.size()>=i*2+2)std::memcpy(out.meshData.vertices[i].uv,&uv[i*2],8);}if(idx.empty()){out.meshData.indices.resize(count);for(size_t i=0;i<count;++i)out.meshData.indices[i]=(unsigned int)i;}else for(float x:idx)if(x>=0)out.meshData.indices.push_back((unsigned int)x);result.push_back(std::move(out));}}return result;}
 }

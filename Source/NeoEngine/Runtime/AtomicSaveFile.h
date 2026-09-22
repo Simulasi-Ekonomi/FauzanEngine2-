@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class AtomicSaveFileError : uint8_t { None, InvalidSlot, PayloadLimit, CreateDirectory, OpenWrite, WriteFailure, RenameFailure, Missing, OpenRead, ReadFailure, BackupFailure, RestoreFailure };
+enum class AtomicSaveFileError : uint8_t { None, InvalidSlot, PayloadLimit, CreateDirectory, OpenWrite, WriteFailure, RenameFailure, Missing, OpenRead, ReadFailure, BackupFailure, RestoreFailure, UnsafePath };
 class AtomicSaveFile {
 public:
     static constexpr size_t kMaxBytes = 1024U * 1024U;

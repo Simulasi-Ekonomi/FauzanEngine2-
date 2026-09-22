@@ -5,6 +5,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.os.Build;
 import android.util.Log;
+import org.json.JSONObject;
 
 public class NeoEngineBridge {
 
@@ -30,9 +31,18 @@ public class NeoEngineBridge {
 
     @JavascriptInterface
     public String getDeviceInfo() {
-        return "{\"model\":\"" + Build.MODEL + "\",\"sdk\":" + Build.VERSION.SDK_INT + ",\"arch\":\"" + Build.SUPPORTED_ABIS[0] + "\"}";
+        try {
+            JSONObject info = new JSONObject();
+            info.put("model", Build.MODEL == null ? "" : Build.MODEL);
+            info.put("sdk", Build.VERSION.SDK_INT);
+            String[] abis = Build.SUPPORTED_ABIS;
+            info.put("arch", abis != null && abis.length > 0 && abis[0] != null ? abis[0] : "unknown");
+            return info.toString();
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to build device info", e);
+            return "{\"model\":\"\",\"sdk\":" + Build.VERSION.SDK_INT + ",\"arch\":\"unknown\"}";
+        }
     }
-
     @JavascriptInterface
     public void log(String message) { Log.d(TAG, message); }
 

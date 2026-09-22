@@ -1,5 +1,7 @@
 #include "AIManager.h"
-#include <iostream>
+#include <cmath>
+#include <cstdint>
+#include <limits>
 
 namespace NeoEngine {
 
@@ -8,59 +10,138 @@ AIManager& AIManager::Get() {
     return instance;
 }
 
-AIManager::AIManager() : initialized(false), timeAccumulator(0.0f) {}
-
-AIManager::~AIManager() {}
+AIManager::AIManager() : initialized(false), timeAccumulator(0.0f), lastError(Error::None) {}
+AIManager::~AIManager() { Shutdown(); }
 
 bool AIManager::Initialize() {
-    hermes = std::make_unique<HermesIntegration>();
-    gemma4 = std::make_unique<Gemma4Integration>();
-    ruflo = std::make_unique<RufloIntegration>();
-    opencode = std::make_unique<OpenCodeIntegration>();
+    if (initialized) { lastError = Error::AlreadyInitialized; return false; }
 
+    std::unique_ptr<HermesIntegration> newHermes;
+    std::unique_ptr<Gemma4Integration> newGemma4;
+    std::unique_ptr<RufloIntegration> newRuflo;
+    std::unique_ptr<OpenCodeIntegration> newOpenCode;
+    try {
+        newHermes = std::make_unique<HermesIntegration>();
+        newGemma4 = std::make_unique<Gemma4Integration>();
+        newRuflo = std::make_unique<RufloIntegration>();
+        newOpenCode = std::make_unique<OpenCodeIntegration>();
+    } catch (...) {
+        lastError = Error::InitializationFailed;
+        return false;
+    }
+    const bool hermesReady = newHermes->Initialize();
+    const bool gemmaReady = newGemma4->Initialize();
+    const bool rufloReady = newRuflo->Initialize();
+    const bool openCodeReady = newOpenCode->Initialize();
+    if (!hermesReady && !gemmaReady && !rufloReady && !openCodeReady) {
+        newHermes->Shutdown(); newGemma4->Shutdown(); newRuflo->Shutdown(); newOpenCode->Shutdown();
+        lastError = Error::InitializationFailed;
+        return false;
+    }
+    if ((hermesReady && !newHermes->IsReady()) || (gemmaReady && !newGemma4->IsReady()) ||
+        (rufloReady && !newRuflo->IsReady()) || (openCodeReady && !newOpenCode->IsReady())) {
+        newHermes->Shutdown(); newGemma4->Shutdown(); newRuflo->Shutdown(); newOpenCode->Shutdown();
+        lastError = Error::InitializationFailed;
+        return false;
+    }
+
+    hermes = std::move(newHermes);
+    gemma4 = std::move(newGemma4);
+    ruflo = std::move(newRuflo);
+    opencode = std::move(newOpenCode);
+    if (!((hermes && hermes->IsReady()) || (gemma4 && gemma4->IsReady()) ||
+          (ruflo && ruflo->IsReady()) || (opencode && opencode->IsReady()))) {
+        Shutdown();
+        lastError = Error::InitializationFailed;
+        return false;
+    }
     initialized = true;
-
-    std::cout << "[AI] Initialized\n";
+    timeAccumulator = 0.0f;
+    lastError = Error::None;
     return true;
 }
 
 void AIManager::Shutdown() {
+    if (hermes) hermes->Shutdown();
+    if (gemma4) gemma4->Shutdown();
+    if (ruflo) ruflo->Shutdown();
+    if (opencode) opencode->Shutdown();
     hermes.reset();
     gemma4.reset();
     ruflo.reset();
     opencode.reset();
-
     initialized = false;
+    timeAccumulator = 0.0f;
+    lastError = Error::None;
 }
 
 void AIManager::Update(float DeltaTime) {
     if (!initialized) return;
-
-    timeAccumulator += DeltaTime;
-
-    if (timeAccumulator > 1.0f) {
-        std::cout << "[AI] Tick\n";
-
-        std::string decision = Think("game_state");
-        std::cout << "Decision: " << decision << std::endl;
-
-        timeAccumulator = 0.0f;
+    if (!IsReady()) { lastError = Error::BackendUnavailable; return; }
+    if (!hermes && !gemma4 && !ruflo && !opencode) { lastError = Error::BackendUnavailable; return; }
+    if (!std::isfinite(DeltaTime) || !std::isfinite(timeAccumulator) || DeltaTime < 0.0f || DeltaTime > 0.25f) {
+        lastError = Error::InvalidDeltaTime;
+        return;
+    }
+    if (DeltaTime > 1.0e6f - timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
+    if (!std::isfinite(timeAccumulator) || timeAccumulator > std::numeric_limits<float>::max() / 2.0f) { lastError = Error::InvalidDeltaTime; return; }
+    if (timeAccumulator < 0.0f || timeAccumulator >= 1.0f) { lastError = Error::InvalidDeltaTime; return; }
+    const float nextAccumulator = timeAccumulator + DeltaTime;
+    if (!std::isfinite(nextAccumulator) || nextAccumulator < timeAccumulator) { lastError = Error::InvalidDeltaTime; return; }
+    timeAccumulator = nextAccumulator;
+    if (timeAccumulator < 1.0f) return;
+    timeAccumulator = std::fmod(timeAccumulator, 1.0f);
+    if (!std::isfinite(timeAccumulator) || timeAccumulator < 0.0f || timeAccumulator >= 1.0f) {
+        lastError = Error::InvalidDeltaTime;
+        return;
     }
 }
 
-bool AIManager::IsReady() const {
-    return initialized;
+bool AIManager::IsReady() const noexcept {
+    if (!initialized) return false;
+    return (hermes && hermes->IsReady()) || (gemma4 && gemma4->IsReady()) ||
+           (ruflo && ruflo->IsReady()) || (opencode && opencode->IsReady());
 }
 
 std::string AIManager::Think(const std::string& context) {
-    if (hermes) {
-        return "AI thinking on: " + context;
+    constexpr std::size_t kMaxContext = 16U * 1024U * 1024U;
+    if (context.size() > kMaxContext || context.size() == std::string::npos || context.capacity() < context.size() || context.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
+    if (context.empty()) { lastError = Error::InvalidContext; return {}; }
+    if (!IsReady()) { lastError = Error::BackendUnavailable; return {}; }
+    if (hermes && hermes->IsReady()) {
+        const HermesResponse response = hermes->GenerateText(context);
+        if (response.text.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
+        if (response.text.size() <= kMaxContext && response.text.capacity() >= response.text.size() && !response.text.empty() && response.text.find('\0') == std::string::npos) return response.text;
     }
-    return "No AI";
+    if (gemma4 && gemma4->IsReady()) {
+        const Gemma4Response response = gemma4->GenerateText(context);
+        if (response.generatedText.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
+        if (response.generatedText.size() <= kMaxContext && !response.generatedText.empty() && response.generatedText.find('\0') == std::string::npos) return response.generatedText;
+    }
+    if (ruflo && ruflo->IsReady()) {
+        const ExecutionResult response = ruflo->ExecuteCode(context, "text");
+        if (response.success && response.stdout.size() <= kMaxContext && response.stdout.capacity() >= response.stdout.size() && !response.stdout.empty() && response.stdout.find('\0') == std::string::npos &&
+            std::isfinite(response.executionTime) && response.executionTime >= 0.0f && response.executionTime <= 86400.0f) return response.stdout;
+    }
+    if (opencode && opencode->IsReady()) {
+        const GeneratedCode response = opencode->GenerateFromDescription(context);
+        if (response.code.size() == std::string::npos) { lastError = Error::InvalidContext; return {}; }
+        if (!response.code.empty() && response.code.size() <= kMaxContext && response.code.capacity() >= response.code.size() && response.code.find('\0') == std::string::npos) return response.code;
+    }
+    lastError = Error::BackendUnavailable;
+    return {};
 }
 
 std::string AIManager::PlanAction(const std::string& state) {
-    return "Action for: " + state;
+    constexpr std::size_t kMaxContext = 16U * 1024U * 1024U;
+    if (state.size() > kMaxContext || state.size() == std::string::npos || state.capacity() < state.size() || state.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
+    if (state.empty()) { lastError = Error::InvalidContext; return {}; }
+    constexpr std::size_t kPrefixSize = sizeof("Plan an action for the following game state:\n") - 1U;
+    if (state.size() > kMaxContext - kPrefixSize) { lastError = Error::InvalidContext; return {}; }
+    const std::string prompt = "Plan an action for the following game state:\n" + state;
+    if (prompt.capacity() > kMaxContext) { lastError = Error::InvalidContext; return {}; }
+    if (prompt.size() > kMaxContext || prompt.capacity() < prompt.size() || prompt.find('\0') != std::string::npos) { lastError = Error::InvalidContext; return {}; }
+    return Think(prompt);
 }
 
 }

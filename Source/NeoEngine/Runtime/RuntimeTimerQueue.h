@@ -6,8 +6,8 @@
 namespace NeoEngine {
 
 struct RuntimeTimerHandle { uint16_t index = UINT16_MAX; uint16_t generation = 0; friend bool operator==(const RuntimeTimerHandle&, const RuntimeTimerHandle&) = default; };
-struct RuntimeTimerFire { RuntimeTimerHandle handle{}; uint32_t userTag = 0; uint32_t fireCount = 0; };
-enum class RuntimeTimerError : uint8_t { None, InvalidDuration, Capacity, InvalidHandle, AlreadyCancelled, FireCapacity };
+struct RuntimeTimerFire { RuntimeTimerHandle handle{}; uint32_t userTag = 0; uint64_t fireCount = 0; };
+enum class RuntimeTimerError : uint8_t { None, InvalidDuration, Capacity, InvalidHandle, AlreadyCancelled, FireCapacity, FireCountOverflow };
 
 class RuntimeTimerQueue {
 public:

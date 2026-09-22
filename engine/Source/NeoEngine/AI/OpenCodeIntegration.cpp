@@ -2,6 +2,8 @@
 #include <curl/curl.h>
 #include <json/json.h>
 #include <android/log.h>
+#include <algorithm>
+#include <cmath>
 
 #define LOG_TAG "OpenCodeIntegration"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -10,6 +12,7 @@ namespace NeoEngine {
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
     size_t totalSize = size * nmemb;
+    if (output == nullptr || contents == nullptr || totalSize > 4U * 1024U * 1024U || output->size() > 4U * 1024U * 1024U - totalSize) return 0;
     output->append(static_cast<char*>(contents), totalSize);
     return totalSize;
 }
@@ -18,6 +21,7 @@ OpenCodeIntegration::OpenCodeIntegration() : ready(false), generatorHandle(nullp
 OpenCodeIntegration::~OpenCodeIntegration() { Shutdown(); }
 
 bool OpenCodeIntegration::Initialize() {
+    if (ready) return true;
     CURL* curl = curl_easy_init();
     if (!curl) { ready = false; return false; }
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:5000/health");
@@ -25,14 +29,15 @@ bool OpenCodeIntegration::Initialize() {
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
     ready = (res == CURLE_OK);
-    LOGI("OpenCode integration %s", ready ? "connected to Ruflo" : "using local generation");
-    return true;
+    LOGI("OpenCode integration %s", ready ? "connected to Ruflo" : "unavailable");
+    return ready;
 }
 
 void OpenCodeIntegration::Shutdown() { ready = false; }
 
 GeneratedCode OpenCodeIntegration::GenerateFromDescription(const std::string& desc) {
     GeneratedCode gc;
+    if (desc.empty() || desc.size() > 64U * 1024U || desc.find('\0') != std::string::npos) return gc;
     if (!ready) {
         // Fallback: generate template code locally
         gc.language = "cpp";
@@ -64,7 +69,8 @@ GeneratedCode OpenCodeIntegration::GenerateFromDescription(const std::string& de
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     gc.language = "cpp";
-    gc.code = res == CURLE_OK ? responseStr : "// Failed to generate code\n";
+    gc.code = res == CURLE_OK ? responseStr : "";
+    if (gc.code.size() > 4U * 1024U * 1024U || gc.code.find('\0') != std::string::npos) gc.code.clear();
     gc.description = desc;
     gc.complexity = 5;
     return gc;
@@ -88,7 +94,9 @@ std::vector<std::string> OpenCodeIntegration::GetSupportedLanguages() const {
 }
 
 bool OpenCodeIntegration::ValidateCode(const GeneratedCode& code) {
-    return !code.code.empty() && code.code.length() > 10;
+    if (code.language.empty() || code.language.size() > 32U || code.code.empty() || code.code.size() > 4U * 1024U * 1024U) return false;
+    if (code.code.find('\0') != std::string::npos || code.description.size() > 64U * 1024U) return false;
+    return code.code.length() > 10;
 }
 
 bool OpenCodeIntegration::IsReady() const { return ready; }

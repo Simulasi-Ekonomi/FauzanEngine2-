@@ -86,6 +86,16 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/NeoRuntime.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
+    Systems/FarmAuthorityCheckpointFile.cpp
+    Runtime/PhysicsAnimationLocomotionBridge.cpp
+    Runtime/AnimationLocomotionBridge.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
+    Runtime/AssetReloadDiagnostics.cpp
+    Runtime/AssetRefreshExecutor.cpp
+    Runtime/AssetRefreshDiagnostics.cpp
+    Runtime/AssetManifestSnapshot.cpp
+    Runtime/RendererCapability.cpp
+    Runtime/FarmRuntimeSaveCodec.cpp
     Runtime/RuntimeClock.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
@@ -160,6 +170,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
     Systems/FarmCommerceCheckpointFile.cpp
+    Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmWorldTool.cpp
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
@@ -170,6 +181,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/AgricultureCurriculum.cpp
     Systems/AuthoringCatalog.cpp
     Systems/FarmSystem.cpp
+    Systems/FarmTelemetryAdapter.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
     Templates/RpgSandboxGame.cpp
@@ -205,11 +217,38 @@ function(add_xpbd_executable target_name source_file)
     target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
 endfunction()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/atomic_save_file_smoke.cpp")
+    add_xpbd_executable(atomic_save_file_smoke ../../Tests/Runtime/atomic_save_file_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_persistence_smoke.cpp")
+    add_xpbd_executable(runtime_persistence_smoke ../../Tests/Runtime/runtime_persistence_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_checkpoint_smoke.cpp")
+    add_xpbd_executable(neo_runtime_checkpoint_smoke ../../Tests/Runtime/neo_runtime_checkpoint_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint_file_smoke.cpp")
+    add_xpbd_executable(farm_commerce_checkpoint_file_smoke ../../Tests/Farm/farm_commerce_checkpoint_file_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_telemetry_smoke.cpp")
+    add_xpbd_executable(farm_telemetry_smoke ../../Tests/Farm/farm_telemetry_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Systems/authoritative_command_gate_smoke.cpp")
+    add_xpbd_executable(authoritative_command_gate_smoke ../../Tests/Systems/authoritative_command_gate_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Systems/trust_safety_smoke.cpp")
+    add_xpbd_executable(trust_safety_smoke ../../Tests/Systems/trust_safety_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
     add_xpbd_executable(canonical_runtime_world_smoke ../../Tests/Runtime/canonical_runtime_world_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp")
     add_xpbd_executable(neo_runtime_ecs_integration_smoke ../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_clock_overrun_smoke.cpp")
+    add_xpbd_executable(runtime_clock_overrun_smoke ../../Tests/Runtime/runtime_clock_overrun_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/event_signal_reentrancy_smoke.cpp")
+    add_xpbd_executable(event_signal_reentrancy_smoke ../../Tests/Runtime/event_signal_reentrancy_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_frame_contract_smoke.cpp")
     add_xpbd_executable(runtime_frame_contract_smoke ../../Tests/Runtime/runtime_frame_contract_smoke.cpp)
@@ -294,11 +333,18 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/vulkan_rhi_smoke.cpp")
+    add_xpbd_executable(vulkan_rhi_smoke ../../Tests/Rendering/vulkan_rhi_smoke.cpp)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_canonical_game_tool_smoke.cpp")
     add_xpbd_executable(farm_canonical_game_tool_smoke ../../Tests/Farm/farm_canonical_game_tool_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp")
     add_xpbd_executable(neo_runtime_farm_vertical_slice_smoke ../../Tests/Runtime/neo_runtime_farm_vertical_slice_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp")
+    add_xpbd_executable(neo_runtime_farm_progress_file_smoke ../../Tests/Runtime/neo_runtime_farm_progress_file_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp")
     add_xpbd_executable(farm_authoritative_session_loopback_smoke ../../Tests/Farm/farm_authoritative_session_loopback_smoke.cpp)
@@ -314,6 +360,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_commerce_checkpoint
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_authoritative_service_smoke.cpp")
     add_xpbd_executable(farm_authoritative_service_smoke ../../Tests/Farm/farm_authoritative_service_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_balance_profile_smoke.cpp")
+    add_xpbd_executable(farm_balance_profile_smoke ../../Tests/Farm/farm_balance_profile_smoke.cpp)
 endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
