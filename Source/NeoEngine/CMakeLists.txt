@@ -93,6 +93,9 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUBuffer.cpp
+    Runtime/VulkanDescriptorManager.cpp
+    Animation/SkinningGPU.cpp
+    Rendering/RHI/Vulkan/VulkanRHI.cpp
     Runtime/VulkanGraphicsPipeline.cpp
     Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/Vulkan3DRenderer.cpp
@@ -261,6 +264,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_graph_smoke
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gpu_skinning_palette_buffer_smoke.cpp")
     add_xpbd_executable(gpu_skinning_palette_buffer_smoke ../../Tests/Runtime/gpu_skinning_palette_buffer_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/skinning_gpu_smoke.cpp")
+    add_xpbd_executable(skinning_gpu_smoke ../../Tests/Runtime/skinning_gpu_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
