@@ -69,16 +69,21 @@ bool AtomicSaveFile::Write(const std::filesystem::path& root, std::string_view s
         return false;
     }
     std::error_code ec;
-    if (std::filesystem::is_symlink(root, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::is_symlink(root, ec)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
     std::filesystem::create_directories(root, ec);
     if (ec) {
         error = AtomicSaveFileError::CreateDirectory;
         return false;
     }
     const std::filesystem::path finalPath = root / (std::string(slot) + ".sav");
-    if (std::filesystem::is_symlink(finalPath, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::is_symlink(finalPath, ec)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
     const std::filesystem::path tempPath = MakeTempPath(root, slot, "");
-    if (std::filesystem::exists(tempPath, ec) || std::filesystem::is_symlink(tempPath, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::exists(tempPath, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
+    if (std::filesystem::is_symlink(tempPath, ec)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
     if (!WritePath(tempPath, bytes)) {
         std::filesystem::remove(tempPath, ec);
         error = AtomicSaveFileError::WriteFailure;
@@ -119,13 +124,17 @@ bool AtomicSaveFile::Read(const std::filesystem::path& root, std::string_view sl
     }
     const std::filesystem::path path = root / (std::string(slot) + ".sav");
     std::error_code ec;
-    if (std::filesystem::is_symlink(root, ec) || ec || std::filesystem::is_symlink(path, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::is_symlink(root, ec)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
+    if (std::filesystem::is_symlink(path, ec)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
     return ReadPath(path, bytes, error);
 }
 
 bool AtomicSaveFile::Backup(const std::filesystem::path& root, std::string_view slot, AtomicSaveFileError& error) {
     std::error_code rootEc;
-    if (std::filesystem::is_symlink(root, rootEc) || rootEc) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::is_symlink(root, rootEc)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    rootEc.clear();
     if (!ValidSlot(slot)) {
         error = AtomicSaveFileError::InvalidSlot;
         return false;
@@ -134,16 +143,21 @@ bool AtomicSaveFile::Backup(const std::filesystem::path& root, std::string_view 
     AtomicSaveFileError readError = AtomicSaveFileError::None;
     const std::filesystem::path sourcePath = root / (std::string(slot) + ".sav");
     std::error_code sourceEc;
-    if (std::filesystem::is_symlink(sourcePath, sourceEc) || sourceEc) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::is_symlink(sourcePath, sourceEc)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    sourceEc.clear();
     if (!ReadPath(sourcePath, bytes, readError)) {
         error = AtomicSaveFileError::BackupFailure;
         return false;
     }
     std::error_code ec;
     const std::filesystem::path tempPath = MakeTempPath(root, slot, ".bak");
-    if (std::filesystem::exists(tempPath, ec) || std::filesystem::is_symlink(tempPath, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::exists(tempPath, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
+    if (std::filesystem::is_symlink(tempPath, ec)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
     const std::filesystem::path backupPath = root / (std::string(slot) + ".bak");
-    if (std::filesystem::is_symlink(backupPath, ec) || ec) { error = AtomicSaveFileError::UnsafePath; return false; }
+    if (std::filesystem::is_symlink(backupPath, ec)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    ec.clear();
     if (!WritePath(tempPath, bytes)) {
         std::filesystem::remove(tempPath, ec);
         error = AtomicSaveFileError::BackupFailure;
