@@ -1,5 +1,4 @@
 #include "NeoRuntime.h"
-#include "RuntimeContractGuard.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
@@ -42,13 +41,12 @@ bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uin
 } // namespace
 
 bool NeoRuntime::Initialize(const RuntimeConfig& config) {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFixedTicks(config.fixedTicksPerFrame) || !RuntimeContractGuard::RuntimeContractGuard::ValidWorldExtent(config.farmWidth, config.farmHeight) || !RuntimeContractGuard::RuntimeContractGuard::ValidWorldExtent(config.authoringWorldSide, config.authoringWorldSide) || !RuntimeContractGuard::RuntimeContractGuard::ValidWorldExtent(config.routeMotionNavigationSide, config.routeMotionNavigationSide) || !RuntimeContractGuard::RuntimeContractGuard::ValidInitialCoins(config.initialCoins) || !RuntimeContractGuard::RuntimeContractGuard::ValidNpcCount(config.farmNpcCount, FarmWorldTool::kMaxNpcs) || !RuntimeContractGuard::RuntimeContractGuard::ValidRenderExtent(config.renderWidth, config.renderHeight) || !RuntimeContractGuard::RuntimeContractGuard::ValidTimeScale(static_cast<float>(config.timeConfig.defaultTimeScalePermille) / 1000.0F) || !RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(static_cast<size_t>(config.renderWidth) * static_cast<size_t>(config.renderHeight) * sizeof(uint32_t), 16U * 1024U * 1024U) || m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
+    if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
         m_LastError = RuntimeError::InvalidConfiguration;
         m_State = RuntimeState::Failed;
         return false;
     }
     auto farm = std::make_unique<FarmSystem>(config.farmWidth, config.farmHeight, config.initialCoins, config.farmBalance);
-    if (config.farmWidth == 0U || config.farmHeight == 0U || config.authoringWorldSide == 0U || config.routeMotionNavigationSide == 0U) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     if (!farm->IsReady()) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto trustSafety = std::make_unique<TrustSafetySystem>();
     farm->SetTrustSafety(trustSafety.get(), "runtime-farm-player");
@@ -206,12 +204,11 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
 }
 
 bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle) {
-    sessionHandle = 0U;
-    if (m_State != RuntimeState::Initialized || !m_Clock || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
-    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle) || sessionHandle == 0U) {
+    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle)) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
@@ -227,7 +224,6 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
         return false;
     }
     const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(serverTick)) { m_LastError = RuntimeError::TimeFailed; return false; }
     if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
@@ -237,33 +233,10 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
 }
 
 bool NeoRuntime::Tick() {
-    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(m_Clock->Snapshot().fixedStepCount)) { m_LastError = RuntimeError::TimeFailed; return false; }
-    const float tickDelta = 1.0F / 60.0F;
-    if (!std::isfinite(tickDelta) || tickDelta <= 0.0F) { m_LastError = RuntimeError::TimeFailed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidElapsedDelta(tickDelta) || !m_Clock->Advance(tickDelta)) { m_LastError = RuntimeError::TimeFailed; return false; }
-    const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
-    if (!std::isfinite(contractSnapshot.scaledDeltaSeconds) || contractSnapshot.scaledDeltaSeconds < 0.0F || contractSnapshot.scaledDeltaSeconds > 60.0F) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (!std::isfinite(contractSnapshot.unscaledDeltaSeconds) || contractSnapshot.unscaledDeltaSeconds < 0.0F || contractSnapshot.unscaledDeltaSeconds > 60.0F) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (m_FixedTicksPerFrame == 0U || m_FixedTicksPerFrame > 1000U) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (contractSnapshot.frameCount == std::numeric_limits<uint64_t>::max()) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (contractSnapshot.fixedStepCount == std::numeric_limits<uint64_t>::max()) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (contractSnapshot.pendingFixedSteps > 1000U) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (m_Events->PendingCount() > EventSignalBus::kMaxEvents) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
-    if (m_Assets->Summary().assetCount > (1U << 20U)) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
-    if (m_Resources->ActiveResourceCount() > (1U << 20U)) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
-    if (m_FarmWorldConfig.worldWidth == 0U || m_FarmWorldConfig.worldHeight == 0U) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
-    if (m_State != RuntimeState::Initialized) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (contractSnapshot.frameCount == 0U || !RuntimeContractGuard::RuntimeContractGuard::ValidRevisionTransition(contractSnapshot.frameCount - 1U, contractSnapshot.frameCount)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (m_InputMotion != nullptr && !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InputMotionFailed; return false; }
-    if (m_RouteFollower != nullptr && !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_RouteMotionEntity_.index)) { m_LastError = RuntimeError::RouteMotionFailed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidWorldExtent(m_FarmWorldConfig.worldWidth, m_FarmWorldConfig.worldHeight)) { m_LastError = RuntimeError::WorldTickFailed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidResourceCount(m_Assets->Summary().assetCount, 1U << 20U) || !RuntimeContractGuard::RuntimeContractGuard::ValidResourceCount(m_Resources->ActiveResourceCount(), 1U << 20U)) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(static_cast<size_t>(contractSnapshot.pendingFixedSteps), 1000U)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     std::vector<RuntimeTimerFire> fires;
-    if (!m_Timers->Advance(contractSnapshot.scaledDeltaSeconds, fires) || !RuntimeContractGuard::RuntimeContractGuard::ValidTimerCount(fires.size(), EventSignalBus::kMaxEvents)) { m_LastError = RuntimeError::InvalidState; return false; }
-    for (const RuntimeTimerFire& fire : fires) if (fire.fireCount == 0U || !RuntimeContractGuard::RuntimeContractGuard::ValidEventCount(fire.fireCount, EventSignalBus::kMaxEvents) || !m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), contractSnapshot.fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
+    for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_Input != nullptr) m_Input->BeginFrame();
     std::vector<RuntimeTimeEvent> timeEvents;
     uint32_t simulatedTicks = 0U;
@@ -275,7 +248,6 @@ bool NeoRuntime::Tick() {
     }
     if (m_Clock->Snapshot().paused || simulatedTicks == 0U) {
         const uint32_t eventCount = m_Events->PendingCount();
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidEventCount(eventCount, EventSignalBus::kMaxEvents) || !RuntimeContractGuard::RuntimeContractGuard::ValidReceiptFrame(m_Clock->Snapshot().frameCount)) { m_LastError = RuntimeError::InvalidState; m_State = RuntimeState::Failed; return false; }
         EventSignalDispatchReceipt dispatchReceipt{};
         CurriculumProgressReceipt curriculumReceipt{};
         if (m_Curriculum != nullptr && !m_Curriculum->Snapshot(curriculumReceipt)) { m_LastError = RuntimeError::CurriculumFailed; return false; }
@@ -336,16 +308,6 @@ bool NeoRuntime::BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet) {
 
 bool NeoRuntime::RenderFarm() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Renderer) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (m_Renderer->Width() != m_RenderWidth || m_Renderer->Height() != m_RenderHeight) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_RenderWidth == 0U || m_RenderHeight == 0U) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_RenderWidth > 8192U || m_RenderHeight > 8192U) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (static_cast<uint64_t>(m_RenderWidth) * static_cast<uint64_t>(m_RenderHeight) > 67108864ULL) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_RenderedFarmFrames == std::numeric_limits<uint64_t>::max()) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_FarmWorldConfig.worldWidth == 0U || m_FarmWorldConfig.worldHeight == 0U) { m_LastError = RuntimeError::WorldTickFailed; return false; }
-    if (m_FarmRenderAssets != nullptr && (m_Assets == nullptr || m_Resources == nullptr)) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_SurfacePresenter != nullptr && (m_SurfacePresenter->WindowWidth() != m_RenderWidth || m_SurfacePresenter->WindowHeight() != m_RenderHeight)) { m_LastError = RuntimeError::PresentationFailed; return false; }
-    if (m_HasFarmRenderReceipt && m_LastFarmRenderReceipt.frame > m_RenderedFarmFrames) { m_LastError = RuntimeError::RenderFailed; return false; }
-    if (m_HasFarmRenderReceipt && static_cast<uint64_t>(m_LastFarmRenderReceipt.telemetry.tilledTiles) + m_LastFarmRenderReceipt.telemetry.growingTiles + m_LastFarmRenderReceipt.telemetry.harvestableTiles + m_LastFarmRenderReceipt.telemetry.animals > 1000000ULL) { m_LastError = RuntimeError::RenderFailed; return false; }
     SoftwareRenderer candidate = *m_Renderer;
     if ((m_FarmRenderAssets != nullptr && (m_FarmSpriteRenderer == nullptr || m_FarmSpriteTextures == nullptr || !m_FarmRenderAssets->Validate(*m_Assets, *m_Resources) || !m_FarmSpriteRenderer->RenderWorld(*m_Farm, *m_FarmWorld, m_FarmRenderAssets->AssetSet(), *m_Assets, *m_FarmSpriteTextures, candidate))) || (m_FarmRenderAssets == nullptr && !FarmRenderAdapter::RenderWorld(*m_Farm, *m_FarmWorld, candidate))) { m_LastError = RuntimeError::RenderFailed; return false; }
     const uint64_t worldHash = candidate.FrameHash(); const FarmTelemetrySnapshot telemetry = m_Farm->Snapshot(); uint64_t hudHash = 0U;
@@ -413,21 +375,14 @@ bool NeoRuntime::SetTimeScalePermille(uint16_t scalePermille) {
 }
 
 bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes) {
-    bytes.clear();
-    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Clock || !m_Time || !m_FarmAuthority || !m_Events) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(revision) || revision == 0U) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
-    const auto clockSnapshot = m_Clock->Snapshot();
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(clockSnapshot.frameCount) || revision > clockSnapshot.frameCount) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (m_State != RuntimeState::Initialized || revision == 0U || !m_FarmWorld || !m_Time || !m_FarmAuthority || m_Events == nullptr || m_Events->PendingCount() != 0U) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
     }
     const std::vector<uint8_t> worldBytes = m_FarmWorld->Serialize();
-    if (worldBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     std::vector<uint8_t> timeBytes;
     std::vector<uint8_t> curriculumBytes;
     const std::vector<uint8_t> authorityBytes = m_FarmAuthority->SerializeAuthorityLedger();
-    if (authorityBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (worldBytes.empty() || !m_Time->Serialize(timeBytes) || timeBytes.empty() || authorityBytes.empty() ||
         (m_Curriculum != nullptr && (!m_Curriculum->Serialize(curriculumBytes) || curriculumBytes.empty()))) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
@@ -441,31 +396,29 @@ bool NeoRuntime::SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8
     }
     RuntimePersistenceError error = RuntimePersistenceError::None;
     std::vector<uint8_t> encoded;
-    if (payload.size() > RuntimeSaveCodec::kMaxPayloadBytes || payload.empty()) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     if (!RuntimeSaveCodec::Serialize({kFarmProgressCheckpointKind, revision, std::move(payload)}, encoded, error)) {
         m_LastError = RuntimeError::CheckpointEncodeFailed;
         return false;
     }
-    if (encoded.empty() || encoded.size() > RuntimeSaveCodec::kMaxPayloadBytes) { m_LastError = RuntimeError::CheckpointEncodeFailed; return false; }
     bytes = std::move(encoded);
     m_LastError = RuntimeError::None;
     return true;
 }
 
 bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision) {
-    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Time || !m_FarmAuthority || !m_TrustSafety || !m_Scene || !m_Clock || m_Events == nullptr || m_Events->PendingCount() != 0U || m_Resources == nullptr || m_Assets == nullptr) {
+    if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_Time || !m_FarmAuthority || !m_TrustSafety || !m_Scene || !m_Clock || m_Events == nullptr || m_Events->PendingCount() != 0U) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
         return false;
     }
     RuntimeSaveEnvelope envelope{};
     RuntimePersistenceError error = RuntimePersistenceError::None;
-    if (bytes.empty() || bytes.size() > RuntimeSaveCodec::kMaxPayloadBytes + 4096U || bytes.capacity() > RuntimeSaveCodec::kMaxPayloadBytes + 4096U || bytes.size() < sizeof(uint32_t) || !RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kFarmProgressCheckpointKind || envelope.revision == 0U || envelope.revision == std::numeric_limits<uint64_t>::max() || envelope.payload.empty() || envelope.payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) {
+    if (!RuntimeSaveCodec::Deserialize(bytes, envelope, error) || envelope.kind != kFarmProgressCheckpointKind || envelope.revision == 0U || envelope.payload.size() > RuntimeSaveCodec::kMaxPayloadBytes) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
         return false;
     }
     size_t offset = 0U;
     std::vector<uint8_t> worldBytes, timeBytes, authorityBytes, curriculumBytes;
-    if (!ReadBlob(envelope.payload, offset, worldBytes) || worldBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes || !ReadBlob(envelope.payload, offset, timeBytes) || timeBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes || !ReadBlob(envelope.payload, offset, authorityBytes) || authorityBytes.size() > RuntimeSaveCodec::kMaxPayloadBytes ||
+    if (!ReadBlob(envelope.payload, offset, worldBytes) || !ReadBlob(envelope.payload, offset, timeBytes) || !ReadBlob(envelope.payload, offset, authorityBytes) ||
         (offset < envelope.payload.size() && !ReadBlob(envelope.payload, offset, curriculumBytes)) || offset != envelope.payload.size() ||
         (m_Curriculum == nullptr && !curriculumBytes.empty())) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
@@ -486,10 +439,8 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
         return false;
     }
     const RuntimeTimeSnapshot restoredTime = candidateTime->Snapshot();
-    const RuntimeClockSnapshot currentClock = m_Clock->Snapshot();
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(envelope.revision) || envelope.revision > currentClock.frameCount) { m_LastError = RuntimeError::CheckpointDecodeFailed; return false; }
     RuntimeClock candidateClock = *m_Clock;
-    if (restoredTime.timeScalePermille > RuntimeTimeSystem::kMaxTimeScalePermille || restoredTime.hostFixedStepCount > currentClock.fixedStepCount || !candidateClock.SetPaused(restoredTime.paused) ||
+    if (restoredTime.timeScalePermille > RuntimeTimeSystem::kMaxTimeScalePermille || !candidateClock.SetPaused(restoredTime.paused) ||
         !candidateClock.SetTimeScale(static_cast<float>(restoredTime.timeScalePermille) / 1000.0F) || !candidateWorld->SyncScene()) {
         m_LastError = RuntimeError::CheckpointDecodeFailed;
         return false;
