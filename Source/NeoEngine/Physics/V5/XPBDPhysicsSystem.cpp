@@ -456,7 +456,6 @@ void XPBDPhysicsSystem::QueryBVHPairsIterative(int rootA, int rootB) {
 void XPBDPhysicsSystem::GridBroadphase() {
     if (m_activeFlatEntities == 0 || m_GridCellSize <= 0.0f) return;
     using Clock = std::chrono::steady_clock;
-    const auto totalStarted = Clock::now();
     const auto millisSince = [](const Clock::time_point& start) {
         return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
     };
@@ -1453,16 +1452,11 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
     };
     if (m_TimingEnabled) m_StepTimingStats = {};
-    const auto totalStarted = Clock::now();
-    const auto buildFlatStarted = m_TimingEnabled ? totalStarted : Clock::time_point{};
+    const auto buildFlatStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
     BuildFlatArrays(em);
     if (m_TimingEnabled) m_StepTimingStats.buildFlatMs = millisSince(buildFlatStarted);
     const size_t totalEntities = m_activeFlatEntities;
-    if (totalEntities == 0) {
-        m_LastStepElapsedMicroseconds = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - totalStarted).count());
-        if (m_TimingEnabled) m_StepTimingStats.totalMs = static_cast<double>(m_LastStepElapsedMicroseconds) / 1000.0;
-        return;
-    }
+    if (totalEntities == 0) return;
     const size_t requiredWorkers = std::min(std::max(JobSystem::Get().NumWorkers(), 1UL), MAX_WORKER_THREADS);
     for (size_t worker = 0; worker < requiredWorkers; ++worker) {
         if (m_ThreadDeltas[worker].size() < totalEntities)
@@ -1535,8 +1529,6 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         const auto writeBackStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
         WriteBackToECS(em);
         if (m_TimingEnabled) m_StepTimingStats.writeBackMs = millisSince(writeBackStarted);
-        m_LastStepElapsedMicroseconds = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - totalStarted).count());
-        if (m_TimingEnabled) m_StepTimingStats.totalMs = static_cast<double>(m_LastStepElapsedMicroseconds) / 1000.0;
         return;
     }
 
@@ -1583,8 +1575,6 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
     WriteBackToECS(em);
     if (m_TimingEnabled) m_StepTimingStats.writeBackMs = millisSince(writeBackStarted);
     m_LastContactCount = m_ContactCount;
-    m_LastStepElapsedMicroseconds = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - totalStarted).count());
-    if (m_TimingEnabled) m_StepTimingStats.totalMs = static_cast<double>(m_LastStepElapsedMicroseconds) / 1000.0;
 }
 
 size_t XPBDPhysicsSystem::GetManifoldCount() const { return m_LastContactCount; }
@@ -1639,6 +1629,38 @@ bool XPBDPhysicsSystem::TryGetEntityId(uint32_t flatIdx, EntityID& entityId) con
     entityId = m_flatEntityIDs[flatIdx]; return true;
 }
 void XPBDPhysicsSystem::SetEntityLayer(uint32_t flatIdx, CollisionMask layer) { if (flatIdx < m_EntityLayers.size()) m_EntityLayers[flatIdx] = layer; }
+bool XPBDPhysicsSystem::IsEntityAwake(const EntityID entityId) const {
+    for (size_t i = 0; i < m_activeFlatEntities; ++i) {
+        if (m_flatEntityIDs[i] != entityId) continue;
+        return i < m_IsAwake.size() && m_IsAwake[i] != 0U;
+    }
+    return false;
+}
+
+bool XPBDPhysicsSystem::WakeEntity(const EntityID entityId) {
+    for (size_t i = 0; i < m_activeFlatEntities; ++i) {
+        if (m_flatEntityIDs[i] != entityId) continue;
+        if (i >= m_IsAwake.size()) return false;
+        m_IsAwake[i] = 1U;
+        if (i < m_IsAwakePrev.size()) m_IsAwakePrev[i] = 1U;
+        return true;
+    }
+    return false;
+}
+
+bool XPBDPhysicsSystem::SleepEntity(const EntityID entityId) {
+    for (size_t i = 0; i < m_activeFlatEntities; ++i) {
+        if (m_flatEntityIDs[i] != entityId) continue;
+        if (i >= m_IsAwake.size()) return false;
+        m_IsAwake[i] = 0U;
+        if (i < m_IsAwakePrev.size()) m_IsAwakePrev[i] = 0U;
+        if (i < m_flatVelX.size()) m_flatVelX[i] = 0.0F;
+        if (i < m_flatVelZ.size()) m_flatVelZ[i] = 0.0F;
+        return true;
+    }
+    return false;
+}
+
 CollisionMask XPBDPhysicsSystem::GetEntityLayer(uint32_t flatIdx) const { return (flatIdx < m_EntityLayers.size()) ? m_EntityLayers[flatIdx] : COLLISION_LAYER_NONE; }
 
 std::vector<uint32_t> XPBDPhysicsSystem::OverlapSphere(float centerX, float centerZ, float radius,
