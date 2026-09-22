@@ -61,8 +61,7 @@ bool CanonicalRuntimeWorld::CreateEntity(const Transform3& transform, uint32_t c
 }
 
 bool CanonicalRuntimeWorld::GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const {
-    if (sceneEntity.index == 0xFFFFU || bindingCount_ > kMaxBindings) return false;
-    for (uint16_t i = 0U; i < bindingCount_; ++i) if (!bindings_[i].entity.active || bindings_[i].entity.scene.index == 0xFFFFU) return false;
+    if (sceneEntity.index == 0xFFFFU) return false;
     for (uint16_t i = 0U; i < bindingCount_; ++i) {
         const CanonicalEntity& candidate = bindings_[i].entity;
         if (candidate.active && candidate.scene == sceneEntity) {
@@ -74,24 +73,9 @@ bool CanonicalRuntimeWorld::GetEntity(SceneEntity sceneEntity, CanonicalEntity& 
 }
 
 bool CanonicalRuntimeWorld::DestroyEntity(CanonicalEntity entity) {
-    if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
-    for (uint16_t i = 0U; i < bindingCount_; ++i) {
-        const CanonicalEntity& b = bindings_[i].entity;
-        if (!b.active || b.scene.index == 0xFFFFU || scene_.GetTransform(b.scene) == nullptr) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.hasECS) {
-            if (b.ecs == std::numeric_limits<EntityID>::max() || b.componentMask == 0U || !ecs_.HasEntity(b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        } else if (b.ecs != std::numeric_limits<EntityID>::max()) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.authority != CanonicalTransformAuthority::Scene && b.authority != CanonicalTransformAuthority::Physics) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        for (uint16_t j = 0U; j < i; ++j) {
-            if (bindings_[j].entity.scene == b.scene || (b.hasECS && bindings_[j].entity.hasECS && bindings_[j].entity.ecs == b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        }
-    }
-
     if (!ValidateEntity(entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-    // Destroy the Scene entity first. ECS destruction has no failure channel, so doing
-    // it first could leave the canonical world split if SceneWorld rejects the handle.
-    if (!scene_.Destroy(entity.scene)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
     if (entity.hasECS) ecs_.DestroyEntity(entity.ecs);
+    if (!scene_.Destroy(entity.scene)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
 
     for (uint16_t i = 0U; i < bindingCount_; ++i) {
         if (bindings_[i].entity.scene == entity.scene) {
@@ -106,19 +90,6 @@ bool CanonicalRuntimeWorld::DestroyEntity(CanonicalEntity entity) {
 }
 
 bool CanonicalRuntimeWorld::SetTransform(CanonicalEntity entity, const Transform3& transform) {
-    if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
-    for (uint16_t i = 0U; i < bindingCount_; ++i) {
-        const CanonicalEntity& b = bindings_[i].entity;
-        if (!b.active || b.scene.index == 0xFFFFU || scene_.GetTransform(b.scene) == nullptr) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.hasECS) {
-            if (b.ecs == std::numeric_limits<EntityID>::max() || b.componentMask == 0U || !ecs_.HasEntity(b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        } else if (b.ecs != std::numeric_limits<EntityID>::max()) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.authority != CanonicalTransformAuthority::Scene && b.authority != CanonicalTransformAuthority::Physics) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        for (uint16_t j = 0U; j < i; ++j) {
-            if (bindings_[j].entity.scene == b.scene || (b.hasECS && bindings_[j].entity.hasECS && bindings_[j].entity.ecs == b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        }
-    }
-
     if (!ValidateEntity(entity)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
     if (!ValidateTransform(transform)) { lastError_ = CanonicalWorldError::InvalidTransform; return false; }
     if (entity.authority != CanonicalTransformAuthority::Scene) {
@@ -143,19 +114,6 @@ bool CanonicalRuntimeWorld::BindMesh(const SceneMeshInstance& instance) {
 }
 
 bool CanonicalRuntimeWorld::SyncSceneToPhysics() {
-    if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
-    for (uint16_t i = 0U; i < bindingCount_; ++i) {
-        const CanonicalEntity& b = bindings_[i].entity;
-        if (!b.active || b.scene.index == 0xFFFFU || scene_.GetTransform(b.scene) == nullptr) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.hasECS) {
-            if (b.ecs == std::numeric_limits<EntityID>::max() || b.componentMask == 0U || !ecs_.HasEntity(b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        } else if (b.ecs != std::numeric_limits<EntityID>::max()) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.authority != CanonicalTransformAuthority::Scene && b.authority != CanonicalTransformAuthority::Physics) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        for (uint16_t j = 0U; j < i; ++j) {
-            if (bindings_[j].entity.scene == b.scene || (b.hasECS && bindings_[j].entity.hasECS && bindings_[j].entity.ecs == b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        }
-    }
-
     for (uint16_t i = 0U; i < bindingCount_; ++i) {
         const CanonicalEntity& entity = bindings_[i].entity;
         if (!entity.active || !entity.hasECS || !IsPhysicsBody(entity.componentMask) ||
@@ -172,19 +130,6 @@ bool CanonicalRuntimeWorld::SyncSceneToPhysics() {
 }
 
 bool CanonicalRuntimeWorld::ReadBackPhysicsToScene() {
-    if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
-    for (uint16_t i = 0U; i < bindingCount_; ++i) {
-        const CanonicalEntity& b = bindings_[i].entity;
-        if (!b.active || b.scene.index == 0xFFFFU || scene_.GetTransform(b.scene) == nullptr) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.hasECS) {
-            if (b.ecs == std::numeric_limits<EntityID>::max() || b.componentMask == 0U || !ecs_.HasEntity(b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        } else if (b.ecs != std::numeric_limits<EntityID>::max()) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.authority != CanonicalTransformAuthority::Scene && b.authority != CanonicalTransformAuthority::Physics) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        for (uint16_t j = 0U; j < i; ++j) {
-            if (bindings_[j].entity.scene == b.scene || (b.hasECS && bindings_[j].entity.hasECS && bindings_[j].entity.ecs == b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        }
-    }
-
     const auto chunks = ecs_.GetChunks<PositionComponent>();
     for (uint16_t bindingIndex = 0U; bindingIndex < bindingCount_; ++bindingIndex) {
         const CanonicalEntity& entity = bindings_[bindingIndex].entity;
@@ -301,16 +246,10 @@ bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntit
             lastError_ = CanonicalWorldError::InvalidEntity; return false;
         }
     }
-    std::vector<CanonicalEntity> changed;
-    changed.reserve(entities.size());
     for (const CanonicalEntity& entity : entities) {
-        if (physics_.IsEntityAwake(entity.ecs)) continue;
         if (!physics_.WakeEntity(entity.ecs)) {
-            for (const CanonicalEntity& rollback : changed) (void)physics_.SleepEntity(rollback.ecs);
-            lastError_ = CanonicalWorldError::PhysicsSyncFailed;
-            return false;
+            lastError_ = CanonicalWorldError::PhysicsSyncFailed; return false;
         }
-        changed.push_back(entity);
     }
     lastError_ = CanonicalWorldError::None;
     return true;
@@ -318,21 +257,7 @@ bool CanonicalRuntimeWorld::WakePhysicsEntities(const std::vector<CanonicalEntit
 
 bool CanonicalRuntimeWorld::Step(float dt) {
     if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
-    for (uint16_t i = 0U; i < bindingCount_; ++i) {
-        const CanonicalEntity& b = bindings_[i].entity;
-        if (!b.active || b.scene.index == 0xFFFFU || scene_.GetTransform(b.scene) == nullptr) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.hasECS) {
-            if (b.ecs == std::numeric_limits<EntityID>::max() || b.componentMask == 0U || !ecs_.HasEntity(b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        } else if (b.ecs != std::numeric_limits<EntityID>::max()) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        if (b.authority != CanonicalTransformAuthority::Scene && b.authority != CanonicalTransformAuthority::Physics) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        for (uint16_t j = 0U; j < i; ++j) {
-            if (bindings_[j].entity.scene == b.scene || (b.hasECS && bindings_[j].entity.hasECS && bindings_[j].entity.ecs == b.ecs)) { lastError_ = CanonicalWorldError::InvalidEntity; return false; }
-        }
-    }
-
-    lastFrame_.physicsStepped = false;
-    if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) { lastError_ = CanonicalWorldError::InvalidDeltaTime; return false; }
-    if (bindingCount_ > kMaxBindings) { lastError_ = CanonicalWorldError::Capacity; return false; }
+    if (!std::isfinite(dt) || dt <= 0.0F || dt > 0.25F) { lastError_ = CanonicalWorldError::PhysicsStepFailed; return false; }
     if (!SyncSceneToPhysics()) return false;
 
     physics_.Step(ecs_, dt);
@@ -363,11 +288,6 @@ bool CanonicalRuntimeWorld::Step(float dt) {
 
 bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
                                             const DirectionalLight& light) {
-    if (!std::isfinite(light.directionToLight.x) || !std::isfinite(light.directionToLight.y) ||
-        !std::isfinite(light.directionToLight.z) || !std::isfinite(light.intensity) ||
-        light.intensity < 0.0F) {
-        lastError_ = CanonicalWorldError::RenderFailed; return false;
-    }
     if (!rendererAdapter_.Draw(scene_, meshes_, sprites_, camera, renderer, light)) {
         lastError_ = CanonicalWorldError::RenderFailed; return false;
     }
@@ -377,10 +297,6 @@ bool CanonicalRuntimeWorld::RenderSoftware(RenderCamera& camera, SoftwareRendere
 
 bool CanonicalRuntimeWorld::RenderVulkan3D(RenderCamera& camera, Vulkan3DRenderer& renderer,
                                             float clearR, float clearG, float clearB, float clearA) {
-    if (!std::isfinite(clearR) || !std::isfinite(clearG) || !std::isfinite(clearB) || !std::isfinite(clearA) ||
-        clearR < 0.0F || clearR > 1.0F || clearG < 0.0F || clearG > 1.0F || clearB < 0.0F || clearB > 1.0F || clearA < 0.0F || clearA > 1.0F) {
-        lastError_ = CanonicalWorldError::RenderFailed; return false;
-    }
     if (!rendererAdapter_.DrawVulkan3D(scene_, meshes_, camera, renderer, clearR, clearG, clearB, clearA)) {
         lastError_ = CanonicalWorldError::RenderFailed; return false;
     }
