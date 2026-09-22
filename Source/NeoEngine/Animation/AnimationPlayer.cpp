@@ -85,7 +85,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     const float duration = currentClip_->GetDuration();
     if (!std::isfinite(duration) || duration < 0.0F || duration > 86400.0F || time_ > duration) return false;
     const size_t boneCount = skeleton_->GetBoneCount();
-    if (skeleton_->BoneCount() != boneCount) return false;
+    if (skeleton_->GetBoneCount() != boneCount) return false;
     if (boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U) return false;
     if (boneCount > static_cast<size_t>(std::numeric_limits<uint16_t>::max())) return false;
     if (boneCount > std::numeric_limits<size_t>::max() / sizeof(Mat4) || boneCount * sizeof(Mat4) > 64U * 1024U * 1024U) return false;
@@ -94,7 +94,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     if (duration == 0.0F && time_ != 0.0F) return false;
     if (time_ > duration) return false;
     if (playing_ && playbackMode_ != AnimationPlaybackMode::Loop && playbackMode_ != AnimationPlaybackMode::Clamp) return false;
-    if (boneCount != skeleton_->BoneCount() || boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U) return false;
+    if (boneCount != skeleton_->GetBoneCount() || boneCount == 0U || boneCount > kMaxPaletteBones || boneCount > 4096U) return false;
     if (boneCount > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) return false;
 
     std::vector<Mat4> candidateLocal;
@@ -120,7 +120,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     if (candidateLocal.empty() || candidateLocal.capacity() > 4096U || candidateLocal.size() > 4096U) return false;
     for (const Mat4& matrix : candidateLocal) if (!FiniteMatrix(matrix)) return false;
     if (candidateLocal.size() != boneCount) return false;
-    if (!skeleton_->EvaluateSkinningPalette(candidateLocal, candidatePalette) || candidatePalette.size() != boneCount || candidatePalette.size() != skeleton_->BoneCount()) return false;
+    if (!skeleton_->EvaluateSkinningPalette(candidateLocal, candidatePalette) || candidatePalette.size() != boneCount || candidatePalette.size() != skeleton_->GetBoneCount()) return false;
     if (candidatePalette.capacity() < candidatePalette.size() || candidatePalette.capacity() > kMaxPaletteBones || candidatePalette.empty() || candidatePalette.size() > kMaxPaletteBones || candidatePalette.capacity() > 4096U) return false;
     if (candidatePalette.size() != boneCount) return false;
     if (candidatePalette.size() > std::numeric_limits<size_t>::max() / sizeof(Mat4)) return false;
@@ -134,7 +134,7 @@ bool AnimationPlayer::EvaluatePose(std::vector<Mat4>& localPose,
     if (candidateLocal.size() * sizeof(Mat4) != candidatePalette.size() * sizeof(Mat4)) return false;
     for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
     if (candidateLocal.size() != boneCount || candidatePalette.size() != boneCount || candidateLocal.capacity() < boneCount || candidatePalette.capacity() < boneCount) return false;
-    if (candidateLocal.size() != skeleton_->BoneCount() || candidatePalette.size() != skeleton_->GetBoneCount()) return false;
+    if (candidateLocal.size() != skeleton_->GetBoneCount() || candidatePalette.size() != skeleton_->GetBoneCount()) return false;
     for (const Mat4& matrix : candidatePalette) if (!FiniteMatrix(matrix)) return false;
     if (candidatePalette.size() != candidateLocal.size()) return false;
     if (candidatePalette.size() != boneCount) return false;
