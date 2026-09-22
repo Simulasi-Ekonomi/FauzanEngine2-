@@ -93,6 +93,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Asset/GLTF/GLTFMeshBuilder.cpp
+    Asset/GLTF/GLTFGPUUploader.cpp
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUBuffer.cpp
@@ -261,6 +262,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_physics_quer
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gltf_mesh_builder_smoke.cpp")
     add_xpbd_executable(gltf_mesh_builder_smoke ../../Tests/Runtime/gltf_mesh_builder_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gltf_gpu_uploader_smoke.cpp")
+    add_xpbd_executable(gltf_gpu_uploader_smoke ../../Tests/Runtime/gltf_gpu_uploader_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manager_smoke.cpp")
     add_xpbd_executable(asset_resource_manager_smoke ../../Tests/Runtime/asset_resource_manager_smoke.cpp)
