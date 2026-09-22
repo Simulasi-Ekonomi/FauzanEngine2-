@@ -33,7 +33,7 @@ jobs:
       - name: Release configure and build
         run: |
           cmake -S Source/NeoEngine -B build/p2-release -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/p2-release --target canonical_runtime_world_smoke physics_step_measurement_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
+          cmake --build build/p2-release --target canonical_runtime_world_smoke gameplay_physics_query_smoke physics_step_measurement_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
       - name: Release smoke
         env:
           SDL_VIDEODRIVER: dummy
@@ -46,7 +46,7 @@ jobs:
       - name: ASAN configure and build
         run: |
           cmake -S Source/NeoEngine -B build/p2-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
-          cmake --build build/p2-asan --target canonical_runtime_world_smoke physics_step_measurement_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
+          cmake --build build/p2-asan --target canonical_runtime_world_smoke gameplay_physics_query_smoke physics_step_measurement_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
       - name: ASAN smoke
         env:
           ASAN_OPTIONS: detect_leaks=1
