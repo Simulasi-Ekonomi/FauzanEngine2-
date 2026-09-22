@@ -21,7 +21,6 @@
 #include "FarmPlayerInputBridge.h"
 #include "FarmRenderAssetManifest.h"
 #include "TextureStaging.h"
-#include "SdlAudioBridge.h"
 #include "InputMotionBridge.h"
 #include "GridRouteFollower.h"
 #include "MovementAuthority.h"
@@ -40,7 +39,7 @@
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, AudioInitializationFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
 struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
@@ -50,7 +49,7 @@ struct RuntimeConfig {
     bool enableSoftwareSurfacePresentation=false; bool softwareSurfaceHidden=true;
     bool enableVulkan3DRenderer=false; RenderCameraConfig sceneCamera{};
     bool enableInputMotion=false; float inputMotionUnitsPerSecond=5.0F; bool inputMotionFaceMovementDirection=false;
-    bool enableAudio=false; uint16_t audioFramesPerCallback=256; bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false;
+    bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false;
     bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp;
     Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;
     std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; bool enableFarmCurriculum=false;
@@ -58,18 +57,17 @@ struct RuntimeConfig {
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
-    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
-    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool Tick();
     bool SetPaused(bool paused);
     bool SetTimeScalePermille(uint16_t scalePermille);
     bool SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool ReplanRouteMotion();
+    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
+    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
-    bool UploadTextureResource(const AssetResourceHandle& handle, VkImage targetImage, VkImageLayout targetLayout, uint32_t width, uint32_t height);
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
@@ -79,9 +77,9 @@ public:
     const FarmSystem* Farm() const { return m_Farm.get(); }
     FarmWorldTool* FarmWorld() { return m_FarmWorld.get(); }
     const FarmWorldTool* FarmWorld() const { return m_FarmWorld.get(); }
+    FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
     FarmAuthoritativeSessionHost* FarmAuthoritySession() { return m_FarmAuthoritySession.get(); }
     const FarmAuthoritativeSessionHost* FarmAuthoritySession() const { return m_FarmAuthoritySession.get(); }
-    FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
     const FarmAuthoritativeService* FarmAuthority() const { return m_FarmAuthority.get(); }
     TrustSafetySystem* TrustSafety() { return m_TrustSafety.get(); }
     const TrustSafetySystem* TrustSafety() const { return m_TrustSafety.get(); }
@@ -113,8 +111,6 @@ public:
     const NeoRuntimeFrameReceipt* LastFrameReceipt() const { return m_HasFrameReceipt ? &m_LastFrameReceipt : nullptr; }
     const RuntimeFarmRenderReceipt* LastFarmRenderReceipt() const { return m_HasFarmRenderReceipt ? &m_LastFarmRenderReceipt : nullptr; }
     const SoftwareSurfacePresenter* SurfacePresenter() const { return m_SurfacePresenter.get(); }
-    SdlAudioBridge* Audio() { return m_Audio.get(); }
-    const SdlAudioBridge* Audio() const { return m_Audio.get(); }
     RuntimeClock* Clock() { return m_Clock.get(); }
     const RuntimeClock* Clock() const { return m_Clock.get(); }
     RuntimeTimerQueue* Timers() { return m_Timers.get(); }
@@ -195,6 +191,5 @@ private:
     RuntimeFarmRenderReceipt m_LastFarmRenderReceipt{};
     bool m_HasFarmRenderReceipt = false;
     std::unique_ptr<SoftwareSurfacePresenter> m_SurfacePresenter;
-    std::unique_ptr<SdlAudioBridge> m_Audio;
 };
 } // namespace NeoEngine
