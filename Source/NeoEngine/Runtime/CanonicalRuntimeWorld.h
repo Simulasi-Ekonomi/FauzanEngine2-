@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/ECS/ArchetypeManager.h"
-#include "Runtime/CanonicalReplicationBridge.h"
 #include "Physics/V5/XPBDPhysicsSystem.h"
 #include "Runtime/AssetRegistry.h"
 #include "Runtime/AssetResourceManager.h"
@@ -9,11 +8,13 @@
 #include "Runtime/SceneRenderAdapter.h"
 #include "Runtime/SceneSpriteAdapter.h"
 #include "Runtime/SceneWorld.h"
+#include "Runtime/GameplayPhysicsQuery.h"
+#include "Runtime/GameplayTriggerTracker.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
+#include <vector>
 
 namespace NeoEngine {
 
@@ -22,7 +23,8 @@ enum class CanonicalTransformAuthority : uint8_t { Scene, Physics };
 enum class CanonicalWorldError : uint8_t {
     None, Capacity, InvalidTransform, InvalidEntity, PhysicsCreationFailed,
     PhysicsSyncFailed, PhysicsStepFailed, PhysicsReadbackFailed,
-    RenderFailed, MeshBindingFailed, ReplicationFailed
+    RenderFailed, MeshBindingFailed, QueryFailed, TransformAuthorityViolation,
+    TriggerUpdateFailed
 };
 
 struct CanonicalEntity {
@@ -50,7 +52,6 @@ public:
     static constexpr uint8_t kMaxTriggers = 64U;
 
     CanonicalRuntimeWorld();
-    ~CanonicalRuntimeWorld();
     CanonicalRuntimeWorld(const CanonicalRuntimeWorld&) = delete;
     CanonicalRuntimeWorld& operator=(const CanonicalRuntimeWorld&) = delete;
 
@@ -59,16 +60,18 @@ public:
     bool DestroyEntity(CanonicalEntity entity);
     bool SetTransform(CanonicalEntity entity, const Transform3& transform);
     bool BindMesh(const SceneMeshInstance& instance);
-    bool ConfigureReplication(ReplicationRole role, uint32_t localClientId = 0U, bool allowDynamicLifecycle = true);
-    bool RegisterReplicatedEntity(CanonicalEntity entity, uint32_t networkId, uint32_t ownerId);
-    bool UnregisterReplicatedEntity(uint32_t networkId);
-    bool BuildReplicationSnapshot(uint64_t serverTick, ReplicationSnapshot& snapshot);
-    bool ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
-    bool BuildReplicationAcknowledgement(ReplicationAcknowledgement& acknowledgement) const;
-    bool ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement);
-    bool PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
-    bool InterpolateReplicatedState(ReplicationApplyReceipt& receipt);
-
+    bool Raycast(const GameplayRay2& ray, GameplayRayHit2& hit);
+    bool RaycastSet(const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits);
+    bool OverlapCircle(const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities);
+    bool OverlapCircleSet(const std::vector<GameplayOverlapCircle2>& circles, std::vector<std::vector<EntityID>>& entitySets);
+    bool ConfigureTrigger(uint8_t triggerIndex, GameplayTriggerCircleConfig config);
+    bool UpdateTrigger(uint8_t triggerIndex);
+    [[nodiscard]] const GameplayTriggerDelta* TriggerDelta(uint8_t triggerIndex) const;
+    bool IsPhysicsEntityAwake(const CanonicalEntity& entity) const;
+    bool WakePhysicsEntity(const CanonicalEntity& entity);
+    bool SleepPhysicsEntity(const CanonicalEntity& entity);
+    bool WakePhysicsEntities(const std::vector<CanonicalEntity>& entities);
+    [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
     bool RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
@@ -113,8 +116,8 @@ private:
     uint16_t bindingCount_ = 0U;
     uint64_t frame_ = 0U;
     CanonicalFrameReceipt lastFrame_{};
+    GameplayPhysicsQuery physicsQuery_{};
     CanonicalWorldError lastError_ = CanonicalWorldError::None;
-    std::unique_ptr<CanonicalReplicationBridge> replication_;
 };
 
 } // namespace NeoEngine
