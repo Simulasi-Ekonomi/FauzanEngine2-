@@ -1,23 +1,3 @@
-#include <cassert>
 #include "GLTFParser.h"
-
-bool GLTFParser::Parse(const std::string& json)
-{
-    if(json.find("meshes") != std::string::npos)
-        meshes.push_back("mesh_found");
-
-    if(json.find("materials") != std::string::npos)
-        materials.push_back("material_found");
-
-    return true;
-}
-
-std::vector<std::string> GLTFParser::GetMeshes() const
-{
-    return meshes;
-}
-
-std::vector<std::string> GLTFParser::GetMaterials() const
-{
-    return materials;
-}
+#include <rapidjson/document.h>
+bool GLTFParser::Parse(const std::string&j){meshes.clear();materials.clear();rapidjson::Document d;d.Parse(j.c_str());if(d.HasParseError()||!d.IsObject())return false;if(d.HasMember("meshes")&&d["meshes"].IsArray())for(auto&m:d["meshes"].GetArray())meshes.push_back(m.IsObject()&&m.HasMember("name")&&m["name"].IsString()?m["name"].GetString():"mesh");if(d.HasMember("materials")&&d["materials"].IsArray())for(auto&m:d["materials"].GetArray())materials.push_back(m.IsObject()&&m.HasMember("name")&&m["name"].IsString()?m["name"].GetString():"material");return d.HasMember("asset")&&d["asset"].IsObject();} std::vector<std::string> GLTFParser::GetMeshes()const{return meshes;} std::vector<std::string> GLTFParser::GetMaterials()const{return materials;}
