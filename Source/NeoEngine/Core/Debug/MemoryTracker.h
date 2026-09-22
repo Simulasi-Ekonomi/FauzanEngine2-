@@ -6,6 +6,8 @@ namespace NeoEngine {
 
 class MemoryTracker {
 public:
+    struct Allocation { size_t size; const char* file; int line; };
+
     static void* Allocate(size_t size, const char* file, int line);
     static void Deallocate(void* ptr);
     static void* Reallocate(void* ptr, size_t newSize, const char* file, int line);
