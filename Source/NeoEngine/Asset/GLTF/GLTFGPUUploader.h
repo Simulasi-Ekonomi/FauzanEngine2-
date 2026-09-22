@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Runtime/VulkanMeshBufferBuilder.h"
+#include "Core/Geometry/MeshData.h"
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan.h>
