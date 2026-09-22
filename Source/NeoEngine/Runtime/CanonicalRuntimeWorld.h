@@ -24,7 +24,7 @@ enum class CanonicalWorldError : uint8_t {
     None, Capacity, InvalidTransform, InvalidEntity, PhysicsCreationFailed,
     PhysicsSyncFailed, PhysicsStepFailed, PhysicsReadbackFailed,
     RenderFailed, MeshBindingFailed, QueryFailed, TransformAuthorityViolation,
-    TriggerUpdateFailed, InvalidDeltaTime
+    TriggerUpdateFailed
 };
 
 struct CanonicalEntity {
@@ -74,7 +74,6 @@ public:
     [[nodiscard]] bool GetEntity(SceneEntity sceneEntity, CanonicalEntity& outEntity) const;
 
     bool Step(float dt);
-    [[nodiscard]] uint64_t FrameNumber() const noexcept { return frame_; }
     bool RenderSoftware(RenderCamera& camera, SoftwareRenderer& renderer,
                         const DirectionalLight& light);
     bool RenderVulkan3D(RenderCamera& camera, Vulkan3DRenderer& renderer,
