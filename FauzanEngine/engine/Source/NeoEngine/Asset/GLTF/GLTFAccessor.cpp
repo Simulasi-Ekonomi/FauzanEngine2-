@@ -1,30 +1,4 @@
-#include <cassert>
 #include "GLTFAccessor.h"
-
-namespace NeoEngine
-{
-
-std::vector<float> GLTFAccessor::ReadFloatArray(
-    const uint8_t* buffer,
-    size_t offset,
-    size_t count,
-    size_t stride
-)
-{
-    std::vector<float> result;
-    result.reserve(count);
-
-    const uint8_t* base = buffer + offset;
-
-    for(size_t i = 0; i < count; i++)
-    {
-        const float* value =
-            reinterpret_cast<const float*>(base + i * stride);
-
-        result.push_back(*value);
-    }
-
-    return result;
-}
-
-}
+#include <cstring>
+#include <limits>
+namespace NeoEngine {std::vector<float>GLTFAccessor::ReadFloatArray(const uint8_t*b,size_t o,size_t c,size_t s){std::vector<float>r;if(!b||!c||s<4||o>std::numeric_limits<size_t>::max()-c*s)return r;r.reserve(c);for(size_t i=0;i<c;++i){float v=0;std::memcpy(&v,b+o+i*s,4);r.push_back(v);}return r;}}
