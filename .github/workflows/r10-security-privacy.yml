@@ -2,7 +2,7 @@ name: R10 security and privacy boundaries
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, gap-closure-all-branches-night ]
     paths:
       - 'Source/NeoEngine/Runtime/RuntimePersistence.*'
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
