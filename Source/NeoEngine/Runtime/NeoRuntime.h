@@ -1,6 +1,8 @@
 #pragma once
 #include "AssetRegistry.h"
 #include "SceneWorld.h"
+#include "Core/ECS/ArchetypeManager.h"
+#include "SceneECSBridge.h"
 #include "SoftwareRenderer.h"
 #include "Vulkan3DRenderer.h"
 #include "SceneMeshAdapter.h"
@@ -39,7 +41,7 @@ namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
 enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
-struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; };
+struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
 struct RuntimeConfig {
     uint16_t farmWidth=8; uint16_t farmHeight = 8; uint32_t fixedTicksPerFrame = 1; int64_t initialCoins = 100; uint16_t renderWidth=256; uint16_t renderHeight=256; uint16_t farmNpcCount=8; uint16_t authoringWorldSide=32;
@@ -55,14 +57,14 @@ struct RuntimeConfig {
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
-    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
-    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool Tick();
     bool SetPaused(bool paused);
     bool SetTimeScalePermille(uint16_t scalePermille);
     bool SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool ReplanRouteMotion();
+    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
+    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
@@ -75,9 +77,9 @@ public:
     const FarmSystem* Farm() const { return m_Farm.get(); }
     FarmWorldTool* FarmWorld() { return m_FarmWorld.get(); }
     const FarmWorldTool* FarmWorld() const { return m_FarmWorld.get(); }
+    FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
     FarmAuthoritativeSessionHost* FarmAuthoritySession() { return m_FarmAuthoritySession.get(); }
     const FarmAuthoritativeSessionHost* FarmAuthoritySession() const { return m_FarmAuthoritySession.get(); }
-    FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
     const FarmAuthoritativeService* FarmAuthority() const { return m_FarmAuthority.get(); }
     TrustSafetySystem* TrustSafety() { return m_TrustSafety.get(); }
     const TrustSafetySystem* TrustSafety() const { return m_TrustSafety.get(); }
@@ -93,6 +95,9 @@ public:
     const AuthoringCatalog* Authoring() const { return m_Authoring.get(); }
     WorldAuthoring* AuthoringWorld() { return m_AuthoringWorld.get(); }
     const WorldAuthoring* AuthoringWorld() const { return m_AuthoringWorld.get(); }
+    ArchetypeManager* ECS() { return m_ECS.get(); }
+    const ArchetypeManager* ECS() const { return m_ECS.get(); }
+    const SceneECSBridgeReceipt& SceneECS() const { return m_SceneECSBridge.LastReceipt(); }
     SceneWorld* Scene() { return m_Scene.get(); }
     const SceneWorld* Scene() const { return m_Scene.get(); }
     SceneMeshAdapter* SceneMeshes() { return m_SceneMeshes.get(); }
@@ -165,6 +170,8 @@ private:
     SceneEntity m_RouteMotionEntity_{0xFFFFU,0U};
     std::unique_ptr<MovementAuthorityGate> m_MotionAuthority;
     std::unique_ptr<SceneWorld> m_Scene;
+    std::unique_ptr<ArchetypeManager> m_ECS;
+    SceneECSBridge m_SceneECSBridge;
     std::unique_ptr<SceneMeshAdapter> m_SceneMeshes;
     std::unique_ptr<RenderCamera> m_SceneCamera;
     RenderCameraConfig m_SceneCameraConfig{};
