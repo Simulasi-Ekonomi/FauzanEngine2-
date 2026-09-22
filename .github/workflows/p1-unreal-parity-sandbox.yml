@@ -21,7 +21,7 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ libvulkan-dev vulkan-tools glslang-tools libjsoncpp-dev rapidjson-dev pkg-config
+          sudo apt-get install -y cmake ninja-build g++ libvulkan-dev vulkan-tools glslang-tools libjsoncpp-dev rapidjson-dev pkg-config libglm-dev
 
       - name: Build SDL3 dependency
         run: |
