@@ -2,6 +2,7 @@
 #include <curl/curl.h>
 #include <json/json.h>
 #include <cstdlib>
+#include <memory>
 #include <algorithm>
 #include <cctype>
 
