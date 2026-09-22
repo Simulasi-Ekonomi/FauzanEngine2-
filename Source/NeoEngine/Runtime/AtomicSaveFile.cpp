@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cctype>
 #include <fstream>
+#include <mutex>
 
 namespace NeoEngine {
 namespace {
@@ -89,10 +90,13 @@ bool AtomicSaveFile::Write(const std::filesystem::path& root, std::string_view s
         error = AtomicSaveFileError::WriteFailure;
         return false;
     }
-    // POSIX rename replaces an existing regular file atomically, while some
-    // supported filesystems report EEXIST instead. Preserve the atomic-slot
-    // contract by retrying through a guarded removal only when the destination
-    // is a regular file; never replace a symlink or directory.
+    // POSIX rename replaces an existing regular file atomically. Some supported
+    // filesystems instead report EEXIST; serialize the fallback replacement inside
+    // this process so two writers cannot both remove/recreate the destination.
+    // Cross-process writers still converge through the unique temp path + rename
+    // protocol, while symlink/directory destinations remain fail-closed.
+    static std::mutex renameFallbackMutex;
+    std::lock_guard<std::mutex> renameLock(renameFallbackMutex);
     std::filesystem::rename(tempPath, finalPath, ec);
     if (ec) {
         std::error_code destinationEc;
