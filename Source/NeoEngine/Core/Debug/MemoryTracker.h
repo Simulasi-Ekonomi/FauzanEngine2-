@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <string>
 
 namespace NeoEngine {
 
@@ -9,16 +10,11 @@ public:
     static void Deallocate(void* ptr);
     static void* Reallocate(void* ptr, size_t newSize, const char* file, int line);
 
-    static void ReportLeaks();
-
+    static std::string ReportLeaks();
     static size_t GetTotalAllocated();
     static size_t GetPeakAllocated();
     static size_t GetAllocationCount();
-
-private:
-    static size_t totalAllocated;
-    static size_t peakAllocated;
-    static size_t allocationCount;
+    static size_t GetLiveAllocationCount();
 };
 
 }
