@@ -1,17 +1,13 @@
 #pragma once
-
 #include <vector>
 #include <array>
-
-class SkinningGPU
-{
+class SkinningGPU {
 public:
-
     void UploadBones(const std::vector<std::array<float,16>>& matrices);
-
     void Bind();
-
+    size_t BoneCount() const { return palette.size(); }
+    bool IsBound() const { return bound; }
 private:
-
-    [[maybe_unused]] unsigned int boneBuffer;
+    std::vector<std::array<float,16>> palette;
+    bool bound=false;
 };
