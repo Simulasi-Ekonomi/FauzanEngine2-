@@ -7,6 +7,7 @@ find_package(Vulkan REQUIRED)
 find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
+find_path(NEO_RAPIDJSON_INCLUDE_DIR rapidjson/document.h REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -91,6 +92,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
+    Asset/GLTF/GLTFMeshBuilder.cpp
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUBuffer.cpp
@@ -216,7 +218,7 @@ target_sources(NeoEngineRuntime PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Physics/V5/XPBDPhysicsSystem.cpp"
 )
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS} ${NEO_RAPIDJSON_INCLUDE_DIR})
 target_compile_definitions(NeoEngineRuntime PUBLIC
     NEO_SHADER_DIR="${NEO_SHADER_OUTPUT_DIR}"
     GLM_ENABLE_EXPERIMENTAL
@@ -256,6 +258,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_streaming_queue
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_physics_query_smoke.cpp")
     add_xpbd_executable(gameplay_physics_query_smoke ../../Tests/Runtime/gameplay_physics_query_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gltf_mesh_builder_smoke.cpp")
+    add_xpbd_executable(gltf_mesh_builder_smoke ../../Tests/Runtime/gltf_mesh_builder_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manager_smoke.cpp")
     add_xpbd_executable(asset_resource_manager_smoke ../../Tests/Runtime/asset_resource_manager_smoke.cpp)
