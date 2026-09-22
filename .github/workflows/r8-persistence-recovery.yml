@@ -2,7 +2,7 @@ name: R8 persistence and recovery
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, gap-closure-all-branches-night ]
     paths:
       - 'Source/NeoEngine/Runtime/AtomicSaveFile.*'
       - 'Source/NeoEngine/Runtime/NeoRuntime.*'
