@@ -56,24 +56,26 @@ public:
     bool IsSerialDuplicate(const std::string& serialNumber) const;
     std::string GetAuditTrail(const std::string& playerId) const;
 
-    int GetVerifiedCount() const { return m_VerifiedCount; }
-    int GetRejectedCount() const { return m_RejectedCount; }
-    int GetTotalItems() const { return m_TotalItems; }
+    int GetVerifiedCount() const { std::lock_guard<std::mutex> lock(m_Mutex); return m_VerifiedCount; }
+    int GetRejectedCount() const { std::lock_guard<std::mutex> lock(m_Mutex); return m_RejectedCount; }
+    int GetTotalItems() const { std::lock_guard<std::mutex> lock(m_Mutex); return m_TotalItems; }
 
-    void SetServerURL(const std::string& url) { m_ServerURL = url; }
-    void SetServerPublicKey(const std::string& key) { m_ServerPublicKey = key; }
-    void SetOnCheatDetected(std::function<void(const std::string&, const std::string&)> cb) { m_OnCheatDetected = cb; }
-    void SetOnVerified(std::function<void(const std::string&)> cb) { m_OnVerified = cb; }
+    void SetServerURL(const std::string& url) { std::lock_guard<std::mutex> lock(m_Mutex); m_ServerURL = url; }
+    void SetServerPublicKey(const std::string& key) { std::lock_guard<std::mutex> lock(m_Mutex); m_ServerPublicKey = key; }
+    void SetOnCheatDetected(std::function<void(const std::string&, const std::string&)> cb) { std::lock_guard<std::mutex> lock(m_Mutex); m_OnCheatDetected = std::move(cb); }
+    void SetOnVerified(std::function<void(const std::string&)> cb) { std::lock_guard<std::mutex> lock(m_Mutex); m_OnVerified = std::move(cb); }
 
     void MarkAllPlayerItemsContaminated(const std::string& playerId, const std::string& playerName);
-    bool TransferOwnership(const std::string& serial, const std::string& fromId, const std::string& fromName, const std::string& toId, const std::string& toName, const std::string& method);
+    bool TransferOwnership(const std::string& serial, const std::string& fromId, const std::string& fromName,
+                           const std::string& toId, const std::string& toName, const std::string& method);
 
 private:
     std::unordered_map<std::string, SerialNumber> m_Registry;
     std::vector<std::string> m_PendingVerification;
+    std::vector<std::string> m_AuditEvents;
     std::string m_ServerURL = "https://api.fauzanengine.com/verify-item";
     std::string m_ServerPublicKey;
-    std::mutex m_Mutex;
+    mutable std::mutex m_Mutex;
     std::mt19937_64 m_RNG;
     int m_VerifiedCount = 0;
     int m_RejectedCount = 0;
