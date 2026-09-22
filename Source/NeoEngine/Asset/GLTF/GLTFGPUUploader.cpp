@@ -31,7 +31,16 @@ bool GLTFGPUUploader::UploadMesh(const std::vector<Vertex>& vertices,
         }
     }
     for (std::uint32_t index : indices) if (index >= vertices.size()) return false;
-    return meshBuffer_.Build(device_, physicalDevice_, vertices, indices);
+    std::vector<MeshVertex3D> gpuVertices;
+    gpuVertices.reserve(vertices.size());
+    for (const Vertex& vertex : vertices) {
+        MeshVertex3D out{};
+        out.position[0] = vertex.position[0]; out.position[1] = vertex.position[1]; out.position[2] = vertex.position[2];
+        out.normal[0] = vertex.normal[0]; out.normal[1] = vertex.normal[1]; out.normal[2] = vertex.normal[2];
+        out.uv[0] = vertex.uv[0]; out.uv[1] = vertex.uv[1];
+        gpuVertices.push_back(out);
+    }
+    return meshBuffer_.BuildMesh(device_, physicalDevice_, gpuVertices, indices);
 }
 
 } // namespace NeoEngine
