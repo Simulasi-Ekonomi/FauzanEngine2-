@@ -63,10 +63,15 @@ jobs:
           cmake --build build/r10-release --target farm_telemetry_smoke -j2
           cmake --build build/r10-release --target authoritative_command_gate_smoke -j2
           cmake --build build/r10-release --target trust_safety_smoke -j2
+          echo "RUN runtime_persistence_smoke"
           ./build/r10-release/runtime_persistence_smoke
+          echo "RUN atomic_save_file_smoke"
           ./build/r10-release/atomic_save_file_smoke
+          echo "RUN farm_telemetry_smoke"
           ./build/r10-release/farm_telemetry_smoke
+          echo "RUN authoritative_command_gate_smoke"
           ./build/r10-release/authoritative_command_gate_smoke
+          echo "RUN trust_safety_smoke"
           ./build/r10-release/trust_safety_smoke
 
       - name: Configure AddressSanitizer
