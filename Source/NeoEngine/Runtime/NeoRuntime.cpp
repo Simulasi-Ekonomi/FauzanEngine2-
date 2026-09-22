@@ -1,5 +1,4 @@
 #include "NeoRuntime.h"
-#include "RuntimeContractGuard.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
@@ -9,7 +8,6 @@
 #include <limits>
 
 namespace NeoEngine {
-
 namespace {
 constexpr const char* kFarmProgressCheckpointKind = "neo-farm-progress";
 
@@ -43,7 +41,7 @@ bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uin
 } // namespace
 
 bool NeoRuntime::Initialize(const RuntimeConfig& config) {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFixedTicks(config.fixedTicksPerFrame) || !RuntimeContractGuard::RuntimeContractGuard::ValidInitialCoins(config.initialCoins) || !RuntimeContractGuard::RuntimeContractGuard::ValidNpcCount(config.farmNpcCount, FarmWorldTool::kMaxNpcs) || !RuntimeContractGuard::RuntimeContractGuard::ValidRenderExtent(config.renderWidth, config.renderHeight) || !RuntimeContractGuard::RuntimeContractGuard::ValidTimeScale(static_cast<float>(config.timeConfig.defaultTimeScalePermille) / 1000.0F) || !RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(config.renderWidth * static_cast<uint32_t>(config.renderHeight), 16U * 1024U * 1024U) || m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
+    if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
         m_LastError = RuntimeError::InvalidConfiguration;
         m_State = RuntimeState::Failed;
         return false;
@@ -60,8 +58,8 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!world->Initialize(*farm, *trustSafety, "runtime-farm-player", worldConfig)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto authority = std::make_unique<FarmAuthoritativeService>();
     if (!authority->Initialize(*world, *trustSafety, "runtime-farm-player", "runtime-farm-session")) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
-    auto sessionHost = std::make_unique<FarmAuthoritativeSessionHost>();
-    if (!sessionHost->Initialize(*authority)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
+    auto authoritySession = std::make_unique<FarmAuthoritativeSessionHost>();
+    if (!authoritySession->Initialize(*authority)) { m_LastError = RuntimeError::AuthorityFailed; m_State = RuntimeState::Failed; return false; }
     auto assets = std::make_unique<AssetRegistry>();
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
@@ -86,7 +84,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     SceneECSBridge sceneECSBridge;
     if (!sceneECSBridge.Rebuild(*scene, *ecs)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto actors = std::make_unique<ActorComponentWorld>(*scene);
-    auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId, true);
+    auto replication = std::make_unique<ReplicationWorld>(*scene, config.replicationRole, config.replicationLocalClientId);
     auto curriculum = std::unique_ptr<CurriculumSystem>{};
     if (config.enableFarmCurriculum) {
         CurriculumGraph graph;
@@ -149,23 +147,17 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
         }
     }
 
-    if (inputMotionEntity.index != 0xFFFFU && !replication->RegisterEntity(inputMotionEntity, 1U, config.replicationLocalClientId)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
-    if (routeMotionEntity.index != 0xFFFFU && routeMotionEntity.index != inputMotionEntity.index && !replication->RegisterEntity(routeMotionEntity, 2U, config.replicationLocalClientId)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     m_FixedTicksPerFrame = config.fixedTicksPerFrame;
     m_FarmWorldConfig = worldConfig;
     m_TrustSafety = std::move(trustSafety);
     m_Farm = std::move(farm);
     m_FarmWorld = std::move(world);
     m_FarmAuthority = std::move(authority);
-    m_FarmSessionHost = std::move(sessionHost);
-    m_FarmAuthorityTransport = std::make_unique<AuthorityLoopbackServer>();
-    m_FarmAuthorityLoopback = std::make_unique<FarmAuthoritativeSessionLoopback>();
+    m_FarmAuthoritySession = std::move(authoritySession);
     m_Assets = std::move(assets);
     m_Resources = std::move(resources);
     m_Actors = std::move(actors);
     m_Replication = std::move(replication);
-    m_LastReplicationSnapshot = {};
-    m_LastReplicationReceipt = {};
     m_Authoring = std::make_unique<AuthoringCatalog>();
     m_Curriculum = std::move(curriculum);
     m_LastCurriculumEvents.clear();
@@ -212,11 +204,11 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
 }
 
 bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle) {
-    if (m_State != RuntimeState::Initialized || !m_FarmSessionHost || !m_FarmSessionHost->IsReady()) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
-    if (!m_FarmSessionHost->Authenticate(principal, sessionHandle)) {
+    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle)) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
@@ -227,12 +219,12 @@ bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, 
 bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
                                                 const FarmSessionCommand& command,
                                                 FarmAuthoritativeCommandReceipt& receipt) {
-    if (m_State != RuntimeState::Initialized || !m_FarmSessionHost || !m_FarmSessionHost->IsReady()) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
     const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
-    if (!m_FarmSessionHost->Submit(sessionHandle, command, serverTick, receipt)) {
+    if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
@@ -241,12 +233,7 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
 }
 
 bool NeoRuntime::Tick() {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidDelta(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
-    const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(contractSnapshot.pendingFixedSteps, 1000U)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     std::vector<RuntimeTimerFire> fires;
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
@@ -287,12 +274,6 @@ bool NeoRuntime::Tick() {
     if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
     if (!m_ECS || !m_SceneECSBridge.Rebuild(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
-    if (m_FarmAuthorityLoopback != nullptr && m_FarmAuthorityLoopback->IsRunning()) m_FarmAuthorityLoopback->SetServerTick(m_Clock->Snapshot().fixedStepCount);
-    if (m_Replication->Role() == ReplicationRole::Server) {
-        if (!m_Replication->BuildServerSnapshot(m_Clock->Snapshot().fixedStepCount, m_LastReplicationSnapshot)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
-    } else if (!m_Replication->ApplyInterpolation(m_LastReplicationReceipt)) {
-        m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false;
-    }
     if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
     CurriculumProgressReceipt curriculumReceipt{};
     m_LastCurriculumEvents.clear();
@@ -304,65 +285,6 @@ bool NeoRuntime::Tick() {
     m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
     m_LastFrameReceipt.farmPlayerInput = farmPlayerInputReceipt; m_LastFrameReceipt.hasFarmPlayerInputReceipt = hasFarmPlayerInput; m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
     m_HasFrameReceipt = true;
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::RegisterReplicatedEntity(SceneEntity entity, uint32_t networkId, uint32_t ownerId) {
-    if (m_State != RuntimeState::Initialized || !m_Replication || !m_Scene || m_Scene->GetTransform(entity) == nullptr) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Replication->RegisterEntity(entity, networkId, ownerId)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::UnregisterReplicatedEntity(uint32_t networkId) {
-    if (m_State != RuntimeState::Initialized || !m_Replication) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Replication->UnregisterEntity(networkId)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::BuildReplicationAcknowledgement(ReplicationAcknowledgement& acknowledgement) const {
-    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
-        return false;
-    }
-    return m_Replication->BuildClientAcknowledgement(acknowledgement);
-}
-
-bool NeoRuntime::ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement) {
-    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Server) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Replication->ApplyClientAcknowledgement(acknowledgement)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt) {
-    if (m_State != RuntimeState::Initialized || !m_Replication || m_Replication->Role() != ReplicationRole::Client) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Replication->PredictLocalInput(networkId, deltaX, deltaZ, receipt)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
     m_LastError = RuntimeError::None;
     return true;
 }
@@ -539,39 +461,8 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     return true;
 }
 
-bool NeoRuntime::StartFarmAuthoritativeLoopback(const FarmSessionPrincipal& principal, uint16_t maxConnections) {
-    if (m_State != RuntimeState::Initialized || !m_FarmSessionHost || !m_FarmAuthorityTransport || !m_FarmAuthorityLoopback || !m_Clock) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (m_FarmAuthorityLoopback->IsRunning()) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    const uint64_t serverTick = m_Clock->Snapshot().fixedStepCount;
-    if (serverTick == 0U || !m_FarmAuthorityLoopback->Start(*m_FarmSessionHost, *m_FarmAuthorityTransport, principal, serverTick, maxConnections)) {
-        m_LastError = RuntimeError::AuthorityFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-void NeoRuntime::StopFarmAuthoritativeLoopback() {
-    if (m_FarmAuthorityLoopback) m_FarmAuthorityLoopback->Stop();
-    if (m_FarmAuthorityTransport) m_FarmAuthorityTransport->Stop();
-}
-
-uint16_t NeoRuntime::FarmAuthoritativeLoopbackPort() const {
-    return (m_FarmAuthorityLoopback && m_FarmAuthorityLoopback->IsRunning()) ? m_FarmAuthorityLoopback->Port() : 0U;
-}
-
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
-    StopFarmAuthoritativeLoopback();
-    m_FarmAuthorityLoopback.reset();
-    m_FarmAuthorityTransport.reset();
-    m_FarmSessionHost.reset();
     m_SurfacePresenter.reset();
     m_FarmRuntimeHud.reset();
     m_FarmRenderAssets.reset();
