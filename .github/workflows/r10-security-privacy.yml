@@ -76,7 +76,7 @@ jobs:
 
       - name: Configure AddressSanitizer
         run: |
-          cmake -S Source/NeoEngine -B build/r10-asan -G Ninja \\
+          cmake -S Source/NeoEngine -B build/r10-asan -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_PREFIX_PATH="$SDL3_ROOT" \
             '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
