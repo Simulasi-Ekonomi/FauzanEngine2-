@@ -26,11 +26,14 @@ jobs:
       - name: Build SDL3 dependency
         run: |
           git clone --depth 1 --branch release-3.2.20 https://github.com/libsdl-org/SDL.git /tmp/SDL3
+          sudo apt-get install -y libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxrender-dev libwayland-dev libwayland-egl-backend-dev libdecor-0-dev
           cmake -S /tmp/SDL3 -B /tmp/SDL3-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL_TESTS=OFF \
             -DSDL_EXAMPLES=OFF \
             -DSDL_INSTALL_TESTS=OFF \
+            -DSDL_X11=ON \
+            -DSDL_WAYLAND=ON \
             -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install
           cmake --build /tmp/SDL3-build --parallel
           cmake --install /tmp/SDL3-build
