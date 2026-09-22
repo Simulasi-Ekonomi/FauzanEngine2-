@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <new>
-#include <utility>
 
 namespace NeoEngine {
 bool EventSignalBus::Fail(EventSignalError error) { lastError_ = error; return false; }
@@ -22,23 +21,5 @@ bool EventSignalBus::Queue(RuntimeEvent event) {
     lastError_ = EventSignalError::None;
     return true;
 }
-bool EventSignalBus::Dispatch(EventSignalDispatchReceipt* receipt) {
-    std::vector<RuntimeEventListener*> listenersSnapshot;
-    std::vector<RuntimeEvent> eventsSnapshot;
-    try {
-        listenersSnapshot = listeners_;
-        eventsSnapshot = pending_;
-    } catch (const std::bad_alloc&) {
-        return Fail(EventSignalError::Capacity);
-    }
-    uint64_t digest = 1469598103934665603ULL;
-    const auto mix = [&digest](uint64_t value) { for (uint8_t index = 0U; index < 8U; ++index) { digest ^= static_cast<uint8_t>(value >> (index * 8U)); digest *= 1099511628211ULL; } };
-    for (const RuntimeEvent& event : eventsSnapshot) { mix(static_cast<uint8_t>(event.kind)); mix(event.subjectId); mix(static_cast<uint32_t>(event.value)); mix(event.tick); }
-    for (const RuntimeEvent& event : eventsSnapshot) for (RuntimeEventListener* listener : listenersSnapshot) if (listener != nullptr) listener->OnRuntimeEvent(event);
-    const EventSignalDispatchReceipt candidate{static_cast<uint16_t>(listenersSnapshot.size()), static_cast<uint16_t>(eventsSnapshot.size()), digest};
-    pending_.erase(pending_.begin(), pending_.begin() + static_cast<std::ptrdiff_t>(eventsSnapshot.size()));
-    lastError_ = EventSignalError::None;
-    if (receipt != nullptr) *receipt = candidate;
-    return true;
-}
+bool EventSignalBus::Dispatch(EventSignalDispatchReceipt* receipt) { uint64_t digest = 1469598103934665603ULL; const auto mix = [&digest](uint64_t value) { for (uint8_t index = 0U; index < 8U; ++index) { digest ^= static_cast<uint8_t>(value >> (index * 8U)); digest *= 1099511628211ULL; } }; for (const RuntimeEvent& event : pending_) { mix(static_cast<uint8_t>(event.kind)); mix(event.subjectId); mix(static_cast<uint32_t>(event.value)); mix(event.tick); } for (const RuntimeEvent& event : pending_) for (RuntimeEventListener* listener : listeners_) listener->OnRuntimeEvent(event); const EventSignalDispatchReceipt candidate{static_cast<uint16_t>(listeners_.size()), static_cast<uint16_t>(pending_.size()), digest}; pending_.clear(); lastError_ = EventSignalError::None; if (receipt != nullptr) *receipt = candidate; return true; }
 } // namespace NeoEngine
