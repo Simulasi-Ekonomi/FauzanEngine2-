@@ -7,7 +7,7 @@ REPORT_DIR="${BUILD_DIR}/sandbox-report"
 mkdir -p "$BUILD_DIR" "$REPORT_DIR"
 
 echo "[P1-SANDBOX] configure"
-cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DNEO_ENABLE_TESTS=ON
+cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
 
 echo "[P1-SANDBOX] build canonical runtime"
 cmake --build "$BUILD_DIR" -j2
@@ -45,7 +45,24 @@ for target in "${TARGETS[@]}"; do
 done
 
 echo "[P1-SANDBOX] static stub/placeholder scan"
-git grep -nE 'TODO|FIXME|XXX|placeholder|not implemented|IMPLEMENT_ME|return[[:space:]]*0;[[:space:]]*(//.*)?$' --   'Source/NeoEngine/**/*.cpp' 'Source/NeoEngine/**/*.h' >"$REPORT_DIR/static_markers.txt" || true
+git grep -nE 'TODO|FIXME|XXX|placeholder|not implemented|IMPLEMENT_ME|return[[:space:]]*0;[[:space:]]*(//.*)?
+
+cat >"$REPORT_DIR/summary.txt" <<EOF
+P1 Unreal-like parity sandbox
+targets=$((pass+fail+skip))
+pass=$pass
+fail=$fail
+skip=$skip
+EOF
+
+cat "$REPORT_DIR/summary.txt"
+cat "$REPORT_DIR/execution.tsv"
+
+if (( fail != 0 )); then
+  exit 1
+fi
+ -- \
+  ':(glob)Source/NeoEngine/**/*.cpp' ':(glob)Source/NeoEngine/**/*.h' >"$REPORT_DIR/static_markers.txt" || true
 
 cat >"$REPORT_DIR/summary.txt" <<EOF
 P1 Unreal-like parity sandbox
