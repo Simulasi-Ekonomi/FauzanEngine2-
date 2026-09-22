@@ -13,7 +13,6 @@
 #include "RuntimeTimeSystem.h"
 #include "RuntimeTimerQueue.h"
 #include "RuntimePersistence.h"
-#include "AtomicSaveFile.h"
 #include "ActorComponentWorld.h"
 #include "AssetResourceManager.h"
 #include "ReplicationWorld.h"
@@ -34,10 +33,7 @@
 #include "Systems/AuthoringCatalog.h"
 #include "Systems/WorldAuthoring.h"
 #include "Systems/TrustSafetySystem.h"
-#include "Systems/TelemetryOutbox.h"
-#include "Systems/FarmTelemetryAdapter.h"
 #include <cstdint>
-#include <filesystem>
 #include <memory>
 #include <vector>
 
@@ -56,29 +52,24 @@ struct RuntimeConfig {
     bool enableFarmPlayerInput=false; FarmPlayerInputBindings farmPlayerInputBindings{}; bool enableRouteMotion=false; float routeMotionUnitsPerSecond=5.0F; bool routeMotionFaceMovementDirection=false;
     bool enableSkeletalRouteMotion=false; SkeletalRouteDirection skeletalRouteDirection=SkeletalRouteDirection::PositiveX; SkeletalPosePlaybackMode skeletalRoutePlaybackMode=SkeletalPosePlaybackMode::Clamp;
     Skeleton skeletalRouteSkeleton{}; SkeletalPoseClip skeletalRouteClip{}; uint16_t routeMotionNavigationSide=GridNavigation::kMinSide;
-    std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; bool enableFarmCurriculum=false; bool telemetryConsentGranted=false; uint64_t telemetryRetentionMs=7ULL * 24ULL * 60ULL * 60ULL * 1000ULL;
+    std::vector<GridCell> routeMotionRoute{}; RuntimeTimeConfig timeConfig{}; ReplicationRole replicationRole=ReplicationRole::Server; uint32_t replicationLocalClientId=0U; bool enableFarmCurriculum=false;
 };
 class NeoRuntime {
 public:
     bool Initialize(const RuntimeConfig& config);
-    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
-    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool Tick();
     bool SetPaused(bool paused);
     bool SetTimeScalePermille(uint16_t scalePermille);
     bool SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
-    bool SaveFarmProgressCheckpointFile(const std::filesystem::path& root, std::string_view slot, uint64_t revision);
-    bool RestoreFarmProgressCheckpointFile(const std::filesystem::path& root, std::string_view slot, uint64_t& revision);
     bool ReplanRouteMotion();
+    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
+    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
-    bool SetTelemetryConsent(bool granted);
-    bool SaveTelemetryOutboxFile(const std::filesystem::path& root, std::string_view slot);
-    bool RestoreTelemetryOutboxFile(const std::filesystem::path& root, std::string_view slot);
     bool Shutdown();
     RuntimeState State() const { return m_State; }
     RuntimeError LastError() const { return m_LastError; }
@@ -86,9 +77,9 @@ public:
     const FarmSystem* Farm() const { return m_Farm.get(); }
     FarmWorldTool* FarmWorld() { return m_FarmWorld.get(); }
     const FarmWorldTool* FarmWorld() const { return m_FarmWorld.get(); }
+    FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
     FarmAuthoritativeSessionHost* FarmAuthoritySession() { return m_FarmAuthoritySession.get(); }
     const FarmAuthoritativeSessionHost* FarmAuthoritySession() const { return m_FarmAuthoritySession.get(); }
-    FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
     const FarmAuthoritativeService* FarmAuthority() const { return m_FarmAuthority.get(); }
     TrustSafetySystem* TrustSafety() { return m_TrustSafety.get(); }
     const TrustSafetySystem* TrustSafety() const { return m_TrustSafety.get(); }
@@ -107,12 +98,10 @@ public:
     ArchetypeManager* ECS() { return m_ECS.get(); }
     const ArchetypeManager* ECS() const { return m_ECS.get(); }
     const SceneECSBridgeReceipt& SceneECS() const { return m_SceneECSBridge.LastReceipt(); }
-    EntityID SceneECSId(SceneEntity entity) const { return m_SceneECSBridge.ECSId(entity); }
     SceneWorld* Scene() { return m_Scene.get(); }
     const SceneWorld* Scene() const { return m_Scene.get(); }
     SceneMeshAdapter* SceneMeshes() { return m_SceneMeshes.get(); }
     const SceneMeshAdapter* SceneMeshes() const { return m_SceneMeshes.get(); }
-    bool RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material);
     RenderCamera* SceneCamera() { return m_SceneCamera.get(); }
     const RenderCamera* SceneCamera() const { return m_SceneCamera.get(); }
     Vulkan3DRenderer* VulkanRenderer() { return m_VulkanRenderer.get(); }
@@ -144,10 +133,6 @@ public:
     const SkeletalAnimationController* SkeletalRouteMotionController() const { return m_SkeletalRouteMotionController.get(); }
     MovementAuthorityGate* MotionAuthority() { return m_MotionAuthority.get(); }
     const MovementAuthorityGate* MotionAuthority() const { return m_MotionAuthority.get(); }
-    const TelemetryOutbox& Telemetry() const { return m_Telemetry; }
-    const std::vector<TelemetryEnvelope>& PendingTelemetry() const { return m_Telemetry.Pending(); }
-    bool AcknowledgeTelemetry(const std::string& id) { return m_Telemetry.Acknowledge(id); }
-    bool AcknowledgeTelemetryBatch(const std::vector<std::string>& ids) { return m_Telemetry.AcknowledgeBatch(ids); }
 private:
     RuntimeState m_State = RuntimeState::Created;
     RuntimeError m_LastError = RuntimeError::None;
@@ -202,13 +187,9 @@ private:
     std::unique_ptr<TextureStagingStore> m_FarmSpriteTextures;
     NeoRuntimeFrameReceipt m_LastFrameReceipt{};
     bool m_HasFrameReceipt = false;
-    bool m_TelemetryConsentGranted = false;
-    uint64_t m_TelemetryRetentionMs = 7ULL * 24ULL * 60ULL * 60ULL * 1000ULL;
     uint64_t m_RenderedFarmFrames = 0U;
     RuntimeFarmRenderReceipt m_LastFarmRenderReceipt{};
     bool m_HasFarmRenderReceipt = false;
     std::unique_ptr<SoftwareSurfacePresenter> m_SurfacePresenter;
-    FarmTelemetryAdapter m_FarmTelemetry{{"neo-runtime", "fauzan-engine", "runtime-v1", "runtime-farm-player"}};
-    TelemetryOutbox m_Telemetry{};
 };
 } // namespace NeoEngine
