@@ -21,7 +21,20 @@ jobs:
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ libvulkan-dev vulkan-tools glslang-tools libsdl3-dev libjsoncpp-dev rapidjson-dev
+          sudo apt-get install -y cmake ninja-build g++ libvulkan-dev vulkan-tools glslang-tools libjsoncpp-dev rapidjson-dev pkg-config
+
+      - name: Build SDL3 dependency
+        run: |
+          git clone --depth 1 --branch release-3.2.20 https://github.com/libsdl-org/SDL.git /tmp/SDL3
+          cmake -S /tmp/SDL3 -B /tmp/SDL3-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDL_TESTS=OFF \
+            -DSDL_EXAMPLES=OFF \
+            -DSDL_INSTALL_TESTS=OFF \
+            -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install
+          cmake --build /tmp/SDL3-build --parallel
+          cmake --install /tmp/SDL3-build
+          echo "CMAKE_PREFIX_PATH=/tmp/sdl3-install" >> "$GITHUB_ENV"
 
       - name: Run P1 sandbox
         run: |
