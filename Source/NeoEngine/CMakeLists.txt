@@ -98,6 +98,7 @@ set(XPBD_RUNTIME_SOURCES
     Asset/GLTF/GLTFGPUUploader.cpp
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
+    Runtime/VulkanBootstrap.cpp
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanDescriptorManager.cpp
     Animation/SkinningGPU.cpp
