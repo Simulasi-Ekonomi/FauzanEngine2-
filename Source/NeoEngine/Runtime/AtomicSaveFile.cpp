@@ -84,7 +84,24 @@ bool AtomicSaveFile::Write(const std::filesystem::path& root, std::string_view s
         error = AtomicSaveFileError::WriteFailure;
         return false;
     }
+    // POSIX rename replaces an existing regular file atomically, while some
+    // supported filesystems report EEXIST instead. Preserve the atomic-slot
+    // contract by retrying through a guarded removal only when the destination
+    // is a regular file; never replace a symlink or directory.
     std::filesystem::rename(tempPath, finalPath, ec);
+    if (ec) {
+        std::error_code destinationEc;
+        const bool destinationIsSymlink = std::filesystem::is_symlink(finalPath, destinationEc);
+        const bool destinationIsDirectory = std::filesystem::is_directory(finalPath, destinationEc);
+        if (!destinationEc && !destinationIsSymlink && !destinationIsDirectory) {
+            std::error_code removeEc;
+            std::filesystem::remove(finalPath, removeEc);
+            if (!removeEc) {
+                ec.clear();
+                std::filesystem::rename(tempPath, finalPath, ec);
+            }
+        }
+    }
     if (ec) {
         std::filesystem::remove(tempPath, ec);
         error = AtomicSaveFileError::RenameFailure;
