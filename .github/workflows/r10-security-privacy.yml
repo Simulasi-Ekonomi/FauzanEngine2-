@@ -58,7 +58,11 @@ jobs:
 
       - name: Build and run Release boundary smokes
         run: |
-          cmake --build build/r10-release --target runtime_persistence_smoke atomic_save_file_smoke farm_telemetry_smoke authoritative_command_gate_smoke trust_safety_smoke -j2
+          cmake --build build/r10-release --target runtime_persistence_smoke -j2
+          cmake --build build/r10-release --target atomic_save_file_smoke -j2
+          cmake --build build/r10-release --target farm_telemetry_smoke -j2
+          cmake --build build/r10-release --target authoritative_command_gate_smoke -j2
+          cmake --build build/r10-release --target trust_safety_smoke -j2
           ./build/r10-release/runtime_persistence_smoke
           ./build/r10-release/atomic_save_file_smoke
           ./build/r10-release/farm_telemetry_smoke
@@ -77,7 +81,11 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1
         run: |
-          cmake --build build/r10-asan --target runtime_persistence_smoke atomic_save_file_smoke farm_telemetry_smoke authoritative_command_gate_smoke trust_safety_smoke -j2
+          cmake --build build/r10-asan --target runtime_persistence_smoke -j2
+          cmake --build build/r10-asan --target atomic_save_file_smoke -j2
+          cmake --build build/r10-asan --target farm_telemetry_smoke -j2
+          cmake --build build/r10-asan --target authoritative_command_gate_smoke -j2
+          cmake --build build/r10-asan --target trust_safety_smoke -j2
           ./build/r10-asan/runtime_persistence_smoke
           ./build/r10-asan/atomic_save_file_smoke
           ./build/r10-asan/farm_telemetry_smoke
