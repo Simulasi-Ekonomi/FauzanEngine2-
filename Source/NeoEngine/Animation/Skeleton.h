@@ -27,7 +27,7 @@ public:
     // Atomically derives affine inverse bind matrices for all bones from the global bind hierarchy.
     [[nodiscard]] bool DeriveInverseBindPose();
     // Evaluates caller-supplied local pose matrices into skinning palette = globalPose * inverseBind.
-    [[nodiscard]] bool EvaluateSkinningPalette(const std::vector<Mat4>& localPose, std::vector<Mat4>& output);
+    [[nodiscard]] bool EvaluateSkinningPalette(const std::vector<Mat4>& localPose, std::vector<Mat4>& output) const;
     [[nodiscard]] int RootIndex() const { return rootIndex_; }
     [[nodiscard]] bool IsComplete() const { return !bones_.empty() && rootIndex_ == 0; }
     [[nodiscard]] SkeletonError LastError() const { return lastError_; }
@@ -36,7 +36,7 @@ private:
     std::vector<Bone> bones_;
     int rootIndex_ = -1;
     bool inverseBindReady_ = false;
-    SkeletonError lastError_ = SkeletonError::None;
+    mutable SkeletonError lastError_ = SkeletonError::None;
 
 };
 
