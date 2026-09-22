@@ -1,5 +1,4 @@
 #include "NeoRuntime.h"
-#include "RuntimeContractGuard.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
@@ -42,7 +41,7 @@ bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uin
 } // namespace
 
 bool NeoRuntime::Initialize(const RuntimeConfig& config) {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFixedTicks(config.fixedTicksPerFrame) || !RuntimeContractGuard::RuntimeContractGuard::ValidInitialCoins(config.initialCoins) || !RuntimeContractGuard::RuntimeContractGuard::ValidNpcCount(config.farmNpcCount, FarmWorldTool::kMaxNpcs) || !RuntimeContractGuard::RuntimeContractGuard::ValidRenderExtent(config.renderWidth, config.renderHeight) || !RuntimeContractGuard::RuntimeContractGuard::ValidTimeScale(static_cast<float>(config.timeConfig.defaultTimeScalePermille) / 1000.0F) || !RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(config.renderWidth * static_cast<uint32_t>(config.renderHeight), 16U * 1024U * 1024U) || m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
+    if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
         m_LastError = RuntimeError::InvalidConfiguration;
         m_State = RuntimeState::Failed;
         return false;
@@ -65,11 +64,6 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
     if (!renderer->Initialize(config.renderWidth, config.renderHeight)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
-    auto audio = std::unique_ptr<SdlAudioBridge>{};
-    if (config.enableAudio) {
-        audio = std::make_unique<SdlAudioBridge>();
-        if (!audio->Initialize(config.audioFramesPerCallback)) { m_LastError = RuntimeError::AudioInitializationFailed; m_State = RuntimeState::Failed; return false; }
-    }
     auto surfacePresenter = std::unique_ptr<SoftwareSurfacePresenter>{};
     if (config.enableSoftwareSurfacePresentation) {
         surfacePresenter = std::make_unique<SoftwareSurfacePresenter>();
@@ -204,7 +198,6 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
     m_SurfacePresenter = std::move(surfacePresenter);
-    m_Audio = std::move(audio);
     m_LastError = RuntimeError::None;
     m_State = RuntimeState::Initialized;
     return true;
@@ -215,13 +208,32 @@ bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, 
         m_LastError = RuntimeError::AuthorityFailed;
         return false;
     }
-    if (!m_FarmAuthoritySession->Authenbool NeoRuntime::Tick() {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidDelta(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (!m_FarmAuthoritySession->Authenticate(principal, sessionHandle)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
+                                                const FarmSessionCommand& command,
+                                                FarmAuthoritativeCommandReceipt& receipt) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
+    if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::Tick() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
-    const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(contractSnapshot.pendingFixedSteps, 1000U)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     std::vector<RuntimeTimerFire> fires;
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
@@ -323,19 +335,6 @@ bool NeoRuntime::RenderFarm() {
     if (m_SurfacePresenter != nullptr && (!m_SurfacePresenter->PumpEvents() || !m_SurfacePresenter->Present(candidate))) { m_LastError = RuntimeError::PresentationFailed; return false; }
     const RuntimeFarmRenderReceipt receipt{m_RenderedFarmFrames + 1U, worldHash, hudHash, m_SurfacePresenter == nullptr ? 0U : m_SurfacePresenter->PresentedFrameCount(), telemetry}; *m_Renderer = std::move(candidate); ++m_RenderedFarmFrames; m_LastFarmRenderReceipt = receipt; m_HasFarmRenderReceipt = true; if (m_HasFrameReceipt) { NeoRuntimeFrameReceipt candidateReceipt = m_LastFrameReceipt; candidateReceipt.farmRender = receipt; candidateReceipt.onboarding = onboarding; candidateReceipt.hasFarmRenderReceipt = true;             if (m_FarmRenderAssets != nullptr) { candidateReceipt.farmSpriteAssets = m_FarmRenderAssets->Receipt(); candidateReceipt.hasFarmSpriteAssets = true; } m_LastFrameReceipt = candidateReceipt; } m_LastError = RuntimeError::None;
 
-    return true;
-}
-
-bool NeoRuntime::UploadTextureResource(const AssetResourceHandle& handle, VkImage targetImage, VkImageLayout targetLayout, uint32_t width, uint32_t height) {
-    if (m_State != RuntimeState::Initialized || !m_VulkanRenderer || !m_Resources || targetImage == VK_NULL_HANDLE || width == 0U || height == 0U) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_VulkanRenderer->UploadTextureResource(*m_Resources, handle, targetImage, targetLayout, width, height)) {
-        m_LastError = RuntimeError::Vulkan3DRenderFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
     return true;
 }
 
@@ -465,7 +464,6 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
-    m_Audio.reset();
     m_FarmRuntimeHud.reset();
     m_FarmRenderAssets.reset();
     m_FarmSpriteRenderer.reset();
