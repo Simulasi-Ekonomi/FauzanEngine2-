@@ -7,7 +7,6 @@
 #include <atomic>
 #include <cstdint>
 #include <unordered_map>
-#include <chrono>
 
 namespace NeoEngine {
 
@@ -100,7 +99,6 @@ struct StepTimingStats {
     double solveMs = 0.0;
     double mergeMs = 0.0;
     double writeBackMs = 0.0;
-    double totalMs = 0.0;
 };
 struct BVHNode { float minX, minZ, maxX, maxZ; float cachedCost; int left, right, parent; int entityIdx; bool isLeaf; };
 struct IslandRange { uint32_t start, count; };
@@ -153,9 +151,6 @@ public:
     void SetTimingEnabled(bool enabled) { m_TimingEnabled = enabled; }
     void SetProbeMetricsEnabled(bool enabled) { m_ProbeMetricsEnabled = enabled; }
     const StepTimingStats& GetStepTimingStats() const { return m_StepTimingStats; }
-    uint64_t GetLastStepElapsedMicroseconds() const { return m_LastStepElapsedMicroseconds; }
-    uint32_t GetLastStepBodyCount() const { return static_cast<uint32_t>(m_activeFlatEntities); }
-    uint32_t GetLastStepCollisionTests() const { return static_cast<uint32_t>(m_BroadphaseStats.candidatePairs); }
 
     uint32_t AddHingeJoint(uint32_t idxA, uint32_t idxB,
                            float anchorAX, float anchorAZ,
@@ -244,7 +239,6 @@ private:
     std::vector<uint64_t> m_PairKeys;
     size_t m_CurrentStamp = 1;
     uint32_t m_FrameCount = 0;
-    uint64_t m_LastStepElapsedMicroseconds = 0U;
 
     std::vector<IslandRange> m_IslandRanges;
     std::vector<uint32_t> m_IslandSizes;
@@ -264,15 +258,6 @@ private:
     size_t m_NumColors = 0;
 
     std::vector<BVHNode> m_BVHNodes;
-    // Persistent broadphase scratch buffers: avoid per-step heap churn without changing collision coverage.
-    std::vector<int> m_BroadphaseIndices;
-    std::vector<std::pair<uint32_t, int>> m_BVHSortBuffer;
-    std::vector<std::pair<uint32_t, int>> m_BVHSortTemp;
-    std::vector<int> m_BVHSortedIndices;
-    struct BVHBuildTask { int s, e, p; bool right; };
-    struct ColorTask { size_t color; size_t offset; size_t count; };
-    std::vector<ColorTask> m_ColorTasks;
-    std::vector<BVHBuildTask> m_BVHBuildStack;
     int m_BVHRoot = -1;
     bool m_BVHInitialized = false;
     mutable std::vector<int> m_BVHStack;
@@ -306,7 +291,6 @@ private:
     bool m_UseGridBroadphase = true;
     float m_GridCellSize = 2.0f;
     std::unordered_map<uint64_t, std::vector<uint32_t>> m_Grid;
-    std::vector<std::pair<uint64_t, uint32_t>> m_GridEntries;
     std::vector<int> m_DenseGridHeads;
     std::vector<int> m_DenseGridNext;
     std::vector<uint8_t> m_DenseGridActiveCells;
