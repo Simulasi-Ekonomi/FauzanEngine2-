@@ -1,11 +1,9 @@
 #include "NeoRuntime.h"
-#include "RuntimeContractGuard.h"
 
 #include "FarmRenderAdapter.h"
 #include "FarmSpriteRenderAdapter.h"
 #include "TextureStaging.h"
 #include "Systems/AgricultureCurriculum.h"
-#include "GameplayPhysicsForceAccumulator.h"
 
 #include <limits>
 
@@ -43,7 +41,7 @@ bool ReadBlob(const std::vector<uint8_t>& bytes, size_t& offset, std::vector<uin
 } // namespace
 
 bool NeoRuntime::Initialize(const RuntimeConfig& config) {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFixedTicks(config.fixedTicksPerFrame) || !RuntimeContractGuard::RuntimeContractGuard::ValidInitialCoins(config.initialCoins) || !RuntimeContractGuard::RuntimeContractGuard::ValidNpcCount(config.farmNpcCount, FarmWorldTool::kMaxNpcs) || !RuntimeContractGuard::RuntimeContractGuard::ValidRenderExtent(config.renderWidth, config.renderHeight) || !RuntimeContractGuard::RuntimeContractGuard::ValidTimeScale(static_cast<float>(config.timeConfig.defaultTimeScalePermille) / 1000.0F) || !RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(config.renderWidth * static_cast<uint32_t>(config.renderHeight), 16U * 1024U * 1024U) || m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
+    if (m_State != RuntimeState::Created || config.fixedTicksPerFrame == 0 || config.initialCoins < 0 || config.farmNpcCount == 0 || config.farmNpcCount > FarmWorldTool::kMaxNpcs || (config.enableFarmRuntimeHud && (config.renderWidth < 64U || config.renderHeight < 48U))) {
         m_LastError = RuntimeError::InvalidConfiguration;
         m_State = RuntimeState::Failed;
         return false;
@@ -66,15 +64,6 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     auto resources = std::make_unique<AssetResourceManager>(*assets);
     auto renderer = std::make_unique<SoftwareRenderer>();
     if (!renderer->Initialize(config.renderWidth, config.renderHeight)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
-    auto audio = std::unique_ptr<SdlAudioBridge>{};
-    if (config.enableAudio) {
-        audio = std::make_unique<SdlAudioBridge>();
-        if (!audio->Initialize(config.audioFramesPerCallback) || !audio->SetListener(config.audioListener)) {
-            m_LastError = RuntimeError::AudioFailed;
-            m_State = RuntimeState::Failed;
-            return false;
-        }
-    }
     auto surfacePresenter = std::unique_ptr<SoftwareSurfacePresenter>{};
     if (config.enableSoftwareSurfacePresentation) {
         surfacePresenter = std::make_unique<SoftwareSurfacePresenter>();
@@ -92,8 +81,6 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     authoringWorldConfig.seed = config.authoringWorldSeed;
     if (!authoringWorld->Generate(authoringWorldConfig) || !authoringWorld->BindScene(*scene)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto ecs = std::make_unique<ArchetypeManager>();
-    auto physics = std::make_unique<XPBDPhysicsSystem>();
-    auto sceneMeshes = std::make_unique<SceneMeshAdapter>();
     SceneECSBridge sceneECSBridge;
     if (!sceneECSBridge.Rebuild(*scene, *ecs)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto actors = std::make_unique<ActorComponentWorld>(*scene);
@@ -195,15 +182,12 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
     m_ECS = std::move(ecs);
-    m_Physics = std::move(physics);
-    m_SceneMeshes = std::move(sceneMeshes);
     m_SceneECSBridge = std::move(sceneECSBridge);
     m_SceneCameraConfig = config.sceneCamera;
     m_RenderWidth = config.renderWidth;
     m_RenderHeight = config.renderHeight;
     m_EnableVulkan3DRenderer = config.enableVulkan3DRenderer;
     m_Renderer = std::move(renderer);
-    m_Audio = std::move(audio);
     m_FarmRuntimeHud = config.enableFarmRuntimeHud ? std::make_unique<FarmRuntimeHud>() : nullptr;
     m_FarmRenderAssets.reset();
     m_FarmSpriteRenderer = std::make_unique<FarmSpriteRenderAdapter>();
@@ -233,104 +217,73 @@ bool NeoRuntime::AuthenticateFarmSession(const FarmSessionPrincipal& principal, 
 }
 
 bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
-                                                const FarmSessionCommandbool NeoRuntime::Tick() {
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidRevision(m_Clock->Snapshot().frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidEntityId(m_InputMotionEntity_.index)) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidDelta(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
+                                                const FarmSessionCommand& command,
+                                                FarmAuthoritativeCommandReceipt& receipt) {
+    if (m_State != RuntimeState::Initialized || !m_FarmAuthoritySession || !m_FarmAuthoritySession->IsReady()) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    const uint64_t serverTick = m_Clock ? m_Clock->Snapshot().frameCount : 0U;
+    if (!m_FarmAuthoritySession->Submit(sessionHandle, command, serverTick, receipt)) {
+        m_LastError = RuntimeError::AuthorityFailed;
+        return false;
+    }
+    m_LastError = RuntimeError::None;
+    return true;
+}
+
+bool NeoRuntime::Tick() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
-    RuntimeFrameContract frameContract;
-    if (!frameContract.Begin(m_Clock->Snapshot().frameCount, m_SceneECSBridge.LastReceipt().revision)) { m_LastError = RuntimeError::InvalidState; return false; }
-    const auto failFrame = [&]() -> bool { frameContract.Fail(); return false; };
-    const RuntimeClockSnapshot contractSnapshot = m_Clock->Snapshot();
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidFrameCount(contractSnapshot.frameCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidFixedStepCount(contractSnapshot.fixedStepCount) || !RuntimeContractGuard::RuntimeContractGuard::ValidPendingFixedSteps(contractSnapshot.pendingFixedSteps)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
-    if (!RuntimeContractGuard::RuntimeContractGuard::ValidPayloadSize(contractSnapshot.pendingFixedSteps, 1000U)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     std::vector<RuntimeTimerFire> fires;
-    if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-    for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-    if (m_Scene != nullptr && !m_Scene->UpdateTransforms()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
+    for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
     if (m_Input != nullptr) m_Input->BeginFrame();
     std::vector<RuntimeTimeEvent> timeEvents;
     uint32_t simulatedTicks = 0U;
-    if (m_Time == nullptr || !m_Time->AdvanceFixedTicks(m_FixedTicksPerFrame, timeEvents, simulatedTicks)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (timeEvents.size() > EventSignalBus::kMaxEvents - m_Events->PendingCount()) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (m_Time == nullptr || !m_Time->AdvanceFixedTicks(m_FixedTicksPerFrame, timeEvents, simulatedTicks)) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
+    if (timeEvents.size() > EventSignalBus::kMaxEvents - m_Events->PendingCount()) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     for (const RuntimeTimeEvent& event : timeEvents) {
         const RuntimeEventKind kind = event.kind == RuntimeTimeEventKind::TimeChanged ? RuntimeEventKind::GameTimeChanged : event.kind == RuntimeTimeEventKind::DayChanged ? RuntimeEventKind::GameDayChanged : RuntimeEventKind::GamePhaseChanged;
-        if (!m_Events->Queue({kind, 0U, static_cast<int32_t>(event.snapshot.minuteOfDay), event.snapshot.hostFixedStepCount})) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return failFrame(); }
+        if (!m_Events->Queue({kind, 0U, static_cast<int32_t>(event.snapshot.minuteOfDay), event.snapshot.hostFixedStepCount})) { m_LastError = RuntimeError::TimeFailed; m_State = RuntimeState::Failed; return false; }
     }
     if (m_Clock->Snapshot().paused || simulatedTicks == 0U) {
-        if (!frameContract.Advance(RuntimeFrameStage::Simulation) || !frameContract.Advance(RuntimeFrameStage::SceneSnapshot)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
         const uint32_t eventCount = m_Events->PendingCount();
         EventSignalDispatchReceipt dispatchReceipt{};
         CurriculumProgressReceipt curriculumReceipt{};
-        if (m_Curriculum != nullptr && !m_Curriculum->Snapshot(curriculumReceipt)) { m_LastError = RuntimeError::CurriculumFailed; return failFrame(); }
-        if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-        if (m_EnableVulkan3DRenderer && !RenderScene3D()) return failFrame();
-        if (!frameContract.Advance(RuntimeFrameStage::RenderCommands) || !frameContract.Advance(RuntimeFrameStage::AudioEvents) || !frameContract.Advance(RuntimeFrameStage::Completed)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-        m_LastFrameReceipt = {};
-        m_LastFrameReceipt.clock = m_Clock->Snapshot();
-        m_LastFrameReceipt.time = m_Time->Snapshot();
-        m_LastFrameReceipt.farm = m_Farm->Snapshot();
-        m_LastFrameReceipt.world = m_FarmWorld->Snapshot();
-        m_LastFrameReceipt.dispatchedEventCount = eventCount;
+        if (m_Curriculum != nullptr && !m_Curriculum->Snapshot(curriculumReceipt)) { m_LastError = RuntimeError::CurriculumFailed; return false; }
+        if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return false; }
+        m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), {}, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
         m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
         m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount(); m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
-        m_LastFrameReceipt.frameToken = frameContract.Token();
-        m_LastFrameReceipt.frameStage = frameContract.Stage();
-        m_LastFrameReceipt.hasVulkanRenderReceipt = m_EnableVulkan3DRenderer && m_VulkanRenderer != nullptr;
-        if (m_LastFrameReceipt.hasVulkanRenderReceipt) m_LastFrameReceipt.vulkanRender = m_VulkanRenderer->LastFrameStats();
         m_HasFrameReceipt = true;
         m_LastError = RuntimeError::None;
         return true;
     }
     if (m_MotionAuthority != nullptr) m_MotionAuthority->BeginFrame();
-    if (m_InputMotion != nullptr && (m_Input == nullptr || m_KinematicMotion == nullptr || !m_InputMotion->Step(*m_Input, *m_KinematicMotion, *m_Scene, m_InputMotionEntity_, m_Clock->Snapshot().scaledDeltaSeconds))) { m_LastError = RuntimeError::InputMotionFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (m_InputMotion != nullptr && (m_Input == nullptr || m_KinematicMotion == nullptr || !m_InputMotion->Step(*m_Input, *m_KinematicMotion, *m_Scene, m_InputMotionEntity_, m_Clock->Snapshot().scaledDeltaSeconds))) { m_LastError = RuntimeError::InputMotionFailed; m_State = RuntimeState::Failed; return false; }
     if (m_RouteFollower != nullptr && !m_RouteFollower->ReachedGoal()) {
         const bool routeSucceeded = m_UsesSkeletalRouteMotion ? (m_RouteNavigation != nullptr && m_SkeletalRouteMotionController != nullptr && m_RouteRootMotionAdapter != nullptr && m_MotionAuthority != nullptr && m_RouteRootMotionAdapter->Advance(m_Clock->Snapshot().scaledDeltaSeconds, *m_RouteFollower, *m_SkeletalRouteMotionController, *m_Scene, m_RouteMotionEntity_, *m_RouteNavigation, *m_MotionAuthority, m_SkeletalRoutePalette)) : (m_RouteNavigation != nullptr && m_RouteMotionController != nullptr && m_MotionAuthority != nullptr && m_RouteFollower->StepGuarded(*m_Scene, m_RouteMotionEntity_, *m_RouteMotionController, *m_RouteNavigation, m_Clock->Snapshot().scaledDeltaSeconds, *m_MotionAuthority));
-        if (!routeSucceeded) { m_LastError = RuntimeError::RouteMotionFailed; m_State = RuntimeState::Failed; return failFrame(); }
+        if (!routeSucceeded) { m_LastError = RuntimeError::RouteMotionFailed; m_State = RuntimeState::Failed; return false; }
     }
     ActorComponentWorldReceipt actorReceipt{};
-    if (m_Actors == nullptr || !m_Actors->TickFixed(simulatedTicks, actorReceipt)) { m_LastError = RuntimeError::ActorComponentTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (m_Actors == nullptr || !m_Actors->TickFixed(simulatedTicks, actorReceipt)) { m_LastError = RuntimeError::ActorComponentTickFailed; m_State = RuntimeState::Failed; return false; }
     FarmPlayerInputReceipt farmPlayerInputReceipt{};
     const bool hasFarmPlayerInput = m_FarmPlayerInput != nullptr;
-    if (hasFarmPlayerInput && (m_Input == nullptr || !m_FarmPlayerInput->Step(*m_Input, *m_FarmWorld))) { m_LastError = RuntimeError::FarmPlayerInputFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (hasFarmPlayerInput && (m_Input == nullptr || !m_FarmPlayerInput->Step(*m_Input, *m_FarmWorld))) { m_LastError = RuntimeError::FarmPlayerInputFailed; m_State = RuntimeState::Failed; return false; }
     if (hasFarmPlayerInput) farmPlayerInputReceipt = m_FarmPlayerInput->LastReceipt();
-    if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (!frameContract.Advance(RuntimeFrameStage::Simulation)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-    if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (!m_ECS || !m_SceneMeshes || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (!m_Physics) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (!m_PhysicsPoseSync.Sync(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (!m_PhysicsForces.Integrate(*m_ECS, m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    m_Physics->Step(*m_ECS, m_Clock->Snapshot().scaledDeltaSeconds);
-    if (!m_PhysicsPoseSync.SyncFromPhysics(*m_Scene, *m_ECS) || !m_Scene->UpdateTransforms() || !m_SceneECSBridge.Sync(*m_Scene, *m_ECS, *m_SceneMeshes)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (!m_SceneMeshes->AdvanceSkeletalAnimations(m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
-    if (!frameContract.Advance(RuntimeFrameStage::SceneSnapshot)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-    if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (!m_FarmWorld->Tick(simulatedTicks)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (!m_FarmWorld->SyncScene()) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (!m_ECS || !m_SceneECSBridge.Rebuild(*m_Scene, *m_ECS)) { m_LastError = RuntimeError::WorldTickFailed; m_State = RuntimeState::Failed; return false; }
+    if (m_Authoring->IsSceneBound() && !m_Authoring->Tick(simulatedTicks)) { m_LastError = RuntimeError::AuthoringTickFailed; m_State = RuntimeState::Failed; return false; }
     CurriculumProgressReceipt curriculumReceipt{};
     m_LastCurriculumEvents.clear();
-    if (m_Curriculum != nullptr && (!m_Curriculum->Evaluate({m_Time->Snapshot(), m_Farm->Snapshot()}, m_LastCurriculumEvents) || !m_Curriculum->Snapshot(curriculumReceipt))) { m_LastError = RuntimeError::CurriculumFailed; m_State = RuntimeState::Failed; return failFrame(); }
+    if (m_Curriculum != nullptr && (!m_Curriculum->Evaluate({m_Time->Snapshot(), m_Farm->Snapshot()}, m_LastCurriculumEvents) || !m_Curriculum->Snapshot(curriculumReceipt))) { m_LastError = RuntimeError::CurriculumFailed; m_State = RuntimeState::Failed; return false; }
     const uint32_t eventCount = m_Events->PendingCount();
     EventSignalDispatchReceipt dispatchReceipt{};
-    if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-    if (m_EnableVulkan3DRenderer && !RenderScene3D()) return failFrame();
-    if (!frameContract.Advance(RuntimeFrameStage::RenderCommands) || !frameContract.Advance(RuntimeFrameStage::AudioEvents) || !frameContract.Advance(RuntimeFrameStage::Completed)) { m_LastError = RuntimeError::InvalidState; return failFrame(); }
-    m_LastFrameReceipt = {};
-    m_LastFrameReceipt.clock = m_Clock->Snapshot();
-    m_LastFrameReceipt.time = m_Time->Snapshot();
-    m_LastFrameReceipt.actors = actorReceipt;
-    m_LastFrameReceipt.farm = m_Farm->Snapshot();
-    m_LastFrameReceipt.world = m_FarmWorld->Snapshot();
-    m_LastFrameReceipt.dispatchedEventCount = eventCount;
+    if (!m_Events->Dispatch(&dispatchReceipt)) { m_LastError = RuntimeError::InvalidState; return false; }
+    m_LastFrameReceipt = {m_Clock->Snapshot(), m_Time->Snapshot(), actorReceipt, m_Farm->Snapshot(), m_FarmWorld->Snapshot(), eventCount};
     m_LastFrameReceipt.eventDispatch = dispatchReceipt; m_LastFrameReceipt.curriculum = curriculumReceipt; m_LastFrameReceipt.hasCurriculumReceipt = m_Curriculum != nullptr;
     m_LastFrameReceipt.farmPlayerInput = farmPlayerInputReceipt; m_LastFrameReceipt.hasFarmPlayerInputReceipt = hasFarmPlayerInput; m_LastFrameReceipt.input = m_Input == nullptr ? InputStateSummary{} : m_Input->Summary(); m_LastFrameReceipt.assets = m_Assets->Summary(); m_LastFrameReceipt.sceneAliveEntityCount = m_Scene->AliveCount();
-    m_LastFrameReceipt.sceneECS = m_SceneECSBridge.LastReceipt();
-    m_LastFrameReceipt.physicsBodyCount = m_Physics == nullptr ? 0U : m_Physics->GetLastStepBodyCount();
-    m_LastFrameReceipt.physicsCollisionTests = m_Physics == nullptr ? 0U : m_Physics->GetLastStepCollisionTests();
-    m_LastFrameReceipt.physicsManifoldCount = m_Physics == nullptr ? 0U : m_Physics->GetManifoldCount();
-    m_LastFrameReceipt.physicsStepMicroseconds = m_Physics == nullptr ? 0U : m_Physics->GetLastStepElapsedMicroseconds();
-    m_LastFrameReceipt.frameToken = frameContract.Token();
-    m_LastFrameReceipt.frameStage = frameContract.Stage();
-    m_LastFrameReceipt.hasVulkanRenderReceipt = m_EnableVulkan3DRenderer && m_VulkanRenderer != nullptr;
-    if (m_LastFrameReceipt.hasVulkanRenderReceipt) m_LastFrameReceipt.vulkanRender = m_VulkanRenderer->LastFrameStats();
     m_HasFrameReceipt = true;
     m_LastError = RuntimeError::None;
     return true;
@@ -349,184 +302,6 @@ bool NeoRuntime::BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet) {
     auto candidate = std::make_unique<FarmRenderAssetManifest>();
     if (!candidate->Bind(assetSet, *m_Assets, *m_Resources)) { m_LastError = RuntimeError::InvalidState; return false; }
     m_FarmRenderAssets = std::move(candidate);
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::RefreshSceneMesh(SceneEntity entity, const CpuMeshResource& mesh, const CpuMaterialResource& material) {
-    if (m_State != RuntimeState::Initialized || !m_SceneMeshes) { m_LastError = RuntimeError::InvalidState; return false; }
-    if (!m_SceneMeshes->RefreshStaged(entity, mesh, material)) { m_LastError = RuntimeError::RenderFailed; return false; }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-
-bool NeoRuntime::CreatePhysicsCircleBody(SceneEntity sceneEntity, const GameplayCircleBodyConfig& config, EntityID& physicsEntity) {
-    physicsEntity = 0U;
-    if (m_State != RuntimeState::Initialized || !m_Scene || !m_ECS || !m_Physics) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    const Transform3* transform = m_Scene->GetTransform(sceneEntity);
-    if (transform == nullptr) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    if (m_PhysicsPoseSync.IsPhysicsAuthoritative(sceneEntity)) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    GameplayCircleBodyConfig candidate = config;
-    candidate.positionX = transform->x;
-    candidate.positionZ = transform->z;
-    if (!m_PhysicsBodies.CreateCircleBody(*m_ECS, candidate, physicsEntity)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    const bool physicsAuthoritative = candidate.type == GameplayPhysicsBodyType::Dynamic;
-    if (!m_PhysicsPoseSync.Bind(sceneEntity, physicsEntity, physicsAuthoritative)) {
-        m_ECS->DestroyEntity(physicsEntity);
-        physicsEntity = 0U;
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::DestroyPhysicsBody(SceneEntity sceneEntity) {
-    if (m_State != RuntimeState::Initialized || !m_ECS) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    EntityID physicsEntity = 0U;
-    if (!m_PhysicsPoseSync.GetPhysicsEntity(sceneEntity, physicsEntity)) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_ECS->HasEntity(physicsEntity)) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    m_ECS->DestroyEntity(physicsEntity);
-    if (!m_PhysicsPoseSync.Unbind(sceneEntity)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::ApplyPhysicsForce(SceneEntity sceneEntity, float forceX, float forceZ) {
-    if (m_State != RuntimeState::Initialized || !m_Scene || !m_ECS || !m_Physics) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    EntityID physicsEntity = 0U;
-    if (!m_PhysicsPoseSync.GetPhysicsEntity(sceneEntity, physicsEntity)) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_PhysicsForces.ApplyForce(*m_ECS, physicsEntity, forceX, forceZ)) {
-        m_LastError = RuntimeError::WorldTickFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::ClearPhysicsForces(SceneEntity sceneEntity) {
-    if (m_State != RuntimeState::Initialized || !m_ECS) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    EntityID physicsEntity = 0U;
-    if (!m_PhysicsPoseSync.GetPhysicsEntity(sceneEntity, physicsEntity)) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_PhysicsForces.Clear(physicsEntity)) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::PlayAudio(const AudioComponent& component) {
-    if (m_State != RuntimeState::Initialized || !m_Audio) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!component.Play(*m_Audio)) {
-        m_LastError = RuntimeError::AudioFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::StopAudio(const AudioComponent& component) {
-    if (m_State != RuntimeState::Initialized || !m_Audio) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!component.Stop(*m_Audio)) {
-        m_LastError = RuntimeError::AudioFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::UpdateAudioPosition(uint32_t voiceId, const float position[3]) {
-    if (m_State != RuntimeState::Initialized || !m_Audio) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Audio->UpdateVoicePosition(voiceId, position)) {
-        m_LastError = RuntimeError::AudioFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::UpdateAudioPitch(uint32_t voiceId, float pitch) {
-    if (m_State != RuntimeState::Initialized || !m_Audio) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Audio->UpdateVoicePitch(voiceId, pitch)) {
-        m_LastError = RuntimeError::AudioFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::UpdateAudioGain(uint32_t voiceId, uint16_t gainQ8) {
-    if (m_State != RuntimeState::Initialized || !m_Audio) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Audio->UpdateVoiceGain(voiceId, gainQ8)) {
-        m_LastError = RuntimeError::AudioFailed;
-        return false;
-    }
-    m_LastError = RuntimeError::None;
-    return true;
-}
-
-bool NeoRuntime::SetAudioListener(const AudioListener& listener) {
-    if (m_State != RuntimeState::Initialized || !m_Audio) {
-        m_LastError = RuntimeError::InvalidState;
-        return false;
-    }
-    if (!m_Audio->SetListener(listener)) {
-        m_LastError = RuntimeError::AudioFailed;
-        return false;
-    }
     m_LastError = RuntimeError::None;
     return true;
 }
@@ -689,8 +464,6 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
-    if (m_Audio != nullptr) m_Audio->Reset();
-    m_Audio.reset();
     m_FarmRuntimeHud.reset();
     m_FarmRenderAssets.reset();
     m_FarmSpriteRenderer.reset();
@@ -736,8 +509,6 @@ bool NeoRuntime::Shutdown() {
     m_LastCurriculumEvents.clear();
     m_AuthoringWorld.reset();
     m_Scene.reset();
-    m_PhysicsForces.Reset();
-    m_Physics.reset();
     m_ECS.reset();
     m_Assets.reset();
     m_FarmAuthority.reset();
