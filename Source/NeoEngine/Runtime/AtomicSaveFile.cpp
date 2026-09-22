@@ -189,8 +189,9 @@ bool AtomicSaveFile::RestoreBackup(const std::filesystem::path& root, std::strin
     AtomicSaveFileError readError = AtomicSaveFileError::None;
     const std::filesystem::path backupSource = root / (std::string(slot) + ".bak");
     std::error_code sourceEc;
-    if (std::filesystem::is_symlink(backupSource, sourceEc) || sourceEc) { error = AtomicSaveFileError::UnsafePath; return false; }
-    if (!ReadPath(backupSource, bytes, readError)) {
+    if (std::filesystem::is_symlink(backupSource, sourceEc)) { error = AtomicSaveFileError::UnsafePath; return false; }
+    sourceEc.clear();
+    if (!ReadPath(backupSource, bytes, readError) {
         error = AtomicSaveFileError::RestoreFailure;
         return false;
     }
