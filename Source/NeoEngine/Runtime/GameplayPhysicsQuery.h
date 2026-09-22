@@ -6,7 +6,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class GameplayPhysicsQueryError : uint8_t { None, InvalidBatch, BatchCapacity, InvalidRay, InvalidShape, InvalidMask, NoHit, Capacity, EntityMappingFailed };
+enum class GameplayPhysicsQueryError : uint8_t { None, InvalidBatch, BatchCapacity, InvalidRay, InvalidHit, InvalidShape, InvalidMask, NoHit, Capacity, EntityMappingFailed };
 struct GameplayRay2 { float originX = 0.0F; float originZ = 0.0F; float directionX = 1.0F; float directionZ = 0.0F; float maxDistance = 1.0F; CollisionMask mask = 0xFFFFFFFFU; };
 struct GameplayRayHit2 { EntityID entity = 0; float distance = 0.0F; float normalX = 0.0F; float normalZ = 0.0F; };
 struct GameplayOverlapCircle2 { float centerX = 0.0F; float centerZ = 0.0F; float radius = 0.0F; CollisionMask mask = 0xFFFFFFFFU; };
