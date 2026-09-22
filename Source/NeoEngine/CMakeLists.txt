@@ -4,6 +4,7 @@ project(NeoEngine LANGUAGES CXX)
 
 find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(CURL REQUIRED)
 find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
@@ -225,7 +226,7 @@ target_compile_definitions(NeoEngineRuntime PUBLIC
     GLM_ENABLE_EXPERIMENTAL
 )
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
-target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3)
+target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 CURL::libcurl)
 if(ANDROID)
     target_link_libraries(NeoEngineRuntime PUBLIC log)
 endif()
