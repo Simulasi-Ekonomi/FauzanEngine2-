@@ -59,9 +59,13 @@ jobs:
           cmake --build build/r8-release --target runtime_persistence_smoke -j2
           cmake --build build/r8-release --target neo_runtime_checkpoint_smoke -j2
           cmake --build build/r8-release --target farm_commerce_checkpoint_file_smoke -j2
+          echo "RUN atomic_save_file_smoke"
           ./build/r8-release/atomic_save_file_smoke
+          echo "RUN runtime_persistence_smoke"
           ./build/r8-release/runtime_persistence_smoke
+          echo "RUN neo_runtime_checkpoint_smoke"
           ./build/r8-release/neo_runtime_checkpoint_smoke
+          echo "RUN farm_commerce_checkpoint_file_smoke"
           ./build/r8-release/farm_commerce_checkpoint_file_smoke
 
       - name: Configure AddressSanitizer
