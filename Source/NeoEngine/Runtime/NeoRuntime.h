@@ -28,7 +28,6 @@
 #include "Systems/FarmSystem.h"
 #include "Systems/FarmAuthoritativeService.h"
 #include "Systems/FarmAuthoritativeSessionHost.h"
-#include "Systems/FarmAuthoritativeSessionLoopback.h"
 #include "Systems/FarmWorldTool.h"
 #include "Systems/CurriculumSystem.h"
 #include "Systems/AuthoringCatalog.h"
@@ -36,7 +35,6 @@
 #include "Systems/TrustSafetySystem.h"
 #include <cstdint>
 #include <memory>
-#include <span>
 #include <vector>
 
 namespace NeoEngine {
@@ -65,23 +63,11 @@ public:
     bool SaveFarmProgressCheckpoint(uint64_t revision, std::vector<uint8_t>& bytes);
     bool RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes, uint64_t& revision);
     bool ReplanRouteMotion();
+    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
+    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
-    bool RegisterReplicatedEntity(SceneEntity entity, uint32_t networkId, uint32_t ownerId);
-    bool UnregisterReplicatedEntity(uint32_t networkId);
-    bool BuildReplicationAcknowledgement(ReplicationAcknowledgement& acknowledgement) const;
-    bool ApplyReplicationAcknowledgement(const ReplicationAcknowledgement& acknowledgement);
-    bool PredictReplicatedLocalInput(uint32_t networkId, float deltaX, float deltaZ, ReplicationPredictionReceipt& receipt);
-    bool ApplyReplicationSnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt);
-    bool BuildReplicationSnapshotPacket(std::vector<uint8_t>& bytes) const;
-    bool ApplyReplicationSnapshotPacket(std::span<const uint8_t> bytes, ReplicationApplyReceipt& receipt);
-    bool AuthenticateFarmSession(const FarmSessionPrincipal& principal, uint64_t& sessionHandle);
-    bool SubmitFarmAuthoritativeCommand(uint64_t sessionHandle, const FarmSessionCommand& command, FarmAuthoritativeCommandReceipt& receipt);
-    bool StartFarmAuthoritativeLoopback(const FarmSessionPrincipal& principal, uint16_t maxConnections = 1U);
-    void StopFarmAuthoritativeLoopback();
-    [[nodiscard]] uint16_t FarmAuthoritativeLoopbackPort() const;
-    [[nodiscard]] const FarmAuthoritativeSessionHost* FarmSessionHost() const { return m_FarmSessionHost.get(); }
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
@@ -92,6 +78,8 @@ public:
     FarmWorldTool* FarmWorld() { return m_FarmWorld.get(); }
     const FarmWorldTool* FarmWorld() const { return m_FarmWorld.get(); }
     FarmAuthoritativeService* FarmAuthority() { return m_FarmAuthority.get(); }
+    FarmAuthoritativeSessionHost* FarmAuthoritySession() { return m_FarmAuthoritySession.get(); }
+    const FarmAuthoritativeSessionHost* FarmAuthoritySession() const { return m_FarmAuthoritySession.get(); }
     const FarmAuthoritativeService* FarmAuthority() const { return m_FarmAuthority.get(); }
     TrustSafetySystem* TrustSafety() { return m_TrustSafety.get(); }
     const TrustSafetySystem* TrustSafety() const { return m_TrustSafety.get(); }
@@ -102,8 +90,6 @@ public:
     ActorComponentWorld* Actors() { return m_Actors.get(); }
     const ActorComponentWorld* Actors() const { return m_Actors.get(); }
     ReplicationWorld* Replication() { return m_Replication.get(); }
-    const ReplicationSnapshot& LastReplicationSnapshot() const { return m_LastReplicationSnapshot; }
-    const ReplicationApplyReceipt& LastReplicationReceipt() const { return m_LastReplicationReceipt; }
     const ReplicationWorld* Replication() const { return m_Replication.get(); }
     AuthoringCatalog* Authoring() { return m_Authoring.get(); }
     const AuthoringCatalog* Authoring() const { return m_Authoring.get(); }
@@ -156,15 +142,11 @@ private:
     std::unique_ptr<FarmSystem> m_Farm;
     std::unique_ptr<FarmWorldTool> m_FarmWorld;
     std::unique_ptr<FarmAuthoritativeService> m_FarmAuthority;
-    std::unique_ptr<FarmAuthoritativeSessionHost> m_FarmSessionHost;
-    std::unique_ptr<AuthorityLoopbackServer> m_FarmAuthorityTransport;
-    std::unique_ptr<FarmAuthoritativeSessionLoopback> m_FarmAuthorityLoopback;
+    std::unique_ptr<FarmAuthoritativeSessionHost> m_FarmAuthoritySession;
     std::unique_ptr<AssetRegistry> m_Assets;
     std::unique_ptr<AssetResourceManager> m_Resources;
     std::unique_ptr<ActorComponentWorld> m_Actors;
     std::unique_ptr<ReplicationWorld> m_Replication;
-    ReplicationSnapshot m_LastReplicationSnapshot{};
-    ReplicationApplyReceipt m_LastReplicationReceipt{};
     std::unique_ptr<AuthoringCatalog> m_Authoring;
     std::unique_ptr<CurriculumSystem> m_Curriculum;
     std::vector<CurriculumEvent> m_LastCurriculumEvents{};
