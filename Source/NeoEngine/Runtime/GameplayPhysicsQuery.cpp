@@ -11,6 +11,21 @@ bool GameplayPhysicsQuery::Raycast(const XPBDPhysicsSystem& physics, const Gamep
     GameplayRayHit2 candidate{}; if (!physics.TryGetEntityId(raw.entityIdx, candidate.entity)) { lastError_ = GameplayPhysicsQueryError::EntityMappingFailed; return false; }
     candidate.distance = raw.distance; candidate.normalX = raw.normalX; candidate.normalZ = raw.normalZ; hit = candidate; lastError_ = GameplayPhysicsQueryError::None; return true;
 }
+bool GameplayPhysicsQuery::RaycastSet(const XPBDPhysicsSystem& physics, const std::vector<GameplayRay2>& rays, std::vector<GameplayRayHit2>& hits) {
+    if (rays.empty()) { lastError_ = GameplayPhysicsQueryError::InvalidBatch; return false; }
+    if (rays.size() > kMaxOverlapBatch) { lastError_ = GameplayPhysicsQueryError::BatchCapacity; return false; }
+    std::vector<GameplayRayHit2> candidate;
+    candidate.reserve(rays.size());
+    for (const GameplayRay2& ray : rays) {
+        GameplayRayHit2 hit{};
+        if (!Raycast(physics, ray, hit)) return false;
+        candidate.push_back(hit);
+    }
+    hits = std::move(candidate);
+    lastError_ = GameplayPhysicsQueryError::None;
+    return true;
+}
+
 bool GameplayPhysicsQuery::OverlapCircle(const XPBDPhysicsSystem& physics, const GameplayOverlapCircle2& circle, std::vector<EntityID>& entities) {
     if (!std::isfinite(circle.centerX) || !std::isfinite(circle.centerZ) || !std::isfinite(circle.radius) || circle.radius < 0.0F) { lastError_ = GameplayPhysicsQueryError::InvalidShape; return false; }
     if (circle.mask == COLLISION_LAYER_NONE) { lastError_ = GameplayPhysicsQueryError::InvalidMask; return false; }
