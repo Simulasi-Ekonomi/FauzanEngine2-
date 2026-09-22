@@ -208,6 +208,8 @@ set(XPBD_RUNTIME_SOURCES
     Threading/JobSystem.cpp
     Renderer/GPUDrivenRenderer.cpp
     Renderer/GPUFrustumCulling.cpp
+    Core/Debug/MemoryTracker.cpp
+    AI/OpenCodeIntegration.cpp
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
@@ -354,6 +356,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smok
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/item_serial_tracker_smoke.cpp")
     add_xpbd_executable(item_serial_tracker_smoke ../../Tests/Runtime/item_serial_tracker_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/memory_tracker_smoke.cpp")
+    add_xpbd_executable(memory_tracker_smoke ../../Tests/Runtime/memory_tracker_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/opencode_integration_smoke.cpp")
+    add_xpbd_executable(opencode_integration_smoke ../../Tests/Runtime/opencode_integration_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_canonical_game_tool_smoke.cpp")
