@@ -1,21 +1,6 @@
 #include "GLTFMeshBuilder.h"
-
-namespace NeoEngine {
-
-MeshData GLTFMeshBuilder::Load(const std::string& path)
-{
-    MeshData meshData{};
-    return meshData;
-}
-
-std::vector<GLTFMesh> GLTFMeshBuilder::BuildMeshes(const std::string& json)
-{
-    std::vector<GLTFMesh> result;
-
-    GLTFMesh mesh;
-    result.push_back(mesh);
-
-    return result;
-}
-
-}
+#include <rapidjson/document.h>
+#include <fstream>
+#include <cstring>
+#include <stdexcept>
+namespace NeoEngine { MeshData GLTFMeshBuilder::Load(const std::string&p){std::ifstream f(p);if(!f.is_open())throw std::runtime_error("GLTFMeshBuilder: cannot open file");std::string j((std::istreambuf_iterator<char>(f)),{});auto v=BuildMeshes(j);return v.empty()?MeshData{}:v.front().meshData;} std::vector<GLTFMesh> GLTFMeshBuilder::BuildMeshes(const std::string&j){std::vector<GLTFMesh>r;rapidjson::Document d;d.Parse(j.c_str());if(d.HasParseError()||!d.IsObject()||!d.HasMember("meshes")||!d["meshes"].IsArray())return r;for(const auto&m:d["meshes"].GetArray()){if(!m.IsObject()||!m.HasMember("primitives")||!m["primitives"].IsArray())continue;for(const auto&p:m["primitives"].GetArray()){if(!p.IsObject()||!p.HasMember("attributes")||!p["attributes"].IsObject())continue;auto&a=p["attributes"];if(!a.HasMember("POSITION")||!a["POSITION"].IsArray())continue;auto read=[](const rapidjson::Value&v,std::vector<float>&o){for(auto&x:v.GetArray()){if(!x.IsNumber())return false;o.push_back(x.GetFloat());}return true;};std::vector<float>pos,nrm,uv,idx;if(!read(a["POSITION"],pos)||pos.size()%3)continue;if(a.HasMember("NORMAL"))read(a["NORMAL"],nrm);if(a.HasMember("TEXCOORD_0"))read(a["TEXCOORD_0"],uv);if(p.HasMember("indices"))read(p["indices"],idx);GLTFMesh g;size_t n=pos.size()/3;g.meshData.vertices.resize(n);for(size_t i=0;i<n;++i){std::memcpy(g.meshData.vertices[i].position,&pos[i*3],12);if(nrm.size()>=i*3+3)std::memcpy(g.meshData.vertices[i].normal,&nrm[i*3],12);if(uv.size()>=i*2+2)std::memcpy(g.meshData.vertices[i].uv,&uv[i*2],8);}if(idx.empty()){g.meshData.indices.resize(n);for(size_t i=0;i<n;++i)g.meshData.indices[i]=(unsigned)i;}else for(float x:idx)if(x>=0)g.meshData.indices.push_back((unsigned)x);r.push_back(std::move(g));}}return r;} }
