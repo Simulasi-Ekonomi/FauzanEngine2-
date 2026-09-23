@@ -45,8 +45,12 @@ bool TextureStreamer::StreamIn(const std::string& key, uint32_t width, uint32_t 
         return false;
     }
 
-    auto [it, inserted] = textures_.try_emplace(key, std::move(texture));
-    if (!inserted) it->second = std::move(texture);
+    const auto existing = textures_.find(key);
+    if (existing != textures_.end()) {
+        existing->second = std::move(texture);
+    } else {
+        textures_.emplace(key, std::move(texture));
+    }
     return true;
 }
 
