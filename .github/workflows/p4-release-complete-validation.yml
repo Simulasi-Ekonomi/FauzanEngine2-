@@ -1,0 +1,113 @@
+name: P4 release complete validation
+
+on:
+  push:
+    branches:
+      - p4-release-certification-night
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android build packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: editor/package-lock.json
+
+      - name: Build editor assets
+        run: |
+          cd editor
+          npm ci
+          npm run build
+          mkdir -p ../android/app/src/main/assets/editor
+          cp -r dist/* ../android/app/src/main/assets/editor/
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.4'
+
+      - name: Build debug APK
+        run: |
+          cd android
+          gradle assembleDebug --no-daemon
+
+      - name: Generate release manifest
+        run: bash tools/release_manifest.sh p4-release-manifest.sha256
+
+      - name: Generate source SBOM
+        run: python3 tools/generate_source_sbom.py
+
+      - name: Validate canonical release scope
+        run: bash tools/verify_canonical_runtime_scope.sh
+
+      - name: Syntax-check certification tools
+        run: |
+          python3 -m py_compile tools/p4_release_gate.py tools/p4_release_artifact_gate.py tools/p4_reproducibility_gate.py tools/generate_source_sbom.py tools/verify_release_provenance.py
+          bash -n tools/p4_release_certify.sh tools/p4_build_release_artifact.sh tools/release_manifest.sh
+
+      - name: Run P4 release gate
+        run: python3 tools/p4_release_gate.py
+
+      - name: Validate manifest reproducibility
+        run: |
+          bash tools/release_manifest.sh /tmp/p4-release-manifest.second.sha256
+          cmp -s p4-release-manifest.sha256 /tmp/p4-release-manifest.second.sha256
+
+      - name: Require release signing material
+        env:
+          NEO_ANDROID_KEYSTORE: ${{ secrets.NEO_ANDROID_KEYSTORE }}
+          NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
+          NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
+          NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$NEO_ANDROID_KEYSTORE"
+          test -n "$NEO_ANDROID_KEY_ALIAS"
+          test -n "$NEO_ANDROID_STORE_PASSWORD"
+          test -n "$NEO_ANDROID_KEY_PASSWORD"
+
+      - name: Build signed release APK
+        env:
+          NEO_ANDROID_KEYSTORE: ${{ secrets.NEO_ANDROID_KEYSTORE }}
+          NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
+          NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
+          NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
+        run: |
+          tools/p4_build_release_artifact.sh assembleRelease
+
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-release-complete-validation
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/apk/debug/app-debug.apk
+            p4-release-manifest.sha256
+            p4-source-sbom.json
+            p4-release-provenance.txt
+          if-no-files-found: warn
