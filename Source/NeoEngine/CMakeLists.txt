@@ -105,6 +105,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanRenderPassManager.cpp
     Runtime/VulkanRenderCommandRecorder.cpp
     Runtime/VulkanShaderProbe.cpp
+    Runtime/VulkanSwapchainManager.cpp
+    Runtime/VulkanSyncPrimitives.cpp
     Runtime/VulkanDescriptorManager.cpp
     Animation/SkinningGPU.cpp
     Rendering/RHI/Vulkan/VulkanRHI.cpp
