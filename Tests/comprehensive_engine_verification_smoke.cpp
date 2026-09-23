@@ -92,7 +92,7 @@ int main() {
         return 1;
     }
 
-    if (ledger.Apply(catalog, command) || ledger.Quantity("C001") != 10) {
+    if (!ledger.Apply(catalog, command) || ledger.Quantity("C001") != 10) {
         std::cerr << "FAIL: Economy command idempotency failed.\n";
         return 1;
     }
