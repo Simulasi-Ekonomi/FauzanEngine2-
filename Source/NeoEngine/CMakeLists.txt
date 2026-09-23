@@ -296,6 +296,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_streamer_smok
     add_xpbd_executable(texture_streamer_smoke ../../Tests/Runtime/texture_streamer_smoke.cpp)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gltf_asset_components_smoke.cpp")
+    add_xpbd_executable(gltf_asset_components_smoke ../../Tests/Runtime/gltf_asset_components_smoke.cpp)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
     add_xpbd_executable(canonical_runtime_world_smoke ../../Tests/Runtime/canonical_runtime_world_smoke.cpp)
 endif()
