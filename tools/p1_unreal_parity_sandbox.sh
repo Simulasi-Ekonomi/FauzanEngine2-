@@ -16,6 +16,8 @@ mapfile -t TARGETS < <(
   awk '!seen[$0]++'
 )
 
+printf "%s\n" "${TARGETS[@]}" >"$REPORT_DIR/targets.txt"
+echo "[P1-SANDBOX] discovered ${#TARGETS[@]} CMake smoke targets"
 : > "$REPORT_DIR/execution.tsv"
 pass=0
 fail=0
