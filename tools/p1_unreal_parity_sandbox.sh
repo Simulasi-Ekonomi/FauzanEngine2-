@@ -49,7 +49,9 @@ for target in "${TARGETS[@]}"; do
 done
 
 echo "[P1-SANDBOX] static stub/placeholder scan"
-git diff --name-only origin/main...HEAD -- 'Source/NeoEngine' 'Tests' >"$REPORT_DIR/changed_files.txt"
+git fetch --no-tags --depth=1 origin main
+BASE_SHA="$(git rev-parse origin/main)"
+git diff --name-only "$BASE_SHA"...HEAD -- 'Source/NeoEngine' 'Tests' >"$REPORT_DIR/changed_files.txt"
 : >"$REPORT_DIR/static_markers.txt"
 if [[ -s "$REPORT_DIR/changed_files.txt" ]]; then
   while IFS= read -r file; do
