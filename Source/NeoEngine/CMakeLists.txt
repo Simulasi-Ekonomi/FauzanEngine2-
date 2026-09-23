@@ -251,6 +251,21 @@ if(ANDROID)
     target_link_libraries(NeoEngineRuntime PUBLIC log)
 endif()
 
+function(add_xpbd_executable target_name source_file)
+    add_executable(${target_name} ${source_file})
+    target_include_directories(${target_name} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Runtime
+        ${CMAKE_CURRENT_SOURCE_DIR}/Renderer
+        ${CMAKE_CURRENT_SOURCE_DIR}/Physics
+        ${CMAKE_CURRENT_SOURCE_DIR}/Platform
+        ${JSONCPP_INCLUDE_DIRS}
+        ${Vulkan_INCLUDE_DIRS}
+    )
+    target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
+    # Release disables assert(); smoke targets must retain their executable contract checks.
+    target_compile_options(${target_name} PRIVATE $<$<CONFIG:Release>:-UNDEBUG>)
+endfunction()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_playback_control_binding_smoke.cpp")
     add_xpbd_executable(animation_playback_control_binding_smoke ../../Tests/Runtime/animation_playback_control_binding_smoke.cpp)
 endif()
@@ -272,21 +287,6 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_import_pipeline_smoke.cpp")
     add_xpbd_executable(mesh_import_pipeline_smoke ../../Tests/Runtime/mesh_import_pipeline_smoke.cpp)
 endif()
-
-function(add_xpbd_executable target_name source_file)
-    add_executable(${target_name} ${source_file})
-    target_include_directories(${target_name} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/Runtime
-        ${CMAKE_CURRENT_SOURCE_DIR}/Renderer
-        ${CMAKE_CURRENT_SOURCE_DIR}/Physics
-        ${CMAKE_CURRENT_SOURCE_DIR}/Platform
-        ${JSONCPP_INCLUDE_DIRS}
-        ${Vulkan_INCLUDE_DIRS}
-    )
-    target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
-    # Release disables assert(); smoke targets must retain their executable contract checks.
-    target_compile_options(${target_name} PRIVATE $<$<CONFIG:Release>:-UNDEBUG>)
-endfunction()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
     add_xpbd_executable(canonical_runtime_world_smoke ../../Tests/Runtime/canonical_runtime_world_smoke.cpp)
