@@ -4,7 +4,7 @@
 
 int main() {
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
-    SDL_Window* window = SDL_CreateWindow("NeoEngine Vulkan RHI Smoke", 64, 64, SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
+    SDL_Window* window = SDL_CreateWindow("NeoEngine Vulkan RHI Smoke", 64, 64, SDL_WINDOW_VULKAN);
     if (window == nullptr) { SDL_Quit(); return 2; }
 
     using NeoEngine::VulkanRHI;
