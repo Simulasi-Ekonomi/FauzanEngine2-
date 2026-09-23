@@ -1,4 +1,5 @@
 #include "Runtime/Vulkan3DRenderer.h"
+#include <SDL3/SDL.h>
 
 #include <array>
 #include <cstdint>
@@ -21,7 +22,7 @@ int main() {
     NeoEngine::Vulkan3DRenderer renderer;
     if (!renderer.Initialize(800, 600, "NeoEngine Vulkan 3D Smoke")) {
         std::cerr << "[TEST FAIL] Vulkan3DRenderer initialization failed with error "
-                  << static_cast<int>(renderer.LastError()) << "\n";
+                  << static_cast<int>(renderer.LastError()) << " SDL=" << SDL_GetError() << "\n";
         return 1;
     }
 
