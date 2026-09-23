@@ -37,7 +37,7 @@ done
 
 printf "P2 physics/networking complete coverage\ntargets=%d\npass=%d\nfail=%d\nskip=0\n" "${#TARGETS[@]}" "$pass" "$fail" | tee "$REPORT_DIR/summary.txt"
 
-git fetch --no-tags --depth=1 origin main
+git fetch --no-tags origin main
 BASE_SHA="$(git rev-parse origin/main)"
 git diff --name-only "$BASE_SHA"...HEAD -- 'Source/NeoEngine' 'Tests' >"$REPORT_DIR/changed_files.txt"
 : >"$REPORT_DIR/static_markers.txt"
