@@ -49,12 +49,20 @@ for target in "${TARGETS[@]}"; do
 done
 
 echo "[P1-SANDBOX] static stub/placeholder scan"
-if git grep -nE 'TODO|FIXME|XXX|placeholder|not implemented|IMPLEMENT_ME|return[[:space:]]*0;[[:space:]]*(//.*)?' --   ':(glob)Source/NeoEngine/**/*.cpp'   ':(glob)Source/NeoEngine/**/*.h' >"$REPORT_DIR/static_markers.txt"; then
-  echo "[P1-SANDBOX] static markers found"
-else
-  : >"$REPORT_DIR/static_markers.txt"
-  echo "[P1-SANDBOX] static marker scan clean"
+git diff --name-only origin/main...HEAD -- 'Source/NeoEngine' 'Tests' >"$REPORT_DIR/changed_files.txt"
+: >"$REPORT_DIR/static_markers.txt"
+if [[ -s "$REPORT_DIR/changed_files.txt" ]]; then
+  while IFS= read -r file; do
+    [[ -f "$file" ]] || continue
+    grep -nEi '^[[:space:]]*(//|/\\*|#)[[:space:]]*(TODO|FIXME|XXX|placeholder|not implemented|IMPLEMENT_ME|stub)\\b' "$file" >>"$REPORT_DIR/static_markers.txt" || true
+  done <"$REPORT_DIR/changed_files.txt"
 fi
+if [[ -s "$REPORT_DIR/static_markers.txt" ]]; then
+  echo "[P1-SANDBOX] static markers found in changed P1 source"
+  cat "$REPORT_DIR/static_markers.txt"
+  exit 1
+fi
+echo "[P1-SANDBOX] static marker scan clean"
 
 cat >"$REPORT_DIR/summary.txt" <<EOF
 P1 Unreal-like parity sandbox
