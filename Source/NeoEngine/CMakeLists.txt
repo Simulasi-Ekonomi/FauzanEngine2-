@@ -182,6 +182,16 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/UiLayoutResolver.cpp
     Runtime/RouteRootMotionAdapter.cpp
     Runtime/InputMotionBridge.cpp
+    Runtime/AnimationLocomotionBridge.cpp
+    Runtime/AnimationPlaybackControlBinding.cpp
+    Runtime/AnimationSpriteTintBinding.cpp
+    Runtime/AnimationStateMachine.cpp
+    Runtime/AnimationTimeline.cpp
+    Runtime/FlipbookFrameSelector.cpp
+    Runtime/FlipbookPlayback.cpp
+    Runtime/FlipbookRenderBridge.cpp
+    Runtime/TransformAnimationBinding.cpp
+    Runtime/PhysicsAnimationLocomotionBridge.cpp
     Animation/SkeletalAnimationController.cpp
     Animation/SkeletalPoseClip.cpp
     Animation/Bone.cpp
