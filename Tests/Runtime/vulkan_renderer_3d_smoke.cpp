@@ -20,15 +20,8 @@ int main() {
 
     NeoEngine::Vulkan3DRenderer renderer;
     if (!renderer.Initialize(800, 600, "NeoEngine Vulkan 3D Smoke")) {
-        const auto error = renderer.LastError();
-        if (error == NeoEngine::Vulkan3DRendererError::SdlFailure ||
-            error == NeoEngine::Vulkan3DRendererError::VulkanFailure ||
-            error == NeoEngine::Vulkan3DRendererError::ShaderUnavailable) {
-            std::cout << "[INFO] Vulkan 3D runtime unavailable in this environment; smoke test skipped.\n";
-            return 0;
-        }
         std::cerr << "[TEST FAIL] Vulkan3DRenderer initialization failed with error "
-                  << static_cast<int>(error) << "\n";
+                  << static_cast<int>(renderer.LastError()) << "\n";
         return 1;
     }
 
