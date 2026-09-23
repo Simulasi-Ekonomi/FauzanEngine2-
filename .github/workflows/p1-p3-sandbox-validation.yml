@@ -1,4 +1,4 @@
-name: P1-P3 sandbox validation
+name: P3 editor Android complete validation
 
 on:
   push:
@@ -10,47 +10,74 @@ on:
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/**'
-      - 'FauzanEngine/backend/**'
-      - 'Source/NeoEngine/CMakeLists.txt'
+      - 'tools/p3_editor_android_sandbox.sh'
+      - 'tools/android_lifecycle_bridge_source_smoke.sh'
+      - '.github/workflows/p1-p3-sandbox-validation.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  SDL_VIDEODRIVER: dummy
-  SDL_AUDIODRIVER: dummy
-
 jobs:
   release-asan:
     runs-on: ubuntu-24.04
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
+
       - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev mesa-vulkan-drivers vulkan-tools libjsoncpp-dev libglm-dev libcurl4-openssl-dev rapidjson-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+
       - name: Install SDL3
         uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
         with:
           version: 3.4.14
           install-linux-dependencies: true
-      - name: Configure Release
-        run: cmake -S Source/NeoEngine -B build/p1-p3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
-      - name: Build Release smoke targets
-        run: |
-          cmake --build build/p1-p3-release --target canonical_runtime_world_smoke gameplay_physics_query_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
-      - name: Run Release smoke targets
-        run: |
-          for t in canonical_runtime_world_smoke gameplay_physics_query_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-p3-release/$t; done
-      - name: Android source lifecycle bridge smoke
-        run: bash tools/android_lifecycle_bridge_source_smoke.sh
-      - name: Configure ASAN
-        run: cmake -S Source/NeoEngine -B build/p1-p3-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
-      - name: Build ASAN smoke targets
-        run: cmake --build build/p1-p3-asan --target canonical_runtime_world_smoke gameplay_physics_query_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
-      - name: Run ASAN smoke targets
+
+      - name: Run complete P3 Release coverage
         env:
-          ASAN_OPTIONS: detect_leaks=1
+          SDL_VIDEODRIVER: x11
+          SDL_AUDIODRIVER: dummy
+          P3_BUILD_TYPE: Release
+          P3_BUILD_JOBS: 2
         run: |
-          for t in canonical_runtime_world_smoke gameplay_physics_query_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke editor_scene_agent_smoke editor_scene_session_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-p3-asan/$t; done
+          chmod +x tools/p3_editor_android_sandbox.sh
+          xvfb-run -a -s "-screen 0 1280x720x24" tools/p3_editor_android_sandbox.sh Build/p3-release
+
+      - name: Run complete P3 ASAN coverage
+        env:
+          SDL_VIDEODRIVER: x11
+          SDL_AUDIODRIVER: dummy
+          ASAN_OPTIONS: detect_leaks=1
+          LSAN_OPTIONS: suppressions=.github/asan/lsan-sdl3-x11.supp
+          P3_BUILD_TYPE: Debug
+          P3_CMAKE_CXX_FLAGS: -fsanitize=address -fno-omit-frame-pointer
+          P3_CMAKE_EXE_LINKER_FLAGS: -fsanitize=address
+          P3_BUILD_JOBS: 2
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" tools/p3_editor_android_sandbox.sh Build/p3-asan
+
+      - name: Report P3 coverage
+        if: always()
+        run: |
+          echo "=== RELEASE ==="
+          cat Build/p3-release/sandbox-report/summary.txt 2>/dev/null || true
+          echo "=== ASAN ==="
+          cat Build/p3-asan/sandbox-report/summary.txt 2>/dev/null || true
+          echo "=== MARKERS ==="
+          cat Build/p3-release/sandbox-report/static_markers.txt 2>/dev/null || true
+          cat Build/p3-asan/sandbox-report/static_markers.txt 2>/dev/null || true
+          echo "=== ANDROID LIFECYCLE ==="
+          cat Build/p3-release/sandbox-report/android_lifecycle_bridge.log 2>/dev/null || true
+
+      - name: Upload P3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-complete-coverage
+          path: |
+            Build/p3-release/sandbox-report/
+            Build/p3-asan/sandbox-report/
+          if-no-files-found: warn
