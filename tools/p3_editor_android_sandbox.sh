@@ -5,10 +5,14 @@ BUILD_TYPE="${P3_BUILD_TYPE:-Release}"
 REPORT_DIR="${BUILD_DIR}/sandbox-report"
 mkdir -p "$REPORT_DIR"
 cmake -S Source/NeoEngine -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_CXX_FLAGS="${P3_CMAKE_CXX_FLAGS:-}" -DCMAKE_EXE_LINKER_FLAGS="${P3_CMAKE_EXE_LINKER_FLAGS:-}"
-mapfile -t TARGETS < <(cmake --build "$BUILD_DIR" --target help | awk '/^[[:space:]]+[A-Za-z0-9_.+-]+_smoke([[:space:]]|$)/ {print $1}' | sort -u)
+cmake --build "$BUILD_DIR" -j"${P3_BUILD_JOBS:-2}"
+mapfile -t TARGETS < <(
+  sed -n 's/^[[:space:]]*add_xpbd_executable(\([^ )]*\).*/\1/p' Source/NeoEngine/CMakeLists.txt |
+  awk '!seen[$0]++'
+)
 printf "%s\n" "${TARGETS[@]}" >"$REPORT_DIR/targets.txt"
 echo "[P3-SANDBOX] discovered ${#TARGETS[@]} CMake smoke targets"
-cmake --build "$BUILD_DIR" --target ${TARGETS[*]} -j"${P3_BUILD_JOBS:-2}"
+for target in "${TARGETS[@]}"; do cmake --build "$BUILD_DIR" --target "$target" -j"${P3_BUILD_JOBS:-2}" >/dev/null; done
 : >"$REPORT_DIR/execution.txt"
 pass=0; fail=0
 for target in "${TARGETS[@]}"; do
