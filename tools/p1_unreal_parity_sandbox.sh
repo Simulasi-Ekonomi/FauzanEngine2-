@@ -49,7 +49,7 @@ for target in "${TARGETS[@]}"; do
 done
 
 echo "[P1-SANDBOX] static stub/placeholder scan"
-git fetch --no-tags origin main
+git fetch --unshallow origin main 2>/dev/null || git fetch --no-tags origin main
 BASE_SHA="$(git rev-parse origin/main)"
 git diff --name-only "$BASE_SHA"...HEAD -- 'Source/NeoEngine' 'Tests' >"$REPORT_DIR/changed_files.txt"
 : >"$REPORT_DIR/static_markers.txt"
