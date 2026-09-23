@@ -227,7 +227,8 @@ std::string ItemSerialTracker::GetAuditTrail(const std::string& playerId) const 
     std::ostringstream out;
     bool found = false;
     for (const auto& event : m_AuditEvents) {
-        if (event.find("|" + playerId + "|") != std::string::npos ||\n            (event.size() > playerId.size() + 1U && event.compare(event.size() - playerId.size() - 1U, playerId.size() + 1U, "|" + playerId) == 0)) {
+        if (event.find("|" + playerId + "|") != std::string::npos ||
+            (event.size() > playerId.size() + 1U && event.compare(event.size() - playerId.size() - 1U, playerId.size() + 1U, "|" + playerId) == 0)) {
             if (found) out << '\n';
             out << event;
             found = true;
