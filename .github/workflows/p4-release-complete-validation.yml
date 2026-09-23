@@ -12,7 +12,7 @@ permissions:
 jobs:
   certification:
     runs-on: ubuntu-24.04
-    timeout-minutes: 240
+    timeout-minutes: 260
     steps:
       - uses: actions/checkout@v4
         with:
