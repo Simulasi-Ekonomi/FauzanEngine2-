@@ -92,6 +92,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetRegistry.cpp
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
+    Runtime/MeshImportPipeline.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayTriggerTracker.cpp
     Asset/GLTF/GLTFMeshBuilder.cpp
