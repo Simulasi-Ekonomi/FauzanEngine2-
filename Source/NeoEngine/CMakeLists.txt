@@ -139,6 +139,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
     Runtime/TextureStaging.cpp
+    Runtime/TextureImportPipeline.cpp
     Runtime/TinyObjLoader.cpp
     Runtime/ObjMeshImporter.cpp
     Runtime/MtlMaterialImporter.cpp
