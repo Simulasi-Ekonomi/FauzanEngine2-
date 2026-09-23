@@ -288,6 +288,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_import_pipeline_
     add_xpbd_executable(mesh_import_pipeline_smoke ../../Tests/Runtime/mesh_import_pipeline_smoke.cpp)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_streamer_smoke.cpp")
+    add_xpbd_executable(mesh_streamer_smoke ../../Tests/Runtime/mesh_streamer_smoke.cpp)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
     add_xpbd_executable(canonical_runtime_world_smoke ../../Tests/Runtime/canonical_runtime_world_smoke.cpp)
 endif()
