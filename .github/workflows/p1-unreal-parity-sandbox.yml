@@ -41,6 +41,8 @@ jobs:
         if: always()
         run: |
           cat Build/p1_unreal_parity/sandbox-report/summary.txt
+          echo "=== STATIC MARKERS ==="
+          cat Build/p1_unreal_parity/report/p1_markers.txt 2>/dev/null || true
           echo "=== EXECUTION ==="
           cat Build/p1_unreal_parity/sandbox-report/execution.tsv
           echo "=== TARGET COUNT ==="
