@@ -101,6 +101,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanBootstrap.cpp
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanGPUTexture.cpp
+    Runtime/VulkanOffscreen.cpp
     Runtime/VulkanDescriptorManager.cpp
     Animation/SkinningGPU.cpp
     Rendering/RHI/Vulkan/VulkanRHI.cpp
