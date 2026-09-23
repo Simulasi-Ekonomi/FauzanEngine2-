@@ -1,4 +1,4 @@
-name: P2 physics networking validation
+name: P2 physics networking complete validation
 
 on:
   push:
@@ -10,6 +10,7 @@ on:
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/**'
+      - 'tools/p2_physics_networking_sandbox.sh'
       - '.github/workflows/p2-physics-validation.yml'
   workflow_dispatch:
 
@@ -19,41 +20,62 @@ permissions:
 jobs:
   release-asan:
     runs-on: ubuntu-24.04
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+
+      - name: Install native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev libjsoncpp-dev libglm-dev libcurl4-openssl-dev glslang-tools pkg-config libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev mesa-vulkan-drivers vulkan-tools libjsoncpp-dev libglm-dev libcurl4-openssl-dev rapidjson-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+
       - name: Install SDL3
         uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
         with:
           version: 3.4.14
           install-linux-dependencies: true
-      - name: Release configure and build
-        run: |
-          cmake -S Source/NeoEngine -B build/p2-release -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/p2-release --target canonical_runtime_world_smoke gameplay_physics_query_smoke physics_step_measurement_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
-      - name: Release smoke
+
+      - name: Run complete P2 Release coverage
         env:
-          SDL_VIDEODRIVER: dummy
+          SDL_VIDEODRIVER: x11
           SDL_AUDIODRIVER: dummy
+          P2_BUILD_TYPE: Release
+          P2_BUILD_JOBS: 2
         run: |
-          ./build/p2-release/canonical_runtime_world_smoke
-          ./build/p2-release/physics_step_measurement_smoke
-          ./build/p2-release/farm_authoritative_session_loopback_smoke
-          ./build/p2-release/authority_loopback_transport_smoke
-      - name: ASAN configure and build
-        run: |
-          cmake -S Source/NeoEngine -B build/p2-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
-          cmake --build build/p2-asan --target canonical_runtime_world_smoke gameplay_physics_query_smoke physics_step_measurement_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke -j2
-      - name: ASAN smoke
+          chmod +x tools/p2_physics_networking_sandbox.sh
+          xvfb-run -a -s "-screen 0 1280x720x24" tools/p2_physics_networking_sandbox.sh Build/p2-release
+
+      - name: Run complete P2 ASAN coverage
         env:
+          SDL_VIDEODRIVER: x11
+          SDL_AUDIODRIVER: dummy
           ASAN_OPTIONS: detect_leaks=1
-          SDL_VIDEODRIVER: dummy
-          SDL_AUDIODRIVER: dummy
+          LSAN_OPTIONS: suppressions=.github/asan/lsan-sdl3-x11.supp
+          P2_BUILD_TYPE: Debug
+          P2_CMAKE_CXX_FLAGS: -fsanitize=address -fno-omit-frame-pointer
+          P2_CMAKE_EXE_LINKER_FLAGS: -fsanitize=address
+          P2_BUILD_JOBS: 2
         run: |
-          ./build/p2-asan/canonical_runtime_world_smoke
-          ./build/p2-asan/physics_step_measurement_smoke
-          ./build/p2-asan/farm_authoritative_session_loopback_smoke
-          ./build/p2-asan/authority_loopback_transport_smoke
+          xvfb-run -a -s "-screen 0 1280x720x24" tools/p2_physics_networking_sandbox.sh Build/p2-asan
+
+      - name: Report P2 coverage
+        if: always()
+        run: |
+          echo "=== RELEASE ==="
+          cat Build/p2-release/sandbox-report/summary.txt 2>/dev/null || true
+          echo "=== ASAN ==="
+          cat Build/p2-asan/sandbox-report/summary.txt 2>/dev/null || true
+          echo "=== RELEASE MARKERS ==="
+          cat Build/p2-release/sandbox-report/static_markers.txt 2>/dev/null || true
+          echo "=== ASAN MARKERS ==="
+          cat Build/p2-asan/sandbox-report/static_markers.txt 2>/dev/null || true
+
+      - name: Upload P2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-complete-coverage
+          path: |
+            Build/p2-release/sandbox-report/
+            Build/p2-asan/sandbox-report/
+          if-no-files-found: warn
