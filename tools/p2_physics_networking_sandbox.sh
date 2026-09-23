@@ -13,7 +13,7 @@ cmake -S Source/NeoEngine -B "$BUILD_DIR" -G Ninja \
 
 cmake --build "$BUILD_DIR" -j"${P2_BUILD_JOBS:-2}"
 mapfile -t TARGETS < <(
-  sed -n 's/^[[:space:]]*add_xpbd_executable(\\([^ )]*\\).*/\\1/p' Source/NeoEngine/CMakeLists.txt |
+  sed -n 's/^[[:space:]]*add_xpbd_executable(\([^ )]*\).*/\1/p' Source/NeoEngine/CMakeLists.txt |
   awk '!seen[$0]++'
 )
 printf "%s\n" "${TARGETS[@]}" >"$REPORT_DIR/targets.txt"
