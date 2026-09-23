@@ -12,10 +12,15 @@ cmake -S Source/NeoEngine -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_EXE_LINKER_FLAGS="${P2_CMAKE_EXE_LINKER_FLAGS:-}"
 
 cmake --build "$BUILD_DIR" -j"${P2_BUILD_JOBS:-2}"
-mapfile -t TARGETS < <(
-  sed -n 's/^[[:space:]]*add_xpbd_executable(\([^ )]*\).*/\1/p' Source/NeoEngine/CMakeLists.txt |
-  awk '!seen[$0]++'
-)
+TARGETS=("canonical_runtime_world_smoke" "physics_step_measurement_smoke" "gameplay_physics_query_smoke" "gameplay_physics_body_smoke" "kinematic_collision_preflight_smoke" "physics_animation_locomotion_bridge_smoke" "physics_animation_surface_demo_smoke" "scene_physics_pose_sync_smoke" "canonical_replication_bridge_smoke" "replication_world_smoke" "network_extended_smoke" "network_legacy_smoke" "network_replication_baseline_smoke" "network_replication_policy_smoke" "network_rpc_dispatcher_smoke" "network_session_smoke" "network_transport_smoke" "authority_loopback_transport_smoke" "farm_authoritative_session_loopback_smoke" "physics_test" "audit_v4_v5" "bench_100" "bench_100k" "bench_1k_timing" "bench_20k" "bench_20k_debug" "bench_5k" "bench_5k_parallel" "bench_8w" "bench_asan8" "bench_dbg" "bench_debug" "bench_fdebug" "bench_min" "bench_mini" "bench_scale" "bench_st" "bench_test" "bench_tight" "benchmark" "benchmark_heap" "concurrent_test" "test_xpbd_v5" "xpbd_determinism" "xpbd_regression" "bench_100k_bodies_200k_collisions")
+missing=0
+for target in "${TARGETS[@]}"; do
+  if [[ ! -x "$BUILD_DIR/$target" ]]; then
+    echo "[P2-SANDBOX] missing target: $target" >&2
+    missing=$((missing+1))
+  fi
+done
+if (( missing != 0 )); then exit 1; fi
 printf "%s\n" "${TARGETS[@]}" >"$REPORT_DIR/targets.txt"
 echo "[P2-SANDBOX] discovered ${#TARGETS[@]} CMake smoke targets"
 
