@@ -3,13 +3,16 @@ set -euo pipefail
 
 BUILD_DIR="${1:-Build/p1_unreal_parity}"
 ROOT="${2:-Source/NeoEngine}"
+BUILD_TYPE="${P1_BUILD_TYPE:-Release}"
 REPORT_DIR="${BUILD_DIR}/sandbox-report"
 mkdir -p "$BUILD_DIR" "$REPORT_DIR"
 
 echo "[P1-SANDBOX] configure"
-cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+  -DCMAKE_CXX_FLAGS="${P1_CMAKE_CXX_FLAGS:-}" \
+  -DCMAKE_EXE_LINKER_FLAGS="${P1_CMAKE_EXE_LINKER_FLAGS:-}"
 echo "[P1-SANDBOX] build canonical runtime"
-cmake --build "$BUILD_DIR" -j2
+cmake --build "$BUILD_DIR" -j"${P1_BUILD_JOBS:-2}"
 
 mapfile -t TARGETS < <(
   sed -n 's/^[[:space:]]*add_xpbd_executable(\([^ )]*\).*/\1/p' "$ROOT/CMakeLists.txt" |
@@ -24,7 +27,7 @@ fail=0
 skip=0
 
 for target in "${TARGETS[@]}"; do
-  if cmake --build "$BUILD_DIR" --target "$target" -j2 >/dev/null 2>&1; then
+  if cmake --build "$BUILD_DIR" --target "$target" -j"${P1_BUILD_JOBS:-2}" >/dev/null 2>&1; then
     exe="$BUILD_DIR/$target"
     if [[ -x "$exe" ]]; then
       if timeout 90s "$exe" >"$REPORT_DIR/$target.log" 2>&1; then
