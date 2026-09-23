@@ -40,6 +40,7 @@ public:
     [[nodiscard]] bool CanRefreshStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material) const;
     bool Draw(const SceneWorld& world, RenderCamera& camera, SoftwareRenderer& renderer, const DirectionalLight& light);
     [[nodiscard]] const std::deque<SceneMeshInstance>& Instances() const { return instances_; }
+    [[nodiscard]] size_t Size() const noexcept { return instances_.size(); }
     [[nodiscard]] SceneMeshAdapterError LastError() const { return lastError_; }
     [[nodiscard]] uint16_t LastCulledCount() const { return lastCulledCount_; }
 private:
