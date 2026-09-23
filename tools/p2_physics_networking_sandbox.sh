@@ -11,11 +11,15 @@ cmake -S Source/NeoEngine -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_CXX_FLAGS="${P2_CMAKE_CXX_FLAGS:-}" \
   -DCMAKE_EXE_LINKER_FLAGS="${P2_CMAKE_EXE_LINKER_FLAGS:-}"
 
-mapfile -t TARGETS < <(cmake --build "$BUILD_DIR" --target help | awk '/^[[:space:]]+[A-Za-z0-9_.+-]+_smoke([[:space:]]|$)/ {print $1}' | sort -u)
+cmake --build "$BUILD_DIR" -j"${P2_BUILD_JOBS:-2}"
+mapfile -t TARGETS < <(
+  sed -n 's/^[[:space:]]*add_xpbd_executable(\\([^ )]*\\).*/\\1/p' Source/NeoEngine/CMakeLists.txt |
+  awk '!seen[$0]++'
+)
 printf "%s\n" "${TARGETS[@]}" >"$REPORT_DIR/targets.txt"
 echo "[P2-SANDBOX] discovered ${#TARGETS[@]} CMake smoke targets"
 
-cmake --build "$BUILD_DIR" --target ${TARGETS[*]} -j"${P2_BUILD_JOBS:-2}"
+for target in "${TARGETS[@]}"; do cmake --build "$BUILD_DIR" --target "$target" -j"${P2_BUILD_JOBS:-2}" >/dev/null; done
 
 : >"$REPORT_DIR/execution.txt"
 pass=0
