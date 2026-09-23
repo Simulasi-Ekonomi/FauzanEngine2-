@@ -53,8 +53,15 @@ jobs:
         run: |
           mkdir -p Build/p1_unreal_parity/report
           git diff --name-only origin/main...HEAD -- 'Source/NeoEngine' 'Tests' > Build/p1_unreal_parity/report/p1_changed_files.txt
-          if [[ -s Build/p1_unreal_parity/report/p1_changed_files.txt ]]; then
-            xargs -r grep -nEi 'TODO|FIXME|placeholder|not implemented|IMPLEMENT_ME|stub|dummy' < Build/p1_unreal_parity/report/p1_changed_files.txt > Build/p1_unreal_parity/report/p1_markers.txt || true
+          : > Build/p1_unreal_parity/report/p1_markers.txt
+          while IFS= read -r file; do
+            [[ -f "$file" ]] || continue
+            grep -nEi '^[[:space:]]*(//|/\\*|#)[[:space:]]*(TODO|FIXME|XXX|placeholder|not implemented|IMPLEMENT_ME|stub)\\b' "$file" >> Build/p1_unreal_parity/report/p1_markers.txt || true
+          done < Build/p1_unreal_parity/report/p1_changed_files.txt
+          if [[ -s Build/p1_unreal_parity/report/p1_markers.txt ]]; then
+            echo "P1 changed-source marker scan failed"
+            cat Build/p1_unreal_parity/report/p1_markers.txt
+            exit 1
           fi
 
       - name: Upload sandbox evidence
