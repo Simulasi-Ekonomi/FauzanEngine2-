@@ -1,0 +1,66 @@
+name: P1 Unreal-like parity sandbox
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sandbox-p1-unreal-parity-validation
+
+permissions:
+  contents: read
+
+jobs:
+  p1-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ libvulkan-dev mesa-vulkan-drivers vulkan-tools glslang-tools libjsoncpp-dev rapidjson-dev pkg-config libglm-dev libcurl4-openssl-dev xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        with:
+          version: 3.4.14
+          install-linux-dependencies: true
+
+      - name: Run complete P1 sandbox coverage
+        env:
+          SDL_AUDIODRIVER: dummy
+          SDL_VIDEODRIVER: x11
+        run: |
+          chmod +x tools/p1_unreal_parity_sandbox.sh
+          xvfb-run -a -s "-screen 0 1280x720x24" tools/p1_unreal_parity_sandbox.sh
+
+      - name: Report sandbox coverage
+        if: always()
+        run: |
+          cat Build/p1_unreal_parity/sandbox-report/summary.txt
+          echo "=== EXECUTION ==="
+          cat Build/p1_unreal_parity/sandbox-report/execution.tsv
+          echo "=== TARGET COUNT FROM CMAKE ==="
+          sed -n 's/^[[:space:]]*add_xpbd_executable(\\([^ )]*\\).*/\\1/p' Source/NeoEngine/CMakeLists.txt | sort -u | wc -l
+
+      - name: Scan P1 changed code for stub/minimal/placeholder markers
+        if: always()
+        run: |
+          mkdir -p Build/p1_unreal_parity/report
+          git diff --name-only origin/main...HEAD -- 'Source/NeoEngine' 'Tests' > Build/p1_unreal_parity/report/p1_changed_files.txt
+          if [[ -s Build/p1_unreal_parity/report/p1_changed_files.txt ]]; then
+            xargs -r grep -nEi 'TODO|FIXME|placeholder|not implemented|IMPLEMENT_ME|stub|dummy' < Build/p1_unreal_parity/report/p1_changed_files.txt > Build/p1_unreal_parity/report/p1_markers.txt || true
+          fi
+
+      - name: Upload sandbox evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-unreal-parity-sandbox-complete
+          path: |
+            Build/p1_unreal_parity/sandbox-report/
+            Build/p1_unreal_parity/report/
+          if-no-files-found: warn
