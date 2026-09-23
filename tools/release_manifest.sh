@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
-OUT="${1:-release-manifest.sha256}"
+if [[ -z "$OUT" || "$OUT" == -* || "$OUT" == *$'\n'* || "$OUT" == *$'\r'* || "$OUT" == ../* || "$OUT" == */../* ]]; then echo "RELEASE_MANIFEST_FAIL unsafe_output" >&2; exit 2; fi
 if [[ -z "$OUT" || "$OUT" == -* || "$OUT" == * || "$OUT" == ../* || "$OUT" == */../* ]]; then echo "RELEASE_MANIFEST_FAIL unsafe_output" >&2; exit 2; fi
 if [[ -L "$OUT" ]]; then echo "RELEASE_MANIFEST_FAIL output_symlink" >&2; exit 2; fi
 TMP="$(mktemp)"
