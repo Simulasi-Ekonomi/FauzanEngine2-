@@ -95,6 +95,9 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayTriggerTracker.cpp
     Asset/GLTF/GLTFMeshBuilder.cpp
+    Asset/GLTF/GLTFAccessor.cpp
+    Asset/GLTF/GLTFParser.cpp
+    Asset/GLTF/GLTFTextureLoader.cpp
     Asset/GLTF/GLTFGPUUploader.cpp
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
@@ -186,6 +189,8 @@ set(XPBD_RUNTIME_SOURCES
     Animation/SkeletalPosePlayer.cpp
     Animation/Skeleton.cpp
     Animation/Skinning.cpp
+    Core/GPU/MeshStreamer.cpp
+    Core/GPU/TextureStreamer.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/AuthoritativeCommandGate.cpp
     Systems/AuthorityWireProtocol.cpp
@@ -221,6 +226,10 @@ set(XPBD_RUNTIME_SOURCES
     AI/OpenCodeIntegration.cpp
 )
 
+if(ANDROID)
+    list(APPEND XPBD_RUNTIME_SOURCES AI/Gemma4Integration.cpp)
+endif()
+
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 
@@ -240,6 +249,28 @@ target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
 target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 CURL::libcurl)
 if(ANDROID)
     target_link_libraries(NeoEngineRuntime PUBLIC log)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_playback_control_binding_smoke.cpp")
+    add_xpbd_executable(animation_playback_control_binding_smoke ../../Tests/Runtime/animation_playback_control_binding_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_state_machine_smoke.cpp")
+    add_xpbd_executable(animation_state_machine_smoke ../../Tests/Runtime/animation_state_machine_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_timeline_smoke.cpp")
+    add_xpbd_executable(animation_timeline_smoke ../../Tests/Runtime/animation_timeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp")
+    add_xpbd_executable(animation_locomotion_bridge_smoke ../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp")
+    add_xpbd_executable(animation_sprite_tint_binding_smoke ../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_import_pipeline_smoke.cpp")
+    add_xpbd_executable(texture_import_pipeline_smoke ../../Tests/Runtime/texture_import_pipeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_import_pipeline_smoke.cpp")
+    add_xpbd_executable(mesh_import_pipeline_smoke ../../Tests/Runtime/mesh_import_pipeline_smoke.cpp)
 endif()
 
 function(add_xpbd_executable target_name source_file)
