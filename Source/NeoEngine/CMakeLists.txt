@@ -95,6 +95,11 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayTriggerTracker.cpp
     Asset/GLTF/GLTFMeshBuilder.cpp
+    Asset/GLTF/GLBLoader.cpp
+    Asset/GLTF/GLTFAnimation.cpp
+    Asset/GLTF/GLTFLoader.cpp
+    Asset/GLTF/GLTFMaterialBuilder.cpp
+    Asset/GLTF/GLTFSkeleton.cpp
     Asset/GLTF/GLTFAccessor.cpp
     Asset/GLTF/GLTFParser.cpp
     Asset/GLTF/GLTFTextureLoader.cpp
@@ -192,6 +197,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/FlipbookRenderBridge.cpp
     Runtime/TransformAnimationBinding.cpp
     Runtime/PhysicsAnimationLocomotionBridge.cpp
+    Animation/SkeletalLocomotionMetadata.cpp
     Animation/SkeletalAnimationController.cpp
     Animation/SkeletalPoseClip.cpp
     Animation/Bone.cpp
@@ -199,6 +205,9 @@ set(XPBD_RUNTIME_SOURCES
     Animation/SkeletalPosePlayer.cpp
     Animation/Skeleton.cpp
     Animation/Skinning.cpp
+    Core/GPU/GPUBufferPool.cpp
+    Core/GPU/GPUMemoryBudget.cpp
+    Core/GPU/GPUTextureCache.cpp
     Core/GPU/MeshStreamer.cpp
     Core/GPU/TextureStreamer.cpp
     Systems/AuthorityLoopbackServer.cpp
