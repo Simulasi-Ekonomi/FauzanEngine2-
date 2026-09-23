@@ -5,6 +5,7 @@
 #include "Runtime/Vulkan3DRenderer.h"
 
 #include <cassert>
+#include <cstdio>
 
 int main() {
     using namespace NeoEngine;
@@ -38,7 +39,7 @@ int main() {
     assert(camera.Initialize(cameraConfig));
 
     Vulkan3DRenderer renderer;
-    if (!renderer.Initialize(256, 256, "NeoEngine Scene 3D Smoke")) return 2;
+    if (!renderer.Initialize(256, 256, "NeoEngine Scene 3D Smoke")) {\n        std::fprintf(stderr, "SCENE_VULKAN_ADAPTER_FAIL init error=%u\\n", static_cast<unsigned>(renderer.LastError()));\n        return 2;\n    }
 
     SceneRenderAdapter adapter;
     if (!adapter.DrawVulkan3D(world, meshes, camera, renderer)) return 3;
