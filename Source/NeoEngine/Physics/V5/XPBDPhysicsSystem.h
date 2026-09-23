@@ -91,6 +91,7 @@ struct BroadphaseTimingStats {
     double emitMs = 0.0;
 };
 struct StepTimingStats {
+    double totalMs = 0.0;
     double buildFlatMs = 0.0;
     double setupMs = 0.0;
     double broadphaseMs = 0.0;
@@ -105,6 +106,8 @@ struct IslandRange { uint32_t start, count; };
 struct DeferredDelta { float posX, posZ, velX, velZ; float rot, angVel; };
 struct RayHit { uint32_t entityIdx; float distance; float normalX, normalZ; };
 struct ColorBatch { uint32_t start; uint32_t count; };
+struct ColorTask { size_t color; size_t offset; size_t count; };
+struct BVHBuildTask { int start; int end; int parent; bool right; };
 struct GridContactCandidate { uint32_t idxA, idxB; float dx, dz, d2, sumR, invDist; };
 
 enum class ConstraintType : uint8_t {
@@ -251,6 +254,7 @@ private:
     size_t m_NumIslands = 0;
 
     std::vector<ColorBatch> m_ColorBatches;
+    std::vector<ColorTask> m_ColorTasks;
     std::vector<uint32_t> m_SortedContactIndices;
     std::vector<int8_t> m_EntityColor;
     std::vector<uint8_t> m_ContactColors;
@@ -261,10 +265,16 @@ private:
     int m_BVHRoot = -1;
     bool m_BVHInitialized = false;
     mutable std::vector<int> m_BVHStack;
+    std::vector<BVHBuildTask> m_BVHBuildStack;
+    std::vector<int> m_BroadphaseIndices;
+    std::vector<std::pair<uint32_t, int>> m_BVHSortBuffer;
+    std::vector<std::pair<uint32_t, int>> m_BVHSortTemp;
+    std::vector<int> m_BVHSortedIndices;
     std::vector<int> m_PostOrderCache;
 
     std::vector<std::vector<SolveLane>> m_SolveBuffers;
     size_t m_LastContactCount = 0;
+    uint64_t m_LastStepElapsedMicroseconds = 0;
 
     std::vector<Constraint> m_Constraints;
     size_t m_ConstraintCount = 0;
@@ -297,6 +307,7 @@ private:
     std::vector<size_t> m_DenseGridActiveCellList;
     std::vector<std::vector<GridContactCandidate>> m_GridContactCandidates;
     std::vector<size_t> m_GridCandidatePairCounts;
+    std::vector<std::pair<uint64_t, uint32_t>> m_GridEntries;
     struct GridGatherJobContext {
         XPBDPhysicsSystem* system = nullptr;
         size_t beginActiveCell = 0;
