@@ -1,0 +1,61 @@
+name: P1 Release + ASAN validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sandbox-p1-unreal-parity-validation
+
+permissions:
+  contents: read
+
+env:
+  SDL_VIDEODRIVER: dummy
+  SDL_AUDIODRIVER: dummy
+
+jobs:
+  release-asan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev mesa-vulkan-drivers vulkan-tools libjsoncpp-dev libglm-dev libcurl4-openssl-dev rapidjson-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        with:
+          version: 3.4.14
+          install-linux-dependencies: true
+
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/p1-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Release smoke targets
+        run: |
+          cmake --build build/p1-release --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke skinning_gpu_smoke vulkan_rhi_smoke gltf_mesh_builder_smoke gltf_gpu_uploader_smoke vulkan_renderer_3d_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
+          cmake --build build/p1-release --target vulkan_renderer_3d_smoke -j2
+
+      - name: Run Release smoke targets
+        run: |
+          for t in canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke skinning_gpu_smoke vulkan_renderer_3d_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-release/$t; done
+          SDL_VIDEODRIVER=x11 xvfb-run -a ./build/p1-release/vulkan_rhi_smoke
+
+      - name: Configure ASAN
+        run: cmake -S Source/NeoEngine -B build/p1-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+
+      - name: Build ASAN smoke targets
+        run: cmake --build build/p1-asan --target canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke skinning_gpu_smoke vulkan_rhi_smoke gltf_mesh_builder_smoke gltf_gpu_uploader_smoke vulkan_renderer_3d_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke -j2
+
+      - name: Build Vulkan renderer smoke target under ASAN
+        run: cmake --build build/p1-asan --target vulkan_renderer_3d_smoke -j2
+
+      - name: Run ASAN smoke targets
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          LSAN_OPTIONS: suppressions=.github/asan/lsan-sdl3-x11.supp
+        run: |
+          for t in canonical_runtime_world_smoke asset_streaming_queue_smoke asset_resource_manager_smoke gpu_skinning_palette_buffer_smoke skinning_gpu_smoke vulkan_renderer_3d_smoke farm_telemetry_smoke farm_authoritative_session_loopback_smoke authority_loopback_transport_smoke r6_anti_cheat_100_smoke r7_economy_commerce_100_smoke r8_persistence_recovery_100_smoke r9_live_ops_telemetry_100_smoke r10_security_privacy_100_smoke; do ./build/p1-asan/$t; done
+          SDL_VIDEODRIVER=x11 xvfb-run -a ./build/p1-asan/vulkan_rhi_smoke
