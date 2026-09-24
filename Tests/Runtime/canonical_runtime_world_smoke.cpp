@@ -1,4 +1,5 @@
 #include "Runtime/CanonicalRuntimeWorld.h"
+#include "Runtime/ReplicationWorld.h"
 
 #include <cassert>
 #include <cmath>
