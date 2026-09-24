@@ -156,7 +156,6 @@ int main() {
     if (server.ApplyServerSnapshot(snapshot, apply) || server.LastError() != ReplicationError::NotClient || server.BuildServerSnapshot(2U, snapshot) == false) return 27;
     ReplicationAcknowledgement acknowledgement2{snapshot.sequence, snapshot.serverTick, snapshot.checksum};
     ReplicationAcknowledgement codecRoundTrip{};
-    std::vector<uint8_t> acknowledgementBytes;
     if (!ReplicationAcknowledgementCodec::Serialize(acknowledgement2, acknowledgementBytes, codecError) ||
         !ReplicationAcknowledgementCodec::Deserialize(acknowledgementBytes, codecRoundTrip, codecError) ||
         codecRoundTrip.sequence != acknowledgement2.sequence ||
