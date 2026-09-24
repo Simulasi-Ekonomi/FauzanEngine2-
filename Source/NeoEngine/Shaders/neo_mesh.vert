@@ -16,6 +16,7 @@ layout(set = 0, binding = 0, std140) uniform SkinningPalette {
 
 layout(push_constant) uniform Transform {
     mat4 mvp;
+    mat4 model;
 } transform;
 
 layout(location = 0) out vec3 outWorldPosition;
@@ -35,9 +36,9 @@ void main() {
     }
     vec4 skinnedPosition = skinMatrix * vec4(inPosition, 1.0);
     vec3 skinnedNormal = mat3(skinMatrix) * inNormal;
-    vec4 worldPosition = instanceTransform * skinnedPosition;
+    vec4 worldPosition = transform.model * instanceTransform * skinnedPosition;
     gl_Position = transform.mvp * worldPosition;
     outWorldPosition = worldPosition.xyz;
-    outNormal = normalize(mat3(instanceTransform) * skinnedNormal);
+    outNormal = normalize(mat3(transform.model * instanceTransform) * skinnedNormal);
     outUV = inUV;
 }
