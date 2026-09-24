@@ -151,6 +151,8 @@ public:
     void SetTimingEnabled(bool enabled) { m_TimingEnabled = enabled; }
     void SetProbeMetricsEnabled(bool enabled) { m_ProbeMetricsEnabled = enabled; }
     const StepTimingStats& GetStepTimingStats() const { return m_StepTimingStats; }
+    size_t GetLastStepBodyCount() const { return m_LastStepBodyCount; }
+    uint64_t GetLastStepElapsedMicroseconds() const { return m_LastStepElapsedMicroseconds; }
 
     uint32_t AddHingeJoint(uint32_t idxA, uint32_t idxB,
                            float anchorAX, float anchorAZ,
@@ -212,6 +214,8 @@ private:
     std::vector<float> m_flatInvInertia;
 
     size_t m_activeFlatEntities = 0;
+    size_t m_LastStepBodyCount = 0;
+    uint64_t m_LastStepElapsedMicroseconds = 0;
     size_t m_maxFlatEntities = 0;
     uint64_t m_EcsPhysicsRevision = 0;
     bool m_FlatArraysValid = false;
