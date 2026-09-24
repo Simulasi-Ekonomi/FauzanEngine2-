@@ -126,6 +126,10 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/SceneECSBridge.cpp
     Animation/AnimationClip.cpp
+    Runtime/AnimationTimeline.cpp
+    Runtime/AnimationStateMachine.cpp
+    Runtime/FlipbookPlayback.cpp
+    Runtime/AnimationPlaybackControlBinding.cpp
     Animation/AnimationPlayer.cpp
     Animation/AnimationGraph.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
