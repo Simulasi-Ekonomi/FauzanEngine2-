@@ -1452,10 +1452,14 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
     };
     if (m_TimingEnabled) m_StepTimingStats = {};
+    const auto stepStarted = Clock::now();
+    m_LastStepBodyCount = 0;
+    m_LastStepElapsedMicroseconds = 0;
     const auto buildFlatStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
     BuildFlatArrays(em);
     if (m_TimingEnabled) m_StepTimingStats.buildFlatMs = millisSince(buildFlatStarted);
     const size_t totalEntities = m_activeFlatEntities;
+    m_LastStepBodyCount = totalEntities;
     if (totalEntities == 0) return;
     const size_t requiredWorkers = std::min(std::max(JobSystem::Get().NumWorkers(), 1UL), MAX_WORKER_THREADS);
     for (size_t worker = 0; worker < requiredWorkers; ++worker) {
@@ -1529,6 +1533,8 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
         const auto writeBackStarted = m_TimingEnabled ? Clock::now() : Clock::time_point{};
         WriteBackToECS(em);
         if (m_TimingEnabled) m_StepTimingStats.writeBackMs = millisSince(writeBackStarted);
+        m_LastStepElapsedMicroseconds = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - stepStarted).count());
+        if (m_TimingEnabled) m_StepTimingStats.totalMs = static_cast<double>(m_LastStepElapsedMicroseconds) / 1000.0;
         return;
     }
 
@@ -1575,6 +1581,8 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
     WriteBackToECS(em);
     if (m_TimingEnabled) m_StepTimingStats.writeBackMs = millisSince(writeBackStarted);
     m_LastContactCount = m_ContactCount;
+    m_LastStepElapsedMicroseconds = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - stepStarted).count());
+    if (m_TimingEnabled) m_StepTimingStats.totalMs = static_cast<double>(m_LastStepElapsedMicroseconds) / 1000.0;
 }
 
 size_t XPBDPhysicsSystem::GetManifoldCount() const { return m_LastContactCount; }
