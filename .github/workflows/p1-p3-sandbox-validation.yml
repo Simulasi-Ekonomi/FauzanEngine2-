@@ -30,6 +30,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev libjsoncpp-dev rapidjson-dev libglm-dev libcurl4-openssl-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+          test -f /usr/include/rapidjson/document.h
       - name: Install SDL3
         uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
         with:
@@ -44,7 +45,7 @@ jobs:
           test ! -e Source/NeoEngine/SDL.h
           test ! -e Source/NeoEngine/SDL_vulkan.h
       - name: Configure Release
-        run: cmake -S Source/NeoEngine -B build/p1-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S Source/NeoEngine -B build/p1-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include
       - name: Build Release 74/74 target set
         run: |
           cmake --build build/p1-release --target all -j2
@@ -145,6 +146,7 @@ jobs:
         run: |
           cmake -S Source/NeoEngine -B build/p1-asan -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include \
             '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
             '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
       - name: Build ASAN 74/74 target set
