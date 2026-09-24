@@ -1,12 +1,10 @@
 #pragma once
 
+#include "Runtime/VulkanGPUBuffer.h"
 #include <vulkan/vulkan.h>
-#include <cstdint>
 
 namespace NeoEngine
 {
-
-class VulkanGPUBuffer;
 
 class MeshStreamer
 {
@@ -23,19 +21,15 @@ public:
     [[nodiscard]] bool UploadMesh(const void* vertices, VkDeviceSize byteCount);
     void Destroy();
 
-    [[nodiscard]] bool IsValid() const;
-    [[nodiscard]] VkBuffer GetBuffer() const;
+    [[nodiscard]] bool IsValid() const { return buffer_.IsValid(); }
+    [[nodiscard]] VkBuffer GetBuffer() const { return buffer_.GetBuffer(); }
     [[nodiscard]] VkDeviceSize GetCapacityBytes() const { return capacityBytes_; }
     [[nodiscard]] VkDeviceSize GetUploadedBytes() const { return uploadedBytes_; }
 
 private:
-    VulkanGPUBuffer* Buffer();
-    const VulkanGPUBuffer* Buffer() const;
-
-    VulkanGPUBuffer* buffer_ = nullptr;
+    VulkanGPUBuffer buffer_;
     VkDeviceSize capacityBytes_ = 0;
     VkDeviceSize uploadedBytes_ = 0;
 };
 
 }
-
