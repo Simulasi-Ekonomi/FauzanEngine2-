@@ -7,7 +7,7 @@
 namespace {
 template <typename T>
 T FakeDeviceMemory(uintptr_t value) {
-    if constexpr (std::is_pointer_v<VkDeviceMemory>) {
+    if constexpr (std::is_pointer_v<T>) {
         return reinterpret_cast<T>(value);
     } else {
         return static_cast<T>(value);
