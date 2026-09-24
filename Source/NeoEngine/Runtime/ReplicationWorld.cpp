@@ -31,10 +31,9 @@ void AppendFloat(std::vector<uint8_t>& bytes, float value) {
     AppendU32(bytes, raw);
 }
 bool ReadU16(std::span<const uint8_t> bytes, size_t& offset, uint16_t& value) {
-    if (offset > bytes.size() || bytes.size() > kMaxBytes || bytes.size() - offset < 2U) return false;
+    if (offset > bytes.size() || bytes.size() > ReplicationSnapshotCodec::kMaxBytes || bytes.size() - offset < 2U) return false;
     value = static_cast<uint16_t>(bytes[offset]) | static_cast<uint16_t>(bytes[offset + 1U]) << 8U;
     offset += 2U;
-    if (bytes.empty() || bytes.size() > kMaxBytes) { error = ReplicationError::Capacity; return false; }
     return true;
 }
 bool ReadU32(std::span<const uint8_t> bytes, size_t& offset, uint32_t& value) {
@@ -53,7 +52,7 @@ bool ReadU64(std::span<const uint8_t> bytes, size_t& offset, uint64_t& value) {
 }
 bool ReadFloat(std::span<const uint8_t> bytes, size_t& offset, float& value) {
     uint32_t raw = 0U;
-    if (offset > bytes.size() || bytes.size() > kMaxBytes) return false;
+    if (offset > bytes.size() || bytes.size() > ReplicationSnapshotCodec::kMaxBytes) return false;
     if (!ReadU32(bytes, offset, raw)) return false;
     std::memcpy(&value, &raw, sizeof(value));
     return true;
@@ -139,7 +138,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     const size_t expectedSize = 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(count) * kEntityBytes + 8U;
     if (bytes.size() != expectedSize || expectedSize > kMaxBytes || expectedSize < 38U) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count; candidate.checksum = 0U;
-    if (candidate.count > kMaxEntities) { error = ReplicationError::Capacity; return false; }
+    if (candidate.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::Capacity; return false; }
     for (uint16_t index = 0U; index < count; ++index) {
         ReplicatedEntityState& state = candidate.states[index];
         if (!ReadU32(bytes, offset, state.networkId) || !ReadU32(bytes, offset, state.ownerId) || !ReadU64(bytes, offset, state.stateRevision) || !ReadFloat(bytes, offset, state.transform.x) || !ReadFloat(bytes, offset, state.transform.y) || !ReadFloat(bytes, offset, state.transform.z) || !ReadFloat(bytes, offset, state.transform.rx) || !ReadFloat(bytes, offset, state.transform.ry) || !ReadFloat(bytes, offset, state.transform.rz) || !ReadFloat(bytes, offset, state.transform.sx) || !ReadFloat(bytes, offset, state.transform.sy) || !ReadFloat(bytes, offset, state.transform.sz) || state.networkId == std::numeric_limits<uint32_t>::max() || state.stateRevision == std::numeric_limits<uint64_t>::max() || !ValidTransform(state.transform)) { error = ReplicationError::CorruptSnapshot; return false; }
@@ -262,7 +261,6 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
         slot.hasAuthoritative = true;
     }
     snapshot = std::move(snapshotCandidate);
-    if (candidateReceipt.appliedEntities > snapshot.count || candidateReceipt.appliedEntities != snapshot.count || candidateReceipt.appliedEntities > kMaxEntities) return failTransaction(ReplicationError::SceneApplyRejected);
     snapshotSequence_ = snapshot.sequence;
     lastServerTick_ = serverTick;
     lastSnapshotChecksum_ = snapshot.checksum;
