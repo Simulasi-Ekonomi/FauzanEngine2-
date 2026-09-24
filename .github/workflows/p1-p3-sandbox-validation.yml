@@ -49,7 +49,8 @@ jobs:
       - name: Build Release 74/74 target set
         run: |
           cmake --build build/p1-release --target all -j2
-          count="$(cmake --build build/p1-release --target help | awk '/^[[:space:]]+[A-Za-z0-9_]+_smoke([[:space:]]|$)/ {c++} END {print c+0}')"
+          count="$(ninja -C build/p1-release -t targets | awk -F': ' '$1 ~ /^[A-Za-z0-9_]+_smoke$/ {print $1}' | sort -u | wc -l)"
+          echo "Discovered smoke targets: $count"
           test "$count" -eq 74
       - name: Define exact P1 74-target manifest
         run: |
