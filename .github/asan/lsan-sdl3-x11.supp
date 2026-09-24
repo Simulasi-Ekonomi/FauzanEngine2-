@@ -1,6 +1,3 @@
-# SDL3 3.4.14 X11 backend leak suppression for ASAN CI.
-# Verified against SDL_Init(SDL_INIT_VIDEO) + SDL_Quit() under Xvfb.
-# The reported allocations terminate in SDL's X11 initialization paths,
-# not in FauzanEngine source. Keep engine-side LeakSanitizer reporting enabled.
 leak:X11_InitKeyboard
 leak:X11_GetGlobalContentScale
+leak:libvulkan_lvp.so
