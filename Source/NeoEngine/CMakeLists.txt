@@ -100,6 +100,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
+    Runtime/GameplayTriggerTracker.cpp
     Asset/GLTF/GLTFMeshBuilder.cpp
     Asset/GLTF/GLTFGPUUploader.cpp
     Runtime/VulkanAssetUploader.cpp
