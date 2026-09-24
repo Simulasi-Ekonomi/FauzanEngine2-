@@ -66,13 +66,6 @@ TextureData GLTFTextureLoader::Load(const std::string& path)
             return texture;
         }
 
-        // ReadToken consumed the separator after maxValue only logically; consume the
-        // required single whitespace byte before the binary payload.
-        char separator = 0;
-        if (!file.get(separator) || !std::isspace(static_cast<unsigned char>(separator))) {
-            return texture;
-        }
-
         const size_t rgbSize = pixelCount * 3U;
         std::vector<unsigned char> rgb(rgbSize);
         if (!file.read(reinterpret_cast<char*>(rgb.data()), static_cast<std::streamsize>(rgbSize))) {
