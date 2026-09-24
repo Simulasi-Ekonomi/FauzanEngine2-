@@ -13,6 +13,7 @@
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <iostream>
 
 namespace NeoEngine {
 namespace {
@@ -165,9 +166,9 @@ bool Vulkan3DRenderer::DrawIndexedSkinned(std::span<const Vulkan3DVertex> vertic
     Frame& f=impl_->frames[impl_->frameSlot];
     VkDeviceSize vb=vertices.size()*sizeof(GpuVertex),ib=indices.size()*sizeof(uint32_t),instb=sizeof(GpuInstance);
     VkDeviceSize vr=f.vertexArena.used+vb,ir=f.indexArena.used+ib,er=f.instanceArena.used+instb;
-    if(vr>f.vertexArena.capacity&&(f.vertexArena.used||!EnsureArena(impl_->physical,impl_->device,f.vertexArena,vr,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}
-    if(ir>f.indexArena.capacity&&(f.indexArena.used||!EnsureArena(impl_->physical,impl_->device,f.indexArena,ir,VK_BUFFER_USAGE_INDEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}
-    if(er>f.instanceArena.capacity&&(f.instanceArena.used||!EnsureArena(impl_->physical,impl_->device,f.instanceArena,er,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){lastError_=Vulkan3DRendererError::BufferFailure;return false;}
+    if(vr>f.vertexArena.capacity&&(f.vertexArena.used||!EnsureArena(impl_->physical,impl_->device,f.vertexArena,vr,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){ std::cerr << "[Vulkan3DRenderer] vertex arena allocation failed required=" << vr << " capacity=" << f.vertexArena.capacity << "\n"; lastError_=Vulkan3DRendererError::BufferFailure;return false;}
+    if(ir>f.indexArena.capacity&&(f.indexArena.used||!EnsureArena(impl_->physical,impl_->device,f.indexArena,ir,VK_BUFFER_USAGE_INDEX_BUFFER_BIT))){ std::cerr << "[Vulkan3DRenderer] index arena allocation failed required=" << ir << " capacity=" << f.indexArena.capacity << "\n"; lastError_=Vulkan3DRendererError::BufferFailure;return false;}
+    if(er>f.instanceArena.capacity&&(f.instanceArena.used||!EnsureArena(impl_->physical,impl_->device,f.instanceArena,er,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT))){ std::cerr << "[Vulkan3DRenderer] instance arena allocation failed required=" << er << " capacity=" << f.instanceArena.capacity << "\n"; lastError_=Vulkan3DRendererError::BufferFailure;return false;}
     auto* dst=reinterpret_cast<GpuVertex*>(static_cast<std::byte*>(f.vertexArena.mapped)+f.vertexArena.used);
     for(size_t i=0;i<vertices.size();++i){
         dst[i]={{vertices[i].px,vertices[i].py,vertices[i].pz},{vertices[i].nx,vertices[i].ny,vertices[i].nz},{vertices[i].u,vertices[i].v},
