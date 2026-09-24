@@ -162,8 +162,8 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         std::vector<Vulkan3DVertex> vertices;
         vertices.reserve(instance.vertices.size());
         for (const MeshVertex& vertex : instance.vertices) {
-            const RenderPoint3 position = TransformPoint(model, vertex.position);
-            const RenderPoint3 normal = TransformDirection(model, vertex.normal);
+            const RenderPoint3 position = vertex.position;
+            const RenderPoint3 normal = Normalize(vertex.normal);
             Vulkan3DVertex gpuVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v};
             gpuVertex.boneIndices = vertex.boneIndices;
             gpuVertex.boneWeights = vertex.boneWeights;
@@ -181,7 +181,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             indices.push_back(static_cast<uint32_t>(index));
         }
 
-        if (!renderer.DrawIndexed(vertices, indices, viewProjection.m)) {
+        if (!renderer.DrawIndexedSkinned(vertices, indices, Multiply(viewProjection, model).m, model.m)) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;
