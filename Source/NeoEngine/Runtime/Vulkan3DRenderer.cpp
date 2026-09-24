@@ -79,7 +79,7 @@ std::vector<uint32_t> ReadSpirv(const char* path){std::ifstream stream(path,std:
 VkShaderModule CreateShader(VkDevice device,const std::vector<uint32_t>& code){if(code.empty())return VK_NULL_HANDLE;VkShaderModuleCreateInfo info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};info.codeSize=code.size()*sizeof(uint32_t);info.pCode=code.data();VkShaderModule shader=VK_NULL_HANDLE;return vkCreateShaderModule(device,&info,nullptr,&shader)==VK_SUCCESS?shader:VK_NULL_HANDLE;}
 bool HasExtension(VkPhysicalDevice physical,const char* name){uint32_t count=0;if(vkEnumerateDeviceExtensionProperties(physical,nullptr,&count,nullptr)!=VK_SUCCESS)return false;std::vector<VkExtensionProperties> e(count);if(count&&vkEnumerateDeviceExtensionProperties(physical,nullptr,&count,e.data())!=VK_SUCCESS)return false;return std::any_of(e.begin(),e.end(),[name](const auto& x){return std::strcmp(x.extensionName,name)==0;});}
 VkDeviceSize GrowCapacity(VkDeviceSize current,VkDeviceSize required){VkDeviceSize c=current?current:256U*1024U;while(c<required){auto n=c*2U;if(n<=c)return required;c=n;}return c;}
-bool EnsureArena(VkPhysicalDevice physical,VkDevice device,BufferArena& arena,VkDeviceSize required,VkBufferUsageFlags usage){if(required<=arena.capacity)return true;return CreateArena(physical,device,GrowCapacity(arena.capacity,required),usage,arena);}
+bool EnsureArena(VkPhysicalDevice physical,VkDevice device,BufferArena& arena,VkDeviceSize required,VkBufferUsageFlags usage){if(required<=arena.capacity)return true;const VkDeviceSize target=GrowCapacity(arena.capacity,required);if(!CreateArena(physical,device,target,usage,arena)){std::cerr << "[Vulkan3DRenderer] CreateArena failed required=" << required << " target=" << target << " usage=" << usage << "\n";return false;}return true;}
 constexpr std::array<float,16> kIdentityMatrix{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
 }
 struct Vulkan3DRenderer::Impl {
@@ -150,6 +150,7 @@ bool Vulkan3DRenderer::DrawIndexedSkinned(std::span<const Vulkan3DVertex> vertic
     }
     for(const Vulkan3DVertex& vertex:vertices){
         if(!ValidateSkinningVertex(vertex)){
+            std::cerr << "[Vulkan3DRenderer] invalid skinning vertex weights/indices\n";
             lastError_=Vulkan3DRendererError::BufferFailure; return false;
         }
     }
