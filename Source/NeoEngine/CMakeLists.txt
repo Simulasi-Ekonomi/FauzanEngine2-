@@ -4,12 +4,12 @@ project(NeoEngine LANGUAGES CXX)
 
 find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
-find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
+find_package(SDL3 3.4.16 CONFIG REQUIRED COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
 find_path(NEO_RAPIDJSON_INCLUDE_DIR rapidjson/document.h REQUIRED)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(NEO_SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/neo_shaders")
