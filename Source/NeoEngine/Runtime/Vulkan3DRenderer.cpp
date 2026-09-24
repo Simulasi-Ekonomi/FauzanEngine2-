@@ -19,6 +19,21 @@ namespace {
 #define NEO_SHADER_DIR "."
 #endif
 struct GpuVertex { float position[3]; float normal[3]; float uv[2]; uint32_t boneIndices[4]; float boneWeights[4]; };
+static_assert(offsetof(GpuVertex, position) == 0U);
+static_assert(offsetof(GpuVertex, normal) == 12U);
+static_assert(offsetof(GpuVertex, uv) == 24U);
+static_assert(offsetof(GpuVertex, boneIndices) == 32U);
+static_assert(offsetof(GpuVertex, boneWeights) == 48U);
+static_assert(sizeof(GpuVertex) == 64U);
+bool ValidateSkinningVertex(const Vulkan3DVertex& vertex) noexcept {
+    float weightSum = 0.0F;
+    for (std::size_t i = 0U; i < 4U; ++i) {
+        if (vertex.boneIndices[i] >= GPUSkinningPaletteBuffer::kMaxBones ||
+            !std::isfinite(vertex.boneWeights[i]) || vertex.boneWeights[i] < 0.0F) return false;
+        weightSum += vertex.boneWeights[i];
+    }
+    return std::isfinite(weightSum) && (weightSum <= 1.0e-6F || std::fabs(weightSum - 1.0F) <= 1.0e-4F);
+}
 struct GpuInstance { float transform[16]; };
 struct Buffer { VkBuffer handle = VK_NULL_HANDLE; VkDeviceMemory memory = VK_NULL_HANDLE; };
 struct BufferArena { Buffer buffer{}; VkDeviceSize capacity = 0; VkDeviceSize used = 0; void* mapped = nullptr; };
