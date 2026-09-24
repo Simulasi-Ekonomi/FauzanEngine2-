@@ -219,6 +219,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
+    AI/OpenCodeIntegration.cpp
     Systems/GridNavigation.cpp
     Systems/WorldAuthoring.cpp
     Systems/CurriculumSystem.cpp
