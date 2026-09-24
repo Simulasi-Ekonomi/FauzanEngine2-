@@ -160,6 +160,7 @@ GeneratedCode OpenCodeIntegration::GenerateFromTemplate(
              << "namespace NeoEngine {\n"
              << "struct " << nameIt->second << " {\n"
              << "    std::uint32_t version = 1U;\n"
+             << "    std::uint64_t updateCount = 0U;\n"
              << "};\n"
              << "}\n";
     } else if (templateName == "system") {
