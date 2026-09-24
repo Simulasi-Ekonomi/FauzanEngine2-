@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <cstdint>
 #include <cstddef>
+#include <cstddef>
 #include <vector>
 
 namespace NeoEngine {
@@ -15,6 +16,13 @@ struct MeshVertex3D {
     std::uint32_t boneIndices[4]{};
     float boneWeights[4]{};
 };
+
+static_assert(offsetof(MeshVertex3D, position) == 0U);
+static_assert(offsetof(MeshVertex3D, normal) == 12U);
+static_assert(offsetof(MeshVertex3D, uv) == 24U);
+static_assert(offsetof(MeshVertex3D, boneIndices) == 32U);
+static_assert(offsetof(MeshVertex3D, boneWeights) == 48U);
+static_assert(sizeof(MeshVertex3D) == 64U);
 
 class VulkanMeshBufferBuilder {
 public:
