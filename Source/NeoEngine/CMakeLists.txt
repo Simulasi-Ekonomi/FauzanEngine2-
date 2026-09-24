@@ -130,6 +130,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AnimationStateMachine.cpp
     Runtime/FlipbookPlayback.cpp
     Runtime/AnimationPlaybackControlBinding.cpp
+    Runtime/AnimationLocomotionBridge.cpp
+    Runtime/AnimationSpriteTintBinding.cpp
     Animation/AnimationPlayer.cpp
     Animation/AnimationGraph.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
