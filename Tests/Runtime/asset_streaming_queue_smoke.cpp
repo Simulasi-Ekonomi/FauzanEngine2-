@@ -5,11 +5,12 @@
 #include <type_traits>
 
 namespace {
-VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
+template <typename T>
+T FakeDeviceMemory(uintptr_t value) {
     if constexpr (std::is_pointer_v<VkDeviceMemory>) {
-        return reinterpret_cast<VkDeviceMemory>(value);
+        return reinterpret_cast<T>(value);
     } else {
-        return static_cast<VkDeviceMemory>(value);
+        return static_cast<T>(value);
     }
 }
 }
@@ -42,7 +43,7 @@ int main() {
     assert(queue.GetState("high") == StreamState::Uploading);
     assert(!queue.IsReady("high"));
 
-    assert(queue.CompleteUpload("high", FakeDeviceMemory(1), 3));
+    assert(queue.CompleteUpload("high", FakeDeviceMemory<VkDeviceMemory>(1), 3));
     assert(queue.IsReady("high"));
     assert(queue.GetMemory("high") == FakeDeviceMemory(1));
     assert(queue.GetResidentMB() == 3);
@@ -56,7 +57,7 @@ int main() {
     assert(queue.Enqueue(StreamRequest{"old", "old.obj", 2.0f, 4, 1}));
     assert(queue.TryDequeue(next));
     assert(next.id == "old");
-    assert(queue.CompleteUpload("old", FakeDeviceMemory(2), 4));
+    assert(queue.CompleteUpload("old", FakeDeviceMemory<VkDeviceMemory>(2), 4));
     queue.MarkAccessed("high", 20);
     queue.MarkAccessed("old", 10);
     assert(queue.GetResidentMB() == 7);
@@ -65,7 +66,7 @@ int main() {
     assert(queue.TryDequeue(next));
     assert(next.id == "over");
     // Total resident budget, not just per-allocation budget, is the contract.
-    assert(!queue.CompleteUpload("over", FakeDeviceMemory(3), 2));
+    assert(!queue.CompleteUpload("over", FakeDeviceMemory<VkDeviceMemory>(3), 2));
     assert(queue.GetState("over") == StreamState::Uploading);
     assert(queue.FailUpload("over"));
 
