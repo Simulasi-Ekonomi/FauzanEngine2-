@@ -1487,6 +1487,7 @@ void XPBDPhysicsSystem::Step(ArchetypeManager& em, float dt) {
     BuildFlatArrays(em);
     if (m_TimingEnabled) m_StepTimingStats.buildFlatMs = millisSince(buildFlatStarted);
     const size_t totalEntities = m_activeFlatEntities;
+    m_LastStepBodyCount = totalEntities;
     if (totalEntities == 0) { m_LastStepElapsedMicroseconds = 0U; return; }
     const size_t requiredWorkers = std::min(std::max(JobSystem::Get().NumWorkers(), 1UL), MAX_WORKER_THREADS);
     for (size_t worker = 0; worker < requiredWorkers; ++worker) {
