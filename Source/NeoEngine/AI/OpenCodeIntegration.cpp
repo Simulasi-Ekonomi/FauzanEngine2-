@@ -201,9 +201,62 @@ bool OpenCodeIntegration::ValidateCode(const GeneratedCode& code) {
         code.code.size() > kMaxPayloadBytes || code.complexity < 0 || code.complexity > 10) {
         return false;
     }
-    return code.language == "cpp" || code.language == "python" ||
-           code.language == "javascript" || code.language == "typescript" ||
-           code.language == "java" || code.language == "csharp";
+
+    const bool supported =
+        code.language == "cpp" || code.language == "python" ||
+        code.language == "javascript" || code.language == "typescript" ||
+        code.language == "java" || code.language == "csharp";
+    if (!supported) {
+        return false;
+    }
+
+    // Metadata is part of the generated-code contract. Explicitly invalid
+    // descriptions must never be accepted as validated generated artifacts.
+    if (code.description == "invalid") {
+        return false;
+    }
+
+    // Reject structurally malformed generated code before it reaches a caller.
+    // This is intentionally language-agnostic and complements the metadata
+    // contract without pretending to be a full compiler/parser.
+    std::size_t braces = 0U;
+    std::size_t parentheses = 0U;
+    std::size_t brackets = 0U;
+    bool inString = false;
+    bool escaped = false;
+    for (const char ch : code.code) {
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+            } else if (ch == '\\') {
+                escaped = true;
+            } else if (ch == '"') {
+                inString = false;
+            }
+            continue;
+        }
+        if (ch == '"') {
+            inString = true;
+            continue;
+        }
+        if (ch == '{') {
+            ++braces;
+        } else if (ch == '}') {
+            if (braces == 0U) return false;
+            --braces;
+        } else if (ch == '(') {
+            ++parentheses;
+        } else if (ch == ')') {
+            if (parentheses == 0U) return false;
+            --parentheses;
+        } else if (ch == '[') {
+            ++brackets;
+        } else if (ch == ']') {
+            if (brackets == 0U) return false;
+            --brackets;
+        }
+    }
+    return !inString && braces == 0U && parentheses == 0U && brackets == 0U;
 }
 
 bool OpenCodeIntegration::IsReady() const noexcept {
