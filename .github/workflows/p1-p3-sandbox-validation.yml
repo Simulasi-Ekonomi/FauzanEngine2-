@@ -35,6 +35,15 @@ jobs:
         with:
           version: 3.4.16
           install-linux-dependencies: true
+      - name: Verify SDL3-only source and compatibility shims
+        run: |
+          if grep -RInE '#include <SDL\\.h>|#include <SDL_vulkan\\.h>|SDL2::|find_package\\(SDL2|SDL_WINDOWPOS_|SDL_WINDOWEVENT|SDL_CONTROLLER|SDL_RenderCopy\\(|SDL_RENDERER_SOFTWARE|AUDIO_S16SYS' Source Tests --include='*.cpp' --include='*.h'; then
+            echo 'Stale SDL2 API detected.'
+            exit 1
+          fi
+          test ! -e Source/NeoEngine/SDL.h
+          test ! -e Source/NeoEngine/SDL_vulkan.h
+
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/p1-p3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build Release smoke targets
