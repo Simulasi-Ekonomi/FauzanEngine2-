@@ -107,7 +107,7 @@ struct DeferredDelta { float posX, posZ, velX, velZ; float rot, angVel; };
 struct RayHit { uint32_t entityIdx; float distance; float normalX, normalZ; };
 struct ColorBatch { uint32_t start; uint32_t count; };
 struct ColorTask { size_t color; size_t offset; size_t count; };
-struct BVHBuildTask { int start; int end; int parent; bool right; };
+struct BVHBuildTask { int s; int e; int p; bool right; };
 struct GridContactCandidate { uint32_t idxA, idxB; float dx, dz, d2, sumR, invDist; };
 
 enum class ConstraintType : uint8_t {
