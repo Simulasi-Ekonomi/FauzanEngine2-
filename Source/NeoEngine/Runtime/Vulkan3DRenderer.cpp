@@ -159,9 +159,10 @@ bool Vulkan3DRenderer::DrawIndexedSkinned(std::span<const Vulkan3DVertex> vertic
             lastError_=Vulkan3DRendererError::BufferFailure; return false;
         }
     }
-    for(size_t i=0;i<32U;++i){
-        if(!std::isfinite(mvp[i])||!std::isfinite(model[i])){
-            lastError_=Vulkan3DRendererError::FrameFailure; return false;
+    for(size_t i=0;i<16U;++i){
+        if(!std::isfinite(mvp[i]) || !std::isfinite(model[i])){
+            lastError_=Vulkan3DRendererError::FrameFailure;
+            return false;
         }
     }
     Frame& f=impl_->frames[impl_->frameSlot];
