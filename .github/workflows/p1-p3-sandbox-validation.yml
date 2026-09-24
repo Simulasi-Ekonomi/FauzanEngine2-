@@ -37,36 +37,130 @@ jobs:
           install-linux-dependencies: true
       - name: Verify SDL3-only source and compatibility shims
         run: |
-          if grep -RInE '#include <SDL\\.h>|#include <SDL_vulkan\\.h>|SDL2::|find_package\\(SDL2|SDL_WINDOWPOS_|SDL_WINDOWEVENT|SDL_CONTROLLER|SDL_RenderCopy\\(|SDL_RENDERER_SOFTWARE|AUDIO_S16SYS' Source Tests --include='*.cpp' --include='*.h'; then
+          if grep -RInE '#include <SDL\.h>|#include <SDL_vulkan\.h>|SDL2::|find_package\(SDL2|SDL_WINDOWPOS_|SDL_WINDOWEVENT|SDL_CONTROLLER|SDL_RenderCopy\(|SDL_RENDERER_SOFTWARE|AUDIO_S16SYS' Source Tests --include='*.cpp' --include='*.h'; then
             echo 'Stale SDL2 API detected.'
             exit 1
           fi
           test ! -e Source/NeoEngine/SDL.h
           test ! -e Source/NeoEngine/SDL_vulkan.h
-
       - name: Configure Release
-        run: cmake -S Source/NeoEngine -B build/p1-p3-release -G Ninja -DCMAKE_BUILD_TYPE=Release
-      - name: Build Release smoke targets
+        run: cmake -S Source/NeoEngine -B build/p1-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build Release 74/74 target set
         run: |
-          cmake --build build/p1-p3-release --target all -j2
-          test "$(grep -c '_smoke        run: cmake -S Source/NeoEngine -B build/p1-p3-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
-      - name: Build ASAN smoke targets
-        run: cmake --build build/p1-p3-asan --target all -j2
-      - name: Run ASAN 74/74 smoke targets
-        env:
-          ASAN_OPTIONS: detect_leaks=1
-          SDL_VIDEODRIVER: x11
+          cmake --build build/p1-release --target all -j2
+          count="$(cmake --build build/p1-release --target help | awk '/^[[:space:]]+[A-Za-z0-9_]+_smoke([[:space:]]|$)/ {c++} END {print c+0}')"
+          test "$count" -eq 74
+      - name: Define exact P1 74-target manifest
+        run: |
+          cat > /tmp/p1_targets.txt <<'EOF'
+animation_playback_control_binding_smoke
+animation_state_machine_smoke
+animation_timeline_smoke
+animation_locomotion_bridge_smoke
+animation_sprite_tint_binding_smoke
+texture_import_pipeline_smoke
+mesh_import_pipeline_smoke
+mesh_streamer_smoke
+texture_streamer_smoke
+gltf_asset_components_smoke
+canonical_runtime_world_smoke
+neo_runtime_ecs_integration_smoke
+runtime_frame_contract_smoke
+asset_streaming_queue_smoke
+gameplay_physics_query_smoke
+gltf_mesh_builder_smoke
+gltf_gpu_uploader_smoke
+asset_resource_manager_smoke
+farm_vulkan_textured_present_smoke
+animation_graph_smoke
+gpu_skinning_palette_buffer_smoke
+skinning_gpu_smoke
+vulkan_rhi_smoke
+vulkan_bootstrap_smoke
+vulkan_descriptor_manager_smoke
+vulkan_gpu_buffer_smoke
+vulkan_gpu_texture_smoke
+vulkan_graphics_pipeline_smoke
+vulkan_mesh_buffer_builder_smoke
+vulkan_offscreen_smoke
+vulkan_render_command_recorder_smoke
+vulkan_render_pass_manager_smoke
+vulkan_renderer_3d_smoke
+vulkan_shader_smoke
+vulkan_swapchain_manager_smoke
+vulkan_sync_primitives_smoke
+vulkan_textured_present_smoke
+scene_vulkan_render_adapter_smoke
+r3_gpu_indirect_10k_execution_smoke
+r3_gpu_indirect_capacity_smoke
+gpu_driven_renderer_smoke
+vulkan_mesh_indirect_batch_smoke
+vulkan_mesh_indirect_batch_gpu_smoke
+pbr_material_smoke
+pbr_lighting_smoke
+pbr_ibl_smoke
+pbr_render_pipeline_smoke
+pbr_environment_smoke
+pbr_environment_descriptor_smoke
+shader_library_smoke
+sdl_audio_bridge_smoke
+audio_mixer_smoke
+sdl_input_bridge_smoke
+input_state_smoke
+ui_input_router_smoke
+audio_subsystem_smoke
+editor_subsystem_smoke
+item_serial_tracker_smoke
+memory_tracker_smoke
+opencode_integration_smoke
+farm_canonical_game_tool_smoke
+neo_runtime_farm_vertical_slice_smoke
+farm_authoritative_session_loopback_smoke
+authority_loopback_transport_smoke
+farm_commerce_entitlement_smoke
+farm_commerce_checkpoint_smoke
+farm_authoritative_service_smoke
+r6_anti_cheat_100_smoke
+r7_economy_commerce_100_smoke
+r8_persistence_recovery_100_smoke
+r9_live_ops_telemetry_100_smoke
+r10_security_privacy_100_smoke
+comprehensive_engine_verification_smoke
+farm_telemetry_smoke
+EOF
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 74
+      - name: Run Release 74/74
         run: |
           pass=0
           fail=0
           while IFS= read -r t; do
-            echo "RUN $t"
-            if xvfb-run -a "./build/p1-p3-asan/$t"; then
-              pass=$((pass+1))
-            else
-              fail=$((fail+1))
-            fi
+            echo "RUN RELEASE $t"
+            if xvfb-run -a "./build/p1-release/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
           done < /tmp/p1_targets.txt
+          echo "P1 RELEASE: pass=$pass fail=$fail total=74"
           test "$pass" -eq 74
           test "$fail" -eq 0
+      - name: Configure ASAN
+        run: |
+          cmake -S Source/NeoEngine -B build/p1-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+      - name: Build ASAN 74/74 target set
+        run: |
+          cmake --build build/p1-asan --target all -j2
+          count="$(cmake --build build/p1-asan --target help | awk '/^[[:space:]]+[A-Za-z0-9_]+_smoke([[:space:]]|$)/ {c++} END {print c+0}')"
+          test "$count" -eq 74
+      - name: Run ASAN 74/74
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          pass=0
+          fail=0
+          while IFS= read -r t; do
+            echo "RUN ASAN $t"
+            if xvfb-run -a "./build/p1-asan/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
+          done < /tmp/p1_targets.txt
           echo "P1 ASAN: pass=$pass fail=$fail total=74"
+          test "$pass" -eq 74
+          test "$fail" -eq 0
