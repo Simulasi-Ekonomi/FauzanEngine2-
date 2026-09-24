@@ -113,6 +113,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanOffscreen.cpp
     Runtime/VulkanRenderCommandRecorder.cpp
     Runtime/VulkanRenderPassManager.cpp
+    Runtime/VulkanShaderProbe.cpp
+    Runtime/VulkanSwapchainManager.cpp
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanGPUTexture.cpp
     Core/Debug/MemoryTracker.cpp
