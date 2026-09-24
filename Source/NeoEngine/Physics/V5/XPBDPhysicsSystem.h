@@ -99,6 +99,7 @@ struct StepTimingStats {
     double solveMs = 0.0;
     double mergeMs = 0.0;
     double writeBackMs = 0.0;
+    double totalMs = 0.0;
 };
 struct BVHNode { float minX, minZ, maxX, maxZ; float cachedCost; int left, right, parent; int entityIdx; bool isLeaf; };
 struct IslandRange { uint32_t start, count; };
