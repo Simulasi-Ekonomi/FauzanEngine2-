@@ -38,6 +38,10 @@ bool GLTFGPUUploader::UploadMesh(const std::vector<Vertex>& vertices,
         out.position[0] = vertex.position[0]; out.position[1] = vertex.position[1]; out.position[2] = vertex.position[2];
         out.normal[0] = vertex.normal[0]; out.normal[1] = vertex.normal[1]; out.normal[2] = vertex.normal[2];
         out.uv[0] = vertex.uv[0]; out.uv[1] = vertex.uv[1];
+        for (std::size_t i = 0U; i < 4U; ++i) {
+            out.boneIndices[i] = vertex.boneIndices[i];
+            out.boneWeights[i] = vertex.boneWeights[i];
+        }
         gpuVertices.push_back(out);
     }
     return meshBuffer_.BuildMesh(device_, physicalDevice_, gpuVertices, indices);
