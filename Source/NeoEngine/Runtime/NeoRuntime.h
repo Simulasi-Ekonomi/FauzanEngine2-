@@ -6,6 +6,7 @@
 #include "SoftwareRenderer.h"
 #include "Vulkan3DRenderer.h"
 #include "SceneMeshAdapter.h"
+#include "MeshStaging.h"
 #include "SceneRenderAdapter.h"
 #include "RenderCamera.h"
 #include "SoftwareSurfacePresenter.h"
@@ -98,6 +99,7 @@ public:
     ArchetypeManager* ECS() { return m_ECS.get(); }
     const ArchetypeManager* ECS() const { return m_ECS.get(); }
     const SceneECSBridgeReceipt& SceneECS() const { return m_SceneECSBridge.LastReceipt(); }
+    EntityID SceneECSId(SceneEntity entity) const { return m_SceneECSBridge.ECSId(entity); }
     SceneWorld* Scene() { return m_Scene.get(); }
     const SceneWorld* Scene() const { return m_Scene.get(); }
     SceneMeshAdapter* SceneMeshes() { return m_SceneMeshes.get(); }
