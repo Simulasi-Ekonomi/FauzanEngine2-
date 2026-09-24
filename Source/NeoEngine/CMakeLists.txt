@@ -101,12 +101,16 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayTriggerTracker.cpp
+    Asset/GLTF/GLTFAccessor.cpp
+    Asset/GLTF/GLTFParser.cpp
+    Asset/GLTF/GLTFTextureLoader.cpp
     Asset/GLTF/GLTFMeshBuilder.cpp
     Asset/GLTF/GLTFGPUUploader.cpp
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUBuffer.cpp
     Core/GPU/MeshStreamer.cpp
+    Core/GPU/TextureStreamer.cpp
     Runtime/VulkanDescriptorManager.cpp
     Animation/SkinningGPU.cpp
     Rendering/RHI/Vulkan/VulkanRHI.cpp
