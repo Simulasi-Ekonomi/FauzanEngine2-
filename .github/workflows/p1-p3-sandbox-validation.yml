@@ -49,9 +49,6 @@ jobs:
       - name: Build Release 74/74 target set
         run: |
           cmake --build build/p1-release --target all -j2
-          count="$(ninja -C build/p1-release -t targets all | awk -F':' '$1 ~ /^[A-Za-z0-9_]+_smoke$/ {print $1}' | sort -u | wc -l)"
-          echo "Discovered smoke targets: $count"
-          test "$count" -eq 74
       - name: Define exact P1 74-target manifest
         run: |
           cat > /tmp/p1_targets.raw <<'EOF'
@@ -153,9 +150,11 @@ jobs:
       - name: Build ASAN 74/74 target set
         run: |
           cmake --build build/p1-asan --target all -j2
-          count="$(ninja -C build/p1-asan -t targets all | awk -F':' '$1 ~ /^[A-Za-z0-9_]+_smoke$/ {print $1}' | sort -u | wc -l)"
-          echo "Discovered ASAN smoke targets: $count"
-          test "$count" -eq 74
+          while IFS= read -r t; do
+            ninja -C build/p1-asan -t query "$t" >/dev/null
+          done < /tmp/p1_targets.txt
+          echo "ASAN manifest targets resolved: $(wc -l < /tmp/p1_targets.txt)"
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 74
       - name: Run ASAN 74/74 — final sandbox gate
         env:
           ASAN_OPTIONS: detect_leaks=1
