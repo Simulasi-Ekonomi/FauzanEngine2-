@@ -305,6 +305,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_a
     add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/vulkan_3d_renderer_smoke.cpp")
+    add_xpbd_executable(vulkan_3d_renderer_smoke Tests/vulkan_3d_renderer_smoke.cpp)
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")
     add_xpbd_executable(r3_gpu_indirect_10k_execution_smoke Tests/r3_gpu_indirect_10k_execution_smoke.cpp)
     add_xpbd_executable(r3_gpu_indirect_capacity_smoke Tests/r3_gpu_indirect_capacity_smoke.cpp)
