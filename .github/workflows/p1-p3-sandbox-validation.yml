@@ -1,4 +1,4 @@
-name: P1-P3 sandbox validation
+name: P1-P3 sandbox validation — P1 CMake + Release 74/74 + ASAN 74/74
 
 on:
   push:
@@ -141,7 +141,7 @@ jobs:
           echo "P1 RELEASE: pass=$pass fail=$fail total=74"
           test "$pass" -eq 74
           test "$fail" -eq 0
-      - name: Configure ASAN
+      - name: Configure ASAN 74/74
         run: |
           cmake -S Source/NeoEngine -B build/p1-asan -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -152,7 +152,7 @@ jobs:
           cmake --build build/p1-asan --target all -j2
           count="$(cmake --build build/p1-asan --target help | awk '/^[[:space:]]+[A-Za-z0-9_]+_smoke([[:space:]]|$)/ {c++} END {print c+0}')"
           test "$count" -eq 74
-      - name: Run ASAN 74/74
+      - name: Run ASAN 74/74 — final sandbox gate
         env:
           ASAN_OPTIONS: detect_leaks=1
         run: |
