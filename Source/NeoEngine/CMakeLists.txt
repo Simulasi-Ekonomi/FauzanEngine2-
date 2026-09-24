@@ -104,6 +104,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/Vulkan3DRenderer.cpp
     Runtime/VulkanPresentProbe.cpp
+    Runtime/RendererCapability.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
@@ -293,6 +294,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
     add_xpbd_executable(vulkan_swapchain_manager_smoke ../../Tests/Runtime/vulkan_swapchain_manager_smoke.cpp)
     add_xpbd_executable(vulkan_sync_primitives_smoke ../../Tests/Runtime/vulkan_sync_primitives_smoke.cpp)
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/vulkan_rhi_smoke.cpp")
+    add_xpbd_executable(vulkan_rhi_smoke ../../Tests/Rendering/vulkan_rhi_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/renderer_capability_smoke.cpp")
+    add_xpbd_executable(renderer_capability_smoke ../../Tests/Runtime/renderer_capability_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp")
     add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
