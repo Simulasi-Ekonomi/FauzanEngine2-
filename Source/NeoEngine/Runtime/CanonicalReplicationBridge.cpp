@@ -58,8 +58,8 @@ bool CanonicalReplicationBridge::BuildSnapshot(uint64_t serverTick, ReplicationS
 
 bool CanonicalReplicationBridge::ApplySnapshot(const ReplicationSnapshot& snapshot, ReplicationApplyReceipt& receipt) {
     receipt = {};
-    if (snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
-    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size()) { lastError_ = CanonicalReplicationBridgeError::SnapshotApplyFailed; return false; }
+    if (snapshot.serverTick == std::numeric_limits<uint64_t>::max()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
+    if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size()) { lastError_ = CanonicalReplicationBridgeError::ApplyFailed; return false; }
 
     receipt = {};
     if (snapshot.count > ReplicationWorld::kMaxEntities || snapshot.count > snapshot.states.size() || snapshot.states.size() > ReplicationWorld::kMaxEntities || snapshot.sequence == std::numeric_limits<uint64_t>::max() ||
