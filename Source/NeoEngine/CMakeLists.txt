@@ -244,7 +244,7 @@ target_compile_definitions(NeoEngineRuntime PUBLIC
     GLM_ENABLE_EXPERIMENTAL
 )
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
-target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3)
+target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 CURL::libcurl)
 if(ANDROID)
     target_link_libraries(NeoEngineRuntime PUBLIC log)
 endif()
