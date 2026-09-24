@@ -105,6 +105,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUBuffer.cpp
+    Core/GPU/MeshStreamer.cpp
     Runtime/VulkanDescriptorManager.cpp
     Animation/SkinningGPU.cpp
     Rendering/RHI/Vulkan/VulkanRHI.cpp
