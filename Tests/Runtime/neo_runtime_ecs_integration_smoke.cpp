@@ -1,4 +1,5 @@
 #include "Runtime/NeoRuntime.h"
+#include "Runtime/MaterialStaging.h"
 #include <cassert>
 #include <cmath>
 #include <limits>
