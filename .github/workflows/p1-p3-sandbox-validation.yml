@@ -6,7 +6,7 @@ on:
       - p1-renderer-asset-animation-night
   pull_request:
     branches:
-      - sandbox-p0-validation-20260920
+      - sandbox-p1-unreal-parity-validation
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/**'
