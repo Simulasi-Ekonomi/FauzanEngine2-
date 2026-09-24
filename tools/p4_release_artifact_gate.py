@@ -189,7 +189,7 @@ def main()->int:
     if len(names) > MAX_ENTRIES or total_uncompressed > MAX_TOTAL_UNCOMPRESSED: raise SystemExit("P4_ARTIFACT_GATE_FAIL archive_limits_exceeded")
     if total_uncompressed > MAX_TOTAL_UNCOMPRESSED: raise SystemExit("P4_ARTIFACT_GATE_FAIL uncompressed_payload_too_large")
     if artifact.suffix.lower()==".apk":
-        if artifact_size < 64U: raise SystemExit("P4_ARTIFACT_GATE_FAIL artifact_too_small_for_zip")
+        if artifact_size < 64: raise SystemExit("P4_ARTIFACT_GATE_FAIL artifact_too_small_for_zip")
         apksigner=shutil.which("apksigner")
         if apksigner is None: raise SystemExit("P4_ARTIFACT_GATE_FAIL missing_tool=apksigner")
         run_checked([apksigner,"verify","--verbose","--print-certs",str(artifact)],"apk_signature")
