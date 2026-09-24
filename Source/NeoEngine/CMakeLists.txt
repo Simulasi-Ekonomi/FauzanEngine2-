@@ -4,6 +4,7 @@ project(NeoEngine LANGUAGES CXX)
 
 find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(CURL REQUIRED)
 find_package(SDL3 3.4.16 CONFIG REQUIRED COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
