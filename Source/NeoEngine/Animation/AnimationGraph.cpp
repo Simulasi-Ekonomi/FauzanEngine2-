@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <limits>
 #include <utility>
-namespace NeoEngine {
 bool AnimationGraph::AddNode(const AnimationNode& node) {
     if (!node.update || nodes.size() >= kMaxNodes || updating_ || revision_ == std::numeric_limits<uint64_t>::max() || nodes.capacity() > kMaxNodes) return false;
     const std::size_t sizeBefore = nodes.size();
@@ -68,4 +67,3 @@ bool AnimationGraph::Update() {
     if (nodes.size() != count) return false;
     return revision_ == revisionBeforeUpdate;
 }
-} // namespace NeoEngine
