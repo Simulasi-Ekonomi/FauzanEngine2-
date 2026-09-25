@@ -62,7 +62,7 @@ bool Renderer::Init(void* window, int w, int h) {
     if (window == nullptr || w <= 0 || h <= 0) return false;
     if (m_Initialized) return !m_Headless && w == m_Width && h == m_Height;
     OpenGLRHI& rhi = OpenGLRHI::Get();
-    if (!rhi.Initialize(static_cast<EGLNativeWindowType>(window))) {
+    if (!rhi.Initialize(reinterpret_cast<EGLNativeWindowType>(window))) {
         LOGE("Failed to initialize OpenGL RHI\n");
         return false;
     }
