@@ -24,7 +24,7 @@ int main() {
     if (!gate.Initialize(trust) || !gate.BindSession("player-loop", "session-loop")) return 1;
     std::atomic<uint32_t> handled{0};
     AuthorityLoopbackServer server;
-    if (!server.Start(gate, 10, [&handled](const AuthorityCommand&, uint64_t) { ++handled; return true; }) || server.Port() == 0) return 1;
+    if (!server.Start(gate, 10, [&handled](const AuthorityCommand&, uint64_t) { ++handled; return true; }, 2U) || server.Port() == 0) return 1;
     const int client = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in address{};
     address.sin_family = AF_INET;
