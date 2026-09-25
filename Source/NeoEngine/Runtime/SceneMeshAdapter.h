@@ -2,6 +2,7 @@
 
 #include "MeshRenderer.h"
 #include "SceneWorld.h"
+#include "Core/Math/Mat4.h"
 #include "TextureStaging.h"
 
 #include <cstdint>
