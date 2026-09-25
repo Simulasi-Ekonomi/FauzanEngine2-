@@ -1,4 +1,4 @@
-name: P1-P3 sandbox validation — P1 CMake + Release 77/77 + ASAN 77/77
+name: P1-P3 sandbox validation — P1 CMake + Release 78/78 + ASAN 78/78
 
 on:
   push:
@@ -67,6 +67,7 @@ jobs:
           neo_runtime_ecs_integration_smoke
           runtime_frame_contract_smoke
           asset_streaming_queue_smoke
+          stream_manager_async_file_smoke
           gameplay_physics_query_smoke
           gltf_mesh_builder_smoke
           gltf_gpu_uploader_smoke
@@ -131,8 +132,8 @@ jobs:
           opengl_renderer_smoke
           EOF
           sed -E 's/^[[:space:]]+//' /tmp/p1_targets.raw > /tmp/p1_targets.txt
-          test "$(wc -l < /tmp/p1_targets.txt)" -eq 77
-      - name: Run Release 77/77
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 78
+      - name: Run Release 78/78
         run: |
           pass=0
           fail=0
@@ -146,29 +147,29 @@ jobs:
               echo "$t" | tee -a /tmp/p1_release_failures.txt
             fi
           done < /tmp/p1_targets.txt
-          echo "P1 RELEASE: pass=$pass fail=$fail total=77"
+          echo "P1 RELEASE: pass=$pass fail=$fail total=78"
           if test "$fail" -ne 0; then
             echo "FAILED RELEASE TARGETS:"
             cat /tmp/p1_release_failures.txt
           fi
-          test "$pass" -eq 77
+          test "$pass" -eq 78
           test "$fail" -eq 0
-      - name: Configure ASAN 77/77
+      - name: Configure ASAN 78/78
         run: |
           cmake -S Source/NeoEngine -B build/p1-asan -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include \
             '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
             '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
-      - name: Build ASAN 77/77 target set
+      - name: Build ASAN 78/78 target set
         run: |
           cmake --build build/p1-asan --target all -j2
           while IFS= read -r t; do
             ninja -C build/p1-asan -t query "$t" >/dev/null
           done < /tmp/p1_targets.txt
           echo "ASAN manifest targets resolved: $(wc -l < /tmp/p1_targets.txt)"
-          test "$(wc -l < /tmp/p1_targets.txt)" -eq 77
-      - name: Run ASAN 77/77 — final sandbox gate
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 78
+      - name: Run ASAN 78/78 — final sandbox gate
         env:
           ASAN_OPTIONS: detect_leaks=1
           LSAN_OPTIONS: suppressions=.github/asan/third_party_sdl_x11.lsan.supp
@@ -179,6 +180,6 @@ jobs:
             echo "RUN ASAN $t"
             if xvfb-run -a "./build/p1-asan/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
           done < /tmp/p1_targets.txt
-          echo "P1 ASAN: pass=$pass fail=$fail total=77"
-          test "$pass" -eq 77
+          echo "P1 ASAN: pass=$pass fail=$fail total=78"
+          test "$pass" -eq 78
           test "$fail" -eq 0

@@ -2,13 +2,13 @@
 
 **Audit date:** 2026-09-25  
 **PR:** #77 — P1 sandbox validation  
-**Integration HEAD:** e0931015884b4a9e0382d4a87cb2183adb49ee63  
+**Last validated HEAD:** 3d3f66ea21291ccd4aaf7b08c1d2143ad35f5133
 **PR base:** sandbox-p1-unreal-parity-validation @ d50c43819f2b23a474bb2f9d7d02dfd4b09242ef  
-**State:** CONFLICT-FREE / CI GREEN / NOT MERGE-READY — P1 capability gaps remain
+**State:** IMPLEMENTING P1 STREAMING REPAIR / NOT MERGE-READY — current edits are unvalidated
 
 ## Exact-head validation
 
-At `e0931015884b4a9e0382d4a87cb2183adb49ee63`, GitHub Actions passed:
+At `3d3f66ea21291ccd4aaf7b08c1d2143ad35f5133`, GitHub Actions passed:
 
 - P1 CMake configure and complete Release build
 - Release smoke: 77/77
@@ -17,7 +17,7 @@ At `e0931015884b4a9e0382d4a87cb2183adb49ee63`, GitHub Actions passed:
 - Renderer 3D Vulkan Smoke
 - R3 GPU Indirect Batch Smoke
 
-Runs: [P1 PR run #805](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36146511748), [P1 push run #804](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36146507914), [Renderer 3D Vulkan #588](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36146511820), [R3 GPU Indirect #201](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36146511961).
+Runs: [P1 PR run #807](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36147422904), [P1 push run #806](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36147418836), [Renderer 3D Vulkan #589](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36147422874), [R3 GPU Indirect #202](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36147422939).
 
 PR #77 is open, conflict-free, and reports GitHub merge state `clean`. Passing CI establishes only the listed test results; it does not establish zero-gap or production readiness.
 
@@ -25,7 +25,7 @@ PR #77 is open, conflict-free, and reports GitHub merge state `clean`. Passing C
 
 1. **Per-entity skeletal animation: INTEGRATED.** Each SceneEntity can own a controller and palette; runtime advances controllers with scaled fixed-tick time and commits all palettes atomically. Scene Vulkan draw consumes per-instance palettes. `neo_runtime_scene_animation_smoke` covers independent rates, pause, atomic failure preservation, unbind, and cleanup.
 2. **Asset import-to-live GPU route: PARTIAL.** `gltf_gpu_uploader_smoke` parses an in-memory glTF 2.0 data-URI payload and uploads the parsed skinning mesh through Vulkan mesh buffers. `scene_vulkan_render_adapter_smoke` imports the same glTF mesh, binds it to SceneMeshAdapter with per-mesh base color, draws through Vulkan, reads back two distinct rendered colors, and verifies GPU output changes. Texture sampling/material maps, complete dependency closure, persistent cache/cook/invalidation, and production filesystem/content authoring are not demonstrated end-to-end.
-3. **Streaming integration: PARTIAL.** AssetStreamingQueue enforces bounded queue/residency metadata, pending cancellation, and Vulkan-memory release callbacks. It does not own asynchronous file-I/O cancellation, upload cancellation, runtime asset refresh/renderer notification, and complete retry/eviction integration as one lifecycle.
+3. **Streaming integration: PARTIAL.** AssetStreamingQueue enforces bounded queue/residency metadata, pending cancellation, and Vulkan-memory release callbacks. StreamManager source now implements bounded priority file I/O, queued/active cancellation, size/residency limits, completion reporting, and safe snapshot reads; this change is implemented but unvalidated and is not connected to GPU upload, runtime asset refresh/renderer notification, and retry/eviction as one lifecycle.
 4. **Device and scale acceptance: OPEN / UNVERIFIED.** Headless CI does not establish physical-device acceptance or device-loss recovery. Animation batching/LOD and target-device performance evidence remain unverified.
 
 ## Active workstream registry
@@ -35,13 +35,13 @@ ROOM: primary Codex task
 BRANCH: p1-renderer-asset-animation-night
 BASE_SHA: d50c43819f2b23a474bb2f9d7d02dfd4b09242ef
 OWNER: primary Codex task
-SCOPE: P1 asset pipeline and streaming integration
-GAP_IDS: P1-ASSET-E2E (PARTIAL), P1-STREAM-ASYNC (OPEN)
-FILES_CHANGED: Vulkan3DRenderer material-color vertex path, mesh shaders, SceneRenderAdapter, GLTF GPU uploader smoke, Scene Vulkan adapter smoke
+SCOPE: P1 asset pipeline and asynchronous file streaming integration
+GAP_IDS: P1-ASSET-E2E (PARTIAL), P1-STREAM-ASYNC (PARTIAL; current implementation unvalidated)
+FILES_EXPECTED_TO_CHANGE: Source/NeoEngine/Runtime/StreamManager.h/.cpp, Tests/Runtime/stream_manager_async_file_smoke.cpp, Source/NeoEngine/CMakeLists.txt, .github/workflows/p1-p3-sandbox-validation.yml, BRANCH_STATUS.md
 CANONICAL_RUNTIME_PATH: glTF bytes -> GLTFLoader -> SceneMeshAdapter mesh/base-color binding -> SceneRenderAdapter::DrawVulkan3D -> Vulkan3DRenderer
-REQUIRED_CMAKE_TARGETS: existing gltf_gpu_uploader_smoke and scene_vulkan_render_adapter_smoke
-RELEASE_TARGETS: canonical P1 target set including both existing asset/render smokes
-ASAN_TARGETS: same canonical P1 target set including both smokes, leak detection enabled
+REQUIRED_CMAKE_TARGETS: stream_manager_async_file_smoke, gltf_gpu_uploader_smoke, scene_vulkan_render_adapter_smoke
+RELEASE_TARGETS: canonical P1 target set; proposed manifest count 78, pending CI
+ASAN_TARGETS: same canonical P1 target set; proposed manifest count 78, leak detection enabled, pending CI
 BENCHMARK_OR_DEVICE_EVIDENCE: current evidence uses GitHub software Vulkan; physical device remains unverified
 KNOWN_OVERLAP_WITH_OTHER_BRANCHES: none identified from current P1 ownership table
 ```
