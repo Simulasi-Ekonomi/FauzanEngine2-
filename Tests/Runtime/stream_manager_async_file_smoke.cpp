@@ -64,11 +64,12 @@ int main() {
     manager.Start();
     {
         std::unique_lock<std::mutex> lock(callbackMutex);
-        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 2U; })) {
+        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 3U; })) {
             manager.Stop(); fs::remove_all(root, ec); return 5;
         }
-        if (completions[0] != std::pair<std::string, bool>{"high", true} ||
-            completions[1] != std::pair<std::string, bool>{"low", false}) {
+        if (completions[0] != std::pair<std::string, bool>{"cancelled", false} ||
+            completions[1] != std::pair<std::string, bool>{"high", true} ||
+            completions[2] != std::pair<std::string, bool>{"low", false}) {
             manager.Stop(); fs::remove_all(root, ec); return 6;
         }
     }
@@ -135,7 +136,7 @@ int main() {
     manager.Start();
     {
         std::unique_lock<std::mutex> lock(callbackMutex);
-        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 6U; }) ||
+        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 7U; }) ||
             completions.back() != std::pair<std::string, bool>{"restart", true}) {
             manager.Stop(); fs::remove_all(root, ec); return 18;
         }
