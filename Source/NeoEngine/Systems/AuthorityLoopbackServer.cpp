@@ -38,8 +38,8 @@ AuthorityLoopbackServer::~AuthorityLoopbackServer() {
     Stop();
 }
 
-bool AuthorityLoopbackServer::Start(AuthoritativeCommandGate& gate, uint64_t serverTick, Handler handler) {
-    if (!gate.IsReady() || serverTick == 0 || !handler) {
+bool AuthorityLoopbackServer::Start(AuthoritativeCommandGate& gate, uint64_t serverTick, Handler handler, uint16_t maxConnections) {
+    if (!gate.IsReady() || serverTick == 0 || !handler || maxConnections == 0U || maxConnections > kMaxConnectionsPerServer) {
         lastError_.store(AuthorityTransportError::InvalidConfiguration);
         return false;
     }
@@ -48,7 +48,7 @@ bool AuthorityLoopbackServer::Start(AuthoritativeCommandGate& gate, uint64_t ser
         [&gate](const AuthorityDecision& decision, AuthorityWireSnapshot& snapshot) {
             snapshot = {decision.authoritativeRevision == 0 ? gate.AuthoritativeRevision() : decision.authoritativeRevision, {static_cast<uint8_t>(decision.Accepted() ? 1U : 0U)}};
             return snapshot.revision != 0;
-        });
+        }, maxConnections);
 }
 
 bool AuthorityLoopbackServer::Start(Dispatcher dispatcher, SnapshotBuilder snapshotBuilder, uint16_t maxConnections) {
