@@ -35,18 +35,6 @@ int main() {
     }
 
     NeoEngine::StreamManager manager(1, 2, 8, 8);
-    if (!manager.RequestLoad(lowPath.string(), 1, {}) ||
-        !manager.RequestLoad(highPath.string(), 10, {}) ||
-        manager.RequestLoad(tooLargePath.string(), 0, {}) || manager.GetQueueSize() != 2U) {
-        fs::remove_all(root, ec);
-        return 3;
-    }
-    if (!manager.Cancel(lowPath.string()) || manager.Cancel(lowPath.string()) ||
-        manager.GetQueueSize() != 1U || !manager.RequestLoad(lowPath.string(), 1, {})) {
-        fs::remove_all(root, ec);
-        return 4;
-    }
-
     std::mutex callbackMutex;
     std::condition_variable callbackCondition;
     std::vector<std::pair<std::string, bool>> completions;
@@ -60,6 +48,18 @@ int main() {
         };
     };
     auto loaded = [](const std::vector<uint8_t>& bytes) { return !bytes.empty(); };
+
+    if (!manager.RequestLoad(lowPath.string(), 1, loaded, completion("cancelled")) ||
+        !manager.RequestLoad(highPath.string(), 10, loaded, completion("high")) ||
+        manager.RequestLoad(tooLargePath.string(), 0, {}, completion("unexpected")) || manager.GetQueueSize() != 2U) {
+        fs::remove_all(root, ec);
+        return 3;
+    }
+    if (!manager.Cancel(lowPath.string()) || manager.Cancel(lowPath.string()) ||
+        manager.GetQueueSize() != 1U || !manager.RequestLoad(lowPath.string(), 1, loaded, completion("low"))) {
+        fs::remove_all(root, ec);
+        return 4;
+    }
 
     manager.Start();
     {
@@ -131,3 +131,4 @@ int main() {
     std::cout << "STREAM_MANAGER_ASYNC_FILE_SMOKE_OK\n";
     return 0;
 }
+
