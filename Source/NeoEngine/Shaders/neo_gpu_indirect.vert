@@ -13,6 +13,7 @@ layout(push_constant) uniform Transform { mat4 mvp; } transform;
 layout(location = 0) out vec3 outWorldPosition;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec2 outUV;
+layout(location = 3) out vec4 outMaterialColor;
 
 void main() {
     mat4 instanceTransform = mat4(instanceM0, instanceM1, instanceM2, instanceM3);
@@ -21,4 +22,5 @@ void main() {
     outWorldPosition = worldPosition.xyz;
     outNormal = normalize(mat3(instanceTransform) * inNormal);
     outUV = inUV;
+    outMaterialColor = vec4(1.0);
 }
