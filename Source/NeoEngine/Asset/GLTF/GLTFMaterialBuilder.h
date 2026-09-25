@@ -1,15 +1,14 @@
 #pragma once
 #include <string>
-#include <vector>
 
 namespace NeoEngine {
 
 struct GLTFMaterial {
     std::string name;
-    float baseColor[4] = {1,1,1,1};
-    float metallic = 0;
-    float roughness = 0.5f;
-    float emissive[3] = {0,0,0};
+    float baseColor[4] = {1.0F, 1.0F, 1.0F, 1.0F};
+    float metallic = 0.0F;
+    float roughness = 0.5F;
+    float emissive[3] = {0.0F, 0.0F, 0.0F};
     std::string baseColorTexture;
     std::string normalTexture;
     std::string metallicRoughnessTexture;
@@ -19,12 +18,9 @@ struct GLTFMaterial {
 class GLTFMaterialBuilder {
 public:
     GLTFMaterialBuilder() = default;
-    GLTFMaterial BuildDefaultMaterial() {
-        GLTFMaterial mat;
-        mat.name = "Default";
-        return mat;
-    }
-    GLTFMaterial BuildFromJSON(const std::string& json);
+    [[nodiscard]] GLTFMaterial BuildDefaultMaterial() const;
+    [[nodiscard]] GLTFMaterial BuildFromJSON(const std::string& json) const;
+    [[nodiscard]] bool TryBuildFromJSON(const std::string& json, GLTFMaterial& out) const;
 };
 
 } // namespace NeoEngine
