@@ -3,7 +3,6 @@
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inUV;
-layout(location = 9) in vec4 inMaterialColor;
 layout(location = 3) in vec4 instanceM0;
 layout(location = 4) in vec4 instanceM1;
 layout(location = 5) in vec4 instanceM2;
@@ -25,5 +24,5 @@ void main() {
     outWorldPosition = worldPosition.xyz;
     outNormal = normalize(mat3(instanceTransform) * inNormal);
     outUV = inUV;
-    outMaterialColor = inMaterialColor;
+    outMaterialColor = vec4(1.0);
 }
