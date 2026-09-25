@@ -130,12 +130,12 @@ int main() {
 
     // Stop/Start must recreate workers and continue accepting requests.
     if (!manager.RequestLoad(highPath.string(), 1, {}, completion("restart"))) {
-        fs::remove_all(root, ec); return 15;
+        fs::remove_all(root, ec); return 17;
     }
     manager.Start();
     {
         std::unique_lock<std::mutex> lock(callbackMutex);
-        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 5U; }) ||
+        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 6U; }) ||
             completions.back() != std::pair<std::string, bool>{"restart", true}) {
             manager.Stop(); fs::remove_all(root, ec); return 18;
         }
