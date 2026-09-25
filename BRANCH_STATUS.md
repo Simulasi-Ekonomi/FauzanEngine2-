@@ -2,26 +2,30 @@
 
 **Audit date:** 2026-09-25  
 **PR:** #77 — P1 sandbox validation  
-**Validated code HEAD:** 14e56cc34434ced69fc8ca7dd6be318c2bb5637c  
+**Integration HEAD:** f12df9c879e00ad3be1dd3fced328b40a5ceaf41  
 **PR base:** sandbox-p1-unreal-parity-validation @ d50c43819f2b23a474bb2f9d7d02dfd4b09242ef  
-**State:** OPEN / NOT MERGE-READY
+**State:** CONFLICT-FREE / NOT MERGE-READY — P1 capability gaps remain
 
 ## Exact-head validation
 
-[GitHub Actions run #760](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36130905247) passed for code HEAD `14e56cc34434ced69fc8ca7dd6be318c2bb5637c`: CMake Release configure, complete Release build, Release smoke 76/76, ASAN configure, complete ASAN build, and ASAN smoke 76/76 with leak detection enabled. This proves the listed workflow execution, not production completeness for every P1 capability.
+At f12df9c879e00ad3be1dd3fced328b40a5ceaf41, GitHub Actions passed:
 
-## P1 audit findings
+- P1 CMake configure and complete Release build
+- Release smoke: 76/76
+- ASAN configure and complete build
+- ASAN smoke: 76/76, leak detection enabled
+- Renderer 3D Vulkan Smoke
+- R3 GPU Indirect Batch Smoke
 
-1. **Animation to renderer ownership remains incomplete.** CharacterAnimationGraph does not produce and bind a per-entity skeletal pose to SceneMeshInstance. NeoRuntime supplies one skeletal route-motion palette to SceneRenderAdapter, which uploads a single palette before drawing all mesh instances. Independent palettes for multiple animated characters are not demonstrated.
-2. **Asset pipeline is not end-to-end.** GLTF parse/build/upload and resource registry pieces have smoke evidence, but deterministic import/cooking/cache invalidation and runtime asset-to-mesh/material GPU binding have not been demonstrated as one path.
-3. **Streaming is only partly covered.** AssetStreamingQueue bounds queue/residency metadata and cancels pending queue requests. It does not own async file I/O cancellation, GPU refresh, renderer notification, or complete failure/retry/eviction integration.
-4. No hardware/device-loss recovery, animation batching/LOD, or target-device acceptance evidence is established by the headless workflow.
+P1 validation runs: [run #775](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36136490482) and [run #774](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36136486881). Renderer run: [#573](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36136490460). R3 run: [#186](https://github.com/Simulasi-Ekonomi/FauzanEngine2-/actions/runs/36136490468).
 
-## Integration blockers
+The branch no longer has a merge conflict. Passing CI establishes the listed test results; it does not establish production completeness or zero-gap P1 acceptance.
 
-- GitHub reports PR #77 `mergeable=false`, `mergeable_state=dirty`.
-- P1 and sandbox diverged from merge base `1ab95d4579b414f2dbf05ddf5198e38735d374b8`: P1 is 159 commits ahead and sandbox is 118 commits ahead. Changes overlap in 30 paths, including canonical CMake, renderer, streaming, GPU uploaders, SDL workflows, and other systems.
-- The branch diff also carries unrelated AI/OpenCode, economy, SDL modernization, and OpenGL work; whole-branch merge is not focused P1 integration.
-- The integration owner must create a focused branch from the current canonical base, port reviewed P1 changes, manually resolve overlaps, then rerun canonical configure/build/smoke/ASAN and scope audit on the exact integration SHA.
+## Remaining P1 capability gaps
 
-Do not merge or claim zero-gap/production readiness until the P1 capability gaps and clean integration gate are closed.
+1. CharacterAnimationGraph does not produce and bind an independent skeletal pose for each SceneMeshInstance. NeoRuntime still supplies one route-motion palette to SceneRenderAdapter, which uploads one palette before drawing all mesh instances.
+2. Deterministic import, cooking, cache invalidation, and runtime asset-to-mesh/material GPU binding have not been demonstrated together as one end-to-end path.
+3. AssetStreamingQueue covers bounded queue/residency metadata and pending-request cancellation, but does not own async file-I/O cancellation, GPU refresh, renderer notification, and complete failure/retry/eviction integration.
+4. Hardware/device-loss recovery, animation batching/LOD, and target-device acceptance are not established by these headless workflows.
+
+Do not merge or claim zero-gap/production readiness until these P1 gaps are implemented and audited on the exact integration head.
