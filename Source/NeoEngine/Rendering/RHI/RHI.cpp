@@ -4,6 +4,7 @@
 #include <android/log.h>
 #endif
 #include <cstdio>
+#include <limits>
 
 #if defined(__ANDROID__)
 #define LOG_TAG "NeoRHI"
@@ -21,6 +22,7 @@ RHI& RHI::Get() {
 
 bool RHI::Initialize() {
     if (initialized_) return true;
+    if (glGetString(GL_VERSION) == nullptr) return false;
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -34,9 +36,10 @@ void RHI::Shutdown() {
     initialized_ = false;
 }
 
-RHIBuffer RHI::CreateVertexBuffer(const void* data, size_t size) {
+RHIBuffer RHI::CreateVertexBuffer(const void* data, std::size_t size) {
     RHIBuffer buf;
-    if (!initialized_ || data == nullptr || size == 0) return buf;
+    if (!initialized_ || data == nullptr || size == 0 ||
+        size > static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max())) return buf;
 
     glGenBuffers(1, &buf.handle);
     if (buf.handle == 0) return buf;
@@ -53,9 +56,10 @@ RHIBuffer RHI::CreateVertexBuffer(const void* data, size_t size) {
     return buf;
 }
 
-RHIBuffer RHI::CreateIndexBuffer(const void* data, size_t size) {
+RHIBuffer RHI::CreateIndexBuffer(const void* data, std::size_t size) {
     RHIBuffer buf;
-    if (!initialized_ || data == nullptr || size == 0) return buf;
+    if (!initialized_ || data == nullptr || size == 0 ||
+        size > static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max())) return buf;
 
     glGenBuffers(1, &buf.handle);
     if (buf.handle == 0) return buf;
@@ -91,7 +95,9 @@ void RHI::DrawIndexed(const RHIMesh& mesh, uint32_t instanceCount) {
         mesh.vertexBuffer.handle == 0 ||
         mesh.indexBuffer.handle == 0 ||
         mesh.indexCount == 0 ||
-        instanceCount == 0) {
+        instanceCount == 0 ||
+        mesh.indexCount > static_cast<uint32_t>(std::numeric_limits<GLsizei>::max()) ||
+        instanceCount > static_cast<uint32_t>(std::numeric_limits<GLsizei>::max())) {
         return;
     }
 
@@ -100,13 +106,14 @@ void RHI::DrawIndexed(const RHIMesh& mesh, uint32_t instanceCount) {
     glDrawElementsInstanced(
         GL_TRIANGLES,
         static_cast<GLsizei>(mesh.indexCount),
-        GL_UNSIGNED_SHORT,
+        GL_UNSIGNED_INT,
         nullptr,
         static_cast<GLsizei>(instanceCount));
 }
 
 void RHI::EndFrame() {
     if (!initialized_) return;
+    glFlush();
 }
 
 } // namespace NeoEngine

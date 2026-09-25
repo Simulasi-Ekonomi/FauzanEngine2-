@@ -9,6 +9,13 @@ find_package(SDL3 3.4.16 CONFIG REQUIRED COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
 find_path(NEO_RAPIDJSON_INCLUDE_DIR rapidjson/document.h REQUIRED)
+if(ANDROID)
+    set(NEO_GL_PLATFORM_LIBS EGL GLESv3)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl)
+    pkg_check_modules(GLESV3 REQUIRED IMPORTED_TARGET glesv2)
+    set(NEO_GL_PLATFORM_LIBS PkgConfig::EGL PkgConfig::GLESV3)
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -271,9 +278,6 @@ set(XPBD_RUNTIME_SOURCES
     Threading/JobSystem.cpp
     Renderer/GPUDrivenRenderer.cpp
     Renderer/GPUFrustumCulling.cpp
-    Rendering/RHI/OpenGL/OpenGLRHI.cpp
-    Rendering/RHI/RHI.cpp
-    Rendering/Renderer/Renderer.cpp
     Renderer/ClusterRenderer/HierarchicalClusterRenderer.cpp
     Renderer/Culling/GPUOcclusionCulling.cpp
     Renderer/DynamicGI/DynamicGI.cpp
@@ -288,6 +292,14 @@ set(XPBD_RUNTIME_SOURCES
     Renderer/VirtualGeometry/VirtualGeometrySystem.cpp
 )
 
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND XPBD_RUNTIME_SOURCES
+        Rendering/RHI/OpenGL/OpenGLRHI.cpp
+        Rendering/RHI/RHI.cpp
+        Rendering/Renderer/Renderer.cpp
+    )
+endif()
+
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 
@@ -299,6 +311,9 @@ target_compile_definitions(NeoEngineRuntime PUBLIC
 )
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
 target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 CURL::libcurl)
+if(NEO_GL_PLATFORM_LIBS)
+    target_link_libraries(NeoEngineRuntime PUBLIC ${NEO_GL_PLATFORM_LIBS})
+endif()
 if(ANDROID)
     target_link_libraries(NeoEngineRuntime PUBLIC log)
 endif()
@@ -414,6 +429,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/vulkan_rhi_smoke.cpp")
     add_xpbd_executable(vulkan_rhi_smoke ../../Tests/Rendering/vulkan_rhi_smoke.cpp)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/opengl_renderer_smoke.cpp")
+    add_xpbd_executable(opengl_renderer_smoke ../../Tests/Rendering/opengl_renderer_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp")
     add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
