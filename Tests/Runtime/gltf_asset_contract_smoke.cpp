@@ -19,7 +19,7 @@ void WriteU32(std::ofstream& out, std::uint32_t value) {
 }
 
 int main() {
-    GLTFMaterialBuilder materialBuilder;
+    NeoEngine::GLTFMaterialBuilder materialBuilder;
     NeoEngine::GLTFMaterial material;
     const std::string materialJson = R"({"materials":[{"name":"Farm","doubleSided":true,"emissiveFactor":[0.1,0.2,0.3],"pbrMetallicRoughness":{"baseColorFactor":[0.2,0.4,0.6,1.0],"metallicFactor":0.7,"roughnessFactor":0.25,"baseColorTexture":{"index":2},"metallicRoughnessTexture":{"index":3}},"normalTexture":{"index":4}}]})";
     assert(materialBuilder.TryBuildFromJSON(materialJson, material));
