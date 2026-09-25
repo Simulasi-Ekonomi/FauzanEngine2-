@@ -1,13 +1,21 @@
 #include "OpenGLRHI.h"
+#if defined(__ANDROID__)
 #include <android/log.h>
+#endif
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <cmath>
 
+#if defined(__ANDROID__)
 #define LOG_TAG_GL "OpenGLRHI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG_GL, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG_GL, __VA_ARGS__)
+#else
+#include <cstdio>
+#define LOGI(...) std::fprintf(stderr, __VA_ARGS__)
+#define LOGE(...) std::fprintf(stderr, __VA_ARGS__)
+#endif
 
 namespace NeoEngine {
 
