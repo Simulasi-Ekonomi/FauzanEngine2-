@@ -466,38 +466,38 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
 }
 
 bool NeoRuntime::BindSceneSkeletalAnimation(SceneEntity entity,const Skeleton& skeleton,const SkeletalPoseClip& clip,SkeletalPosePlaybackMode mode) {
-    if(m_State!=RuntimeState::Initialized||m_SceneMeshes==nullptr||entity.index==0xFFFFU){m_LastError_=RuntimeError::InvalidState;return false;}
+    if(m_State!=RuntimeState::Initialized||m_SceneMeshes==nullptr||entity.index==0xFFFFU){m_LastError=RuntimeError::InvalidState;return false;}
     const auto instance=std::find_if(m_SceneMeshes->Instances().begin(),m_SceneMeshes->Instances().end(),[entity](const SceneMeshInstance& value){return value.entity==entity;});
-    if(instance==m_SceneMeshes->Instances().end()){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+    if(instance==m_SceneMeshes->Instances().end()){m_LastError=RuntimeError::SceneAnimationFailed;return false;}
     size_t slotIndex=m_SceneSkeletalAnimations.size();
     for(size_t i=0U;i<m_SceneSkeletalAnimations.size();++i)if(m_SceneSkeletalAnimations[i].active&&m_SceneSkeletalAnimations[i].entity==entity){slotIndex=i;break;}
     if(slotIndex==m_SceneSkeletalAnimations.size())for(size_t i=0U;i<m_SceneSkeletalAnimations.size();++i)if(!m_SceneSkeletalAnimations[i].active){slotIndex=i;break;}
-    if(slotIndex==m_SceneSkeletalAnimations.size()){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+    if(slotIndex==m_SceneSkeletalAnimations.size()){m_LastError=RuntimeError::SceneAnimationFailed;return false;}
     SkeletalAnimationController candidate;
     std::vector<Mat4> palette;
-    if(!candidate.Initialize(skeleton,clip,mode)||!candidate.Advance(0.0F,palette)){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
-    if(!m_SceneMeshes->SetSkeletalPalette(entity,palette)){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+    if(!candidate.Initialize(skeleton,clip,mode)||!candidate.Advance(0.0F,palette)){m_LastError=RuntimeError::SceneAnimationFailed;return false;}
+    if(!m_SceneMeshes->SetSkeletalPalette(entity,palette)){m_LastError=RuntimeError::SceneAnimationFailed;return false;}
     auto& binding=m_SceneSkeletalAnimations[slotIndex];
     binding.entity=entity;binding.controller=std::move(candidate);binding.active=true;
-    m_LastError_=RuntimeError::None;return true;
+    m_LastError=RuntimeError::None;return true;
 }
 bool NeoRuntime::SetSceneSkeletalAnimationPaused(SceneEntity entity,bool paused) {
-    if(m_State!=RuntimeState::Initialized){m_LastError_=RuntimeError::InvalidState;return false;}
-    for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){binding.controller.SetPaused(paused);m_LastError_=RuntimeError::None;return true;}
-    m_LastError_=RuntimeError::SceneAnimationFailed;return false;
+    if(m_State!=RuntimeState::Initialized){m_LastError=RuntimeError::InvalidState;return false;}
+    for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){binding.controller.SetPaused(paused);m_LastError=RuntimeError::None;return true;}
+    m_LastError=RuntimeError::SceneAnimationFailed;return false;
 }
 bool NeoRuntime::SetSceneSkeletalAnimationSpeed(SceneEntity entity,float speed) {
-    if(m_State!=RuntimeState::Initialized){m_LastError_=RuntimeError::InvalidState;return false;}
-    for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){const bool success=binding.controller.SetSpeed(speed);m_LastError_=success?RuntimeError::None:RuntimeError::SceneAnimationFailed;return success;}
-    m_LastError_=RuntimeError::SceneAnimationFailed;return false;
+    if(m_State!=RuntimeState::Initialized){m_LastError=RuntimeError::InvalidState;return false;}
+    for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){const bool success=binding.controller.SetSpeed(speed);m_LastError=success?RuntimeError::None:RuntimeError::SceneAnimationFailed;return success;}
+    m_LastError=RuntimeError::SceneAnimationFailed;return false;
 }
 bool NeoRuntime::UnbindSceneSkeletalAnimation(SceneEntity entity) {
-    if(m_State!=RuntimeState::Initialized||m_SceneMeshes==nullptr){m_LastError_=RuntimeError::InvalidState;return false;}
+    if(m_State!=RuntimeState::Initialized||m_SceneMeshes==nullptr){m_LastError=RuntimeError::InvalidState;return false;}
     for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){
-        if(!m_SceneMeshes->ClearSkeletalPalette(entity)){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
-        binding=SceneSkeletalAnimationBinding{};m_LastError_=RuntimeError::None;return true;
+        if(!m_SceneMeshes->ClearSkeletalPalette(entity)){m_LastError=RuntimeError::SceneAnimationFailed;return false;}
+        binding=SceneSkeletalAnimationBinding{};m_LastError=RuntimeError::None;return true;
     }
-    m_LastError_=RuntimeError::SceneAnimationFailed;return false;
+    m_LastError=RuntimeError::SceneAnimationFailed;return false;
 }
 uint16_t NeoRuntime::SceneSkeletalAnimationCount() const {
     uint16_t count=0U;for(const auto& binding:m_SceneSkeletalAnimations)if(binding.active)++count;return count;
