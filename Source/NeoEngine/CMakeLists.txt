@@ -99,6 +99,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/ShaderLibrary.cpp
     Runtime/AssetRegistry.cpp
     Runtime/AssetManifestSnapshot.cpp
+    Runtime/AssetRefreshDiagnostics.cpp
+    Runtime/AssetReloadDiagnostics.cpp
     Runtime/AssetRefreshExecutor.cpp
     Runtime/AndroidLifecycleGate.cpp
     Runtime/CharacterPawn.cpp
@@ -114,6 +116,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayTriggerTracker.cpp
+    Runtime/KinematicCollisionPreflight.cpp
     Asset/GLTF/GLTFAccessor.cpp
     Asset/GLTF/GLTFParser.cpp
     Asset/GLTF/GLTFTextureLoader.cpp
@@ -139,6 +142,11 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanGraphicsPipeline.cpp
     Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/Vulkan3DRenderer.cpp
+    Runtime/Vulkan3DBatch.cpp
+    Runtime/VulkanRenderer3D.cpp
+    Runtime/VulkanTextureUpload.cpp
+    Runtime/VulkanTexturedOffscreen.cpp
+    Runtime/TransformAnimationBinding.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/RendererCapability.cpp
     Runtime/VulkanTexturedPresent.cpp
@@ -158,11 +166,13 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AnimationPlaybackControlBinding.cpp
     Runtime/AnimationLocomotionBridge.cpp
     Runtime/AnimationSpriteTintBinding.cpp
+    Runtime/PhysicsAnimationLocomotionBridge.cpp
     Animation/AnimationPlayer.cpp
     Animation/AnimationGraph.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
+    Runtime/MaterialImportPipeline.cpp
     Runtime/TextureStaging.cpp
     Runtime/TextureImportPipeline.cpp
     Runtime/MeshImportPipeline.cpp
@@ -212,7 +222,9 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/UiCanvasRenderer.cpp
     Runtime/BitmapTextRenderer.cpp
     Runtime/UiLayoutResolver.cpp
+    Runtime/AuthoringCatalogVisualBinder.cpp
     Runtime/RouteRootMotionAdapter.cpp
+    Runtime/StreamManager.cpp
     Runtime/InputMotionBridge.cpp
     Animation/SkeletalAnimationController.cpp
     Animation/SkeletalPoseClip.cpp
