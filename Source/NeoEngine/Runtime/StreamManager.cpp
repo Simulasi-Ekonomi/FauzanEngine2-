@@ -47,31 +47,31 @@ void StreamManager::Start() noexcept {
 
 void StreamManager::Stop() noexcept {
     std::vector<std::thread> workers;
-    std::vector<std::function<void(bool)>> cancelledCallbacks;
+    std::vector<QueuedRequest> queuedRequests;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
         m_Running = false;
 
-        // Requests still in the queue have not started I/O. Remove them from
-        // the pending map and complete them as cancelled. Active requests stay
-        // in m_Requests so their worker can deliver exactly one failure
-        // completion after observing cancellation.
-        for (const QueuedRequest& queued : m_Queue) {
+        // Move queued requests out without allocation. Their callbacks can be
+        // invoked after releasing the manager lock; active requests remain in
+        // m_Requests so their worker owns the single completion callback.
+        queuedRequests = std::move(m_Queue);
+        for (const QueuedRequest& queued : queuedRequests) {
             const auto it = m_Requests.find(queued.request.assetPath);
             if (it != m_Requests.end() && it->second == queued.cancellation) {
                 queued.cancellation->cancelled.store(true, std::memory_order_release);
-                if (queued.request.onComplete) cancelledCallbacks.push_back(queued.request.onComplete);
                 m_Requests.erase(it);
             }
         }
         for (auto& [path, cancellation] : m_Requests)
             cancellation->cancelled.store(true, std::memory_order_release);
-        m_Queue.clear();
         workers = std::move(m_Workers);
     }
     m_Condition.notify_all();
-    for (auto& callback : cancelledCallbacks) {
-        try { callback(false); } catch (...) {}
+    for (const QueuedRequest& queued : queuedRequests) {
+        if (queued.request.onComplete) {
+            try { queued.request.onComplete(false); } catch (...) {}
+        }
     }
     for (std::thread& worker : workers) if (worker.joinable()) worker.join();
 }
