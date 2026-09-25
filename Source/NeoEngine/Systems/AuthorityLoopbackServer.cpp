@@ -66,7 +66,7 @@ bool AuthorityLoopbackServer::Start(Dispatcher dispatcher, SnapshotBuilder snaps
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     address.sin_port = 0;
     if (bind(fd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) { close(fd); lastError_.store(AuthorityTransportError::BindFailed); return false; }
-    if (listen(fd, 1) != 0) { close(fd); lastError_.store(AuthorityTransportError::ListenFailed); return false; }
+    if (listen(fd, static_cast<int>(maxConnections)) != 0) { close(fd); lastError_.store(AuthorityTransportError::ListenFailed); return false; }
     socklen_t addressSize = sizeof(address);
     if (getsockname(fd, reinterpret_cast<sockaddr*>(&address), &addressSize) != 0 || ntohs(address.sin_port) == 0) { close(fd); lastError_.store(AuthorityTransportError::BindFailed); return false; }
     dispatcher_ = std::move(dispatcher);
