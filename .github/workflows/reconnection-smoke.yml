@@ -1,0 +1,27 @@
+name: Reconnection Smoke Test
+
+on:
+  push:
+    paths:
+      - 'Source/NeoEngine/Networking/NetworkReconnectPolicy.h'
+      - 'Source/NeoEngine/Networking/NetworkSessionReconnection.h'
+      - 'Source/NeoEngine/Networking/NetworkSessionReconnectionSmoke.cpp'
+      - '.github/workflows/reconnection-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  reconnect-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Compile with warnings as errors
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -ISource/NeoEngine/Networking \
+            Source/NeoEngine/Networking/NetworkSessionReconnectionSmoke.cpp \
+            -o /tmp/reconnection_smoke
+      - name: Execute smoke test
+        run: |
+          /tmp/reconnection_smoke
+          echo "RECONNECTION_SMOKE_TEST_PASS"
