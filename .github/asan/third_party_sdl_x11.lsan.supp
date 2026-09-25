@@ -1,5 +1,5 @@
-# SDL3/X11 allocates keyboard/XKB metadata that remains reachable/leaked in the
-# GitHub Ubuntu runner's X11 backend. The allocations originate inside SDL's
-# X11_VideoInit/X11_InitKeyboard, not NeoEngine code. Keep ASAN leak detection
-# enabled; suppress only this external stack so engine-owned leaks remain fatal.
+# SDL3/X11 external allocations on the GitHub Ubuntu X11 backend.
+# These stacks originate inside SDL X11 display/keyboard initialization.
+# Keep leak detection enabled for NeoEngine-owned allocations.
 leak:X11_InitKeyboard
+leak:X11_GetGlobalContentScale
