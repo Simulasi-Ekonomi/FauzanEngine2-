@@ -271,6 +271,21 @@ set(XPBD_RUNTIME_SOURCES
     Threading/JobSystem.cpp
     Renderer/GPUDrivenRenderer.cpp
     Renderer/GPUFrustumCulling.cpp
+    Rendering/RHI/OpenGL/OpenGLRHI.cpp
+    Rendering/RHI/RHI.cpp
+    Rendering/Renderer/Renderer.cpp
+    Renderer/ClusterRenderer/HierarchicalClusterRenderer.cpp
+    Renderer/Culling/GPUOcclusionCulling.cpp
+    Renderer/DynamicGI/DynamicGI.cpp
+    Renderer/GI/GlobalIllumination.cpp
+    Renderer/GITracing/GITracer.cpp
+    Renderer/Lighting/ClusterLighting.cpp
+    Renderer/MeshletRenderer.cpp
+    Renderer/Neural/NeuralRenderer.cpp
+    Renderer/Particles/GPUParticleSystem.cpp
+    Renderer/RayTracing/RayTracingRenderer.cpp
+    Renderer/Resources/BindlessResourceManager.cpp
+    Renderer/VirtualGeometry/VirtualGeometrySystem.cpp
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
