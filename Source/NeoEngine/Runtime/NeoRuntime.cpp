@@ -5,7 +5,9 @@
 #include "TextureStaging.h"
 #include "Systems/AgricultureCurriculum.h"
 
+#include <algorithm>
 #include <limits>
+#include <utility>
 
 namespace NeoEngine {
 namespace {
@@ -181,6 +183,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_RouteMotionEntity_ = routeMotionEntity;
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
+    m_SceneMeshes = std::make_unique<SceneMeshAdapter>();
     m_ECS = std::move(ecs);
     m_SceneECSBridge = std::move(sceneECSBridge);
     m_SceneCameraConfig = config.sceneCamera;
@@ -260,6 +263,7 @@ bool NeoRuntime::Tick() {
         return true;
     }
     if (m_MotionAuthority != nullptr) m_MotionAuthority->BeginFrame();
+    if (!AdvanceSceneSkeletalAnimations(m_Clock->Snapshot().scaledDeltaSeconds)) { m_LastError = RuntimeError::SceneAnimationFailed; m_State = RuntimeState::Failed; return false; }
     if (m_InputMotion != nullptr && (m_Input == nullptr || m_KinematicMotion == nullptr || !m_InputMotion->Step(*m_Input, *m_KinematicMotion, *m_Scene, m_InputMotionEntity_, m_Clock->Snapshot().scaledDeltaSeconds))) { m_LastError = RuntimeError::InputMotionFailed; m_State = RuntimeState::Failed; return false; }
     if (m_RouteFollower != nullptr && !m_RouteFollower->ReachedGoal()) {
         const bool routeSucceeded = m_UsesSkeletalRouteMotion ? (m_RouteNavigation != nullptr && m_SkeletalRouteMotionController != nullptr && m_RouteRootMotionAdapter != nullptr && m_MotionAuthority != nullptr && m_RouteRootMotionAdapter->Advance(m_Clock->Snapshot().scaledDeltaSeconds, *m_RouteFollower, *m_SkeletalRouteMotionController, *m_Scene, m_RouteMotionEntity_, *m_RouteNavigation, *m_MotionAuthority, m_SkeletalRoutePalette)) : (m_RouteNavigation != nullptr && m_RouteMotionController != nullptr && m_MotionAuthority != nullptr && m_RouteFollower->StepGuarded(*m_Scene, m_RouteMotionEntity_, *m_RouteMotionController, *m_RouteNavigation, m_Clock->Snapshot().scaledDeltaSeconds, *m_MotionAuthority));
@@ -461,6 +465,62 @@ bool NeoRuntime::RestoreFarmProgressCheckpoint(const std::vector<uint8_t>& bytes
     return true;
 }
 
+bool NeoRuntime::BindSceneSkeletalAnimation(SceneEntity entity,const Skeleton& skeleton,const SkeletalPoseClip& clip,SkeletalPosePlaybackMode mode) {
+    if(m_State!=RuntimeState::Initialized||m_SceneMeshes==nullptr||entity.index==0xFFFFU){m_LastError_=RuntimeError::InvalidState;return false;}
+    const auto instance=std::find_if(m_SceneMeshes->Instances().begin(),m_SceneMeshes->Instances().end(),[entity](const SceneMeshInstance& value){return value.entity==entity;});
+    if(instance==m_SceneMeshes->Instances().end()){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+    size_t slotIndex=m_SceneSkeletalAnimations.size();
+    for(size_t i=0U;i<m_SceneSkeletalAnimations.size();++i)if(m_SceneSkeletalAnimations[i].active&&m_SceneSkeletalAnimations[i].entity==entity){slotIndex=i;break;}
+    if(slotIndex==m_SceneSkeletalAnimations.size())for(size_t i=0U;i<m_SceneSkeletalAnimations.size();++i)if(!m_SceneSkeletalAnimations[i].active){slotIndex=i;break;}
+    if(slotIndex==m_SceneSkeletalAnimations.size()){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+    SkeletalAnimationController candidate;
+    std::vector<Mat4> palette;
+    if(!candidate.Initialize(skeleton,clip,mode)||!candidate.Advance(0.0F,palette)){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+    if(!m_SceneMeshes->SetSkeletalPalette(entity,palette)){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+    auto& binding=m_SceneSkeletalAnimations[slotIndex];
+    binding.entity=entity;binding.controller=std::move(candidate);binding.active=true;
+    m_LastError_=RuntimeError::None;return true;
+}
+bool NeoRuntime::SetSceneSkeletalAnimationPaused(SceneEntity entity,bool paused) {
+    if(m_State!=RuntimeState::Initialized){m_LastError_=RuntimeError::InvalidState;return false;}
+    for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){binding.controller.SetPaused(paused);m_LastError_=RuntimeError::None;return true;}
+    m_LastError_=RuntimeError::SceneAnimationFailed;return false;
+}
+bool NeoRuntime::SetSceneSkeletalAnimationSpeed(SceneEntity entity,float speed) {
+    if(m_State!=RuntimeState::Initialized){m_LastError_=RuntimeError::InvalidState;return false;}
+    for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){const bool success=binding.controller.SetSpeed(speed);m_LastError_=success?RuntimeError::None:RuntimeError::SceneAnimationFailed;return success;}
+    m_LastError_=RuntimeError::SceneAnimationFailed;return false;
+}
+bool NeoRuntime::UnbindSceneSkeletalAnimation(SceneEntity entity) {
+    if(m_State!=RuntimeState::Initialized||m_SceneMeshes==nullptr){m_LastError_=RuntimeError::InvalidState;return false;}
+    for(auto& binding:m_SceneSkeletalAnimations)if(binding.active&&binding.entity==entity){
+        if(!m_SceneMeshes->ClearSkeletalPalette(entity)){m_LastError_=RuntimeError::SceneAnimationFailed;return false;}
+        binding=SceneSkeletalAnimationBinding{};m_LastError_=RuntimeError::None;return true;
+    }
+    m_LastError_=RuntimeError::SceneAnimationFailed;return false;
+}
+uint16_t NeoRuntime::SceneSkeletalAnimationCount() const {
+    uint16_t count=0U;for(const auto& binding:m_SceneSkeletalAnimations)if(binding.active)++count;return count;
+}
+bool NeoRuntime::AdvanceSceneSkeletalAnimations(float deltaSeconds) {
+    if(m_SceneMeshes==nullptr){for(const auto& binding:m_SceneSkeletalAnimations)if(binding.active)return false;return true;}
+    std::array<SkeletalAnimationController,SceneMeshAdapter::kMaxInstances> candidates{};
+    std::array<bool,SceneMeshAdapter::kMaxInstances> active{};
+    std::vector<SceneSkeletalPaletteUpdate> updates;
+    try{updates.reserve(m_SceneSkeletalAnimations.size());}catch(...){return false;}
+    for(size_t i=0U;i<m_SceneSkeletalAnimations.size();++i){
+        const auto& binding=m_SceneSkeletalAnimations[i];if(!binding.active)continue;
+        candidates[i]=binding.controller;
+        std::vector<Mat4> palette;
+        if(!candidates[i].Advance(deltaSeconds,palette))return false;
+        try{updates.push_back({binding.entity,std::move(palette)});}catch(...){return false;}
+        active[i]=true;
+    }
+    if(!m_SceneMeshes->SetSkeletalPalettesAtomic(updates))return false;
+    for(size_t i=0U;i<m_SceneSkeletalAnimations.size();++i)if(active[i])m_SceneSkeletalAnimations[i].controller=std::move(candidates[i]);
+    return true;
+}
+
 bool NeoRuntime::Shutdown() {
     if (m_State != RuntimeState::Initialized && m_State != RuntimeState::Failed) { m_LastError = RuntimeError::InvalidState; return false; }
     m_SurfacePresenter.reset();
@@ -476,6 +536,7 @@ bool NeoRuntime::Shutdown() {
     m_VulkanRenderer.reset();
     m_SceneRenderAdapter.reset();
     m_SceneCamera.reset();
+    for(auto& binding:m_SceneSkeletalAnimations)binding=SceneSkeletalAnimationBinding{};
     m_SceneMeshes.reset();
     m_Renderer.reset();
     m_SceneCameraConfig = {};

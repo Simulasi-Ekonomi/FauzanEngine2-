@@ -1,4 +1,4 @@
-name: P1-P3 sandbox validation — P1 CMake + Release 76/76 + ASAN 76/76
+name: P1-P3 sandbox validation — P1 CMake + Release 77/77 + ASAN 76/76
 
 on:
   push:
@@ -73,6 +73,7 @@ jobs:
           asset_resource_manager_smoke
           farm_vulkan_textured_present_smoke
           animation_graph_smoke
+          neo_runtime_scene_animation_smoke
           gpu_skinning_palette_buffer_smoke
           skinning_gpu_smoke
           vulkan_rhi_smoke
@@ -130,7 +131,7 @@ jobs:
           opengl_renderer_smoke
           EOF
           sed -E 's/^[[:space:]]+//' /tmp/p1_targets.raw > /tmp/p1_targets.txt
-          test "$(wc -l < /tmp/p1_targets.txt)" -eq 76
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 77
       - name: Run Release 76/76
         run: |
           pass=0
@@ -145,7 +146,7 @@ jobs:
               echo "$t" | tee -a /tmp/p1_release_failures.txt
             fi
           done < /tmp/p1_targets.txt
-          echo "P1 RELEASE: pass=$pass fail=$fail total=76"
+          echo "P1 RELEASE: pass=$pass fail=$fail total=77"
           if test "$fail" -ne 0; then
             echo "FAILED RELEASE TARGETS:"
             cat /tmp/p1_release_failures.txt

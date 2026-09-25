@@ -39,6 +39,23 @@ bool SceneMeshAdapter::SetSkeletalPalette(SceneEntity entity,const std::vector<M
     try{std::vector<Mat4> candidate=palette;found->skeletalPalette.swap(candidate);}catch(...){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
     lastError_=SceneMeshAdapterError::None;return true;
 }
+bool SceneMeshAdapter::SetSkeletalPalettesAtomic(const std::vector<SceneSkeletalPaletteUpdate>& updates){
+    if(updates.size()>kMaxInstances){lastError_=SceneMeshAdapterError::Capacity;return false;}
+    struct Candidate { SceneMeshInstance* instance; std::vector<Mat4> palette; };
+    std::vector<Candidate> candidates;
+    try{candidates.reserve(updates.size());}catch(...){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+    for(size_t i=0U;i<updates.size();++i){
+        const SceneSkeletalPaletteUpdate& update=updates[i];
+        if(update.entity.index==0xFFFFU||update.palette.empty()||update.palette.size()>Skeleton::kMaxBones){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+        for(size_t prior=0U;prior<i;++prior)if(updates[prior].entity==update.entity){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+        for(const Mat4& matrix:update.palette)for(float value:matrix.m)if(!std::isfinite(value)){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+        auto found=std::find_if(instances_.begin(),instances_.end(),[&update](SceneMeshInstance& instance){return instance.entity==update.entity;});
+        if(found==instances_.end()){lastError_=SceneMeshAdapterError::MissingInstance;return false;}
+        try{candidates.push_back({&*found,update.palette});}catch(...){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+    }
+    for(Candidate& candidate:candidates)candidate.instance->skeletalPalette.swap(candidate.palette);
+    lastError_=SceneMeshAdapterError::None;return true;
+}
 bool SceneMeshAdapter::ClearSkeletalPalette(SceneEntity entity){
     const auto found=std::find_if(instances_.begin(),instances_.end(),[entity](const SceneMeshInstance& instance){return instance.entity==entity;});
     if(found==instances_.end()){lastError_=SceneMeshAdapterError::MissingInstance;return false;}

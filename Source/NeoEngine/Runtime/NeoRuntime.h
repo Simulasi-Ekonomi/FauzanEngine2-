@@ -1,5 +1,6 @@
 #pragma once
 #include "AssetRegistry.h"
+#include "Animation/SkeletalAnimationController.h"
 #include "SceneWorld.h"
 #include "Core/ECS/ArchetypeManager.h"
 #include "SceneECSBridge.h"
@@ -33,13 +34,14 @@
 #include "Systems/AuthoringCatalog.h"
 #include "Systems/WorldAuthoring.h"
 #include "Systems/TrustSafetySystem.h"
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 namespace NeoEngine {
 enum class RuntimeState : uint8_t { Created, Initialized, Shutdown, Failed };
-enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed };
+enum class RuntimeError : uint8_t { None, InvalidConfiguration, InvalidState, FarmTickFailed, WorldTickFailed, AuthoringTickFailed, AuthorityFailed, InputMotionFailed, FarmPlayerInputFailed, RouteMotionFailed, RouteReplanFailed, RenderFailed, HudFailed, HudInputFailed, PresentationFailed, TimeFailed, CurriculumFailed, ActorComponentTickFailed, CheckpointEncodeFailed, CheckpointDecodeFailed, Vulkan3DRenderFailed, SceneAnimationFailed };
 struct RuntimeFarmRenderReceipt { uint64_t frame = 0U; uint64_t worldFramebufferHash = 0U; uint64_t hudFramebufferHash = 0U; uint64_t presentedFrameCount = 0U; FarmTelemetrySnapshot telemetry{}; };
 struct NeoRuntimeFrameReceipt { RuntimeClockSnapshot clock{}; RuntimeTimeSnapshot time{}; ActorComponentWorldReceipt actors{}; FarmTelemetrySnapshot farm{}; FarmWorldSnapshot world{}; uint32_t dispatchedEventCount = 0U; EventSignalDispatchReceipt eventDispatch{}; RuntimeFarmRenderReceipt farmRender{}; FarmRenderAssetManifestReceipt farmSpriteAssets{}; FarmPlayerInputReceipt farmPlayerInput{}; InputStateSummary input{}; AssetRegistrySummary assets{}; CurriculumProgressReceipt curriculum{}; FarmOnboardingReceipt onboarding{}; uint32_t sceneAliveEntityCount = 0U; SceneECSBridgeReceipt sceneECS{}; bool hasFarmRenderReceipt = false; bool hasFarmSpriteAssets = false; bool hasFarmPlayerInputReceipt = false; bool hasCurriculumReceipt = false; };
 enum class SkeletalRouteDirection : uint8_t { PositiveX, NegativeX, PositiveZ, NegativeZ };
@@ -68,6 +70,11 @@ public:
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
+    bool BindSceneSkeletalAnimation(SceneEntity entity,const Skeleton& skeleton,const SkeletalPoseClip& clip,SkeletalPosePlaybackMode mode=SkeletalPosePlaybackMode::Loop);
+    bool SetSceneSkeletalAnimationPaused(SceneEntity entity,bool paused);
+    bool SetSceneSkeletalAnimationSpeed(SceneEntity entity,float speed);
+    bool UnbindSceneSkeletalAnimation(SceneEntity entity);
+    [[nodiscard]] uint16_t SceneSkeletalAnimationCount() const;
     bool RouteFarmHudPointer(float x, float y, UiPointerPhase phase, FarmActionPanelReceipt& receipt);
     bool RouteFarmHudKeyboard(UiKeyboardKey key, FarmActionPanelReceipt& receipt);
     bool Shutdown();
@@ -134,6 +141,9 @@ public:
     MovementAuthorityGate* MotionAuthority() { return m_MotionAuthority.get(); }
     const MovementAuthorityGate* MotionAuthority() const { return m_MotionAuthority.get(); }
 private:
+    struct SceneSkeletalAnimationBinding { SceneEntity entity{0xFFFFU,0U}; SkeletalAnimationController controller{}; bool active=false; };
+    bool AdvanceSceneSkeletalAnimations(float deltaSeconds);
+    std::array<SceneSkeletalAnimationBinding,SceneMeshAdapter::kMaxInstances> m_SceneSkeletalAnimations{};
     RuntimeState m_State = RuntimeState::Created;
     RuntimeError m_LastError = RuntimeError::None;
     uint32_t m_FixedTicksPerFrame = 0;
