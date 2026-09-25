@@ -98,6 +98,18 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBRRenderPipeline.cpp
     Runtime/ShaderLibrary.cpp
     Runtime/AssetRegistry.cpp
+    Runtime/AssetManifestSnapshot.cpp
+    Runtime/AssetRefreshExecutor.cpp
+    Runtime/AndroidLifecycleGate.cpp
+    Runtime/CharacterPawn.cpp
+    Runtime/FlipbookFrameSelector.cpp
+    Runtime/FlipbookRenderBridge.cpp
+    Runtime/FarmRuntimeSaveCodec.cpp
+    Runtime/GameplayPhysicsBody.cpp
+    Runtime/LocalAuthoringBridge.cpp
+    Runtime/LodManager.cpp
+    Runtime/MipmapManager.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
