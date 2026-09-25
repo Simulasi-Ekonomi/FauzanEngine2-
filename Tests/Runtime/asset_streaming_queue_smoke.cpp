@@ -41,11 +41,19 @@ int main() {
     assert(queue.GetQueuedCount() == 2);
     assert(queue.GetAssetCount() == 2);
 
+    assert(!queue.CancelPending(""));
+    assert(queue.CancelPending("low"));
+    assert(!queue.CancelPending("low"));
+    assert(queue.GetQueuedCount() == 1);
+    assert(queue.GetAssetCount() == 1);
+    assert(queue.Enqueue(low));
+
     StreamRequest next{};
     assert(queue.TryDequeue(next));
     assert(next.id == "high");
     assert(queue.GetState("high") == StreamState::Uploading);
     assert(!queue.IsReady("high"));
+    assert(!queue.CancelPending("high"));
 
     assert(queue.CompleteUpload("high", FakeDeviceMemory(1), 3));
     assert(queue.IsReady("high"));
