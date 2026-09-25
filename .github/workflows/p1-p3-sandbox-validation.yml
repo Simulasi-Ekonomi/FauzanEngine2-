@@ -149,7 +149,7 @@ jobs:
             echo "FAILED RELEASE TARGETS:"
             cat /tmp/p1_release_failures.txt
           fi
-          test "$pass" -eq 74
+          test "$pass" -eq 75
           test "$fail" -eq 0
       - name: Configure ASAN 75/75
         run: |
@@ -178,5 +178,5 @@ jobs:
             if xvfb-run -a "./build/p1-asan/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
           done < /tmp/p1_targets.txt
           echo "P1 ASAN: pass=$pass fail=$fail total=75"
-          test "$pass" -eq 74
+          test "$pass" -eq 75
           test "$fail" -eq 0
