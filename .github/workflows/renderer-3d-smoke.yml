@@ -72,6 +72,7 @@ jobs:
         working-directory: Source/NeoEngine
         run: |
           glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
+          glslangValidator -V Shaders/neo_mesh_skinned.vert -o Shaders/neo_mesh_skinned.vert.spv
           glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
 
       - name: Build smoke executables

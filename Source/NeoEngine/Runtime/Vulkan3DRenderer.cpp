@@ -123,7 +123,7 @@ bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* tit
     VkDescriptorBufferInfo skinBuffer{impl->skinningPalette.GetBuffer(),0U,sizeof(Mat4)*GPUSkinningPaletteBuffer::kMaxBones};
     VkWriteDescriptorSet skinWrite{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET}; skinWrite.dstSet=impl->skinningDescriptorSet; skinWrite.dstBinding=0U; skinWrite.descriptorCount=1U; skinWrite.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; skinWrite.pBufferInfo=&skinBuffer;
     vkUpdateDescriptorSets(impl->device,1U,&skinWrite,0U,nullptr);
-    impl_=impl.release();if(!Resize(width,height)){Reset();return false;}ready_=true;lastError_=Vulkan3DRendererError::None;return true;
+    impl_=impl.release();if(!Resize(width,height)){const Vulkan3DRendererError resizeError=lastError_;Reset();lastError_=resizeError;return false;}ready_=true;lastError_=Vulkan3DRendererError::None;return true;
 }
 bool Vulkan3DRenderer::Resize(uint32_t width,uint32_t height){
     if(!impl_||width==0||height==0||!impl_->window){lastError_=Vulkan3DRendererError::InvalidConfiguration;return false;}
