@@ -25,7 +25,12 @@ int main() {
         {{0.0F, 0.8F, 0.0F}, {0.0F, 0.0F, 1.0F}, 0.5F, 1.0F}
     };
     mesh.indices = {0, 1, 2};
-    assert(meshes.Add(std::move(mesh)));
+    mesh.material.rgba = 0xFFFF0000U;
+    SceneMeshAdapter redMeshes;
+    assert(redMeshes.Add(mesh));
+    mesh.material.rgba = 0xFF0000FFU;
+    SceneMeshAdapter blueMeshes;
+    assert(blueMeshes.Add(std::move(mesh)));
 
     RenderCamera camera;
     RenderCameraConfig cameraConfig{};
@@ -46,8 +51,14 @@ int main() {
     }
 
     SceneRenderAdapter adapter;
-    if (!adapter.DrawVulkan3D(world, meshes, camera, renderer)) return 3;
+    if (!adapter.DrawVulkan3D(world, redMeshes, camera, renderer)) return 3;
     if (renderer.LastFrameStats().indexCount != 3U) return 4;
     if (renderer.LastFrameStats().vertexCount != 3U) return 5;
+    std::vector<uint8_t> redFrame;
+    if (!renderer.ReadbackLastFrame(redFrame) || redFrame.empty()) return 6;
+    if (!adapter.DrawVulkan3D(world, blueMeshes, camera, renderer)) return 7;
+    std::vector<uint8_t> blueFrame;
+    if (!renderer.ReadbackLastFrame(blueFrame) || blueFrame.size() != redFrame.size() || blueFrame == redFrame) return 8;
+    std::puts("SCENE_VULKAN_ADAPTER_MATERIAL_COLOR_OK distinct_gpu_colors=1");
     return 0;
 }

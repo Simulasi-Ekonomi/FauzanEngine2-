@@ -17,6 +17,7 @@ struct Vulkan3DVertex {
     float u = 0.0F, v = 0.0F;
     std::array<uint32_t, 4> boneIndices{};
     std::array<float, 4> boneWeights{};
+    std::array<float, 4> materialColor{1.0F, 1.0F, 1.0F, 1.0F};
 };
 
 struct Vulkan3DFrameStats {

@@ -161,6 +161,12 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             Vulkan3DVertex gpuVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v};
             gpuVertex.boneIndices = vertex.boneIndices;
             gpuVertex.boneWeights = vertex.boneWeights;
+            const uint32_t rgba = instance.material.rgba;
+            gpuVertex.materialColor = {
+                static_cast<float>((rgba >> 16U) & 0xFFU) / 255.0F,
+                static_cast<float>((rgba >> 8U) & 0xFFU) / 255.0F,
+                static_cast<float>(rgba & 0xFFU) / 255.0F,
+                static_cast<float>((rgba >> 24U) & 0xFFU) / 255.0F};
             vertices.push_back(gpuVertex);
         }
 
