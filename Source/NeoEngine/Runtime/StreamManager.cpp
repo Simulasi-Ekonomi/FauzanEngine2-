@@ -32,12 +32,24 @@ void StreamManager::Start() noexcept {
         }
     } catch (...) {
         m_Running = false;
-        for (auto& [path, cancellation] : m_Requests) cancellation->cancelled.store(true, std::memory_order_release);
-        m_Queue.clear();
-        m_Requests.clear();
+        auto queuedRequests = std::move(m_Queue);
+        for (const QueuedRequest& queued : queuedRequests) {
+            const auto it = m_Requests.find(queued.request.assetPath);
+            if (it != m_Requests.end() && it->second == queued.cancellation) {
+                queued.cancellation->cancelled.store(true, std::memory_order_release);
+                m_Requests.erase(it);
+            }
+        }
+        for (auto& [path, cancellation] : m_Requests)
+            cancellation->cancelled.store(true, std::memory_order_release);
         auto workers = std::move(m_Workers);
         lock.unlock();
         m_Condition.notify_all();
+        for (const QueuedRequest& queued : queuedRequests) {
+            if (queued.request.onComplete) {
+                try { queued.request.onComplete(false); } catch (...) {}
+            }
+        }
         for (std::thread& worker : workers) if (worker.joinable()) worker.join();
         return;
     }
