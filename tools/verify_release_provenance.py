@@ -64,6 +64,9 @@ if any(len(line.split("=", 1)[1]) > 4096 for line in lines[1:]):
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL oversized_provenance_field")
 
 values = {line.split("=", 1)[0]: line.split("=", 1)[1] for line in lines[1:]}
+
+if any(len(values[key]) != 64 or any(ch not in "0123456789abcdef" for ch in values[key].lower()) for key in ("commit", "tree", "artifact_sha256", "reference_artifact_sha256", "manifest_sha256", "sbom_sha256")):
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_sha256_or_git_identity")
 head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip()
 if values["commit"] != head or values["tree"] != tree:
