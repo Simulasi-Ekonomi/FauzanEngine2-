@@ -6,6 +6,8 @@
 
 #include <cassert>
 #include <cstdio>
+#include <utility>
+#include <vector>
 
 int main() {
     using namespace NeoEngine;
@@ -16,7 +18,6 @@ int main() {
     assert(world.SetTransform(entity, {0.0F, 0.0F, 3.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}));
     assert(world.UpdateTransforms());
 
-    SceneMeshAdapter meshes;
     SceneMeshInstance mesh{};
     mesh.entity = entity;
     mesh.vertices = {
