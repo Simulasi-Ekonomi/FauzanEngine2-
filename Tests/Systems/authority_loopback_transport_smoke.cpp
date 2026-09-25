@@ -44,9 +44,27 @@ int main() {
     std::vector<uint8_t> response(responseSize);
     if (!ReceiveAll(client, response.data(), response.size())) return 1;
     close(client);
+
+    // Reconnect on a fresh TCP connection before the configured connection budget is exhausted.
+    const int reconnectClient = socket(AF_INET, SOCK_STREAM, 0);
+    address.sin_port = htons(server.Port());
+    if (reconnectClient < 0 || connect(reconnectClient, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) return 1;
+    AuthorityCommand reconnectCommand{"player-loop", "session-loop", "command-reconnect", "farm.harvest", 2, 11, {8}};
+    std::vector<uint8_t> reconnectFrame;
+    if (!AuthorityWireProtocol::EncodeCommand(reconnectCommand, reconnectFrame, wireError)) return 1;
+    const uint32_t reconnectLength = static_cast<uint32_t>(reconnectFrame.size());
+    const std::array<uint8_t, 4> reconnectHeader{static_cast<uint8_t>(reconnectLength >> 24U), static_cast<uint8_t>(reconnectLength >> 16U), static_cast<uint8_t>(reconnectLength >> 8U), static_cast<uint8_t>(reconnectLength)};
+    std::array<uint8_t, 4> reconnectResponseHeader{};
+    if (!SendAll(reconnectClient, reconnectHeader.data(), reconnectHeader.size()) || !SendAll(reconnectClient, reconnectFrame.data(), reconnectFrame.size()) || !ReceiveAll(reconnectClient, reconnectResponseHeader.data(), reconnectResponseHeader.size())) return 1;
+    const uint32_t reconnectResponseSize = (static_cast<uint32_t>(reconnectResponseHeader[0]) << 24U) | (static_cast<uint32_t>(reconnectResponseHeader[1]) << 16U) | (static_cast<uint32_t>(reconnectResponseHeader[2]) << 8U) | reconnectResponseHeader[3];
+    if (reconnectResponseSize == 0 || reconnectResponseSize > AuthorityWireProtocol::kMaxSnapshotBytes + 32U) return 1;
+    std::vector<uint8_t> reconnectResponse(reconnectResponseSize);
+    if (!ReceiveAll(reconnectClient, reconnectResponse.data(), reconnectResponse.size())) return 1;
+    close(reconnectClient);
     server.Stop();
     AuthorityWireSnapshot snapshot{};
-    if (!AuthorityWireProtocol::DecodeSnapshot(response, snapshot, wireError) || snapshot.revision != 1 || snapshot.state != std::vector<uint8_t>{1} || handled.load() != 1 || gate.AuthoritativeRevision() != 1) return 1;
+    AuthorityWireSnapshot reconnectSnapshot{};
+    if (!AuthorityWireProtocol::DecodeSnapshot(response, snapshot, wireError) || !AuthorityWireProtocol::DecodeSnapshot(reconnectResponse, reconnectSnapshot, wireError) || snapshot.revision != 1 || snapshot.state != std::vector<uint8_t>{1} || reconnectSnapshot.revision != 2 || reconnectSnapshot.state != std::vector<uint8_t>{1} || handled.load() != 2 || gate.AuthoritativeRevision() != 2) return 1;
     AuthorityLoopbackServer idleServer;
     if (!idleServer.Start(gate, 11, [](const AuthorityCommand&, uint64_t) { return true; }) || idleServer.Port() == 0) return 1;
     const int idleClient = socket(AF_INET, SOCK_STREAM, 0);
