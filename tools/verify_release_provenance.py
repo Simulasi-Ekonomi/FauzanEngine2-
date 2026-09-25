@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -95,6 +96,47 @@ artifact_sha = file_sha256(artifact)
 reference_sha = file_sha256(reference)
 manifest_sha = file_sha256(manifest_path)
 sbom_sha = file_sha256(sbom_path)
+manifest_lines = manifest_path.read_text(encoding="utf-8").splitlines()
+if len(manifest_lines) < 4 or manifest_lines[0] != "FAUZANENGINE_RELEASE_MANIFEST_V1":
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_manifest")
+manifest_values = {}
+for line in manifest_lines[1:4]:
+    if "=" not in line:
+        raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_manifest_header")
+    key, value = line.split("=", 1)
+    if key in manifest_values:
+        raise SystemExit("P4_PROVENANCE_VERIFY_FAIL duplicate_manifest_header")
+    manifest_values[key] = value
+if manifest_values.get("commit") != values["commit"] or manifest_values.get("tree") != values["tree"]:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL manifest_git_identity_mismatch")
+try:
+    manifest_count = int(manifest_values.get("files", "-1"))
+except ValueError:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_manifest_count")
+manifest_entries = manifest_lines[4:]
+if manifest_count != len(manifest_entries) or manifest_count < 0:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL manifest_count_mismatch")
+for entry in manifest_entries:
+    parts = entry.split("  ", 1)
+    if len(parts) != 2 or len(parts[0]) != 64 or any(ch not in "0123456789abcdef" for ch in parts[0]) or not parts[1].strip():
+        raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_manifest_entry")
+try:
+    sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_sbom")
+if sbom.get("bomFormat") != "CycloneDX" or sbom.get("specVersion") != "1.5" or sbom.get("version") != 1:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL invalid_sbom_format")
+if sbom.get("metadata", {}).get("component", {}).get("type") != "application" or sbom.get("metadata", {}).get("component", {}).get("version") != values["commit"]:
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL sbom_git_identity_mismatch")
+components = sbom.get("components")
+if not isinstance(components, list) or len(components) != len({item.get("bom-ref") for item in components if isinstance(item, dict)}):
+    raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_sbom_components")
+for component in components:
+    if not isinstance(component, dict) or component.get("type") != "file" or component.get("version") != "source":
+        raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_sbom_component")
+    hashes = component.get("hashes")
+    if not isinstance(hashes, list) or not hashes or hashes[0].get("alg") != "SHA-256" or len(hashes[0].get("content", "")) != 64:
+        raise SystemExit("P4_PROVENANCE_VERIFY_FAIL malformed_sbom_digest")
 if values["artifact_sha256"] != artifact_sha:
     raise SystemExit("P4_PROVENANCE_VERIFY_FAIL artifact_hash_mismatch")
 if values["reference_artifact_sha256"] != reference_sha:
