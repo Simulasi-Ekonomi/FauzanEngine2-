@@ -117,6 +117,11 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayTriggerTracker.cpp
     Runtime/KinematicCollisionPreflight.cpp
+    Asset/GLTF/GLBLoader.cpp
+    Asset/GLTF/GLTFAnimation.cpp
+    Asset/GLTF/GLTFMaterialBuilder.cpp
+    Asset/GLTF/GLTFSkeleton.cpp
+    Asset/GLTF/GLTFLoader.cpp
     Asset/GLTF/GLTFAccessor.cpp
     Asset/GLTF/GLTFParser.cpp
     Asset/GLTF/GLTFTextureLoader.cpp
@@ -137,6 +142,7 @@ set(XPBD_RUNTIME_SOURCES
     Core/GPU/MeshStreamer.cpp
     Core/GPU/TextureStreamer.cpp
     Runtime/VulkanDescriptorManager.cpp
+    Animation/SkeletalLocomotionMetadata.cpp
     Animation/SkinningGPU.cpp
     Rendering/RHI/Vulkan/VulkanRHI.cpp
     Runtime/VulkanGraphicsPipeline.cpp
