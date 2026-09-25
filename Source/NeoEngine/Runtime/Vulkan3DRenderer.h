@@ -74,6 +74,7 @@ public:
                                VkImage targetImage, VkImageLayout targetLayout,
                                uint32_t width, uint32_t height);
     bool UploadSkinningPalette(const std::vector<Mat4>& palette);
+    bool UseDefaultSkinningPalette();
 
     [[nodiscard]] bool Ready() const { return ready_; }
     [[nodiscard]] Vulkan3DRendererError LastError() const { return lastError_; }

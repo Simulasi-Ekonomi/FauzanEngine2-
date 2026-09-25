@@ -140,12 +140,6 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         return false;
     }
 
-    if (skeletalPalette != nullptr && !skeletalPalette->empty() && !renderer.UploadSkinningPalette(*skeletalPalette)) {
-        lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
-        renderer.EndFrame();
-        return false;
-    }
-
     for (const SceneMeshInstance& instance : meshes.Instances()) {
         const Transform3* transform = world.GetTransform(instance.entity);
         if (!transform) continue;
@@ -181,6 +175,23 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             indices.push_back(static_cast<uint32_t>(index));
         }
 
+        if (!instance.skeletalPalette.empty()) {
+            if (!renderer.UploadSkinningPalette(instance.skeletalPalette)) {
+                lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+                renderer.EndFrame();
+                return false;
+            }
+        } else if (skeletalPalette != nullptr && !skeletalPalette->empty()) {
+            if (!renderer.UploadSkinningPalette(*skeletalPalette)) {
+                lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+                renderer.EndFrame();
+                return false;
+            }
+        } else if (!renderer.UseDefaultSkinningPalette()) {
+            lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+            renderer.EndFrame();
+            return false;
+        }
         if (!renderer.DrawIndexedSkinned(vertices, indices, Multiply(viewProjection, model).m, model.m)) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();

@@ -31,6 +31,7 @@ public:
                     VkMemoryPropertyFlags memoryProperties);
 
     bool UploadData(const void* data, VkDeviceSize dataSize);
+    bool UploadDataAtOffset(const void* data, VkDeviceSize dataSize, VkDeviceSize offset);
     bool ReadData(void* outData, VkDeviceSize dataSize) const;
 
     void Destroy();

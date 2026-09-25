@@ -12,8 +12,8 @@
 namespace NeoEngine {
 struct CpuMeshResource;
 struct CpuMaterialResource;
-enum class SceneMeshAdapterError : uint8_t { None, InvalidEntity, InvalidMesh, InvalidTexture, InvalidStagedResource, InvalidStagedMaterial, InvalidStagedTexture, Capacity, MissingInstance, MissingEntity, UnsupportedTransform, DrawFailed };
-struct SceneMeshInstance { SceneEntity entity{}; std::vector<MeshVertex> vertices; std::vector<uint16_t> indices; MeshMaterial material{}; float localBoundsRadius = 0.0F; std::string sourceAssetId{}; uint64_t sourceHash = 0U; std::string sourceMaterialAssetId{}; std::string sourceMaterialName{}; uint64_t sourceMaterialHash = 0U; CpuTextureResource texture{}; std::string sourceTextureAssetId{}; uint64_t sourceTextureHash = 0U; };
+enum class SceneMeshAdapterError : uint8_t { None, InvalidEntity, InvalidMesh, InvalidTexture, InvalidStagedResource, InvalidStagedMaterial, InvalidStagedTexture, InvalidSkeletalPalette, Capacity, MissingInstance, MissingEntity, UnsupportedTransform, DrawFailed };
+struct SceneMeshInstance { SceneEntity entity{}; std::vector<MeshVertex> vertices; std::vector<uint16_t> indices; MeshMaterial material{}; float localBoundsRadius = 0.0F; std::string sourceAssetId{}; uint64_t sourceHash = 0U; std::string sourceMaterialAssetId{}; std::string sourceMaterialName{}; uint64_t sourceMaterialHash = 0U; CpuTextureResource texture{}; std::string sourceTextureAssetId{}; uint64_t sourceTextureHash = 0U; std::vector<Mat4> skeletalPalette{}; };
 class SceneMeshAdapter {
 public:
     static constexpr uint16_t kMaxInstances = 64;
@@ -23,6 +23,8 @@ public:
     SceneMeshAdapter(SceneMeshAdapter&& other);
     SceneMeshAdapter& operator=(SceneMeshAdapter&& other);
     bool Add(SceneMeshInstance instance);
+    bool SetSkeletalPalette(SceneEntity entity, const std::vector<Mat4>& palette);
+    bool ClearSkeletalPalette(SceneEntity entity);
     bool AddStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material);
     bool AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material);
     bool AddStaged(SceneEntity entity,const CpuMeshResource& mesh,const CpuMaterialResource& material,const CpuTextureResource* texture);
