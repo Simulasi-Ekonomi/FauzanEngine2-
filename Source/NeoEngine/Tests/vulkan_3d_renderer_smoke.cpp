@@ -31,7 +31,7 @@ int main() {
         bulkIndices[i + 2] = static_cast<uint32_t>(i + 2);
     }
 
-    constexpr std::array<NeoEngine::Vulkan3DVertex, 3> triangle{{
+    std::array<NeoEngine::Vulkan3DVertex, 3> triangle{{
         NeoEngine::Vulkan3DVertex{-0.05F, -0.05F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F},
         NeoEngine::Vulkan3DVertex{ 0.05F, -0.05F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 0.0F},
         NeoEngine::Vulkan3DVertex{ 0.0F,  0.05F, 0.0F, 0.0F, 0.0F, 1.0F, 0.5F, 1.0F},

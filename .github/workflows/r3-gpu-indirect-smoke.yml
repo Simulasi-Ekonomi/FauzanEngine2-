@@ -45,6 +45,7 @@ jobs:
         working-directory: Source/NeoEngine
         run: |
           glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
+          glslangValidator -V Shaders/neo_gpu_indirect.vert -o Shaders/neo_gpu_indirect.vert.spv
           glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
       - name: Build real GPU smoke
         working-directory: Source/NeoEngine
