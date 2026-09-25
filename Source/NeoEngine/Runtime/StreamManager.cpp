@@ -47,15 +47,32 @@ void StreamManager::Start() noexcept {
 
 void StreamManager::Stop() noexcept {
     std::vector<std::thread> workers;
+    std::vector<std::function<void(bool)>> cancelledCallbacks;
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
         m_Running = false;
-        for (auto& [path, cancellation] : m_Requests) cancellation->cancelled.store(true, std::memory_order_release);
+
+        // Requests still in the queue have not started I/O. Remove them from
+        // the pending map and complete them as cancelled. Active requests stay
+        // in m_Requests so their worker can deliver exactly one failure
+        // completion after observing cancellation.
+        for (const QueuedRequest& queued : m_Queue) {
+            const auto it = m_Requests.find(queued.request.assetPath);
+            if (it != m_Requests.end() && it->second == queued.cancellation) {
+                queued.cancellation->cancelled.store(true, std::memory_order_release);
+                if (queued.request.onComplete) cancelledCallbacks.push_back(queued.request.onComplete);
+                m_Requests.erase(it);
+            }
+        }
+        for (auto& [path, cancellation] : m_Requests)
+            cancellation->cancelled.store(true, std::memory_order_release);
         m_Queue.clear();
-        m_Requests.clear();
         workers = std::move(m_Workers);
     }
     m_Condition.notify_all();
+    for (auto& callback : cancelledCallbacks) {
+        try { callback(false); } catch (...) {}
+    }
     for (std::thread& worker : workers) if (worker.joinable()) worker.join();
 }
 
@@ -80,15 +97,30 @@ bool StreamManager::RequestLoad(const std::string& path, int priority,
 
 bool StreamManager::Cancel(const std::string& path) noexcept {
     if (path.empty()) return false;
-    std::lock_guard<std::mutex> lock(m_Mutex);
-    const auto it = m_Requests.find(path);
-    if (it == m_Requests.end()) return false;
-    it->second->cancelled.store(true, std::memory_order_release);
-    m_Queue.erase(std::remove_if(m_Queue.begin(), m_Queue.end(), [&path](const QueuedRequest& queued) {
-        return queued.request.assetPath == path;
-    }), m_Queue.end());
-    m_Requests.erase(it);
+
+    std::function<void(bool)> cancelledCallback;
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        const auto it = m_Requests.find(path);
+        if (it == m_Requests.end()) return false;
+        it->second->cancelled.store(true, std::memory_order_release);
+
+        // A queued request can be removed immediately and must complete here.
+        // An active request remains in m_Requests so its worker owns the single
+        // completion callback and can report cancellation after bounded I/O.
+        const auto queued = std::find_if(m_Queue.begin(), m_Queue.end(),
+            [&path](const QueuedRequest& request) { return request.request.assetPath == path; });
+        if (queued != m_Queue.end()) {
+            if (queued->request.onComplete) cancelledCallback = queued->request.onComplete;
+            m_Queue.erase(queued);
+            m_Requests.erase(it);
+        }
+    }
+
     m_Condition.notify_all();
+    if (cancelledCallback) {
+        try { cancelledCallback(false); } catch (...) {}
+    }
     return true;
 }
 
@@ -206,13 +238,17 @@ void StreamManager::WorkerLoop() noexcept {
             }
             if (isCurrent) m_Requests.erase(pending);
         }
-        if (!queued.cancellation->cancelled.load(std::memory_order_acquire)) {
-            if (publish && queued.request.onLoaded) {
-                try { queued.request.onLoaded(fileData); } catch (...) {}
-            }
-            if (queued.request.onComplete) {
-                try { queued.request.onComplete(publish); } catch (...) {}
-            }
+        // Completion is authoritative for every request that reached a worker:
+        // success, I/O failure, resident-budget rejection, shutdown, or active
+        // cancellation. Queued cancellation is completed by Cancel/Stop above.
+        if (publish && !queued.cancellation->cancelled.load(std::memory_order_acquire) &&
+            queued.request.onLoaded) {
+            try { queued.request.onLoaded(fileData); } catch (...) {}
+        }
+        if (queued.request.onComplete) {
+            try { queued.request.onComplete(
+                publish && !queued.cancellation->cancelled.load(std::memory_order_acquire)); }
+            catch (...) {}
         }
     }
 }
