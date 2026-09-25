@@ -168,6 +168,7 @@ jobs:
       - name: Run ASAN 74/74 — final sandbox gate
         env:
           ASAN_OPTIONS: detect_leaks=1
+          LSAN_OPTIONS: suppressions=.github/asan/third_party_sdl_x11.lsan.supp
         run: |
           pass=0
           fail=0
