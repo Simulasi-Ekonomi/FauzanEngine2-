@@ -3,8 +3,8 @@
 #include "TextureStaging.h"
 #include "SoftwareRenderer.h"
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 #include <vulkan/vulkan.h>
 
 #include <algorithm>
@@ -262,16 +262,16 @@ VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTextur
     result.textureHash = Hash(texture.rgba);
     result.status = VulkanPresentStatus::Unavailable;
     Resources resources{};
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) return result;
+    if (!SDL_Init(SDL_INIT_VIDEO)) return result;
     result.sdlInitialized = true;
-    resources.window = SDL_CreateWindow("NeoEngine Textured Present Probe", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                        static_cast<int>(width), static_cast<int>(height), SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
+    resources.window = SDL_CreateWindow("NeoEngine Textured Present Probe", static_cast<int>(width), static_cast<int>(height), SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
     if (resources.window == nullptr) return result;
     result.windowCreated = true;
     unsigned extensionCount = 0;
-    if (SDL_Vulkan_GetInstanceExtensions(resources.window, &extensionCount, nullptr) != SDL_TRUE || extensionCount == 0) return result;
-    std::vector<const char*> extensions(extensionCount);
-    if (SDL_Vulkan_GetInstanceExtensions(resources.window, &extensionCount, extensions.data()) != SDL_TRUE) return result;
+    if (SDL_Vulkan_GetInstanceExtensions(&extensionCount) == nullptr || extensionCount == 0) return result;
+    const char* const* sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+    if (sdlExtensions == nullptr || extensionCount == 0) return result;
+    std::vector<const char*> extensions(sdlExtensions, sdlExtensions + extensionCount);
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = "NeoEngineTexturedPresentProbe";
     app.apiVersion = VK_API_VERSION_1_0;
@@ -280,7 +280,7 @@ VulkanTexturedPresentResult VulkanTexturedPresentProbe::Present(const RgbaTextur
     instanceInfo.enabledExtensionCount = extensionCount;
     instanceInfo.ppEnabledExtensionNames = extensions.data();
     if (vkCreateInstance(&instanceInfo, nullptr, &resources.instance) != VK_SUCCESS ||
-        SDL_Vulkan_CreateSurface(resources.window, resources.instance, &resources.surface) != SDL_TRUE) return result;
+        !SDL_Vulkan_CreateSurface(resources.window, resources.instance, nullptr, &resources.surface)) return result;
     result.surfaceCreated = true;
     if (!SelectDevice(resources)) return result;
     result.deviceCreated = true;

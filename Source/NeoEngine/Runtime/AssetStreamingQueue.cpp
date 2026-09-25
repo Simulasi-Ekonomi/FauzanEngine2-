@@ -43,6 +43,27 @@ bool AssetStreamingQueue::Enqueue(const StreamRequest& req) noexcept {
     return true;
 }
 
+bool AssetStreamingQueue::CancelPending(AssetID id) noexcept {
+    if (id.empty()) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto asset = loadedAssets_.find(id);
+    if (asset == loadedAssets_.end() || asset->second.state != StreamState::Pending) return false;
+    decltype(streamQueue_) filtered;
+    try {
+        auto remaining = streamQueue_;
+        while (!remaining.empty()) {
+            StreamRequest request = remaining.top();
+            remaining.pop();
+            if (request.id != id) filtered.push(std::move(request));
+        }
+    } catch (...) {
+        return false;
+    }
+    streamQueue_.swap(filtered);
+    loadedAssets_.erase(asset);
+    return true;
+}
+
 bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     while (!streamQueue_.empty()) {

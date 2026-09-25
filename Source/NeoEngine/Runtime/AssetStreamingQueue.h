@@ -45,6 +45,9 @@ public:
     AssetStreamingQueue& operator=(const AssetStreamingQueue&) = delete;
 
     [[nodiscard]] bool Enqueue(const StreamRequest& req) noexcept;
+    // Cancels a request still waiting in the priority queue. Once dequeued,
+    // cancellation belongs to the upload owner and this call returns false.
+    [[nodiscard]] bool CancelPending(AssetID id) noexcept;
     [[nodiscard]] bool TryDequeue(StreamRequest& out) noexcept;
     [[nodiscard]] bool CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
                                       uint32_t allocatedSizeMB) noexcept;

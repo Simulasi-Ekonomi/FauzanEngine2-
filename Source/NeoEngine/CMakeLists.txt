@@ -5,16 +5,24 @@ project(NeoEngine LANGUAGES CXX)
 find_package(PkgConfig REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(CURL REQUIRED)
-find_package(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
+find_package(SDL3 3.4.16 CONFIG REQUIRED COMPONENTS SDL3)
 pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 find_program(NEO_GLSLANG_VALIDATOR glslangValidator REQUIRED)
 find_path(NEO_RAPIDJSON_INCLUDE_DIR rapidjson/document.h REQUIRED)
+if(ANDROID)
+    set(NEO_GL_PLATFORM_LIBS EGL GLESv3)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl)
+    pkg_check_modules(GLESV3 REQUIRED IMPORTED_TARGET glesv2)
+    set(NEO_GL_PLATFORM_LIBS PkgConfig::EGL PkgConfig::GLESV3)
+endif()
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(NEO_SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/neo_shaders")
 set(NEO_MESH_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.vert.spv")
+set(NEO_MESH_SKINNED_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh_skinned.vert.spv")
 set(NEO_MESH_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_mesh.frag.spv")
 set(NEO_TEXTURE_VERT_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.vert.spv")
 set(NEO_TEXTURE_FRAG_SPV "${NEO_SHADER_OUTPUT_DIR}/neo_texture.frag.spv")
@@ -27,6 +35,13 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
     COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.vert" -o "${NEO_MESH_VERT_SPV}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh.vert"
+    VERBATIM
+)
+add_custom_command(
+    OUTPUT "${NEO_MESH_SKINNED_VERT_SPV}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEO_SHADER_OUTPUT_DIR}"
+    COMMAND "${NEO_GLSLANG_VALIDATOR}" -V "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh_skinned.vert" -o "${NEO_MESH_SKINNED_VERT_SPV}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/neo_mesh_skinned.vert"
     VERBATIM
 )
 add_custom_command(
@@ -72,7 +87,7 @@ add_custom_command(
     VERBATIM
 )
 add_custom_target(neoengine_mesh_shaders ALL DEPENDS
-    "${NEO_MESH_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
+    "${NEO_MESH_VERT_SPV}" "${NEO_MESH_SKINNED_VERT_SPV}" "${NEO_MESH_FRAG_SPV}"
     "${NEO_TEXTURE_VERT_SPV}" "${NEO_TEXTURE_FRAG_SPV}"
     "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}"
     "${NEO_GPU_INDIRECT_VERT_SPV}")
@@ -90,39 +105,63 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBRRenderPipeline.cpp
     Runtime/ShaderLibrary.cpp
     Runtime/AssetRegistry.cpp
+    Runtime/AssetManifestSnapshot.cpp
+    Runtime/AssetRefreshDiagnostics.cpp
+    Runtime/AssetReloadDiagnostics.cpp
+    Runtime/AssetRefreshExecutor.cpp
+    Runtime/AndroidLifecycleGate.cpp
+    Runtime/CharacterPawn.cpp
+    Runtime/FlipbookFrameSelector.cpp
+    Runtime/FlipbookRenderBridge.cpp
+    Runtime/FarmRuntimeSaveCodec.cpp
+    Runtime/GameplayPhysicsBody.cpp
+    Runtime/LocalAuthoringBridge.cpp
+    Runtime/LodManager.cpp
+    Runtime/MipmapManager.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
-    Runtime/MeshImportPipeline.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayTriggerTracker.cpp
-    Asset/GLTF/GLTFMeshBuilder.cpp
+    Runtime/KinematicCollisionPreflight.cpp
     Asset/GLTF/GLBLoader.cpp
     Asset/GLTF/GLTFAnimation.cpp
-    Asset/GLTF/GLTFLoader.cpp
     Asset/GLTF/GLTFMaterialBuilder.cpp
     Asset/GLTF/GLTFSkeleton.cpp
+    Asset/GLTF/GLTFLoader.cpp
     Asset/GLTF/GLTFAccessor.cpp
     Asset/GLTF/GLTFParser.cpp
     Asset/GLTF/GLTFTextureLoader.cpp
+    Asset/GLTF/GLTFMeshBuilder.cpp
     Asset/GLTF/GLTFGPUUploader.cpp
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanBootstrap.cpp
-    Runtime/VulkanGPUBuffer.cpp
-    Runtime/VulkanGPUTexture.cpp
     Runtime/VulkanOffscreen.cpp
-    Runtime/VulkanRenderPassManager.cpp
     Runtime/VulkanRenderCommandRecorder.cpp
+    Runtime/VulkanRenderPassManager.cpp
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanSwapchainManager.cpp
     Runtime/VulkanSyncPrimitives.cpp
+    Runtime/VulkanGPUBuffer.cpp
+    Runtime/VulkanGPUTexture.cpp
+    Core/Debug/MemoryTracker.cpp
+    Core/GPU/MeshStreamer.cpp
+    Core/GPU/TextureStreamer.cpp
     Runtime/VulkanDescriptorManager.cpp
+    Animation/SkeletalLocomotionMetadata.cpp
     Animation/SkinningGPU.cpp
     Rendering/RHI/Vulkan/VulkanRHI.cpp
     Runtime/VulkanGraphicsPipeline.cpp
     Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/Vulkan3DRenderer.cpp
+    Runtime/Vulkan3DBatch.cpp
+    Runtime/VulkanRenderer3D.cpp
+    Runtime/VulkanTextureUpload.cpp
+    Runtime/VulkanTexturedOffscreen.cpp
+    Runtime/TransformAnimationBinding.cpp
     Runtime/VulkanPresentProbe.cpp
+    Runtime/RendererCapability.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
@@ -134,13 +173,22 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/SceneECSBridge.cpp
     Animation/AnimationClip.cpp
+    Runtime/AnimationTimeline.cpp
+    Runtime/AnimationStateMachine.cpp
+    Runtime/FlipbookPlayback.cpp
+    Runtime/AnimationPlaybackControlBinding.cpp
+    Runtime/AnimationLocomotionBridge.cpp
+    Runtime/AnimationSpriteTintBinding.cpp
+    Runtime/PhysicsAnimationLocomotionBridge.cpp
     Animation/AnimationPlayer.cpp
     Animation/AnimationGraph.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
+    Runtime/MaterialImportPipeline.cpp
     Runtime/TextureStaging.cpp
     Runtime/TextureImportPipeline.cpp
+    Runtime/MeshImportPipeline.cpp
     Runtime/TinyObjLoader.cpp
     Runtime/ObjMeshImporter.cpp
     Runtime/MtlMaterialImporter.cpp
@@ -187,19 +235,10 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/UiCanvasRenderer.cpp
     Runtime/BitmapTextRenderer.cpp
     Runtime/UiLayoutResolver.cpp
+    Runtime/AuthoringCatalogVisualBinder.cpp
     Runtime/RouteRootMotionAdapter.cpp
+    Runtime/StreamManager.cpp
     Runtime/InputMotionBridge.cpp
-    Runtime/AnimationLocomotionBridge.cpp
-    Runtime/AnimationPlaybackControlBinding.cpp
-    Runtime/AnimationSpriteTintBinding.cpp
-    Runtime/AnimationStateMachine.cpp
-    Runtime/AnimationTimeline.cpp
-    Runtime/FlipbookFrameSelector.cpp
-    Runtime/FlipbookPlayback.cpp
-    Runtime/FlipbookRenderBridge.cpp
-    Runtime/TransformAnimationBinding.cpp
-    Runtime/PhysicsAnimationLocomotionBridge.cpp
-    Animation/SkeletalLocomotionMetadata.cpp
     Animation/SkeletalAnimationController.cpp
     Animation/SkeletalPoseClip.cpp
     Animation/Bone.cpp
@@ -207,11 +246,6 @@ set(XPBD_RUNTIME_SOURCES
     Animation/SkeletalPosePlayer.cpp
     Animation/Skeleton.cpp
     Animation/Skinning.cpp
-    Core/GPU/GPUBufferPool.cpp
-    Core/GPU/GPUMemoryBudget.cpp
-    Core/GPU/GPUTextureCache.cpp
-    Core/GPU/MeshStreamer.cpp
-    Core/GPU/TextureStreamer.cpp
     Systems/AuthorityLoopbackServer.cpp
     Systems/AuthoritativeCommandGate.cpp
     Systems/AuthorityWireProtocol.cpp
@@ -229,6 +263,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
+    AI/OpenCodeIntegration.cpp
     Systems/GridNavigation.cpp
     Systems/WorldAuthoring.cpp
     Systems/CurriculumSystem.cpp
@@ -243,23 +278,34 @@ set(XPBD_RUNTIME_SOURCES
     Threading/JobSystem.cpp
     Renderer/GPUDrivenRenderer.cpp
     Renderer/GPUFrustumCulling.cpp
-    Core/Debug/MemoryTracker.cpp
-    AI/OpenCodeIntegration.cpp
+    Renderer/ClusterRenderer/HierarchicalClusterRenderer.cpp
+    Renderer/Culling/GPUOcclusionCulling.cpp
+    Renderer/DynamicGI/DynamicGI.cpp
+    Renderer/GI/GlobalIllumination.cpp
+    Renderer/GITracing/GITracer.cpp
+    Renderer/Lighting/ClusterLighting.cpp
+    Renderer/MeshletRenderer.cpp
+    Renderer/Neural/NeuralRenderer.cpp
+    Renderer/Particles/GPUParticleSystem.cpp
+    Renderer/RayTracing/RayTracingRenderer.cpp
+    Renderer/Resources/BindlessResourceManager.cpp
+    Renderer/VirtualGeometry/VirtualGeometrySystem.cpp
 )
 
-if(ANDROID)
-    list(APPEND XPBD_RUNTIME_SOURCES AI/Gemma4Integration.cpp)
-endif()
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND XPBD_RUNTIME_SOURCES
+        Rendering/RHI/OpenGL/OpenGLRHI.cpp
+        Rendering/RHI/RHI.cpp
+        Rendering/Renderer/Renderer.cpp
+    )
+endif(    Core/GPU/GPUBufferPool.cpp
+    Core/GPU/GPUMemoryBudget.cpp
+    Core/GPU/GPUTextureCache.cpp
+)
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 
-# Keep canonical ECS/XPBD translation units explicit so smoke executables cannot
-# lose their non-template symbols through an incomplete runtime source manifest.
-target_sources(NeoEngineRuntime PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/ECS/ArchetypeManager.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Physics/V5/XPBDPhysicsSystem.cpp"
-)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(NeoEngineRuntime PRIVATE ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS} ${NEO_RAPIDJSON_INCLUDE_DIR})
 target_compile_definitions(NeoEngineRuntime PUBLIC
@@ -268,6 +314,9 @@ target_compile_definitions(NeoEngineRuntime PUBLIC
 )
 target_compile_options(NeoEngineRuntime PRIVATE ${JSONCPP_CFLAGS_OTHER})
 target_link_libraries(NeoEngineRuntime PUBLIC ${JSONCPP_LIBRARIES} Vulkan::Vulkan SDL3::SDL3 CURL::libcurl)
+if(NEO_GL_PLATFORM_LIBS)
+    target_link_libraries(NeoEngineRuntime PUBLIC ${NEO_GL_PLATFORM_LIBS})
+endif()
 if(ANDROID)
     target_link_libraries(NeoEngineRuntime PUBLIC log)
 endif()
@@ -286,40 +335,6 @@ function(add_xpbd_executable target_name source_file)
     # Release disables assert(); smoke targets must retain their executable contract checks.
     target_compile_options(${target_name} PRIVATE $<$<CONFIG:Release>:-UNDEBUG>)
 endfunction()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_playback_control_binding_smoke.cpp")
-    add_xpbd_executable(animation_playback_control_binding_smoke ../../Tests/Runtime/animation_playback_control_binding_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_state_machine_smoke.cpp")
-    add_xpbd_executable(animation_state_machine_smoke ../../Tests/Runtime/animation_state_machine_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_timeline_smoke.cpp")
-    add_xpbd_executable(animation_timeline_smoke ../../Tests/Runtime/animation_timeline_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp")
-    add_xpbd_executable(animation_locomotion_bridge_smoke ../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp")
-    add_xpbd_executable(animation_sprite_tint_binding_smoke ../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_import_pipeline_smoke.cpp")
-    add_xpbd_executable(texture_import_pipeline_smoke ../../Tests/Runtime/texture_import_pipeline_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_import_pipeline_smoke.cpp")
-    add_xpbd_executable(mesh_import_pipeline_smoke ../../Tests/Runtime/mesh_import_pipeline_smoke.cpp)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_streamer_smoke.cpp")
-    add_xpbd_executable(mesh_streamer_smoke ../../Tests/Runtime/mesh_streamer_smoke.cpp)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_streamer_smoke.cpp")
-    add_xpbd_executable(texture_streamer_smoke ../../Tests/Runtime/texture_streamer_smoke.cpp)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gltf_asset_components_smoke.cpp")
-    add_xpbd_executable(gltf_asset_components_smoke ../../Tests/Runtime/gltf_asset_components_smoke.cpp)
-endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
     add_xpbd_executable(canonical_runtime_world_smoke ../../Tests/Runtime/canonical_runtime_world_smoke.cpp)
@@ -348,6 +363,48 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(farm_vulkan_textured_present_smoke ../../Tests/Runtime/farm_vulkan_textured_present_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_playback_control_binding_smoke.cpp")
+    add_xpbd_executable(animation_playback_control_binding_smoke ../../Tests/Runtime/animation_playback_control_binding_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_state_machine_smoke.cpp")
+    add_xpbd_executable(animation_state_machine_smoke ../../Tests/Runtime/animation_state_machine_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_timeline_smoke.cpp")
+    add_xpbd_executable(animation_timeline_smoke ../../Tests/Runtime/animation_timeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp")
+    add_xpbd_executable(animation_locomotion_bridge_smoke ../../Tests/Runtime/animation_locomotion_bridge_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp")
+    add_xpbd_executable(animation_sprite_tint_binding_smoke ../../Tests/Runtime/animation_sprite_tint_binding_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_import_pipeline_smoke.cpp")
+    add_xpbd_executable(texture_import_pipeline_smoke ../../Tests/Runtime/texture_import_pipeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_import_pipeline_smoke.cpp")
+    add_xpbd_executable(mesh_import_pipeline_smoke ../../Tests/Runtime/mesh_import_pipeline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/mesh_streamer_smoke.cpp")
+    add_xpbd_executable(mesh_streamer_smoke ../../Tests/Runtime/mesh_streamer_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/texture_streamer_smoke.cpp")
+    add_xpbd_executable(texture_streamer_smoke ../../Tests/Runtime/texture_streamer_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gltf_asset_components_smoke.cpp")
+    add_xpbd_executable(gltf_asset_components_smoke ../../Tests/Runtime/gltf_asset_components_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gltf_asset_contract_smoke.cpp")
+    add_xpbd_executable(gltf_asset_contract_smoke ../../Tests/Runtime/gltf_asset_contract_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/item_serial_tracker_smoke.cpp")
+    add_xpbd_executable(item_serial_tracker_smoke ../../Tests/Runtime/item_serial_tracker_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/memory_tracker_smoke.cpp")
+    add_xpbd_executable(memory_tracker_smoke ../../Tests/Runtime/memory_tracker_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/opencode_integration_smoke.cpp")
+    add_xpbd_executable(opencode_integration_smoke ../../Tests/Runtime/opencode_integration_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/animation_graph_smoke.cpp")
     add_xpbd_executable(animation_graph_smoke ../../Tests/Runtime/animation_graph_smoke.cpp)
 endif()
@@ -356,9 +413,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gpu_skinning_palette_
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/skinning_gpu_smoke.cpp")
     add_xpbd_executable(skinning_gpu_smoke ../../Tests/Runtime/skinning_gpu_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/vulkan_rhi_smoke.cpp")
-    add_xpbd_executable(vulkan_rhi_smoke ../../Tests/Rendering/vulkan_rhi_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
@@ -376,9 +430,16 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
     add_xpbd_executable(vulkan_sync_primitives_smoke ../../Tests/Runtime/vulkan_sync_primitives_smoke.cpp)
     add_xpbd_executable(vulkan_textured_present_smoke ../../Tests/Runtime/vulkan_textured_present_smoke.cpp)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/vulkan_rhi_smoke.cpp")
+    add_xpbd_executable(vulkan_rhi_smoke ../../Tests/Rendering/vulkan_rhi_smoke.cpp)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/opengl_renderer_smoke.cpp")
+    add_xpbd_executable(opengl_renderer_smoke ../../Tests/Rendering/opengl_renderer_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp")
     add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
 endif()
+
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")
     add_xpbd_executable(r3_gpu_indirect_10k_execution_smoke Tests/r3_gpu_indirect_10k_execution_smoke.cpp)
@@ -430,15 +491,6 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smoke.cpp")
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
 endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/item_serial_tracker_smoke.cpp")
-    add_xpbd_executable(item_serial_tracker_smoke ../../Tests/Runtime/item_serial_tracker_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/memory_tracker_smoke.cpp")
-    add_xpbd_executable(memory_tracker_smoke ../../Tests/Runtime/memory_tracker_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/opencode_integration_smoke.cpp")
-    add_xpbd_executable(opencode_integration_smoke ../../Tests/Runtime/opencode_integration_smoke.cpp)
-endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_canonical_game_tool_smoke.cpp")
     add_xpbd_executable(farm_canonical_game_tool_smoke ../../Tests/Farm/farm_canonical_game_tool_smoke.cpp)
@@ -466,13 +518,24 @@ endif()
 
 message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
 
-add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
-add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
-add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence_recovery_100_smoke.cpp)
-add_xpbd_executable(r9_live_ops_telemetry_100_smoke ../../Tests/r9_live_ops_telemetry_100_smoke.cpp)
-add_xpbd_executable(r10_security_privacy_100_smoke ../../Tests/r10_security_privacy_100_smoke.cpp)
-add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehensive_engine_verification_smoke.cpp)
-
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/r6_anti_cheat_100_smoke.cpp")
+    add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/r7_economy_commerce_100_smoke.cpp")
+    add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/r8_persistence_recovery_100_smoke.cpp")
+    add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence_recovery_100_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/r9_live_ops_telemetry_100_smoke.cpp")
+    add_xpbd_executable(r9_live_ops_telemetry_100_smoke ../../Tests/r9_live_ops_telemetry_100_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/r10_security_privacy_100_smoke.cpp")
+    add_xpbd_executable(r10_security_privacy_100_smoke ../../Tests/r10_security_privacy_100_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/comprehensive_engine_verification_smoke.cpp")
+    add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehensive_engine_verification_smoke.cpp)
+endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_telemetry_smoke.cpp")
     add_xpbd_executable(farm_telemetry_smoke ../../Tests/Farm/farm_telemetry_smoke.cpp)
 endif()

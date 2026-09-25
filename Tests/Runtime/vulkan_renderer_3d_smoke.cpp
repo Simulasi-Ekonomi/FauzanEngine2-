@@ -54,7 +54,11 @@ int main() {
     TEST_CHECK(renderer.BeginFrame(), "BeginFrame failed");
     TEST_CHECK(!renderer.UploadSkinningPalette({}), "Empty skinning palette must be rejected");
     TEST_CHECK(renderer.UploadSkinningPalette(palette), "UploadSkinningPalette failed");
-    TEST_CHECK(renderer.DrawIndexed(skinnedVertices, indices, identity.data()), "DrawIndexed with GPU skinning failed");
+    if (!renderer.DrawIndexed(skinnedVertices, indices, identity.data())) {
+        std::cerr << "[TEST FAIL] DrawIndexed with GPU skinning failed; renderer error="
+                  << static_cast<int>(renderer.LastError()) << "\n";
+        return 1;
+    }
     TEST_CHECK(renderer.EndFrame(), "EndFrame failed");
     std::vector<uint8_t> firstFrame;
     TEST_CHECK(renderer.ReadbackLastFrame(firstFrame), "First presented-frame readback failed");

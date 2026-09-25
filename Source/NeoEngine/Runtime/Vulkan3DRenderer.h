@@ -52,6 +52,8 @@ public:
     bool BeginFrame(float clearR = 0.05F, float clearG = 0.05F, float clearB = 0.07F, float clearA = 1.0F);
     bool DrawIndexed(std::span<const Vulkan3DVertex> vertices, std::span<const uint32_t> indices,
                      const float* modelViewProjection4x4);
+    bool DrawIndexedSkinned(std::span<const Vulkan3DVertex> vertices, std::span<const uint32_t> indices,
+                            const float* modelViewProjection4x4, const float* model4x4);
 
     // R3: uploads one mesh once and renders it with N GPU instance transforms in one draw call.
     // Matrices are contiguous row-major 4x4 transforms (16 floats each).

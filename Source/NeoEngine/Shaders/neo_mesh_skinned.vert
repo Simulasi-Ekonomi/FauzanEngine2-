@@ -16,34 +16,30 @@ layout(set = 0, binding = 0, std140) uniform SkinningPalette {
 
 layout(push_constant) uniform Transform {
     mat4 mvp;
+    mat4 model;
 } transform;
 
 layout(location = 0) out vec3 outWorldPosition;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec2 outUV;
 
-uint ClampBoneIndex(uint index) {
-    return min(index, 63u);
-}
-
 void main() {
-    float weightSum = boneWeights.x + boneWeights.y + boneWeights.z + boneWeights.w;
-    mat4 skin = mat4(1.0);
-    if (weightSum > 0.000001) {
-        skin = mat4(0.0);
-        skin += skinning.bones[ClampBoneIndex(boneIndices.x)] * boneWeights.x;
-        skin += skinning.bones[ClampBoneIndex(boneIndices.y)] * boneWeights.y;
-        skin += skinning.bones[ClampBoneIndex(boneIndices.z)] * boneWeights.z;
-        skin += skinning.bones[ClampBoneIndex(boneIndices.w)] * boneWeights.w;
-    }
-
     mat4 instanceTransform = mat4(instanceM0, instanceM1, instanceM2, instanceM3);
-    vec4 skinnedPosition = skin * vec4(inPosition, 1.0);
-    vec3 skinnedNormal = normalize(mat3(skin) * inNormal);
-    vec4 worldPosition = instanceTransform * skinnedPosition;
-
+    float weightSum = boneWeights.x + boneWeights.y + boneWeights.z + boneWeights.w;
+    mat4 skinMatrix = mat4(1.0);
+    if (weightSum > 0.000001) {
+        skinMatrix =
+            skinning.bones[min(boneIndices.x, 63u)] * boneWeights.x +
+            skinning.bones[min(boneIndices.y, 63u)] * boneWeights.y +
+            skinning.bones[min(boneIndices.z, 63u)] * boneWeights.z +
+            skinning.bones[min(boneIndices.w, 63u)] * boneWeights.w;
+    }
+    vec4 skinnedPosition = skinMatrix * vec4(inPosition, 1.0);
+    vec3 skinnedNormal = mat3(skinMatrix) * inNormal;
+    mat4 worldMatrix = transform.model * instanceTransform;
+    vec4 worldPosition = worldMatrix * skinnedPosition;
     gl_Position = transform.mvp * worldPosition;
     outWorldPosition = worldPosition.xyz;
-    outNormal = normalize(mat3(instanceTransform) * skinnedNormal);
+    outNormal = normalize(mat3(worldMatrix) * skinnedNormal);
     outUV = inUV;
 }
