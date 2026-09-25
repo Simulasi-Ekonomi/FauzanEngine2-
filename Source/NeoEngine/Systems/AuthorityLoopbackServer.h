@@ -26,7 +26,7 @@ public:
     AuthorityLoopbackServer(const AuthorityLoopbackServer&) = delete;
     AuthorityLoopbackServer& operator=(const AuthorityLoopbackServer&) = delete;
 
-    bool Start(AuthoritativeCommandGate& gate, uint64_t serverTick, Handler handler);
+    bool Start(AuthoritativeCommandGate& gate, uint64_t serverTick, Handler handler, uint16_t maxConnections = 1U);
     bool Start(Dispatcher dispatcher, SnapshotBuilder snapshotBuilder, uint16_t maxConnections = 1U);
     void Stop();
 
