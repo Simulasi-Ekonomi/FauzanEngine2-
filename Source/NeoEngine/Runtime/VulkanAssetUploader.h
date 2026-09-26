@@ -91,6 +91,11 @@ public:
     // residency before the runtime stream bridge has an authoritative GPU result.
     void SetUploadCompletionCallback(UploadCompletionCallback callback) noexcept;
     void AdvanceFrame(VkDevice device) noexcept;
+    // Discards uploads recorded into a command buffer that was never submitted.
+    // No GPU completion fence exists in this path, so tracked resources are
+    // cancelled immediately and staging allocations are released while the device
+    // is still valid.
+    void DiscardUnsubmitted(VkDevice device) noexcept;
     void Flush(VkDevice device) noexcept;
 
     [[nodiscard]] uint32_t GetStagingPoolSizeMB() const noexcept { return stagingPoolSizeMB_; }
