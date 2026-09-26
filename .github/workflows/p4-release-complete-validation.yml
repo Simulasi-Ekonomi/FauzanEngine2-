@@ -54,6 +54,37 @@ jobs:
         with:
           gradle-version: '8.4'
 
+      - name: Install native engine validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev mesa-vulkan-drivers libjsoncpp-dev libglm-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+
+      - name: Install SDL3 for canonical engine validation
+        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        with:
+          version: 3.4.16
+          install-linux-dependencies: true
+
+      - name: Configure and run canonical engine Release integration smoke
+        env:
+          SDL_VIDEODRIVER: x11
+          SDL_AUDIODRIVER: dummy
+        run: |
+          cmake -S Source/NeoEngine -B build/p4-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/p4-release --target comprehensive_engine_verification_smoke -j2
+          xvfb-run -a ./build/p4-release/comprehensive_engine_verification_smoke
+
+      - name: Configure and run canonical engine ASAN+UBSAN integration smoke
+        env:
+          SDL_VIDEODRIVER: x11
+          SDL_AUDIODRIVER: dummy
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          cmake -S Source/NeoEngine -B build/p4-asan -G Ninja             -DCMAKE_BUILD_TYPE=RelWithDebInfo             '-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer'             '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined'
+          cmake --build build/p4-asan --target comprehensive_engine_verification_smoke -j2
+          xvfb-run -a ./build/p4-asan/comprehensive_engine_verification_smoke
+
       - name: Build debug APK
         run: |
           cd android
