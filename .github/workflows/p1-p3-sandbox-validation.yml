@@ -1,0 +1,191 @@
+name: P1 sandbox validation — CMake + Release 81/81 + ASAN 81/81
+
+on:
+  push:
+    branches:
+      - p1-renderer-asset-animation-night
+  pull_request:
+    branches:
+      - sandbox-p1-unreal-parity-validation
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/**'
+      - 'FauzanEngine/backend/**'
+      - 'Source/NeoEngine/CMakeLists.txt'
+      - 'BRANCH_STATUS.md'
+      - 'docs/R5_ASSET_STREAMING_PLAN.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SDL_VIDEODRIVER: x11
+  SDL_AUDIODRIVER: dummy
+
+jobs:
+  release-asan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev mesa-vulkan-drivers libegl1-mesa-dev libgles2-mesa-dev libjsoncpp-dev rapidjson-dev libglm-dev libcurl4-openssl-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+          test -f /usr/include/rapidjson/document.h
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@30cb786f3595c27d05018cd374b679f2313c59d3
+        with:
+          version: 3.4.16
+          install-linux-dependencies: true
+      - name: Verify SDL3-only source and compatibility shims
+        run: |
+          if grep -RInE '#include <SDL\.h>|#include <SDL_vulkan\.h>|SDL2::|find_package\(SDL2|SDL_WINDOWPOS_|SDL_WINDOWEVENT|SDL_CONTROLLER|SDL_RenderCopy\(|SDL_RENDERER_SOFTWARE|AUDIO_S16SYS' Source Tests --include='*.cpp' --include='*.h'; then
+            echo 'Stale SDL2 API detected.'
+            exit 1
+          fi
+          test ! -e Source/NeoEngine/SDL.h
+          test ! -e Source/NeoEngine/SDL_vulkan.h
+      - name: Configure Release
+        run: cmake -S Source/NeoEngine -B build/p1-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include
+      - name: Build Release 81/81 target set
+        run: |
+          cmake --build build/p1-release --target all -j2
+      - name: Define exact P1 81-target manifest
+        run: |
+          cat > /tmp/p1_targets.raw <<'EOF'
+          animation_playback_control_binding_smoke
+          animation_state_machine_smoke
+          animation_timeline_smoke
+          animation_locomotion_bridge_smoke
+          animation_sprite_tint_binding_smoke
+          texture_import_pipeline_smoke
+          mesh_import_pipeline_smoke
+          mesh_streamer_smoke
+          texture_streamer_smoke
+          gltf_asset_components_smoke
+          gltf_asset_contract_smoke
+          canonical_runtime_world_smoke
+          neo_runtime_ecs_integration_smoke
+          runtime_frame_contract_smoke
+          asset_streaming_queue_smoke
+          runtime_asset_stream_bridge_smoke
+          neo_runtime_asset_stream_smoke
+          stream_manager_async_file_smoke
+          gameplay_physics_query_smoke
+          gltf_mesh_builder_smoke
+          gltf_gpu_uploader_smoke
+          vulkan_asset_uploader_smoke
+          asset_resource_manager_smoke
+          farm_vulkan_textured_present_smoke
+          animation_graph_smoke
+          neo_runtime_scene_animation_smoke
+          gpu_skinning_palette_buffer_smoke
+          skinning_gpu_smoke
+          vulkan_rhi_smoke
+          vulkan_bootstrap_smoke
+          vulkan_descriptor_manager_smoke
+          vulkan_gpu_buffer_smoke
+          vulkan_gpu_texture_smoke
+          vulkan_graphics_pipeline_smoke
+          vulkan_mesh_buffer_builder_smoke
+          vulkan_offscreen_smoke
+          vulkan_render_command_recorder_smoke
+          vulkan_render_pass_manager_smoke
+          vulkan_renderer_3d_smoke
+          vulkan_shader_smoke
+          vulkan_swapchain_manager_smoke
+          vulkan_sync_primitives_smoke
+          vulkan_textured_present_smoke
+          scene_vulkan_render_adapter_smoke
+          r3_gpu_indirect_10k_execution_smoke
+          r3_gpu_indirect_capacity_smoke
+          gpu_driven_renderer_smoke
+          vulkan_mesh_indirect_batch_smoke
+          vulkan_mesh_indirect_batch_gpu_smoke
+          pbr_material_smoke
+          pbr_lighting_smoke
+          pbr_ibl_smoke
+          pbr_render_pipeline_smoke
+          pbr_environment_smoke
+          pbr_environment_descriptor_smoke
+          shader_library_smoke
+          sdl_audio_bridge_smoke
+          audio_mixer_smoke
+          sdl_input_bridge_smoke
+          input_state_smoke
+          ui_input_router_smoke
+          audio_subsystem_smoke
+          editor_subsystem_smoke
+          item_serial_tracker_smoke
+          memory_tracker_smoke
+          opencode_integration_smoke
+          farm_canonical_game_tool_smoke
+          neo_runtime_farm_vertical_slice_smoke
+          farm_authoritative_session_loopback_smoke
+          authority_loopback_transport_smoke
+          farm_commerce_entitlement_smoke
+          farm_commerce_checkpoint_smoke
+          farm_authoritative_service_smoke
+          r6_anti_cheat_100_smoke
+          r7_economy_commerce_100_smoke
+          r8_persistence_recovery_100_smoke
+          r9_live_ops_telemetry_100_smoke
+          r10_security_privacy_100_smoke
+          comprehensive_engine_verification_smoke
+          farm_telemetry_smoke
+          opengl_renderer_smoke
+          EOF
+          sed -E 's/^[[:space:]]+//' /tmp/p1_targets.raw > /tmp/p1_targets.txt
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 81
+      - name: Run Release 81/81
+        run: |
+          pass=0
+          fail=0
+          : > /tmp/p1_release_failures.txt
+          while IFS= read -r t; do
+            echo "RUN RELEASE $t"
+            if xvfb-run -a "./build/p1-release/$t"; then
+              pass=$((pass+1))
+            else
+              fail=$((fail+1))
+              echo "$t" | tee -a /tmp/p1_release_failures.txt
+            fi
+          done < /tmp/p1_targets.txt
+          echo "P1 RELEASE: pass=$pass fail=$fail total=81"
+          if test "$fail" -ne 0; then
+            echo "FAILED RELEASE TARGETS:"
+            cat /tmp/p1_release_failures.txt
+          fi
+          test "$pass" -eq 81
+          test "$fail" -eq 0
+      - name: Configure ASAN 81/81
+        run: |
+          cmake -S Source/NeoEngine -B build/p1-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include \
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined'
+      - name: Build ASAN 81/81 target set
+        run: |
+          cmake --build build/p1-asan --target all -j2
+          while IFS= read -r t; do
+            ninja -C build/p1-asan -t query "$t" >/dev/null
+          done < /tmp/p1_targets.txt
+          echo "ASAN manifest targets resolved: $(wc -l < /tmp/p1_targets.txt)"
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 81
+      - name: Run ASAN 81/81 — final sandbox gate
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+          LSAN_OPTIONS: suppressions=.github/asan/third_party_sdl_x11.lsan.supp
+        run: |
+          pass=0
+          fail=0
+          while IFS= read -r t; do
+            echo "RUN ASAN $t"
+            if xvfb-run -a "./build/p1-asan/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
+          done < /tmp/p1_targets.txt
+          echo "P1 ASAN: pass=$pass fail=$fail total=81"
+          test "$pass" -eq 81
+          test "$fail" -eq 0

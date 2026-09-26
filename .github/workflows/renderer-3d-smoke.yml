@@ -5,6 +5,11 @@ on:
     paths:
       - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Runtime/BmpTexture.*'
+      - 'Source/NeoEngine/Runtime/PpmTexture.*'
+      - 'Source/NeoEngine/Runtime/StreamManager.*'
+      - 'Source/NeoEngine/Runtime/AssetStreamingQueue.*'
+      - 'Source/NeoEngine/Runtime/RuntimeAssetStreamBridge.*'
       - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
       - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
       - 'Source/NeoEngine/Runtime/VulkanRenderCommandRecorder.*'
@@ -51,8 +56,8 @@ jobs:
 
       - name: Build and install SDL3
         run: |
-          SDL_VERSION=3.4.14
-          SDL_SHA256=30d4aa2b3037718142b32dffd4e72f917ebb6cc5227150e7bb9c45efb2153aeb
+          SDL_VERSION=3.4.16
+          SDL_SHA256=7322236cd12090c3eb40b9728be4d49c76f66ad17d04369584d4ecad5cf77c68
           curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" -o /tmp/SDL3.tar.gz
           echo "${SDL_SHA256}  /tmp/SDL3.tar.gz" | sha256sum -c -
           tar -xzf /tmp/SDL3.tar.gz -C /tmp
@@ -72,6 +77,7 @@ jobs:
         working-directory: Source/NeoEngine
         run: |
           glslangValidator -V Shaders/neo_mesh.vert -o Shaders/neo_mesh.vert.spv
+          glslangValidator -V Shaders/neo_mesh_skinned.vert -o Shaders/neo_mesh_skinned.vert.spv
           glslangValidator -V Shaders/neo_mesh.frag -o Shaders/neo_mesh.frag.spv
 
       - name: Build smoke executables
@@ -80,6 +86,16 @@ jobs:
           g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \
             -I. -I../../ \
             Runtime/Vulkan3DRenderer.cpp \
+            Runtime/VulkanAssetUploader.cpp \
+            Runtime/VulkanGPUBuffer.cpp \
+            Runtime/AssetResourceManager.cpp \
+            Runtime/AssetRegistry.cpp \
+            Runtime/AssetStreamingQueue.cpp \
+            Runtime/StreamManager.cpp \
+            Runtime/RuntimeAssetStreamBridge.cpp \
+            Runtime/PpmTexture.cpp \
+            Runtime/BmpTexture.cpp \
+            Animation/GPUSkinningPaletteBuffer.cpp \
             Tests/vulkan_3d_renderer_smoke.cpp \
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
             $(pkg-config --cflags --libs sdl3) -lvulkan \

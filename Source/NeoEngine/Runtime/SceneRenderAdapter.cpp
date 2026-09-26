@@ -139,10 +139,9 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
     }
-
-    if (skeletalPalette != nullptr && !skeletalPalette->empty() && !renderer.UploadSkinningPalette(*skeletalPalette)) {
+    if (!renderer.PumpAssetStreamUploads()) {
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
-        renderer.EndFrame();
+        (void)renderer.EndFrame();
         return false;
     }
 
@@ -162,11 +161,17 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         std::vector<Vulkan3DVertex> vertices;
         vertices.reserve(instance.vertices.size());
         for (const MeshVertex& vertex : instance.vertices) {
-            const RenderPoint3 position = TransformPoint(model, vertex.position);
-            const RenderPoint3 normal = TransformDirection(model, vertex.normal);
+            const RenderPoint3 position = vertex.position;
+            const RenderPoint3 normal = Normalize(vertex.normal);
             Vulkan3DVertex gpuVertex{position.x, position.y, position.z, normal.x, normal.y, normal.z, vertex.u, vertex.v};
             gpuVertex.boneIndices = vertex.boneIndices;
             gpuVertex.boneWeights = vertex.boneWeights;
+            const uint32_t rgba = instance.material.rgba;
+            gpuVertex.materialColor = {
+                static_cast<float>((rgba >> 16U) & 0xFFU) / 255.0F,
+                static_cast<float>((rgba >> 8U) & 0xFFU) / 255.0F,
+                static_cast<float>(rgba & 0xFFU) / 255.0F,
+                static_cast<float>((rgba >> 24U) & 0xFFU) / 255.0F};
             vertices.push_back(gpuVertex);
         }
 
@@ -181,7 +186,31 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             indices.push_back(static_cast<uint32_t>(index));
         }
 
-        if (!renderer.DrawIndexed(vertices, indices, viewProjection.m)) {
+        if (!instance.skeletalPalette.empty()) {
+            if (!renderer.UploadSkinningPalette(instance.skeletalPalette)) {
+                lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+                renderer.EndFrame();
+                return false;
+            }
+        } else if (skeletalPalette != nullptr && !skeletalPalette->empty()) {
+            if (!renderer.UploadSkinningPalette(*skeletalPalette)) {
+                lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+                renderer.EndFrame();
+                return false;
+            }
+        } else if (!renderer.UseDefaultSkinningPalette()) {
+            lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+            renderer.EndFrame();
+            return false;
+        }
+        if (!instance.sourceTextureAssetId.empty() &&
+            renderer.IsStreamedTextureReady(instance.sourceTextureAssetId) &&
+            !renderer.BindStreamedTexture(instance.sourceTextureAssetId)) {
+            lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+            renderer.EndFrame();
+            return false;
+        }
+        if (!renderer.DrawIndexedSkinned(vertices, indices, Multiply(viewProjection, model).m, model.m)) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
             return false;

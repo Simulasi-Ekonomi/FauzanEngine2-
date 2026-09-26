@@ -44,7 +44,9 @@ bool NeoRuntime::RenderScene3D() {
         if (!m_VulkanRenderer->Initialize(
                 width,
                 height,
-                "FauzanEngine 3D")) {
+                "FauzanEngine 3D") ||
+            m_AssetStreamBridge == nullptr ||
+            !m_VulkanRenderer->BindAssetStreamBridge(*m_AssetStreamBridge)) {
             m_VulkanRenderer.reset();
             m_LastError = RuntimeError::Vulkan3DRenderFailed;
             return false;

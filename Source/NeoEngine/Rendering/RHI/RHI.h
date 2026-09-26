@@ -1,11 +1,12 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 
 namespace NeoEngine {
 
 struct RHIBuffer {
     uint32_t handle = 0;
-    size_t size = 0;
+    std::size_t size = 0;
 };
 
 struct RHIMesh {
@@ -20,8 +21,8 @@ public:
     bool Initialize();
     void Shutdown();
 
-    RHIBuffer CreateVertexBuffer(const void* data, size_t size);
-    RHIBuffer CreateIndexBuffer(const void* data, size_t size);
+    RHIBuffer CreateVertexBuffer(const void* data, std::size_t size);
+    RHIBuffer CreateIndexBuffer(const void* data, std::size_t size);
     void DestroyBuffer(RHIBuffer& buffer);
 
     void BeginFrame();

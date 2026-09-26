@@ -24,6 +24,34 @@ int main() {
     if (!resources.Acquire("material.crop", materialHandle) || materialHandle.generation == 0U || resources.ActiveResourceCount() != 3U || resources.TotalLeaseCount() != 3U || resources.ActiveLeaseCount() != 1U) return 2;
     AssetResourceReceipt materialReceipt{};
     if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.assetId != "material.crop" || materialReceipt.refCount != 1U || materialReceipt.dependencyCount != 2U || materialReceipt.resourceGeneration == 0U || resources.Data(materialHandle) == nullptr) return 3;
+    if (materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U || !resources.BeginGpuUpload(materialHandle)) return 3;
+    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 1U) return 3;
+    if (resources.Release(materialHandle) || resources.LastError() != AssetResourceError::GpuUploadPending) return 3;
+    uint16_t gpuPinnedEvictions = 999U;
+    if (!resources.EvictUnleased(gpuPinnedEvictions) || gpuPinnedEvictions != 0U || resources.LastError() != AssetResourceError::None) return 3;
+    if (!resources.BeginGpuUpload(materialHandle)) return 3;
+    if (!resources.BeginGpuUpload(materialHandle)) return 3;
+    if (!resources.CompleteGpuUpload(materialHandle)) return 3;
+    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 1U) return 3;
+    if (!resources.CompleteGpuUpload(materialHandle)) return 3;
+    if (!resources.Query(materialHandle, materialReceipt) || !materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
+
+    const uint64_t residentHashBeforeRefresh = materialReceipt.contentHash;
+    assert(resources.BeginGpuRefresh(materialHandle));
+    assert(resources.Query(materialHandle, materialReceipt) &&
+           materialReceipt.gpuResident && materialReceipt.gpuUploadsInFlight == 1U);
+    assert(resources.Release(materialHandle) == false &&
+           resources.LastError() == AssetResourceError::GpuUploadPending);
+    assert(registry.ReplaceBytes("material.crop", {19U, 18U, 17U}));
+    const AssetDefinition* refreshedDefinition = registry.Find("material.crop");
+    assert(refreshedDefinition != nullptr && refreshedDefinition->contentHash != residentHashBeforeRefresh);
+    assert(resources.CompleteGpuRefresh(materialHandle, refreshedDefinition->contentHash));
+    assert(resources.Query(materialHandle, materialReceipt) &&
+           materialReceipt.gpuResident && materialReceipt.gpuUploadsInFlight == 0U &&
+           materialReceipt.contentHash == refreshedDefinition->contentHash &&
+           materialReceipt.hotReloadGeneration > 0U);
+    if (!resources.BeginGpuUpload(materialHandle) || !resources.CancelGpuUpload(materialHandle)) return 3;
+    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
     AssetResourceHandle materialHandle2{};
     if (!resources.Acquire("material.crop", materialHandle2) || materialHandle2.slot == materialHandle.slot || materialHandle2.generation == 0U || resources.TotalLeaseCount() != 6U || resources.ActiveLeaseCount() != 2U || !resources.Query(materialHandle, materialReceipt) || materialReceipt.refCount != 2U) return 4;
     AssetResourceReceipt textureReceipt{};

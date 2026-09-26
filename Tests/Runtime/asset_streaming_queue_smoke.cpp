@@ -38,19 +38,79 @@ int main() {
     assert(queue.Enqueue(low));
     assert(queue.Enqueue(high));
     assert(!queue.Enqueue(invalid));
-    assert(queue.GetQueuedCount() == 2);
     assert(queue.GetAssetCount() == 2);
 
+    assert(!queue.CancelPending(""));
+    assert(queue.CancelPending("low"));
+    assert(!queue.CancelPending("low"));
+    assert(queue.GetQueuedCount() == 1);
+    assert(queue.GetAssetCount() == 1);
+    assert(queue.Enqueue(low));
+
     StreamRequest next{};
+    // File I/O completion can arrive out of priority order. The targeted handoff
+    // must transition that asset without stealing a different queued request.
+    StreamRequest outOfOrder{};
+    assert(queue.BeginUpload("low", outOfOrder));
+    assert(outOfOrder.id == "low");
+    assert(queue.GetState("low") == StreamState::Uploading);
+    assert(queue.GetQueuedCount() == 1);
+    assert(queue.GetState("high") == StreamState::Pending);
+    assert(queue.FailUpload("low"));
+    assert(queue.GetQueuedCount() == 1);
+    // GPU ownership must be explicit; an upload without a release owner is rejected.
+    AssetStreamingQueue ownershipRequiredQueue(8, 8);
+    assert(ownershipRequiredQueue.Enqueue(StreamRequest{"unowned", "unowned.obj", 1.0f, 1, 1}));
+    assert(ownershipRequiredQueue.TryDequeue(next));
+    assert(!ownershipRequiredQueue.CompleteUpload("unowned", FakeDeviceMemory(99), 1));
+    assert(ownershipRequiredQueue.GetState("unowned") == StreamState::Uploading);
+    assert(ownershipRequiredQueue.FailUpload("unowned"));
     assert(queue.TryDequeue(next));
     assert(next.id == "high");
     assert(queue.GetState("high") == StreamState::Uploading);
     assert(!queue.IsReady("high"));
+    assert(!queue.CancelPending("high"));
 
     assert(queue.CompleteUpload("high", FakeDeviceMemory(1), 3));
     assert(queue.IsReady("high"));
     assert(queue.GetMemory("high") == FakeDeviceMemory(1));
     assert(queue.GetResidentMB() == 3);
+
+    AssetStreamingQueue refreshQueue(8, 8);
+    std::vector<VkDeviceMemory> refreshReleased;
+    refreshQueue.SetGpuMemoryReleaseCallback([&refreshReleased](VkDeviceMemory memory) {
+        refreshReleased.push_back(memory);
+    });
+    assert(refreshQueue.Enqueue(StreamRequest{"refresh", "refresh.obj", 2.0f, 2, 1}));
+    assert(refreshQueue.TryDequeue(next));
+    assert(next.id == "refresh");
+    assert(refreshQueue.CompleteUpload("refresh", FakeDeviceMemory(21), 2));
+    assert(refreshQueue.BeginRefresh(StreamRequest{"refresh", "refresh-new.obj", 5.0f, 3, 1}));
+    assert(refreshQueue.IsRefreshing("refresh"));
+    assert(refreshQueue.GetResidentMB() == 2);
+    assert(!refreshQueue.Release("refresh"));
+
+    AssetStreamingQueue::GpuMemoryReleaseCallback oldRefreshOwner;
+    VkDeviceMemory oldRefreshMemory = VK_NULL_HANDLE;
+    assert(refreshQueue.CompleteRefreshUpload(
+        "refresh", FakeDeviceMemory(22), 3,
+        [&refreshReleased](VkDeviceMemory memory) { refreshReleased.push_back(memory); },
+        oldRefreshOwner, oldRefreshMemory));
+    assert(refreshQueue.IsReady("refresh"));
+    assert(refreshQueue.GetMemory("refresh") == FakeDeviceMemory(22));
+    assert(refreshQueue.GetResidentMB() == 3);
+    assert(oldRefreshMemory == FakeDeviceMemory(21));
+    assert(refreshReleased.empty());
+    assert(oldRefreshOwner);
+    oldRefreshOwner(oldRefreshMemory);
+    assert(refreshReleased.size() == 1 && refreshReleased[0] == FakeDeviceMemory(21));
+
+    assert(refreshQueue.BeginRefresh(StreamRequest{"refresh", "refresh-failed.obj", 4.0f, 3, 1}));
+    assert(refreshQueue.IsRefreshing("refresh"));
+    assert(refreshQueue.FailUpload("refresh"));
+    assert(refreshQueue.IsReady("refresh"));
+    assert(refreshQueue.GetMemory("refresh") == FakeDeviceMemory(22));
+    assert(refreshQueue.GetResidentMB() == 3);
 
     assert(queue.TryDequeue(next));
     assert(next.id == "low");

@@ -27,6 +27,7 @@ bool VulkanRHI::Init(void* nativeWindow, int w, int h, const char* appName) {
     if (m_Initialized) return true;
     if (nativeWindow == nullptr || w <= 0 || h <= 0 || appName == nullptr || std::strlen(appName) == 0) return false;
     auto* window = static_cast<SDL_Window*>(nativeWindow);
+    m_Window = window;
     if (SDL_WasInit(SDL_INIT_VIDEO) == 0 && !SDL_Init(SDL_INIT_VIDEO)) return false;
     unsigned extensionCount = 0;
     const char* const* sdlExtensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
@@ -140,8 +141,9 @@ void VulkanRHI::DestroySwapchainResources() {
     if (m_Device == VK_NULL_HANDLE) return; if (m_InFlight != VK_NULL_HANDLE) vkDestroyFence(m_Device, m_InFlight, nullptr); if (m_RenderFinished != VK_NULL_HANDLE) vkDestroySemaphore(m_Device, m_RenderFinished, nullptr); if (m_ImageAvailable != VK_NULL_HANDLE) vkDestroySemaphore(m_Device, m_ImageAvailable, nullptr); if (m_CommandPool != VK_NULL_HANDLE) vkDestroyCommandPool(m_Device, m_CommandPool, nullptr); for (auto fb : m_Framebuffers) if (fb != VK_NULL_HANDLE) vkDestroyFramebuffer(m_Device, fb, nullptr); if (m_RenderPass != VK_NULL_HANDLE) vkDestroyRenderPass(m_Device, m_RenderPass, nullptr); for (auto view : m_SwapchainViews) if (view != VK_NULL_HANDLE) vkDestroyImageView(m_Device, view, nullptr); if (m_Swapchain != VK_NULL_HANDLE) vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr); m_Framebuffers.clear(); m_SwapchainViews.clear(); m_SwapchainImages.clear(); m_InFlight = VK_NULL_HANDLE; m_RenderFinished = VK_NULL_HANDLE; m_ImageAvailable = VK_NULL_HANDLE; m_CommandPool = VK_NULL_HANDLE; m_CommandBuffer = VK_NULL_HANDLE; m_RenderPass = VK_NULL_HANDLE; m_Swapchain = VK_NULL_HANDLE;
 }
 bool VulkanRHI::Resize(uint32_t width, uint32_t height) {
-    if (!m_Initialized || m_Device == VK_NULL_HANDLE || width == 0U || height == 0U) return false;
+    if (!m_Initialized || m_Device == VK_NULL_HANDLE || m_Window == nullptr || width == 0U || height == 0U) return false;
     if (m_FrameActive || m_ImageAcquired || m_FrameSubmitted) return false;
+    if (!SDL_SetWindowSize(m_Window, static_cast<int>(width), static_cast<int>(height))) return false;
     return RecreateSwapchainResources(width, height);
 }
 void VulkanRHI::Shutdown() { if (m_Device != VK_NULL_HANDLE) vkDeviceWaitIdle(m_Device); DestroySwapchainResources(); if (m_Device != VK_NULL_HANDLE) vkDestroyDevice(m_Device, nullptr); if (m_Surface != VK_NULL_HANDLE && m_Instance != VK_NULL_HANDLE) vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr); if (m_Instance != VK_NULL_HANDLE) vkDestroyInstance(m_Instance, nullptr); m_Instance = VK_NULL_HANDLE; m_GPU = VK_NULL_HANDLE; m_Device = VK_NULL_HANDLE; m_GraphicsQueue = VK_NULL_HANDLE; m_Surface = VK_NULL_HANDLE; m_SwapchainFormat = VK_FORMAT_UNDEFINED; m_QueueFamily = UINT32_MAX; m_ImageIndex = UINT32_MAX; m_Width = 0; m_Height = 0; m_FrameActive = false; m_ImageAcquired = false; m_FrameSubmitted = false; m_Initialized = false; }

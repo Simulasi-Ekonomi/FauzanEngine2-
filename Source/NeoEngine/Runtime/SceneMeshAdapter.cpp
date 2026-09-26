@@ -1,6 +1,7 @@
 #include "SceneMeshAdapter.h"
 
 #include "MeshStaging.h"
+#include "Animation/Skeleton.h"
 #include "MaterialStaging.h"
 #include "SoftwareRenderer.h"
 
@@ -30,6 +31,36 @@ SceneMeshAdapter::SceneMeshAdapter(SceneMeshAdapter&& other):instances_(std::mov
 SceneMeshAdapter& SceneMeshAdapter::operator=(SceneMeshAdapter&& other){if(this==&other)return *this;instances_=std::move(other.instances_);lastError_=other.lastError_;lastCulledCount_=other.lastCulledCount_;RebindEmbeddedTexturePointers();return *this;}
 void SceneMeshAdapter::RebindEmbeddedTexturePointers(){for(SceneMeshInstance& instance:instances_)instance.material.texture=instance.sourceTextureHash==0U?nullptr:&instance.texture;}
 bool SceneMeshAdapter::Add(SceneMeshInstance instance){if(instance.entity.index==0xFFFFU){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}if(!PrepareInstance(instance)){lastError_=instance.material.texture==nullptr?SceneMeshAdapterError::InvalidMesh:SceneMeshAdapterError::InvalidTexture;return false;}if(std::any_of(instances_.begin(),instances_.end(),[&instance](const SceneMeshInstance& other){return other.entity==instance.entity;})){lastError_=SceneMeshAdapterError::InvalidEntity;return false;}if(instances_.size()>=kMaxInstances){lastError_=SceneMeshAdapterError::Capacity;return false;}instances_.push_back(std::move(instance));if(instances_.back().sourceTextureHash!=0U)instances_.back().material.texture=&instances_.back().texture;lastError_=SceneMeshAdapterError::None;return true;}
+bool SceneMeshAdapter::SetSkeletalPalette(SceneEntity entity,const std::vector<Mat4>& palette){
+    const auto found=std::find_if(instances_.begin(),instances_.end(),[entity](const SceneMeshInstance& instance){return instance.entity==entity;});
+    if(found==instances_.end()){lastError_=SceneMeshAdapterError::MissingInstance;return false;}
+    if(palette.empty()||palette.size()>Skeleton::kMaxBones){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+    for(const Mat4& matrix:palette)for(float value:matrix.m)if(!std::isfinite(value)){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+    try{std::vector<Mat4> candidate=palette;found->skeletalPalette.swap(candidate);}catch(...){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+    lastError_=SceneMeshAdapterError::None;return true;
+}
+bool SceneMeshAdapter::SetSkeletalPalettesAtomic(const std::vector<SceneSkeletalPaletteUpdate>& updates){
+    if(updates.size()>kMaxInstances){lastError_=SceneMeshAdapterError::Capacity;return false;}
+    struct Candidate { SceneMeshInstance* instance; std::vector<Mat4> palette; };
+    std::vector<Candidate> candidates;
+    try{candidates.reserve(updates.size());}catch(...){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+    for(size_t i=0U;i<updates.size();++i){
+        const SceneSkeletalPaletteUpdate& update=updates[i];
+        if(update.entity.index==0xFFFFU||update.palette.empty()||update.palette.size()>Skeleton::kMaxBones){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+        for(size_t prior=0U;prior<i;++prior)if(updates[prior].entity==update.entity){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+        for(const Mat4& matrix:update.palette)for(float value:matrix.m)if(!std::isfinite(value)){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+        auto found=std::find_if(instances_.begin(),instances_.end(),[&update](SceneMeshInstance& instance){return instance.entity==update.entity;});
+        if(found==instances_.end()){lastError_=SceneMeshAdapterError::MissingInstance;return false;}
+        try{candidates.push_back({&*found,update.palette});}catch(...){lastError_=SceneMeshAdapterError::InvalidSkeletalPalette;return false;}
+    }
+    for(Candidate& candidate:candidates)candidate.instance->skeletalPalette.swap(candidate.palette);
+    lastError_=SceneMeshAdapterError::None;return true;
+}
+bool SceneMeshAdapter::ClearSkeletalPalette(SceneEntity entity){
+    const auto found=std::find_if(instances_.begin(),instances_.end(),[entity](const SceneMeshInstance& instance){return instance.entity==entity;});
+    if(found==instances_.end()){lastError_=SceneMeshAdapterError::MissingInstance;return false;}
+    found->skeletalPalette.clear();lastError_=SceneMeshAdapterError::None;return true;
+}
 bool SceneMeshAdapter::AddStaged(SceneEntity entity,const CpuMeshResource& resource,MeshMaterial material){
     if(resource.assetId.empty()||resource.sourceHash==0U){lastError_=SceneMeshAdapterError::InvalidStagedResource;return false;}
     SceneMeshInstance instance{entity,resource.vertices,resource.indices,material};instance.sourceAssetId=resource.assetId;instance.sourceHash=resource.sourceHash;return Add(std::move(instance));

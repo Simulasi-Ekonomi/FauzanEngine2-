@@ -3,13 +3,17 @@
 layout(location = 0) in vec3 inWorldPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inUV;
+layout(location = 3) in vec4 inMaterialColor;
 layout(location = 0) out vec4 outColor;
+
+layout(set = 1, binding = 0) uniform sampler2D materialTexture;
 
 void main() {
     vec3 n = normalize(inNormal);
     float ndotl = max(dot(n, normalize(vec3(0.35, 0.7, 0.6))), 0.0);
     vec3 base = vec3(0.35 + 0.35 * inUV.x, 0.45 + 0.25 * inUV.y, 0.75);
     float distanceFade = 1.0 / (1.0 + 0.0005 * dot(inWorldPosition, inWorldPosition));
-    vec3 color = base * (0.18 + 0.82 * ndotl) * distanceFade;
-    outColor = vec4(color, 1.0);
+    vec4 sampled = texture(materialTexture, inUV);
+    vec3 color = base * sampled.rgb * inMaterialColor.rgb * (0.18 + 0.82 * ndotl) * distanceFade;
+    outColor = vec4(color, sampled.a * inMaterialColor.a);
 }

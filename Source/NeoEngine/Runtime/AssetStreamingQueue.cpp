@@ -43,6 +43,76 @@ bool AssetStreamingQueue::Enqueue(const StreamRequest& req) noexcept {
     return true;
 }
 
+bool AssetStreamingQueue::CancelPending(AssetID id) noexcept {
+    if (id.empty()) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto asset = loadedAssets_.find(id);
+    if (asset == loadedAssets_.end() || asset->second.state != StreamState::Pending) return false;
+    decltype(streamQueue_) filtered;
+    try {
+        auto remaining = streamQueue_;
+        while (!remaining.empty()) {
+            StreamRequest request = remaining.top();
+            remaining.pop();
+            if (request.id != id) filtered.push(std::move(request));
+        }
+    } catch (...) {
+        return false;
+    }
+    streamQueue_.swap(filtered);
+    loadedAssets_.erase(asset);
+    return true;
+}
+
+bool AssetStreamingQueue::BeginUpload(AssetID id, StreamRequest& out) noexcept {
+    if (id.empty()) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto asset = loadedAssets_.find(id);
+    if (asset == loadedAssets_.end() || asset->second.state != StreamState::Pending) return false;
+
+    decltype(streamQueue_) remaining;
+    decltype(streamQueue_) working;
+    StreamRequest selected{};
+    bool found = false;
+    try {
+        working = streamQueue_;
+        while (!working.empty()) {
+            StreamRequest candidate = working.top();
+            working.pop();
+            if (!found && candidate.id == id) {
+                selected = std::move(candidate);
+                found = true;
+            } else {
+                remaining.push(std::move(candidate));
+            }
+        }
+        if (!found) return false;
+        out = selected;
+        streamQueue_.swap(remaining);
+        asset->second.state = StreamState::Uploading;
+        return true;
+    } catch (...) {
+        // The original queue and Pending state are untouched until every
+        // allocation/copy above has succeeded.
+        return false;
+    }
+}
+
+bool AssetStreamingQueue::BeginRefresh(const StreamRequest& request) noexcept {
+    if (request.id.empty() || request.filepath.empty() || !std::isfinite(request.priority) ||
+        request.estimatedSizeMB == 0U || request.estimatedSizeMB > memoryBudgetMB_) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = loadedAssets_.find(request.id);
+    if (it == loadedAssets_.end() || it->second.state != StreamState::Ready ||
+        it->second.gpuMemory == VK_NULL_HANDLE || it->second.allocatedSizeMB == 0U ||
+        it->second.replacingResident) return false;
+    // Refresh file I/O is owned by StreamManager, so the existing queue entry is
+    // retained while its state temporarily changes to Uploading.
+    it->second.state = StreamState::Uploading;
+    it->second.replacingResident = true;
+    return true;
+}
+
 bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     while (!streamQueue_.empty()) {
@@ -65,14 +135,63 @@ bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
 }
 
 bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory, uint32_t allocatedSizeMB) noexcept {
-    if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0) return false;
+    GpuMemoryReleaseCallback callback;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        callback = gpuMemoryReleaseCallback_;
+    }
+    return CompleteUpload(id, gpuMemory, allocatedSizeMB, std::move(callback));
+}
+
+bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMemory,
+                                            uint32_t allocatedSizeMB,
+                                            GpuMemoryReleaseCallback releaseCallback,
+                                            GpuMemoryReleaseCallback& oldReleaseCallback,
+                                            VkDeviceMemory& oldGpuMemory) noexcept {
+    oldReleaseCallback = {};
+    oldGpuMemory = VK_NULL_HANDLE;
+    if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0U || !releaseCallback) return false;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = loadedAssets_.find(id);
+    if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading ||
+        !it->second.replacingResident || it->second.gpuMemory == VK_NULL_HANDLE ||
+        it->second.allocatedSizeMB == 0U) return false;
+
+    const uint32_t oldSize = it->second.allocatedSizeMB;
+    const VkDeviceMemory previousMemory = it->second.gpuMemory;
+    if (residentMemoryMB_ < oldSize ||
+        allocatedSizeMB > memoryBudgetMB_ ||
+        residentMemoryMB_ - oldSize > memoryBudgetMB_ - allocatedSizeMB) return false;
+
+    GpuMemoryReleaseCallback previous = std::move(it->second.gpuMemoryReleaseCallback);
+    try {
+        it->second.gpuMemoryReleaseCallback = std::move(releaseCallback);
+    } catch (...) {
+        it->second.gpuMemoryReleaseCallback = std::move(previous);
+        return false;
+    }
+    it->second.gpuMemory = gpuMemory;
+    it->second.allocatedSizeMB = allocatedSizeMB;
+    it->second.state = StreamState::Ready;
+    it->second.replacingResident = false;
+    residentMemoryMB_ = residentMemoryMB_ - oldSize + allocatedSizeMB;
+    oldReleaseCallback = std::move(previous);
+    oldGpuMemory = previousMemory;
+    return true;
+}
+
+bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
+                                         uint32_t allocatedSizeMB,
+                                         GpuMemoryReleaseCallback releaseCallback) noexcept {
+    if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0 || !releaseCallback) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = loadedAssets_.find(id);
     if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading) return false;
     if (allocatedSizeMB > memoryBudgetMB_ || residentMemoryMB_ > std::numeric_limits<uint32_t>::max() - allocatedSizeMB ||
         residentMemoryMB_ + allocatedSizeMB > memoryBudgetMB_) return false;
     try {
-        it->second.gpuMemoryReleaseCallback = gpuMemoryReleaseCallback_;
+        it->second.gpuMemoryReleaseCallback = std::move(releaseCallback);
     } catch (...) {
         return false;
     }
@@ -87,6 +206,11 @@ bool AssetStreamingQueue::FailUpload(AssetID id) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = loadedAssets_.find(id);
     if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading) return false;
+    if (it->second.replacingResident) {
+        it->second.state = StreamState::Ready;
+        it->second.replacingResident = false;
+        return true;
+    }
     loadedAssets_.erase(it);
     return true;
 }
@@ -95,6 +219,7 @@ bool AssetStreamingQueue::Release(AssetID id) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = loadedAssets_.find(id);
     if (it == loadedAssets_.end()) return false;
+    if (it->second.state == StreamState::Uploading && it->second.replacingResident) return false;
     if (it->second.state == StreamState::Ready) {
         const uint32_t allocationMB = it->second.allocatedSizeMB;
         if (allocationMB > residentMemoryMB_) return false;
@@ -103,6 +228,12 @@ bool AssetStreamingQueue::Release(AssetID id) noexcept {
     }
     loadedAssets_.erase(it);
     return true;
+}
+
+bool AssetStreamingQueue::IsRefreshing(AssetID id) const noexcept {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = loadedAssets_.find(id);
+    return it != loadedAssets_.end() && it->second.state == StreamState::Uploading && it->second.replacingResident;
 }
 
 bool AssetStreamingQueue::IsReady(AssetID id) const noexcept {

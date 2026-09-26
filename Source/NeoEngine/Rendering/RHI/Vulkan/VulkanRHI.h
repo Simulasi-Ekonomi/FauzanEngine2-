@@ -1,5 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.h>
+struct SDL_Window;
 #include <vector>
 
 namespace NeoEngine {
@@ -9,6 +10,7 @@ class VulkanRHI {
     VkDevice m_Device = VK_NULL_HANDLE;
     VkQueue m_GraphicsQueue = VK_NULL_HANDLE;
     VkSurfaceKHR m_Surface = VK_NULL_HANDLE;
+    SDL_Window* m_Window = nullptr;
     VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
     std::vector<VkImage> m_SwapchainImages;
     std::vector<VkImageView> m_SwapchainViews;

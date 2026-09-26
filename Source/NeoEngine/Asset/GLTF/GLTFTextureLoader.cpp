@@ -1,61 +1,90 @@
 #include "GLTFTextureLoader.h"
 
-#include "Runtime/BmpTexture.h"
-#include "Runtime/PpmTexture.h"
-
-#include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <iterator>
+#include <limits>
 #include <string>
 #include <vector>
 
 namespace NeoEngine {
-
 namespace {
-
-std::string LowerExtension(const std::string& path) {
-    const auto dot = path.find_last_of('.');
-    if (dot == std::string::npos) return {};
-    std::string extension = path.substr(dot + 1U);
-    std::transform(extension.begin(), extension.end(), extension.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return extension;
+bool ReadToken(std::istream& stream, std::string& token)
+{
+    token.clear();
+    char c = 0;
+    while (stream.get(c)) {
+        if (std::isspace(static_cast<unsigned char>(c))) {
+            if (!token.empty()) return true;
+            continue;
+        }
+        if (c == '#') {
+            stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            if (!token.empty()) return true;
+            continue;
+        }
+        token.push_back(c);
+    }
+    return !token.empty();
 }
-
-bool ReadFile(const std::string& path, std::vector<uint8_t>& bytes) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) return false;
-    bytes.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-    return !bytes.empty();
-}
-
 } // namespace
 
-TextureData GLTFTextureLoader::Load(const std::string& path) {
-    TextureData result{0U, 0U, {}};
-    if (path.empty()) return result;
-
-    std::vector<uint8_t> bytes;
-    if (!ReadFile(path, bytes)) return result;
-
-    RgbaTexture decoded;
-    TextureDecodeError error = TextureDecodeError::None;
-    const std::string extension = LowerExtension(path);
-
-    bool ok = false;
-    if (extension == "ppm" || extension == "pnm") {
-        ok = PpmTextureDecoder::DecodeP6(bytes, decoded, error);
-    } else if (extension == "bmp") {
-        ok = BmpTextureDecoder::DecodeBiRgb(bytes, decoded, error);
+TextureData GLTFTextureLoader::Load(const std::string& path)
+{
+    TextureData texture{0U, 0U, {}};
+    if (path.empty()) {
+        return texture;
     }
 
-    if (!ok) return result;
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        return texture;
+    }
 
-    result.width = decoded.width;
-    result.height = decoded.height;
-    result.pixels = std::move(decoded.rgba);
-    return result;
+    std::string magic;
+    if (!ReadToken(file, magic) || magic != "P6") {
+        return texture;
+    }
+
+    std::string widthToken;
+    std::string heightToken;
+    std::string maxToken;
+    if (!ReadToken(file, widthToken) || !ReadToken(file, heightToken) || !ReadToken(file, maxToken)) {
+        return texture;
+    }
+
+    try {
+        const unsigned long width = std::stoul(widthToken);
+        const unsigned long height = std::stoul(heightToken);
+        const unsigned long maxValue = std::stoul(maxToken);
+        if (width == 0UL || height == 0UL || width > std::numeric_limits<unsigned int>::max() ||
+            height > std::numeric_limits<unsigned int>::max() || maxValue != 255UL) {
+            return texture;
+        }
+
+        const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
+        if (pixelCount > std::numeric_limits<size_t>::max() / 4U) {
+            return texture;
+        }
+
+        const size_t rgbSize = pixelCount * 3U;
+        std::vector<unsigned char> rgb(rgbSize);
+        if (!file.read(reinterpret_cast<char*>(rgb.data()), static_cast<std::streamsize>(rgbSize))) {
+            return texture;
+        }
+
+        texture.width = static_cast<unsigned int>(width);
+        texture.height = static_cast<unsigned int>(height);
+        texture.pixels.resize(pixelCount * 4U);
+        for (size_t i = 0U; i < pixelCount; ++i) {
+            texture.pixels[i * 4U + 0U] = rgb[i * 3U + 0U];
+            texture.pixels[i * 4U + 1U] = rgb[i * 3U + 1U];
+            texture.pixels[i * 4U + 2U] = rgb[i * 3U + 2U];
+            texture.pixels[i * 4U + 3U] = 255U;
+        }
+    } catch (...) {
+        texture = TextureData{0U, 0U, {}};
+    }
+    return texture;
 }
 
 } // namespace NeoEngine

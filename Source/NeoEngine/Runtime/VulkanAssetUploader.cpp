@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <utility>
 
 namespace NeoEngine {
 
@@ -31,7 +32,9 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
                                          uint32_t width, uint32_t height) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || cmd == VK_NULL_HANDLE || physicalDevice_ == VK_NULL_HANDLE ||
         mipData.empty() || targetImage == VK_NULL_HANDLE ||
-        targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || width == 0U || height == 0U) return false;
+        (targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+         targetLayout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) ||
+        width == 0U || height == 0U) return false;
 
     const uint64_t requestedBytes = static_cast<uint64_t>(mipData.size());
     if (requestedBytes > std::numeric_limits<uint64_t>::max() - (1024ULL * 1024ULL - 1ULL)) return false;
@@ -53,7 +56,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
     std::memcpy(mapped, mipData.data(), mipData.size());
     vkUnmapMemory(device, stagingMemory);
 
-    if (!CopyBufferToImage(device, cmd, stagingBuffer, targetImage, width, height)) {
+    if (!CopyBufferToImage(device, cmd, stagingBuffer, targetImage, targetLayout, width, height)) {
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingMemory, nullptr);
         return false;
@@ -61,8 +64,13 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
 
     try {
         pendingUploads_.reserve(pendingUploads_.size() + 1U);
-        pendingUploads_.push_back({stagingBuffer, stagingMemory, targetImage, targetLayout,
-                                   static_cast<uint32_t>(requestedMB64), VK_NULL_HANDLE});
+        UploadTask task{};
+        task.stagingBuffer = stagingBuffer;
+        task.stagingMemory = stagingMemory;
+        task.targetImage = targetImage;
+        task.targetLayout = targetLayout;
+        task.uploadSizeMB = static_cast<uint32_t>(requestedMB64);
+        pendingUploads_.push_back(std::move(task));
     } catch (...) {
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingMemory, nullptr);
@@ -79,7 +87,72 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
                                                  uint32_t width, uint32_t height) noexcept {
     const std::vector<uint8_t>* data = resources.Data(handle);
     if (data == nullptr || data->empty()) return false;
-    return UploadTexture(device, cmd, *data, targetImage, targetLayout, width, height);
+    return UploadTextureResource(resources, handle, *data, device, cmd, targetImage,
+                                 targetLayout, width, height);
+}
+
+bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
+                                                 const AssetResourceHandle& handle,
+                                                 const std::vector<uint8_t>& pixels,
+                                                 VkDevice device, VkCommandBuffer cmd,
+                                                 VkImage targetImage, VkImageLayout targetLayout,
+                                                 uint32_t width, uint32_t height) noexcept {
+    return UploadTextureResource(resources, handle, pixels, device, cmd, targetImage,
+                                  targetLayout, width, height, VK_NULL_HANDLE, 0U);
+}
+
+bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
+                                                 const AssetResourceHandle& handle,
+                                                 const std::vector<uint8_t>& pixels,
+                                                 VkDevice device, VkCommandBuffer cmd,
+                                                 VkImage targetImage, VkImageLayout targetLayout,
+                                                 uint32_t width, uint32_t height,
+                                                 VkDeviceMemory gpuMemory,
+                                                 uint32_t gpuAllocationSizeMB) noexcept {
+    if (pixels.empty() || width == 0U || height == 0U) return false;
+    AssetResourceReceipt preUploadReceipt{};
+    if (!resources.Query(handle, preUploadReceipt)) return false;
+    const bool alreadyPinned = preUploadReceipt.gpuUploadsInFlight != 0U;
+    if (!alreadyPinned && !resources.BeginGpuUpload(handle)) return false;
+    const auto cancelIfOwned = [&]() noexcept {
+        if (!alreadyPinned) (void)resources.CancelGpuUpload(handle);
+    };
+    if ((gpuMemory == VK_NULL_HANDLE) != (gpuAllocationSizeMB == 0U)) {
+        cancelIfOwned();
+        return false;
+    }
+    if (pixels.size() > std::numeric_limits<uint64_t>::max() / 4ULL ||
+        static_cast<uint64_t>(width) * static_cast<uint64_t>(height) >
+            std::numeric_limits<uint64_t>::max() / 4ULL ||
+        pixels.size() != static_cast<size_t>(static_cast<uint64_t>(width) * height * 4ULL)) {
+        cancelIfOwned();
+        return false;
+    }
+    if (!UploadTexture(device, cmd, pixels, targetImage, targetLayout, width, height)) {
+        cancelIfOwned();
+        return false;
+    }
+    if (pendingUploads_.empty()) {
+        cancelIfOwned();
+        return false;
+    }
+    UploadTask& task = pendingUploads_.back();
+    task.resourceManager = &resources;
+    task.resourceHandle = handle;
+    task.tracksResourceResidency = true;
+    task.preservesResidentOnCompletion = preUploadReceipt.gpuResident &&
+        preUploadReceipt.gpuUploadsInFlight != 0U;
+    if (gpuMemory != VK_NULL_HANDLE) {
+        task.gpuMemory = gpuMemory;
+        task.gpuAllocationSizeMB = gpuAllocationSizeMB;
+    }
+    AssetResourceReceipt receipt{};
+    if (!resources.Query(handle, receipt) || receipt.assetId.empty()) {
+        cancelIfOwned();
+        return false;
+    }
+    task.assetId = receipt.assetId;
+    return true;
 }
 
 bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
@@ -141,10 +214,16 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &indexRegion);
     try {
         pendingUploads_.reserve(pendingUploads_.size() + 2U);
-        pendingUploads_.push_back({vertexStaging, vertexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
-                                   static_cast<uint32_t>(vertexMB64), VK_NULL_HANDLE});
-        pendingUploads_.push_back({indexStaging, indexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
-                                   static_cast<uint32_t>(indexMB64), VK_NULL_HANDLE});
+        UploadTask vertexTask{};
+        vertexTask.stagingBuffer = vertexStaging;
+        vertexTask.stagingMemory = vertexMemory;
+        vertexTask.uploadSizeMB = static_cast<uint32_t>(vertexMB64);
+        UploadTask indexTask{};
+        indexTask.stagingBuffer = indexStaging;
+        indexTask.stagingMemory = indexMemory;
+        indexTask.uploadSizeMB = static_cast<uint32_t>(indexMB64);
+        pendingUploads_.push_back(std::move(vertexTask));
+        pendingUploads_.push_back(std::move(indexTask));
     } catch (...) {
         vkDestroyBuffer(device, vertexStaging, nullptr);
         vkFreeMemory(device, vertexMemory, nullptr);
@@ -156,25 +235,88 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     return true;
 }
 
-void VulkanAssetUploader::AttachCompletionFence(VkFence fence) noexcept {
+void VulkanAssetUploader::AttachCompletionFence(VkFence fence, bool takeOwnership) noexcept {
     if (fence == VK_NULL_HANDLE || pendingUploads_.empty()) return;
+    if (takeOwnership) {
+        try {
+            if (std::find(ownedCompletionFences_.begin(), ownedCompletionFences_.end(), fence) ==
+                ownedCompletionFences_.end()) {
+                ownedCompletionFences_.push_back(fence);
+            }
+        } catch (...) {
+            return;
+        }
+    }
     for (UploadTask& task : pendingUploads_)
         if (task.completionFence == VK_NULL_HANDLE) task.completionFence = fence;
 }
 
-void VulkanAssetUploader::Flush(VkDevice device) noexcept {
-    if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
-    std::vector<VkFence> destroyedFences;
+void VulkanAssetUploader::DiscardUnsubmitted(VkDevice device) noexcept {
+    if (device == VK_NULL_HANDLE) return;
     for (const UploadTask& task : pendingUploads_) {
-        if (task.completionFence != VK_NULL_HANDLE &&
-            std::find(destroyedFences.begin(), destroyedFences.end(), task.completionFence) == destroyedFences.end()) {
-            vkDestroyFence(device, task.completionFence, nullptr);
-            destroyedFences.push_back(task.completionFence);
+        if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+            if (completionCallback_) {
+                try {
+                    completionCallback_(task, VK_ERROR_INITIALIZATION_FAILED);
+                } catch (...) {
+                    if (task.preservesResidentOnCompletion)
+                        (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                    else
+                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                }
+            } else if (task.preservesResidentOnCompletion) {
+                (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+            } else {
+                (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+            }
         }
         if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
         if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
     }
     pendingUploads_.clear();
+    for (VkFence fence : ownedCompletionFences_) {
+        if (fence != VK_NULL_HANDLE) vkDestroyFence(device, fence, nullptr);
+    }
+    ownedCompletionFences_.clear();
+    currentStagingUsedMB_ = 0U;
+    lastDevice_ = device;
+}
+
+void VulkanAssetUploader::Flush(VkDevice device) noexcept {
+    if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
+    for (const UploadTask& task : pendingUploads_) {
+        const VkResult status = task.completionFence != VK_NULL_HANDLE
+            ? vkGetFenceStatus(device, task.completionFence)
+            : VK_NOT_READY;
+        if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+            if (completionCallback_) {
+                try {
+                    completionCallback_(task, status == VK_SUCCESS ? VK_SUCCESS : VK_NOT_READY);
+                } catch (...) {
+                    if (task.preservesResidentOnCompletion)
+                        (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                    else
+                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                }
+            } else if (status == VK_SUCCESS) {
+                if (task.preservesResidentOnCompletion)
+                    (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                else
+                    (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
+            } else if (task.preservesResidentOnCompletion) {
+                (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+            } else {
+                (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+            }
+        }
+        if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
+        if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
+    }
+    pendingUploads_.clear();
+    for (VkFence fence : ownedCompletionFences_) {
+        if (fence != VK_NULL_HANDLE) vkDestroyFence(device, fence, nullptr);
+    }
+    ownedCompletionFences_.clear();
     currentStagingUsedMB_ = 0U;
     lastDevice_ = device;
 }
@@ -182,20 +324,46 @@ void VulkanAssetUploader::Flush(VkDevice device) noexcept {
 void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_)) return;
     size_t write = 0; uint32_t residentMB = 0;
-    std::vector<VkFence> completedFences;
     for (size_t i = 0; i < pendingUploads_.size(); ++i) {
         UploadTask& task = pendingUploads_[i];
         const VkFence fence = task.completionFence;
-        const bool complete = fence != VK_NULL_HANDLE && vkGetFenceStatus(device, fence) == VK_SUCCESS;
-        if (complete) {
+        const VkResult status = fence != VK_NULL_HANDLE ? vkGetFenceStatus(device, fence) : VK_NOT_READY;
+        if (status == VK_SUCCESS) {
+            if (completionCallback_) {
+                try { completionCallback_(task, VK_SUCCESS); } catch (...) {
+                    if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+                        if (task.preservesResidentOnCompletion)
+                            (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                        else
+                            (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                    }
+                }
+            } else if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+                (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
+            }
             if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
             if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
-            if (std::find(completedFences.begin(), completedFences.end(), fence) == completedFences.end()) completedFences.push_back(fence);
+            continue;
+        }
+        if (status != VK_NOT_READY) {
+            if (completionCallback_) {
+                try { completionCallback_(task, status); } catch (...) {
+                    if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+                        if (task.preservesResidentOnCompletion)
+                            (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                        else
+                            (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                    }
+                }
+            } else if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+                (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+            }
+            if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
+            if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
             continue;
         }
         pendingUploads_[write++] = task; residentMB += task.uploadSizeMB;
     }
-    for (VkFence fence : completedFences) vkDestroyFence(device, fence, nullptr);
     pendingUploads_.resize(write); currentStagingUsedMB_ = residentMB;
 }
 
@@ -222,12 +390,59 @@ VkBuffer VulkanAssetUploader::AllocateStagingBuffer(VkDevice device, size_t size
 
 bool VulkanAssetUploader::CopyBufferToImage(VkDevice device, VkCommandBuffer cmd,
                                             VkBuffer stagingBuffer, VkImage targetImage,
+                                            VkImageLayout targetLayout,
                                             uint32_t width, uint32_t height) noexcept {
     if (device == VK_NULL_HANDLE || cmd == VK_NULL_HANDLE || stagingBuffer == VK_NULL_HANDLE ||
         targetImage == VK_NULL_HANDLE || width == 0U || height == 0U) return false;
-    VkBufferImageCopy region{0, 0, 0, {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, {0, 0, 0}, {width, height, 1}};
-    vkCmdCopyBufferToImage(cmd, stagingBuffer, targetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    if (targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+        targetLayout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return false;
+
+    VkImageMemoryBarrier toTransfer{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    toTransfer.srcAccessMask = 0U;
+    toTransfer.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    toTransfer.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    toTransfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toTransfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.image = targetImage;
+    toTransfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toTransfer.subresourceRange.baseMipLevel = 0U;
+    toTransfer.subresourceRange.levelCount = 1U;
+    toTransfer.subresourceRange.baseArrayLayer = 0U;
+    toTransfer.subresourceRange.layerCount = 1U;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0U, 0U, nullptr,
+                         0U, nullptr, 1U, &toTransfer);
+
+    const VkBufferImageCopy region{0, 0, 0,
+        {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, {0, 0, 0}, {width, height, 1}};
+    vkCmdCopyBufferToImage(cmd, stagingBuffer, targetImage,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    if (targetLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = targetImage;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0U;
+        barrier.subresourceRange.levelCount = 1U;
+        barrier.subresourceRange.baseArrayLayer = 0U;
+        barrier.subresourceRange.layerCount = 1U;
+        vkCmdPipelineBarrier(cmd,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             0U, 0U, nullptr, 0U, nullptr, 1U, &barrier);
+    }
     return true;
 }
 
 } // namespace NeoEngine
+
+void NeoEngine::VulkanAssetUploader::SetUploadCompletionCallback(UploadCompletionCallback callback) noexcept {
+    completionCallback_ = std::move(callback);
+}

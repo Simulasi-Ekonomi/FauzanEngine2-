@@ -66,8 +66,13 @@ bool SkinningGPU::Initialize(VkDevice device, VkPhysicalDevice physicalDevice)
         descriptorSet_, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         boneBuffer_.GetBuffer(), 0, kPaletteBytes);
 
+    const std::array<BoneMatrix, MaxBones> identity = IdentityPalette();
+    if (!boneBuffer_.UploadData(identity.data(), kPaletteBytes)) {
+        Destroy();
+        return false;
+    }
     uploadedBoneCount_ = 0U;
-    return UploadBones({});
+    return true;
 }
 
 bool SkinningGPU::IsFiniteMatrix(const BoneMatrix& matrix)
@@ -89,7 +94,7 @@ std::array<SkinningGPU::BoneMatrix, SkinningGPU::MaxBones> SkinningGPU::Identity
 
 bool SkinningGPU::UploadBones(const std::vector<BoneMatrix>& matrices)
 {
-    if (!IsValid() || matrices.size() > MaxBones || matrices.size() > static_cast<size_t>(MaxBones)) return false;
+    if (!IsValid() || matrices.empty() || matrices.size() > MaxBones || matrices.size() > static_cast<size_t>(MaxBones)) return false;
     if (boneBuffer_.GetBuffer() == VK_NULL_HANDLE || boneBuffer_.GetSize() < kPaletteBytes) return false;
 
     for (const BoneMatrix& matrix : matrices) {
