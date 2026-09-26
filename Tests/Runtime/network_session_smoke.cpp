@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <limits>
 
 using namespace NeoEngine;
 
@@ -45,6 +46,15 @@ int main() {
     if (!Require(!server.serverConsume(forged, authoritative), "ownership_reject") || !Require(server.lastError() == NetworkError::Ownership, "ownership_reject_error")) return 1;
     NetworkInputCommand invalid{42U, 7U, 3U, 3U, 2.0F, 0.0F};
     if (!Require(!server.serverConsume(invalid, authoritative), "magnitude_reject") || !Require(server.lastError() == NetworkError::InvalidInput, "magnitude_error")) return 1;
+    NetworkInputCommand nonFinite{42U, 7U, 4U, 4U, std::numeric_limits<float>::infinity(), 0.0F};
+    if (!Require(!server.serverConsume(nonFinite, authoritative), "infinity_reject") ||
+        !Require(server.lastError() == NetworkError::InvalidInput, "infinity_error")) return 1;
+    NetworkInputCommand exhaustedSequence{42U, 7U, std::numeric_limits<uint64_t>::max(), 5U, 0.1F, 0.0F};
+    if (!Require(!server.serverConsume(exhaustedSequence, authoritative), "sequence_exhaustion_reject") ||
+        !Require(server.lastError() == NetworkError::InvalidInput, "sequence_exhaustion_error")) return 1;
+    NetworkInputCommand exhaustedTick{42U, 7U, 5U, std::numeric_limits<uint64_t>::max(), 0.1F, 0.0F};
+    if (!Require(!server.serverConsume(exhaustedTick, authoritative), "tick_exhaustion_reject") ||
+        !Require(server.lastError() == NetworkError::InvalidInput, "tick_exhaustion_error")) return 1;
 
     NetworkSession ownershipAtomic(NetworkRole::Server, 9001U);
     if (!Require(ownershipAtomic.initialize(), "ownership_atomic_init") || !Require(ownershipAtomic.registerPeer(42U), "ownership_atomic_peer") ||
@@ -82,6 +92,6 @@ int main() {
     if (!Require(saturated.reconcile({7U, 42U, 0U, 0.0F, 0.0F, 0.0F}, 0U, saturatedReceipt), "prediction_capacity_reconcile") ||
         !Require(std::fabs(saturatedReceipt.correctionDistance - 256.0F * 256.0F) < 0.01F, "prediction_capacity_atomic")) return 1;
 
-    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1 capacity_atomic=1 peer_validation_atomic=1 window_isolation=1 owner_admission=1\n");
+    std::printf("NETWORK_SESSION_SMOKE_OK prediction=1 authority=1 reconcile=1 duplicate_reject=1 snapshot=1 capacity_atomic=1 peer_validation_atomic=1 window_isolation=1 owner_admission=1 numeric_fail_closed=1\n");
     return 0;
 }
