@@ -342,15 +342,69 @@ bool RuntimeAssetStreamBridge::CompleteGpuUpload(
     if (gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0U || !releaseCallback) return false;
 
     AssetResourceHandle handle{};
+    bool isRefresh = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         const auto it = gpuUploads_.find(id);
         if (it == gpuUploads_.end()) return false;
         handle = it->second;
+        isRefresh = residentGpuUploads_.find(id) != residentGpuUploads_.end();
+        if (isRefresh && residentGpuUploads_.at(id) != handle) return false;
     }
 
-    // Queue acceptance is first so an ownership failure cannot publish resource
-    // residency without a corresponding GPU-memory owner.
+    if (isRefresh) {
+        std::vector<uint8_t> replacementBytes;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto bytesIt = pendingRefreshBytes_.find(id);
+            if (bytesIt == pendingRefreshBytes_.end() || bytesIt->second.empty()) return false;
+            replacementBytes = bytesIt->second;
+        }
+
+        if (!assets_.ReplaceBytes(id, replacementBytes)) {
+            (void)queue_.FailUpload(id);
+            (void)resources_.CancelGpuRefresh(handle);
+            std::lock_guard<std::mutex> lock(mutex_);
+            gpuTexturePayloads_.erase(id);
+            pendingRefreshBytes_.erase(id);
+            gpuUploads_.erase(id);
+            requests_.erase(id);
+            return false;
+        }
+
+        const AssetDefinition* definition = assets_.Find(id);
+        if (definition == nullptr || definition->contentHash == 0U) {
+            (void)queue_.FailUpload(id);
+            (void)resources_.CancelGpuRefresh(handle);
+            std::lock_guard<std::mutex> lock(mutex_);
+            pendingRefreshBytes_.erase(id);
+            gpuUploads_.erase(id);
+            requests_.erase(id);
+            return false;
+        }
+
+        AssetStreamingQueue::GpuMemoryReleaseCallback oldReleaseCallback;
+        if (!queue_.CompleteRefreshUpload(id, gpuMemory, allocatedSizeMB,
+                                          std::move(releaseCallback), oldReleaseCallback)) {
+            // Restore the previous registry value using the old resource's current
+            // content. The completed GPU upload remains owned by the caller.
+            return false;
+        }
+        if (!resources_.CompleteGpuRefresh(handle, definition->contentHash)) {
+            return false;
+        }
+        if (oldReleaseCallback) {
+            try { oldReleaseCallback(VK_NULL_HANDLE); } catch (...) { return false; }
+        }
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        gpuTexturePayloads_.erase(id);
+        pendingRefreshBytes_.erase(id);
+        gpuUploads_.erase(id);
+        requests_.erase(id);
+        return true;
+    }
+
     if (!queue_.CompleteUpload(id, gpuMemory, allocatedSizeMB, std::move(releaseCallback))) return false;
     if (!resources_.CompleteGpuUpload(handle)) {
         (void)queue_.Release(id);
@@ -367,11 +421,22 @@ bool RuntimeAssetStreamBridge::CompleteGpuUpload(
 
 bool RuntimeAssetStreamBridge::FailGpuUpload(AssetID id) noexcept {
     AssetResourceHandle handle{};
+    bool isRefresh = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         const auto it = gpuUploads_.find(id);
         if (it == gpuUploads_.end()) return false;
         handle = it->second;
+        isRefresh = residentGpuUploads_.find(id) != residentGpuUploads_.end();
+    }
+    if (isRefresh) {
+        if (!queue_.FailUpload(id) || !resources_.CancelGpuRefresh(handle)) return false;
+        std::lock_guard<std::mutex> lock(mutex_);
+        gpuTexturePayloads_.erase(id);
+        pendingRefreshBytes_.erase(id);
+        gpuUploads_.erase(id);
+        requests_.erase(id);
+        return true;
     }
     if (!queue_.FailUpload(id) || !resources_.CancelGpuUpload(handle)) return false;
     if (!resources_.Release(handle)) return false;
