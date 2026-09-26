@@ -73,6 +73,7 @@ public:
     bool RenderFarm();
     bool RenderScene3D();
     bool RequestStreamedAsset(const StreamRequest& request);
+    bool RefreshStreamedAsset(const StreamRequest& request);
     bool CancelStreamedAsset(const AssetID& id);
     bool BindSceneSkeletalAnimation(SceneEntity entity,const Skeleton& skeleton,const SkeletalPoseClip& clip,SkeletalPosePlaybackMode mode=SkeletalPosePlaybackMode::Loop);
     bool SetSceneSkeletalAnimationPaused(SceneEntity entity,bool paused);
