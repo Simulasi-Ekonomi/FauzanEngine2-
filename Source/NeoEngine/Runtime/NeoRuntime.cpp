@@ -593,7 +593,6 @@ bool NeoRuntime::Shutdown() {
     return true;
 }
 
-} // namespace NeoEngine
 
 
 bool NeoRuntime::RequestStreamedAsset(const StreamRequest& request) {
@@ -609,3 +608,5 @@ bool NeoRuntime::CancelStreamedAsset(const AssetID& id) {
     m_LastError = ok ? RuntimeError::None : RuntimeError::InvalidState;
     return ok;
 }
+
+} // namespace NeoEngine
