@@ -62,7 +62,7 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
     try {
         pendingUploads_.reserve(pendingUploads_.size() + 1U);
         pendingUploads_.push_back({stagingBuffer, stagingMemory, targetImage, targetLayout,
-                                   static_cast<uint32_t>(requestedMB64), VK_NULL_HANDLE});
+                                   static_cast<uint32_t>(requestedMB64), VK_NULL_HANDLE, nullptr, {}, false});
     } catch (...) {
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingMemory, nullptr);
