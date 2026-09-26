@@ -5,6 +5,11 @@ on:
     paths:
       - 'Source/NeoEngine/CMakeLists.txt'
       - 'Source/NeoEngine/Runtime/Vulkan3DRenderer.*'
+      - 'Source/NeoEngine/Runtime/BmpTexture.*'
+      - 'Source/NeoEngine/Runtime/PpmTexture.*'
+      - 'Source/NeoEngine/Runtime/StreamManager.*'
+      - 'Source/NeoEngine/Runtime/AssetStreamingQueue.*'
+      - 'Source/NeoEngine/Runtime/RuntimeAssetStreamBridge.*'
       - 'Source/NeoEngine/Runtime/Vulkan3DBatch.*'
       - 'Source/NeoEngine/Runtime/VulkanMeshBatchBuffer.*'
       - 'Source/NeoEngine/Runtime/VulkanRenderCommandRecorder.*'
@@ -85,6 +90,11 @@ jobs:
             Runtime/VulkanGPUBuffer.cpp \
             Runtime/AssetResourceManager.cpp \
             Runtime/AssetRegistry.cpp \
+            Runtime/AssetStreamingQueue.cpp \
+            Runtime/StreamManager.cpp \
+            Runtime/RuntimeAssetStreamBridge.cpp \
+            Runtime/PpmTexture.cpp \
+            Runtime/BmpTexture.cpp \
             Animation/GPUSkinningPaletteBuffer.cpp \
             Tests/vulkan_3d_renderer_smoke.cpp \
             -DNEO_SHADER_DIR=\"$PWD/Shaders\" \
