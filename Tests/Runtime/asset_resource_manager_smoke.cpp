@@ -35,6 +35,21 @@ int main() {
     if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 1U) return 3;
     if (!resources.CompleteGpuUpload(materialHandle)) return 3;
     if (!resources.Query(materialHandle, materialReceipt) || !materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
+
+    const uint64_t residentHashBeforeRefresh = materialReceipt.contentHash;
+    assert(resources.BeginGpuRefresh(materialHandle));
+    assert(resources.Query(materialHandle, materialReceipt) &&
+           materialReceipt.gpuResident && materialReceipt.gpuUploadsInFlight == 1U);
+    assert(resources.Release(materialHandle) == false &&
+           resources.LastError() == AssetResourceError::GpuUploadPending);
+    assert(registry.ReplaceBytes("material.crop", {19U, 18U, 17U}));
+    const AssetDefinition* refreshedDefinition = registry.Find("material.crop");
+    assert(refreshedDefinition != nullptr && refreshedDefinition->contentHash != residentHashBeforeRefresh);
+    assert(resources.CompleteGpuRefresh(materialHandle, refreshedDefinition->contentHash));
+    assert(resources.Query(materialHandle, materialReceipt) &&
+           materialReceipt.gpuResident && materialReceipt.gpuUploadsInFlight == 0U &&
+           materialReceipt.contentHash == refreshedDefinition->contentHash &&
+           materialReceipt.hotReloadGeneration > 0U);
     if (!resources.BeginGpuUpload(materialHandle) || !resources.CancelGpuUpload(materialHandle)) return 3;
     if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
     AssetResourceHandle materialHandle2{};
