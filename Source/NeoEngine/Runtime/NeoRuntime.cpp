@@ -606,6 +606,10 @@ bool NeoRuntime::RequestStreamedAsset(const StreamRequest& request) {
     return ok;
 }
 
+bool NeoRuntime::RefreshStreamedAsset(const StreamRequest& request) {
+    return m_AssetStreamBridge != nullptr && m_AssetStreamBridge->Refresh(request);
+}
+
 bool NeoRuntime::CancelStreamedAsset(const AssetID& id) {
     if (m_State != RuntimeState::Initialized || !m_AssetStreamBridge) { m_LastError = RuntimeError::InvalidState; return false; }
     const bool ok = m_AssetStreamBridge->Cancel(id);
