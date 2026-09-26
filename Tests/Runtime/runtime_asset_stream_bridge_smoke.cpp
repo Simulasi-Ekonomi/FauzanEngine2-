@@ -5,14 +5,27 @@
 #include <cstdio>
 #include <fstream>
 #include <thread>
+#include <vector>
+
+namespace {
+VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
+    if constexpr (std::is_pointer_v<VkDeviceMemory>) {
+        return reinterpret_cast<VkDeviceMemory>(value);
+    } else {
+        return static_cast<VkDeviceMemory>(value);
+    }
+}
+}
 
 int main() {
     using namespace NeoEngine;
-    const char* path = "runtime_asset_stream_bridge_smoke.bin";
+    const char* path = "runtime_asset_stream_bridge_smoke.ppm";
     {
         std::ofstream file(path, std::ios::binary);
-        const unsigned char bytes[] = {1U, 2U, 3U, 4U};
-        file.write(reinterpret_cast<const char*>(bytes), sizeof(bytes));
+        const char header[] = "P6\n1 1\n255\n";
+        const unsigned char pixel[] = {255U, 32U, 16U};
+        file.write(header, sizeof(header) - 1U);
+        file.write(reinterpret_cast<const char*>(pixel), sizeof(pixel));
     }
 
     AssetRegistry registry;
@@ -47,12 +60,42 @@ int main() {
     assert(resources.Query(handle, receipt));
     assert(receipt.gpuUploadsInFlight == 1U);
     assert(!receipt.gpuResident);
-    assert(bridge.FailGpuUpload(request.id));
-    assert(queue.GetState(request.id) == StreamState::Failed);
+
+    std::vector<VkDeviceMemory> released;
+    const VkDeviceMemory firstMemory = FakeDeviceMemory(0x1001U);
+    assert(bridge.CompleteGpuUpload(
+        request.id, firstMemory, 1U,
+        [&released](VkDeviceMemory memory) { released.push_back(memory); }));
     assert(bridge.PendingGpuUploadCount() == 0U);
+    assert(bridge.ResidentGpuUploadCount() == 1U);
+    assert(queue.IsReady(request.id));
+    assert(released.empty());
+
+    assert(bridge.Refresh(request));
+    assert(bridge.ResidentGpuUploadCount() == 0U);
+    assert(released.size() == 1U && released[0] == firstMemory);
+
+    bool refreshed = false;
+    for (uint32_t i = 0U; i < 100U && !refreshed; ++i) {
+        bridge.Pump();
+        refreshed = bridge.PendingGpuUploadCount() == 1U;
+        if (!refreshed) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    assert(refreshed);
+
+    AssetResourceHandle refreshedHandle{};
+    StreamRequest refreshedRequest{};
+    assert(bridge.GetGpuUpload(request.id, refreshedRequest, refreshedHandle));
+    assert(queue.GetState(request.id) == StreamState::Uploading);
+    assert(refreshedRequest.id == request.id);
+    assert(refreshedHandle.generation != 0U);
+
+    assert(bridge.FailGpuUpload(request.id));
+    assert(bridge.PendingGpuUploadCount() == 0U);
+    assert(queue.GetState(request.id) == StreamState::Failed);
 
     bridge.Stop();
     std::remove(path);
-    std::puts("RUNTIME_ASSET_STREAM_BRIDGE_SMOKE_OK file_to_resource_pin=1 gpu_completion_left_authoritative=1");
+    std::puts("RUNTIME_ASSET_STREAM_BRIDGE_SMOKE_OK refresh=1 ownership_release=1 gpu_completion_left_authoritative=1");
     return 0;
 }
