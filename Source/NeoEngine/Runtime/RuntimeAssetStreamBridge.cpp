@@ -224,10 +224,8 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
             bool decodedOk = PpmTextureDecoder::DecodeP6(event.bytes, decoded, decodeError);
             if (!decodedOk) decodedOk = BmpTextureDecoder::DecodeBiRgb(event.bytes, decoded, decodeError);
             if (!decodedOk || decoded.width == 0U || decoded.height == 0U || decoded.rgba.empty()) {
-                (void)queue_.FailUpload(event.id);
-                std::lock_guard<std::mutex> lock(mutex_);
-                requests_.erase(event.id);
-                return processed;
+                failEvent();
+                continue;
             }
             decodedTexture.rgba = std::move(decoded.rgba);
             decodedTexture.width = decoded.width;
@@ -265,10 +263,15 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
         if (isRefresh) {
             handle = pendingHandle;
         } else {
-            if (!resources_.Acquire(event.request.id, handle) ||
-                !resources_.BeginGpuUpload(handle)) {
-                (void)queue_.FailUpload(event.id);
-                if (handle.slot != 0xFFFFU) (void)resources_.Release(handle);
+            if (!resources_.Acquire(event.request.id, handle)) {
+                (void)queue_.CancelPending(event.id);
+                std::lock_guard<std::mutex> lock(mutex_);
+                requests_.erase(event.id);
+                continue;
+            }
+            if (!resources_.BeginGpuUpload(handle)) {
+                (void)resources_.Release(handle);
+                (void)queue_.CancelPending(event.id);
                 std::lock_guard<std::mutex> lock(mutex_);
                 requests_.erase(event.id);
                 continue;
