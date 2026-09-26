@@ -139,8 +139,8 @@ int main() {
     }
 
     TEST_CHECK(bridge.Refresh(streamedTexture), "Resident streamed texture refresh request failed");
-    TEST_CHECK(bridge.ResidentGpuUploadCount() == 0U, "Old streamed GPU residency must be released before refresh");
-    TEST_CHECK(!renderer.IsStreamedTextureReady(streamedTexture.id), "Old renderer texture must leave the resident map during refresh");
+    TEST_CHECK(bridge.ResidentGpuUploadCount() == 1U, "Old streamed GPU residency must remain authoritative during refresh");
+    TEST_CHECK(renderer.IsStreamedTextureReady(streamedTexture.id), "Old renderer texture must remain usable while refresh is pending");
 
     bool refreshedStreamReady = false;
     for (uint32_t frame = 0U; frame < 120U && !refreshedStreamReady; ++frame) {
