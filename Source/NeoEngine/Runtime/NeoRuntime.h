@@ -16,6 +16,8 @@
 #include "RuntimePersistence.h"
 #include "ActorComponentWorld.h"
 #include "AssetResourceManager.h"
+#include "AssetStreamingQueue.h"
+#include "RuntimeAssetStreamBridge.h"
 #include "ReplicationWorld.h"
 #include "EventSignalBus.h"
 #include "FarmRuntimeHud.h"
@@ -70,6 +72,8 @@ public:
     bool BindFarmSpriteAssets(const FarmSpriteAssetSet& assetSet);
     bool RenderFarm();
     bool RenderScene3D();
+    bool RequestStreamedAsset(const StreamRequest& request);
+    bool CancelStreamedAsset(const AssetID& id);
     bool BindSceneSkeletalAnimation(SceneEntity entity,const Skeleton& skeleton,const SkeletalPoseClip& clip,SkeletalPosePlaybackMode mode=SkeletalPosePlaybackMode::Loop);
     bool SetSceneSkeletalAnimationPaused(SceneEntity entity,bool paused);
     bool SetSceneSkeletalAnimationSpeed(SceneEntity entity,float speed);
@@ -155,6 +159,9 @@ private:
     std::unique_ptr<FarmAuthoritativeSessionHost> m_FarmAuthoritySession;
     std::unique_ptr<AssetRegistry> m_Assets;
     std::unique_ptr<AssetResourceManager> m_Resources;
+    std::unique_ptr<StreamManager> m_StreamManager;
+    std::unique_ptr<AssetStreamingQueue> m_AssetStreamingQueue;
+    std::unique_ptr<RuntimeAssetStreamBridge> m_AssetStreamBridge;
     std::unique_ptr<ActorComponentWorld> m_Actors;
     std::unique_ptr<ReplicationWorld> m_Replication;
     std::unique_ptr<AuthoringCatalog> m_Authoring;
