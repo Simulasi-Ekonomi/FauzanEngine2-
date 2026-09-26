@@ -38,7 +38,7 @@ jobs:
         run: cmake -S Source/NeoEngine -B build/pr44-release -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build PR44 functional smoke targets
         run: |
-          cmake --build build/pr44-release --target             editor_scene_agent_smoke             editor_scene_session_smoke             audio_subsystem_smoke             neo_runtime_audio_smoke             wav_audio_pitch_regression_smoke             pbr_lighting_smoke             -j2
+          cmake --build build/pr44-release --target             editor_scene_agent_smoke             editor_scene_session_smoke             audio_subsystem_smoke             neo_runtime_audio_smoke             wav_audio_pitch_regression_smoke             pbr_lighting_smoke             vulkan_renderer_3d_smoke             -j2
       - name: Run PR44 functional smoke targets
         run: |
           ./build/pr44-release/editor_scene_agent_smoke
@@ -47,11 +47,12 @@ jobs:
           ./build/pr44-release/neo_runtime_audio_smoke
           ./build/pr44-release/wav_audio_pitch_regression_smoke
           ./build/pr44-release/pbr_lighting_smoke
+          ./build/pr44-release/vulkan_renderer_3d_smoke
       - name: Configure ASAN
         run: cmake -S Source/NeoEngine -B build/pr44-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
       - name: Build PR44 functional smoke targets ASAN
         run: |
-          cmake --build build/pr44-asan --target             editor_scene_agent_smoke             editor_scene_session_smoke             audio_subsystem_smoke             neo_runtime_audio_smoke             wav_audio_pitch_regression_smoke             pbr_lighting_smoke             -j2
+          cmake --build build/pr44-asan --target             editor_scene_agent_smoke             editor_scene_session_smoke             audio_subsystem_smoke             neo_runtime_audio_smoke             wav_audio_pitch_regression_smoke             pbr_lighting_smoke             vulkan_renderer_3d_smoke             -j2
       - name: Run PR44 functional smoke targets ASAN
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
@@ -62,3 +63,4 @@ jobs:
           ./build/pr44-asan/neo_runtime_audio_smoke
           ./build/pr44-asan/wav_audio_pitch_regression_smoke
           ./build/pr44-asan/pbr_lighting_smoke
+          ./build/pr44-asan/vulkan_renderer_3d_smoke
