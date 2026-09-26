@@ -415,6 +415,16 @@ bool VulkanGPUTexture::CreateSampler(VkFilter filter, VkSamplerAddressMode addre
     return true;
 }
 
+uint32_t VulkanGPUTexture::GetAllocationSizeMB() const noexcept {
+    if (device_ == VK_NULL_HANDLE || image_ == VK_NULL_HANDLE) return 0U;
+    VkMemoryRequirements requirements{};
+    vkGetImageMemoryRequirements(device_, image_, &requirements);
+    const uint64_t bytes = static_cast<uint64_t>(requirements.size);
+    if (bytes == 0U) return 0U;
+    const uint64_t mb = (bytes + 1024ULL * 1024ULL - 1ULL) / (1024ULL * 1024ULL);
+    return mb > UINT32_MAX ? 0U : static_cast<uint32_t>(mb);
+}
+
 void VulkanGPUTexture::Destroy() {
     if (device_ != VK_NULL_HANDLE) {
         if (sampler_ != VK_NULL_HANDLE) {
