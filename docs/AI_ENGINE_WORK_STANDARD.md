@@ -196,7 +196,7 @@ without creating competing transform authorities.
 
 ## 9. Asset pipeline requirements
 
-Asset streaming is not complete when metadata moves through a queue, when a command buffer is merely recorded/submitted, or when a state enum is advanced by a synthetic callback. The current P1 contract requires a resource upload pin, exact resource-handle association with the pending GPU task, authoritative fence/timeline observation, and only then resource-manager residency publication.
+Asset streaming is not complete when metadata moves through a queue, when a command buffer is merely recorded/submitted, or when a state enum is advanced by a synthetic callback. The current P1 contract requires a resource upload pin, exact resource-handle association with the pending GPU task, authoritative fence/timeline observation, and only then resource-manager residency publication. File-stream completion callbacks must not mutate those canonical runtime stores from worker threads; a synchronized runtime-thread handoff must perform the state-machine transitions.
 
 Validate:
 
