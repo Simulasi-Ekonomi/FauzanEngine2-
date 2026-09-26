@@ -2,6 +2,7 @@
 #include "AssetResourceManager.h"
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -9,6 +10,7 @@ namespace NeoEngine {
 
 
 struct UploadTask {
+    AssetID assetId{};
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
     VkImage targetImage = VK_NULL_HANDLE;
@@ -22,6 +24,7 @@ struct UploadTask {
 
 class VulkanAssetUploader {
 public:
+    using UploadCompletionCallback = std::function<void(const UploadTask&, VkResult)>;
     explicit VulkanAssetUploader(uint32_t stagingPoolSizeMB = 512) noexcept
         : stagingPoolSizeMB_(stagingPoolSizeMB) {}
 
@@ -59,6 +62,10 @@ public:
     // Set takeOwnership only when this uploader created the fence specifically for
     // these pending uploads. A borrowed fence is never destroyed by this class.
     void AttachCompletionFence(VkFence fence, bool takeOwnership = false) noexcept;
+    // Optional completion owner. When installed, the callback owns final resource/queue
+    // publication for tracked uploads; this prevents the uploader from publishing
+    // residency before the runtime stream bridge has an authoritative GPU result.
+    void SetUploadCompletionCallback(UploadCompletionCallback callback) noexcept;
     void AdvanceFrame(VkDevice device) noexcept;
     void Flush(VkDevice device) noexcept;
 
@@ -78,6 +85,7 @@ private:
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
     VkDevice lastDevice_ = VK_NULL_HANDLE;
     std::vector<VkFence> ownedCompletionFences_;
+    UploadCompletionCallback completionCallback_{};
 };
 
 } // namespace NeoEngine
