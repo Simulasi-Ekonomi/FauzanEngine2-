@@ -103,8 +103,11 @@ public:
     bool Acquire(std::string_view assetId, AssetResourceHandle& handle);
     bool Release(AssetResourceHandle handle);
     bool BeginGpuUpload(AssetResourceHandle handle);
+    bool BeginGpuRefresh(AssetResourceHandle handle);
     bool CompleteGpuUpload(AssetResourceHandle handle);
+    bool CompleteGpuRefresh(AssetResourceHandle handle);
     bool CancelGpuUpload(AssetResourceHandle handle);
+    bool CancelGpuRefresh(AssetResourceHandle handle);
     bool SyncHotReload(std::string_view assetId);
     bool ReloadIfSafe(std::string_view assetId);
     bool EvictUnleased(uint16_t& evictedResources);
