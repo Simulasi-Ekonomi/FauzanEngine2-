@@ -196,6 +196,9 @@ bool VulkanGPUTexture::TransitionImageLayout(VkQueue graphicsQueue, VkCommandPoo
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else {
+        vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+        return false;
     }
 
     vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
