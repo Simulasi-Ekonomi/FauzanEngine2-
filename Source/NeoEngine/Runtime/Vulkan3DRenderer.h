@@ -80,6 +80,7 @@ public:
     // Binds a completed streamed texture for subsequent draws in the active frame.
     // The descriptor is immutable for the lifetime of the renderer-owned streamed resource.
     bool BindStreamedTexture(const std::string& assetId) noexcept;
+    [[nodiscard]] bool IsStreamedTextureReady(const std::string& assetId) const noexcept;
     [[nodiscard]] const VulkanGPUTexture* FindStreamedTexture(const std::string& assetId) const noexcept;
 
     // Copies the last successfully presented swapchain image into RGBA8 CPU memory.
