@@ -20,6 +20,7 @@ This repository is a production-oriented 3D game-engine project. Treat the curre
 12. **GPU ownership is explicit.** Every Vulkan resource or synchronization primitive must have one unambiguous destruction owner. Borrowed handles must never be destroyed by consumers; owned handles must be destroyed exactly once. Tests must cover duplicate-registration and teardown paths where applicable.
 13. **GPU-resource lifetime is explicit.** When an uploader stores an `AssetResourceManager*` or equivalent ownership observer for pending work, the resource manager must outlive every pending upload and the uploader must be destroyed/flushed before the manager. Do not retain raw ownership observers past their owner lifetime.
 14. **Residency follows authoritative completion.** A resource upload may increase an in-flight count when submission is recorded, but `gpuResident`/Ready publication can only become true after the authoritative synchronization object reports completion. Multiple uploads for one resource remain non-resident until the final in-flight upload completes.
+15. **Vulkan helpers fail closed.** Command-buffer begin/end, queue submission/idle, required image-layout transitions, and binding operations whose return codes are available must be checked. Unsupported transition pairs must be rejected explicitly; helper functions must not return success after an unverified Vulkan operation.
 
 ## Required workflow
 
