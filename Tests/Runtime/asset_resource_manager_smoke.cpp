@@ -29,6 +29,10 @@ int main() {
     if (resources.Release(materialHandle) || resources.LastError() != AssetResourceError::GpuUploadPending) return 3;
     uint16_t gpuPinnedEvictions = 999U;
     if (!resources.EvictUnleased(gpuPinnedEvictions) || gpuPinnedEvictions != 0U || resources.LastError() != AssetResourceError::None) return 3;
+    if (!resources.BeginGpuUpload(materialHandle)) return 3;
+    if (!resources.BeginGpuUpload(materialHandle)) return 3;
+    if (!resources.CompleteGpuUpload(materialHandle)) return 3;
+    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 1U) return 3;
     if (!resources.CompleteGpuUpload(materialHandle)) return 3;
     if (!resources.Query(materialHandle, materialReceipt) || !materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
     AssetResourceHandle materialHandle2{};
