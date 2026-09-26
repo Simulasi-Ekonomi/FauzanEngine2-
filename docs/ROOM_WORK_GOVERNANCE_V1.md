@@ -109,6 +109,7 @@ Aturan test:
 - Release dan ASAN harus memakai **target source, dependency family, environment, dan input yang sama**.
 - Smoke baru wajib terdaftar di CMake canonical dan masuk manifest/ledger.
 - Test harus menguji success path, rejection/failure path, bounds, atomicity, ownership/lifetime, dan determinism yang relevan.
+- Untuk async GPU/resource streaming, test wajib membuktikan submission tidak sama dengan completion: authoritative fence/timeline completion harus terjadi sebelum Ready/publication, serta release/eviction tidak boleh menghancurkan borrowed synchronization handles.
 - Benchmark wajib mencatat workload exact, build mode, hardware/runtime, elapsed time, dan exit status. Nama `bench_100k` bukan bukti 100K lulus.
 - Device/Termux/Vulkan evidence tidak boleh digantikan oleh source inspection atau software fallback.
 
@@ -170,6 +171,8 @@ Kalimat “done”, “fixed”, “ready”, atau “100%” tanpa command dan 
 ## 10. Forbidden actions
 
 - Force push, reset remote, delete branch, atau overwrite branch lain tanpa instruksi eksplisit owner.
+- Menganggap command recording/submission sebagai GPU completion.
+- Menghancurkan borrowed Vulkan fence/semaphore atau mendaftarkan owned synchronization handle lebih dari sekali.
 - Menghapus test/workflow untuk menyembunyikan failure.
 - Mengurangi workload benchmark atau melonggarkan threshold.
 - Mengubah ASAN/Release gate menjadi no-op.
