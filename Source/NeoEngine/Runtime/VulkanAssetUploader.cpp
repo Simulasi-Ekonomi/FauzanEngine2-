@@ -91,6 +91,18 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
                                                  VkDevice device, VkCommandBuffer cmd,
                                                  VkImage targetImage, VkImageLayout targetLayout,
                                                  uint32_t width, uint32_t height) noexcept {
+    return UploadTextureResource(resources, handle, pixels, device, cmd, targetImage,
+                                  targetLayout, width, height, VK_NULL_HANDLE, 0U);
+}
+
+bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
+                                                 const AssetResourceHandle& handle,
+                                                 const std::vector<uint8_t>& pixels,
+                                                 VkDevice device, VkCommandBuffer cmd,
+                                                 VkImage targetImage, VkImageLayout targetLayout,
+                                                 uint32_t width, uint32_t height,
+                                                 VkDeviceMemory gpuMemory,
+                                                 uint32_t gpuAllocationSizeMB) noexcept {
     if (pixels.empty() || width == 0U || height == 0U) return false;
     if (!resources.BeginGpuUpload(handle)) return false;
     if (pixels.size() > std::numeric_limits<uint64_t>::max() / 4ULL ||
@@ -112,6 +124,15 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
     task.resourceManager = &resources;
     task.resourceHandle = handle;
     task.tracksResourceResidency = true;
+    if (gpuMemory != VK_NULL_HANDLE) {
+        if (gpuAllocationSizeMB == 0U) {
+            (void)resources.CancelGpuUpload(handle);
+            pendingUploads_.pop_back();
+            return false;
+        }
+        task.gpuMemory = gpuMemory;
+        task.gpuAllocationSizeMB = gpuAllocationSizeMB;
+    }
     AssetResourceReceipt receipt{};
     if (!resources.Query(handle, receipt) || receipt.assetId.empty()) {
         resources.CancelGpuUpload(handle);
