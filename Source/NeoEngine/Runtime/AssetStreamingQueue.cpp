@@ -120,14 +120,25 @@ bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
 }
 
 bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory, uint32_t allocatedSizeMB) noexcept {
-    if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0) return false;
+    GpuMemoryReleaseCallback callback;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        callback = gpuMemoryReleaseCallback_;
+    }
+    return CompleteUpload(id, gpuMemory, allocatedSizeMB, std::move(callback));
+}
+
+bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
+                                         uint32_t allocatedSizeMB,
+                                         GpuMemoryReleaseCallback releaseCallback) noexcept {
+    if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0 || !releaseCallback) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = loadedAssets_.find(id);
-    if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading || !gpuMemoryReleaseCallback_) return false;
+    if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading) return false;
     if (allocatedSizeMB > memoryBudgetMB_ || residentMemoryMB_ > std::numeric_limits<uint32_t>::max() - allocatedSizeMB ||
         residentMemoryMB_ + allocatedSizeMB > memoryBudgetMB_) return false;
     try {
-        it->second.gpuMemoryReleaseCallback = gpuMemoryReleaseCallback_;
+        it->second.gpuMemoryReleaseCallback = std::move(releaseCallback);
     } catch (...) {
         return false;
     }
