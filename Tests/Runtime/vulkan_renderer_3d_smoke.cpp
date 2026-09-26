@@ -156,9 +156,9 @@ int main() {
     }
     TEST_CHECK(refreshedStreamReady, "Refreshed streamed texture did not reach authoritative GPU readiness");
 
+    TEST_CHECK(bridge.ReleaseAllGpuUploads(), "Resident refreshed GPU upload release failed");
     renderer.Reset();
     TEST_CHECK(!renderer.Ready(), "Renderer should not be ready after Reset");
-    TEST_CHECK(bridge.ReleaseAllGpuUploads(), "Resident refreshed GPU upload release failed");
     bridge.Stop();
     std::remove(texturePath);
 
