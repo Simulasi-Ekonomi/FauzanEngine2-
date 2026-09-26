@@ -59,7 +59,13 @@ int main() {
     if (!Require(!AuthoritativeActorBridge::applyClientState({50, 7, 0, 1, 1, 1}, clientActor, authority), "bridge_stale_reject")) return 5;
 
     InterestRelevancy relevancy(5.0F);
-    if (!Require(relevancy.relevant({0, 0, 0}, {1, {3, 4, 0}, 2, false}, 2), "relevancy_inside") ||
+    InterestRelevancy invalidRadius(-5.0F);
+    InterestRelevancy nanRadius(std::numeric_limits<float>::quiet_NaN());
+    if (!Require(!invalidRadius.relevant({0, 0, 0}, {1, {0, 0, 0}, 0, false}), "relevancy_invalid_radius") ||
+        !Require(!nanRadius.relevant({0, 0, 0}, {1, {0, 0, 0}, 0, false}), "relevancy_nan_radius") ||
+        !Require(!relevancy.relevant({std::numeric_limits<float>::quiet_NaN(), 0, 0}, {1, {0, 0, 0}, 0, false}), "relevancy_nan_observer") ||
+        !Require(!relevancy.relevant({0, 0, 0}, {1, {std::numeric_limits<float>::infinity(), 0, 0}, 0, false}), "relevancy_inf_entity") ||
+        !Require(relevancy.relevant({0, 0, 0}, {1, {3, 4, 0}, 2, false}, 2), "relevancy_inside") ||
         !Require(!relevancy.relevant({0, 0, 0}, {2, {3, 4, 0}, 3, false}, 2), "relevancy_team") ||
         !Require(relevancy.relevant({0, 0, 0}, {3, {100, 0, 0}, 3, true}, 2), "relevancy_always") ||
         !Require(!relevancy.relevant({0, 0, 0}, {0, {0, 0, 0}, 0, false}), "relevancy_invalid")) return 6;
@@ -78,6 +84,11 @@ int main() {
         !Require(dispatcher.dispatch({7, 11, 1, 10, RpcDirection::ClientToServer, 4}).accepted, "rpc_dispatch") ||
         !Require(dispatcher.dispatch({7, 11, 1, 10, RpcDirection::ClientToServer, 4}).reason == RpcDispatchResult::Reason::DuplicateSequence, "rpc_duplicate") ||
         !Require(dispatcher.dispatch({7, 11, 2, 10, RpcDirection::ServerToClient, 4}).reason == RpcDispatchResult::Reason::DirectionDenied, "rpc_direction")) return 8;
+
+    ReconnectPolicy overflowSafePolicy(250U, 8000U, 1000000U);
+    const ReconnectDecision saturatedBackoff = overflowSafePolicy.next(1000000U);
+    if (!Require(saturatedBackoff.allowed && saturatedBackoff.delayMs == 8000U && saturatedBackoff.attempt == 1000000U, "reconnect_backoff_saturates") ||
+        !Require(!overflowSafePolicy.next(1000001U).allowed, "reconnect_attempt_bound")) return 9;
 
     SessionReconnection reconnect(2);
     if (!Require(reconnect.transition(ReconnectionEvent::Begin), "reconnect_begin") ||
