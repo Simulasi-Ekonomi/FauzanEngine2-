@@ -156,25 +156,30 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     return true;
 }
 
-void VulkanAssetUploader::AttachCompletionFence(VkFence fence) noexcept {
+void VulkanAssetUploader::AttachCompletionFence(VkFence fence, bool takeOwnership) noexcept {
     if (fence == VK_NULL_HANDLE || pendingUploads_.empty()) return;
+    if (takeOwnership) {
+        try {
+            ownedCompletionFences_.push_back(fence);
+        } catch (...) {
+            return;
+        }
+    }
     for (UploadTask& task : pendingUploads_)
         if (task.completionFence == VK_NULL_HANDLE) task.completionFence = fence;
 }
 
 void VulkanAssetUploader::Flush(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
-    std::vector<VkFence> destroyedFences;
     for (const UploadTask& task : pendingUploads_) {
-        if (task.completionFence != VK_NULL_HANDLE &&
-            std::find(destroyedFences.begin(), destroyedFences.end(), task.completionFence) == destroyedFences.end()) {
-            vkDestroyFence(device, task.completionFence, nullptr);
-            destroyedFences.push_back(task.completionFence);
-        }
         if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
         if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
     }
     pendingUploads_.clear();
+    for (VkFence fence : ownedCompletionFences_) {
+        if (fence != VK_NULL_HANDLE) vkDestroyFence(device, fence, nullptr);
+    }
+    ownedCompletionFences_.clear();
     currentStagingUsedMB_ = 0U;
     lastDevice_ = device;
 }
@@ -182,7 +187,6 @@ void VulkanAssetUploader::Flush(VkDevice device) noexcept {
 void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_)) return;
     size_t write = 0; uint32_t residentMB = 0;
-    std::vector<VkFence> completedFences;
     for (size_t i = 0; i < pendingUploads_.size(); ++i) {
         UploadTask& task = pendingUploads_[i];
         const VkFence fence = task.completionFence;
@@ -190,12 +194,10 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
         if (complete) {
             if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
             if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
-            if (std::find(completedFences.begin(), completedFences.end(), fence) == completedFences.end()) completedFences.push_back(fence);
             continue;
         }
         pendingUploads_[write++] = task; residentMB += task.uploadSizeMB;
     }
-    for (VkFence fence : completedFences) vkDestroyFence(device, fence, nullptr);
     pendingUploads_.resize(write); currentStagingUsedMB_ = residentMB;
 }
 
