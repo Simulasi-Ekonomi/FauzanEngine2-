@@ -6,12 +6,11 @@
 
 namespace {
 VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
-    if constexpr (std::is_pointer_v<VkDeviceMemory>) {
-        return reinterpret_cast<VkDeviceMemory>(value);
-    } else {
-        return static_cast<VkDeviceMemory>(value);
-    }
-}
+#ifdef VK_DEFINE_NON_DISPATCHABLE_HANDLE
+    return reinterpret_cast<VkDeviceMemory>(value);
+#else
+    return static_cast<VkDeviceMemory>(value);
+#endif
 }
 #include <cstdint>
 #include <iostream>
