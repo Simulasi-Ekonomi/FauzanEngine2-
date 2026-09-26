@@ -55,6 +55,8 @@ public:
     [[nodiscard]] bool FailGpuUpload(AssetID id) noexcept;
     [[nodiscard]] bool ReleaseGpuUpload(AssetID id) noexcept;
     [[nodiscard]] bool ReleaseAllGpuUploads() noexcept;
+    [[nodiscard]] AssetResourceManager& Resources() noexcept { return resources_; }
+    [[nodiscard]] const AssetResourceManager& Resources() const noexcept { return resources_; }
     [[nodiscard]] uint32_t PendingGpuUploadCount() const noexcept;
     [[nodiscard]] uint32_t ResidentGpuUploadCount() const noexcept;
 
