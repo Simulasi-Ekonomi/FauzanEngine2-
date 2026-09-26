@@ -63,9 +63,6 @@ int main() {
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL init_or_bind error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 1;
     }
-        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL init error=%u\n", static_cast<unsigned>(renderer.LastError()));
-        return 1;
-    }
 
     constexpr std::array<float, 16> identity{{
         1.0F, 0.0F, 0.0F, 0.0F,
