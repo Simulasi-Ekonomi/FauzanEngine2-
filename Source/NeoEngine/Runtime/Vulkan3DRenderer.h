@@ -4,12 +4,16 @@
 #include <cstdint>
 #include <span>
 #include <vector>
+#include <string>
 #include "Animation/GPUSkinningPaletteBuffer.h"
 #include "VulkanAssetUploader.h"
 
 #include <vulkan/vulkan.h>
 
 namespace NeoEngine {
+
+class RuntimeAssetStreamBridge;
+class VulkanGPUTexture;
 
 struct Vulkan3DVertex {
     float px = 0.0F, py = 0.0F, pz = 0.0F;
@@ -68,6 +72,11 @@ public:
     // while the Vulkan device is still valid. Call before destroying the renderer
     // and before releasing runtime-owned streamed GPU resources.
     void FlushAssetUploads() noexcept;
+    // Binds the runtime bridge as the sole completion/ownership publication path.
+    bool BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) noexcept;
+    // Records decoded streamed texture uploads into the active frame command buffer.
+    bool PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) noexcept;
+    [[nodiscard]] const VulkanGPUTexture* FindStreamedTexture(const std::string& assetId) const noexcept;
 
     // Copies the last successfully presented swapchain image into RGBA8 CPU memory.
     // Must be called after EndFrame() and before the next BeginFrame().
