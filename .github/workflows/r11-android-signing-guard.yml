@@ -2,7 +2,7 @@ name: R11 Android signing guard
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, p3-editor-android-production-night ]
     paths:
       - 'android/app/build.gradle'
       - 'tools/android_release_signing_guard_smoke.sh'
