@@ -99,7 +99,7 @@ int main() {
                response.find(R"("offset":2)") != std::string::npos &&
                response.find(R"("returnedCount":2)") != std::string::npos &&
                response.find(R"("hasMore":false)") != std::string::npos &&
-               response.find(R"("actors":[) != std::string::npos,
+               response.find("\"actors\":[") != std::string::npos,
                "paginated query metadata mismatch");
 
     TEST_CHECK(!agent.Execute(R"({"operation":"query","unexpected":1})", session, assets, response),
