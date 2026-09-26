@@ -1,4 +1,4 @@
-name: P1-P3 sandbox validation — P1 CMake + Release 81/81 + ASAN 81/81
+name: P1 sandbox validation — CMake + Release 81/81 + ASAN 81/81
 
 on:
   push:
@@ -162,10 +162,10 @@ jobs:
       - name: Configure ASAN 81/81
         run: |
           cmake -S Source/NeoEngine -B build/p1-asan -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include \
-            '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
-            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
+            '-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined'
       - name: Build ASAN 81/81 target set
         run: |
           cmake --build build/p1-asan --target all -j2
@@ -176,7 +176,8 @@ jobs:
           test "$(wc -l < /tmp/p1_targets.txt)" -eq 81
       - name: Run ASAN 81/81 — final sandbox gate
         env:
-          ASAN_OPTIONS: detect_leaks=1
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
           LSAN_OPTIONS: suppressions=.github/asan/third_party_sdl_x11.lsan.supp
         run: |
           pass=0
