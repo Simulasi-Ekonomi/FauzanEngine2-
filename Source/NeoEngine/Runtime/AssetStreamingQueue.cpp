@@ -71,30 +71,29 @@ bool AssetStreamingQueue::BeginUpload(AssetID id, StreamRequest& out) noexcept {
     if (asset == loadedAssets_.end() || asset->second.state != StreamState::Pending) return false;
 
     decltype(streamQueue_) remaining;
+    decltype(streamQueue_) working;
     StreamRequest selected{};
     bool found = false;
     try {
-        while (!streamQueue_.empty()) {
-            StreamRequest candidate = streamQueue_.top();
-            streamQueue_.pop();
+        working = streamQueue_;
+        while (!working.empty()) {
+            StreamRequest candidate = working.top();
+            working.pop();
             if (!found && candidate.id == id) {
-                selected = candidate;
+                selected = std::move(candidate);
                 found = true;
             } else {
                 remaining.push(std::move(candidate));
             }
         }
-        if (!found) {
-            streamQueue_.swap(remaining);
-            return false;
-        }
+        if (!found) return false;
         out = selected;
         streamQueue_.swap(remaining);
         asset->second.state = StreamState::Uploading;
         return true;
     } catch (...) {
-        // Preserve the original pending queue as far as the priority_queue
-        // representation permits; never expose a partially transitioned asset.
+        // The original queue and Pending state are untouched until every
+        // allocation/copy above has succeeded.
         return false;
     }
 }
