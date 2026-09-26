@@ -2,9 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, p4-release-certification-night ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, p4-release-certification-night ]
   workflow_dispatch:
 
 jobs:
@@ -64,7 +64,7 @@ jobs:
 
   build-release:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/p4-release-certification-night') || github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'p4-release-certification-night')
 
     steps:
     - name: Checkout
@@ -105,14 +105,36 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: Build Release APK
+    - name: Materialize release keystore
+      env:
+        NEO_ANDROID_KEYSTORE_B64: ${{ secrets.NEO_ANDROID_KEYSTORE_B64 }}
       run: |
-        cd android
-        gradle assembleRelease --no-daemon
+        test -n "$NEO_ANDROID_KEYSTORE_B64"
+        printf '%s' "$NEO_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/neoengine-release.keystore"
+        test -s "$RUNNER_TEMP/neoengine-release.keystore"
 
-    - name: Upload Release APK
+    - name: Build signed Release APK and AAB
+      env:
+        NEO_ANDROID_KEYSTORE: ${{ runner.temp }}/neoengine-release.keystore
+        NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
+        NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
+        NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
+      run: |
+        test -n "$NEO_ANDROID_KEY_ALIAS"
+        test -n "$NEO_ANDROID_STORE_PASSWORD"
+        test -n "$NEO_ANDROID_KEY_PASSWORD"
+        cd android
+        gradle assembleRelease bundleRelease --no-daemon
+
+    - name: Verify signed release APK
+      run: |
+        apksigner verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+
+    - name: Upload signed Release artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: NeoEngine-Release-APK
-        path: android/app/build/outputs/apk/release/app-release*.apk
+        name: NeoEngine-P4-Signed-Release
+        path: |
+          android/app/build/outputs/apk/release/app-release.apk
+          android/app/build/outputs/bundle/release/app-release.aab
         retention-days: 90
