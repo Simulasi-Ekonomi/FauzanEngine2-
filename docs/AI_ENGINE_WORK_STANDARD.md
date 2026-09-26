@@ -133,7 +133,8 @@ Every relevant implementation must be checked for:
 - required shader/assets are generated or deployed;
 - runtime ownership is correct;
 - no accidental dependency on a legacy path;
-- public APIs remain connected to their actual implementation.
+- public APIs remain connected to their actual implementation;
+- Vulkan helper functions must fail closed on command recording/submission/transition errors;
 
 ## 6. 3D-first renderer rule
 
@@ -164,6 +165,8 @@ When touching Vulkan:
 - validate shader interface compatibility;
 - validate shader runtime deployment paths;
 - validate image layout transitions;
+- reject unsupported image-layout transition pairs rather than executing an implicit generic barrier;
+- propagate Vulkan command-buffer, queue-submit, and queue-idle failures instead of returning synthetic success;
 - validate resource ownership and cleanup;
 - preserve persistent `VulkanContext` lifetime where required;
 - validate SDL ownership so renderer teardown cannot unexpectedly terminate audio/input;
