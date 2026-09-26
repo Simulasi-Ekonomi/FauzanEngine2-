@@ -6,7 +6,7 @@ on:
       - p2-physics-networking-night
   pull_request:
     branches:
-      - sandbox-p0-validation-20260920
+      - main
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/**'
