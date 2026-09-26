@@ -27,13 +27,17 @@ int main() {
     printf("Create 20000 entities...\n");
     for (int i=0; i<20000; ++i) {
         EntityID id = em.CreateEntity(f);
-        auto* p = em.GetPosition(id);
-        auto* v = em.GetVelocity(id);
-        auto* c = em.GetCollider(id);
-        p->x = pd(rng); p->z = pd(rng);
-        v->vx = vd(rng); v->vz = vd(rng);
-        c->radius = rd(rng);
-        c->invMass = 1.0f / (c->radius * 10.0f);
+        const float px = pd(rng);
+        const float pz = pd(rng);
+        const float vx = vd(rng);
+        const float vz = vd(rng);
+        const float radius = rd(rng);
+        em.SetPosX(id, px);
+        em.SetPosZ(id, pz);
+        em.SetVelX(id, vx);
+        em.SetVelZ(id, vz);
+        em.SetRadius(id, radius);
+        em.SetInvMass(id, 1.0f / (radius * 10.0f));
     }
 
     printf("Warmup 30 frames...\n");
