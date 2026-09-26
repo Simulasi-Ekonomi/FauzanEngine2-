@@ -126,19 +126,8 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
         }
 
         const AssetKind kind = ToAssetKind(event.request.kind);
-        bool imported = assets_.ImportBytes(event.request.id, kind, {}, std::move(event.bytes));
-        if (!imported) {
-            // Existing Ready assets are updated through the canonical registry
-            // replacement path; no synthetic success is emitted on failure.
-            const AssetDefinition* existing = assets_.Find(event.request.id);
-            if (!existing || existing->kind != kind ||
-                !assets_.ReplaceBytes(event.request.id, std::move(event.bytes))) {
-                (void)queue_.FailUpload(event.id);
-                std::lock_guard<std::mutex> lock(mutex_);
-                requests_.erase(event.id);
-                continue;
-            }
-        } else if (!assets_.MarkReady(event.request.id)) {
+        if (!assets_.ImportBytes(event.request.id, kind, {}, std::move(event.bytes)) ||
+            !assets_.MarkReady(event.request.id)) {
             (void)queue_.FailUpload(event.id);
             std::lock_guard<std::mutex> lock(mutex_);
             requests_.erase(event.id);
@@ -146,8 +135,10 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
         }
 
         AssetResourceHandle handle{};
-        if (!resources_.Acquire(event.request.id, handle)) {
+        if (!resources_.Acquire(event.request.id, handle) ||
+            !resources_.BeginGpuUpload(handle)) {
             (void)queue_.FailUpload(event.id);
+            if (handle.slot != 0xFFFFU) (void)resources_.Release(handle);
             std::lock_guard<std::mutex> lock(mutex_);
             requests_.erase(event.id);
             continue;
@@ -193,11 +184,7 @@ bool RuntimeAssetStreamBridge::CompleteGpuUpload(
 
     // Queue acceptance is first so an ownership failure cannot publish resource
     // residency without a corresponding GPU-memory owner.
-    if (!queue_.SetGpuMemoryReleaseCallback, false) {
-        return false;
-    }
-    queue_.SetGpuMemoryReleaseCallback(std::move(releaseCallback));
-    if (!queue_.CompleteUpload(id, gpuMemory, allocatedSizeMB)) return false;
+    if (!queue_.CompleteUpload(id, gpuMemory, allocatedSizeMB, std::move(releaseCallback))) return false;
     if (!resources_.CompleteGpuUpload(handle)) {
         (void)queue_.Release(id);
         return false;
