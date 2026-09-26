@@ -190,7 +190,7 @@ without creating competing transform authorities.
 
 ## 9. Asset pipeline requirements
 
-Asset streaming is not complete when metadata moves through a queue.
+Asset streaming is not complete when metadata moves through a queue, when a command buffer is merely recorded/submitted, or when a state enum is advanced by a synthetic callback.
 
 Validate:
 
@@ -198,6 +198,7 @@ Validate:
 - Pending → Uploading → Ready/Failed lifecycle;
 - resident-byte accounting;
 - GPU allocation ownership;
+- synchronization-handle ownership and duplicate-registration safety;
 - eviction cleanup;
 - LRU correctness;
 - total resident budget enforcement;
@@ -321,6 +322,7 @@ Before merge verify:
 - no unresolved blocking review defect;
 - CI applicable to the work is green;
 - tests exercise the real implementation;
+- async GPU completion is observed through the authoritative synchronization mechanism before Ready publication;
 - no existing capability was removed;
 - CMake integration is present;
 - runtime integration is present;
