@@ -180,17 +180,38 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
     uint32_t processed = 0U;
     for (LoadedEvent& event : local) {
         ++processed;
-        if (!event.success) {
-            (void)queue_.FailUpload(event.id);
+        AssetResourceHandle pendingHandle{};
+        bool isRefresh = false;
+        {
             std::lock_guard<std::mutex> lock(mutex_);
+            const auto resident = residentGpuUploads_.find(event.id);
+            const auto pending = gpuUploads_.find(event.id);
+            if (resident != residentGpuUploads_.end() && pending != gpuUploads_.end() &&
+                resident->second == pending->second) {
+                isRefresh = true;
+                pendingHandle = pending->second;
+            }
+        }
+
+        const auto failEvent = [this, &event, isRefresh, pendingHandle]() noexcept {
+            (void)queue_.FailUpload(event.id);
+            if (isRefresh) {
+                (void)resources_.CancelGpuRefresh(pendingHandle);
+            }
+            std::lock_guard<std::mutex> lock(mutex_);
+            gpuTexturePayloads_.erase(event.id);
+            pendingRefreshBytes_.erase(event.id);
+            gpuUploads_.erase(event.id);
             requests_.erase(event.id);
+        };
+
+        if (!event.success) {
+            failEvent();
             continue;
         }
 
         if (event.request.kind > static_cast<uint8_t>(AssetKind::Audio)) {
-            (void)queue_.FailUpload(event.id);
-            std::lock_guard<std::mutex> lock(mutex_);
-            requests_.erase(event.id);
+            failEvent();
             continue;
         }
         const AssetKind kind = ToAssetKind(event.request.kind);
@@ -212,7 +233,20 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
         }
         const AssetDefinition* existing = assets_.Find(event.request.id);
         bool committed = false;
-        if (existing != nullptr) {
+        if (isRefresh) {
+            // Keep the old registry definition authoritative until the replacement
+            // GPU upload has completed. This prevents an in-use resource from being
+            // marked stale while its old GPU representation is still active.
+            try {
+                std::lock_guard<std::mutex> lock(mutex_);
+                pendingRefreshBytes_[event.id] = std::move(event.bytes);
+                if (kind == AssetKind::Texture) gpuTexturePayloads_[event.id] = std::move(decodedTexture);
+            } catch (...) {
+                failEvent();
+                continue;
+            }
+            committed = true;
+        } else if (existing != nullptr) {
             if (existing->kind == kind && existing->state == AssetState::Ready) {
                 committed = assets_.ReplaceBytes(event.request.id, std::move(event.bytes));
             }
@@ -221,34 +255,39 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
                         assets_.MarkReady(event.request.id);
         }
         if (!committed) {
-            (void)queue_.FailUpload(event.id);
-            std::lock_guard<std::mutex> lock(mutex_);
-            requests_.erase(event.id);
+            failEvent();
             continue;
         }
 
         AssetResourceHandle handle{};
-        if (!resources_.Acquire(event.request.id, handle) ||
-            !resources_.BeginGpuUpload(handle)) {
-            (void)queue_.FailUpload(event.id);
-            if (handle.slot != 0xFFFFU) (void)resources_.Release(handle);
-            std::lock_guard<std::mutex> lock(mutex_);
-            requests_.erase(event.id);
-            continue;
+        if (isRefresh) {
+            handle = pendingHandle;
+        } else {
+            if (!resources_.Acquire(event.request.id, handle) ||
+                !resources_.BeginGpuUpload(handle)) {
+                (void)queue_.FailUpload(event.id);
+                if (handle.slot != 0xFFFFU) (void)resources_.Release(handle);
+                std::lock_guard<std::mutex> lock(mutex_);
+                requests_.erase(event.id);
+                continue;
+            }
         }
 
-        StreamRequest uploadRequest{};
-        if (!queue_.BeginUpload(event.id, uploadRequest)) {
-            (void)resources_.CancelGpuUpload(handle);
-            (void)resources_.Release(handle);
-            std::lock_guard<std::mutex> lock(mutex_);
-            requests_.erase(event.id);
-            continue;
+        if (!isRefresh) {
+            StreamRequest uploadRequest{};
+            if (!queue_.BeginUpload(event.id, uploadRequest)) {
+                (void)resources_.CancelGpuUpload(handle);
+                (void)resources_.Release(handle);
+                std::lock_guard<std::mutex> lock(mutex_);
+                requests_.erase(event.id);
+                continue;
+            }
         }
 
-        std::lock_guard<std::mutex> lock(mutex_);
-        gpuUploads_[event.id] = handle;
-        if (kind == AssetKind::Texture) gpuTexturePayloads_[event.id] = std::move(decodedTexture);
+        if (!isRefresh && kind == AssetKind::Texture) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            gpuTexturePayloads_[event.id] = std::move(decodedTexture);
+        }
     }
     return processed;
 }
