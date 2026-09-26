@@ -76,6 +76,7 @@ public:
     bool BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) noexcept;
     // Records decoded streamed texture uploads into the active frame command buffer.
     bool PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) noexcept;
+    bool PumpAssetStreamUploads() noexcept;
     [[nodiscard]] const VulkanGPUTexture* FindStreamedTexture(const std::string& assetId) const noexcept;
 
     // Copies the last successfully presented swapchain image into RGBA8 CPU memory.
