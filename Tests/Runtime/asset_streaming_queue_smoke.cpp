@@ -48,6 +48,16 @@ int main() {
     assert(queue.Enqueue(low));
 
     StreamRequest next{};
+    // File I/O completion can arrive out of priority order. The targeted handoff
+    // must transition that asset without stealing a different queued request.
+    StreamRequest outOfOrder{};
+    assert(queue.BeginUpload("low", outOfOrder));
+    assert(outOfOrder.id == "low");
+    assert(queue.GetState("low") == StreamState::Uploading);
+    assert(queue.GetQueuedCount() == 1);
+    assert(queue.GetState("high") == StreamState::Pending);
+    assert(queue.FailUpload("low"));
+    assert(queue.GetQueuedCount() == 1);
     // GPU ownership must be explicit; an upload without a release owner is rejected.
     AssetStreamingQueue ownershipRequiredQueue(8, 8);
     assert(ownershipRequiredQueue.Enqueue(StreamRequest{"unowned", "unowned.obj", 1.0f, 1, 1}));
