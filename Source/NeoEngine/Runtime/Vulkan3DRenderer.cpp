@@ -181,8 +181,13 @@ struct Vulkan3DRenderer::Impl {
         const auto slotIt = streamedTextureLastBoundFrameSlot.find(assetId);
         if (slotIt != streamedTextureLastBoundFrameSlot.end()) slot = slotIt->second;
         try {
-            retiredStreamedTextures.push_back({std::move(oldTexture), slot});
+            retiredStreamedTextures.reserve(retiredStreamedTextures.size() + 1U);
+            retiredStreamedTextures.emplace_back();
+            retiredStreamedTextures.back().frameSlot = slot;
+            retiredStreamedTextures.back().texture = std::move(oldTexture);
         } catch (...) {
+            // Reserve is performed before ownership is moved, so an allocation
+            // failure leaves oldTexture owning the original GPU handles.
             (void)vkDeviceWaitIdle(device);
             oldTexture.Destroy();
         }
