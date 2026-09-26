@@ -15,7 +15,9 @@ This repository is a production-oriented 3D game-engine project. Treat the curre
 7. **No false validation.** Clearly distinguish source inspection, reconstructed local tests, GitHub CI, and actual device/Termux benchmarks. Never claim a build, sanitizer run, Vulkan run, or performance target passed without evidence.
 8. **Performance targets are exact contracts.** For the XPBD target, the required workload is 100,000 bodies and at least 200,000 collision tests, with measured step time strictly below 5 ms. Do not lower the workload or weaken the threshold.
 9. **Review defects are work items.** Unresolved review comments, CI failures, unsafe ownership, missing CMake registration, dead integration seams, and stale branch defects must be audited and repaired before declaring a workstream complete.
-10. **No premature merge.** Merge only after applicable review comments are resolved, CI is green, the diff is coherent, and the implementation is actually integrated. If validation is unavailable, leave the PR open and state exactly what remains unverified.
+10. **No premature merge.** Merge only after applicable review comments are resolved, CI is green, the diff is coherent, and the implementation is actually integrated.
+11. **Async completion is authoritative.** For asynchronous asset/GPU pipelines, command recording or upload submission is not completion. A resource may become Ready only after the authoritative completion mechanism (for example a fence/timeline semaphore or equivalent) has been observed successfully and the owning resource manager has committed the result.
+12. **GPU ownership is explicit.** Every Vulkan resource or synchronization primitive must have one unambiguous destruction owner. Borrowed handles must never be destroyed by consumers; owned handles must be destroyed exactly once. Tests must cover duplicate-registration and teardown paths where applicable.
 
 ## Required workflow
 
@@ -43,6 +45,7 @@ For each relevant subsystem inspect:
 - executable smoke coverage;
 - runtime integration and authority ownership;
 - Vulkan resource lifetime and shader deployment;
+- asynchronous completion ordering and publication semantics;
 - Android lifecycle/input behavior;
 - performance contracts.
 
@@ -53,6 +56,7 @@ For each relevant subsystem inspect:
 - Register production sources and smoke tests in canonical CMake.
 - Prefer existing engine contracts over duplicate parallel APIs.
 - If a subsystem is currently CPU/2D-only but its canonical role is 3D, extend it into the real 3D runtime instead of hiding the gap.
+- For async GPU work, connect submission, completion observation, resource publication, renderer notification/refresh, cancellation/failure, and release/eviction through the real ownership graph; do not create a fake callback merely to advance a state enum.
 
 ### Phase D — Validation
 
@@ -77,6 +81,7 @@ Before merge:
 - canonical CMake integration present;
 - smoke/regression tests present;
 - runtime ownership/integration path verified;
+- async completion-to-publication path verified where applicable;
 - performance claim backed by measured evidence;
 - PR body records scope, evidence, and remaining limitations.
 
@@ -105,7 +110,7 @@ Before starting new P0–P3 feature expansion, finish the outstanding repair/int
 3. connect `SceneWorld`/ECS mesh data to the canonical Vulkan 3D renderer;
 4. make `NeoRuntime` 3D-first without deleting legitimate software fallback paths;
 5. integrate canonical XPBD V5 into the runtime and authoritative Scene/Gameplay path;
-6. repair asset streaming GPU ownership and resident-budget accounting;
+6. repair asset streaming GPU ownership and resident-budget accounting and verify submission→GPU completion→Ready publication→renderer refresh→release/eviction end to end;
 7. complete animation, audio, networking, and Android runtime seams;
 8. only then resume the planned P0–P3 expansion/closure work.
 
