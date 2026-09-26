@@ -104,16 +104,22 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
                                                  VkDeviceMemory gpuMemory,
                                                  uint32_t gpuAllocationSizeMB) noexcept {
     if (pixels.empty() || width == 0U || height == 0U) return false;
-    if (!resources.BeginGpuUpload(handle)) return false;
+    AssetResourceReceipt preUploadReceipt{};
+    if (!resources.Query(handle, preUploadReceipt)) return false;
+    const bool alreadyPinned = preUploadReceipt.gpuUploadsInFlight != 0U;
+    if (!alreadyPinned && !resources.BeginGpuUpload(handle)) return false;
+    const auto cancelIfOwned = [&]() noexcept {
+        if (!alreadyPinned) (void)resources.CancelGpuUpload(handle);
+    };
     if (pixels.size() > std::numeric_limits<uint64_t>::max() / 4ULL ||
         static_cast<uint64_t>(width) * static_cast<uint64_t>(height) >
             std::numeric_limits<uint64_t>::max() / 4ULL ||
         pixels.size() != static_cast<size_t>(static_cast<uint64_t>(width) * height * 4ULL)) {
-        resources.CancelGpuUpload(handle);
+        cancelIfOwned();
         return false;
     }
     if (!UploadTexture(device, cmd, pixels, targetImage, targetLayout, width, height)) {
-        resources.CancelGpuUpload(handle);
+        cancelIfOwned();
         return false;
     }
     if (pendingUploads_.empty()) {
@@ -126,7 +132,7 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
     task.tracksResourceResidency = true;
     if (gpuMemory != VK_NULL_HANDLE) {
         if (gpuAllocationSizeMB == 0U) {
-            (void)resources.CancelGpuUpload(handle);
+            cancelIfOwned();
             pendingUploads_.pop_back();
             return false;
         }
