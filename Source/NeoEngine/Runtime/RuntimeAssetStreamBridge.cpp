@@ -278,6 +278,7 @@ bool RuntimeAssetStreamBridge::FailGpuUpload(AssetID id) noexcept {
     if (!resources_.Release(handle)) return false;
 
     std::lock_guard<std::mutex> lock(mutex_);
+    gpuTexturePayloads_.erase(id);
     gpuUploads_.erase(id);
     requests_.erase(id);
     return true;
