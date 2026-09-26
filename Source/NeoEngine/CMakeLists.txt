@@ -301,16 +301,18 @@ set(XPBD_RUNTIME_SOURCES
     Renderer/VirtualGeometry/VirtualGeometrySystem.cpp
 )
 
+    Core/GPU/GPUBufferPool.cpp
+    Core/GPU/GPUMemoryBudget.cpp
+    Core/GPU/GPUTextureCache.cpp
+)
+
 if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND XPBD_RUNTIME_SOURCES
         Rendering/RHI/OpenGL/OpenGLRHI.cpp
         Rendering/RHI/RHI.cpp
         Rendering/Renderer/Renderer.cpp
     )
-endif(    Core/GPU/GPUBufferPool.cpp
-    Core/GPU/GPUMemoryBudget.cpp
-    Core/GPU/GPUTextureCache.cpp
-)
+endif()
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
