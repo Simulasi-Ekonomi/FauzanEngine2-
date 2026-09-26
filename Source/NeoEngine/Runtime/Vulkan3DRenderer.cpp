@@ -1,5 +1,7 @@
 #include "Vulkan3DRenderer.h"
 #include "AssetResourceManager.h"
+#include "RuntimeAssetStreamBridge.h"
+#include "VulkanGPUTexture.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -11,6 +13,7 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -92,6 +95,8 @@ struct Vulkan3DRenderer::Impl {
     VkImage depthImage=VK_NULL_HANDLE; VkDeviceMemory depthMemory=VK_NULL_HANDLE; VkImageView depthView=VK_NULL_HANDLE; VkFormat depthFormat=VK_FORMAT_D32_SFLOAT;
     std::array<Frame,2> frames{}; uint32_t frameSlot=0; uint32_t acquiredImageIndex=0; uint32_t lastPresentedImageIndex=UINT32_MAX; bool hasPresentedFrame=false; bool frameBegun=false;
     VulkanAssetUploader uploader{};
+    RuntimeAssetStreamBridge* assetStreamBridge = nullptr;
+    std::unordered_map<AssetID, VulkanGPUTexture> streamedTextures{};
     GPUSkinningPaletteBuffer skinningPalette{};
     VkDescriptorSetLayout skinningDescriptorSetLayout=VK_NULL_HANDLE;
     VkDescriptorPool skinningDescriptorPool=VK_NULL_HANDLE;
@@ -102,6 +107,95 @@ if(skinningDescriptorSetLayout)vkDestroyDescriptorSetLayout(device,skinningDescr
 if(commandPool)vkDestroyCommandPool(device,commandPool,nullptr);if(device)vkDestroyDevice(device,nullptr);if(surface&&instance)vkDestroySurfaceKHR(instance,surface,nullptr);if(instance)vkDestroyInstance(instance,nullptr);if(window)SDL_DestroyWindow(window);SDL_QuitSubSystem(SDL_INIT_VIDEO);SDL_Quit();}
 };
 Vulkan3DRenderer::~Vulkan3DRenderer(){Reset();}
+
+bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) noexcept {
+    if (impl_ == nullptr || impl_->device == VK_NULL_HANDLE) return false;
+    if (impl_->assetStreamBridge == &bridge) return true;
+    if (!impl_->streamedTextures.empty()) return false;
+    impl_->assetStreamBridge = &bridge;
+    impl_->uploader.SetUploadCompletionCallback(
+        [this, &bridge](const UploadTask& task, VkResult result) {
+            if (task.assetId.empty() || task.gpuMemory == VK_NULL_HANDLE ||
+                task.gpuAllocationSizeMB == 0U) {
+                (void)bridge.FailGpuUpload(task.assetId);
+                impl_->streamedTextures.erase(task.assetId);
+                return;
+            }
+            if (result == VK_SUCCESS) {
+                const auto release = [this, id = task.assetId]() noexcept {
+                    if (impl_ != nullptr) impl_->streamedTextures.erase(id);
+                };
+                if (!bridge.CompleteGpuUpload(task.assetId, task.gpuMemory,
+                                              task.gpuAllocationSizeMB, release)) {
+                    (void)bridge.FailGpuUpload(task.assetId);
+                    impl_->streamedTextures.erase(task.assetId);
+                }
+                return;
+            }
+            (void)bridge.FailGpuUpload(task.assetId);
+            impl_->streamedTextures.erase(task.assetId);
+        });
+    return true;
+}
+
+bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) noexcept {
+    if (impl_ == nullptr || !impl_->frameBegun || impl_->device == VK_NULL_HANDLE) return false;
+    std::vector<AssetID> ids;
+    if (!bridge.GetPendingGpuUploadIds(ids)) return false;
+    try {
+        impl_->streamedTextures.reserve(impl_->streamedTextures.size() + ids.size());
+    } catch (...) {
+        return false;
+    }
+    for (const AssetID& id : ids) {
+        if (id.empty() || impl_->streamedTextures.contains(id)) continue;
+        StreamRequest request{};
+        AssetResourceHandle handle{};
+        if (!bridge.GetGpuUpload(id, request, handle)) return false;
+        std::vector<uint8_t> pixels;
+        uint32_t width = 0U;
+        uint32_t height = 0U;
+        if (!bridge.GetGpuUploadTextureData(id, pixels, width, height)) {
+            (void)bridge.FailGpuUpload(id);
+            continue;
+        }
+        auto [it, inserted] = impl_->streamedTextures.try_emplace(id);
+        if (!inserted) continue;
+        VulkanGPUTexture& texture = it->second;
+        if (!texture.Initialize(impl_->device, impl_->physical, width, height) ||
+            !texture.CreateSampler()) {
+            impl_->streamedTextures.erase(it);
+            (void)bridge.FailGpuUpload(id);
+            continue;
+        }
+        const uint32_t allocationMB = texture.GetAllocationSizeMB();
+        if (allocationMB == 0U ||
+            !impl_->uploader.UploadTextureResource(*reinterpret_cast<AssetResourceManager*>(nullptr), handle, pixels,
+                                                     impl_->device, impl_->frames[impl_->frameSlot].commandBuffer,
+                                                     texture.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                     width, height, texture.GetMemory(), allocationMB)) {
+            // The resource manager is supplied below through the bridge; this branch
+            // is replaced before integration is enabled.
+            impl_->streamedTextures.erase(it);
+            (void)bridge.FailGpuUpload(id);
+            continue;
+        }
+    }
+    return true;
+}
+
+bool Vulkan3DRenderer::PumpAssetStreamUploads() noexcept {
+    return impl_ != nullptr && impl_->assetStreamBridge != nullptr &&
+           PumpAssetStreamUploads(*impl_->assetStreamBridge);
+}
+
+const VulkanGPUTexture* Vulkan3DRenderer::FindStreamedTexture(const std::string& assetId) const noexcept {
+    if (impl_ == nullptr) return nullptr;
+    const auto it = impl_->streamedTextures.find(assetId);
+    return it == impl_->streamedTextures.end() ? nullptr : &it->second;
+}
+
+
 bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* title){
     Reset();if(width==0||height==0||width>16384||height>16384||!title){lastError_=Vulkan3DRendererError::InvalidConfiguration;return false;}if(!SDL_Init(SDL_INIT_VIDEO)){lastError_=Vulkan3DRendererError::SdlFailure;return false;}
     auto impl=std::make_unique<Impl>();impl->window=SDL_CreateWindow(title,(int)width,(int)height,SDL_WINDOW_VULKAN|SDL_WINDOW_RESIZABLE);if(!impl->window){lastError_=Vulkan3DRendererError::SdlFailure;SDL_Quit();return false;}
