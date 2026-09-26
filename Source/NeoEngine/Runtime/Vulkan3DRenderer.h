@@ -71,6 +71,8 @@ public:
     void Reset();
 
     // Resource-owned GPU upload path; valid only while a frame is active.
+    // Upload completion is bound internally to the submitted frame fence; the uploader
+    // is advanced after that fence is waited and before the fence is reset for reuse.
     bool UploadTextureResource(AssetResourceManager& resources, const AssetResourceHandle& handle,
                                VkImage targetImage, VkImageLayout targetLayout,
                                uint32_t width, uint32_t height);
