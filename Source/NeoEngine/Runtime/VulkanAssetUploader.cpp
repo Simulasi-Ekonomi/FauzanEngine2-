@@ -288,8 +288,12 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
         if (status == VK_SUCCESS) {
             if (completionCallback_) {
                 try { completionCallback_(task, VK_SUCCESS); } catch (...) {
-                    if (task.tracksResourceResidency && task.resourceManager != nullptr)
-                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                    if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+                        if (task.preservesResidentOnCompletion)
+                            (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                        else
+                            (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                    }
                 }
             } else if (task.tracksResourceResidency && task.resourceManager != nullptr) {
                 (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
@@ -301,8 +305,12 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
         if (status != VK_NOT_READY) {
             if (completionCallback_) {
                 try { completionCallback_(task, status); } catch (...) {
-                    if (task.tracksResourceResidency && task.resourceManager != nullptr)
-                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                    if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+                        if (task.preservesResidentOnCompletion)
+                            (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                        else
+                            (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                    }
                 }
             } else if (task.tracksResourceResidency && task.resourceManager != nullptr) {
                 (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
