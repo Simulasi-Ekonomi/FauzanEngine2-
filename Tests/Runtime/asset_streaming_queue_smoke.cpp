@@ -5,14 +5,19 @@
 #include <type_traits>
 
 namespace {
-VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
-#ifdef VK_DEFINE_NON_DISPATCHABLE_HANDLE
-    return reinterpret_cast<VkDeviceMemory>(value);
-#else
-    return static_cast<VkDeviceMemory>(value);
-#endif
+template <typename T>
+T FakeHandle(uintptr_t value) {
+    if constexpr (std::is_pointer_v<T>) {
+        return reinterpret_cast<T>(value);
+    } else {
+        return static_cast<T>(value);
+    }
 }
-#include <cstdint>
+
+VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
+    return FakeHandle<VkDeviceMemory>(value);
+}
+} // namespace
 #include <iostream>
 #include <memory>
 #include <vector>
