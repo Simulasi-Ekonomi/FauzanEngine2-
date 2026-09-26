@@ -183,8 +183,9 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) 
 }
 
 bool Vulkan3DRenderer::PumpAssetStreamUploads() noexcept {
-    return impl_ != nullptr && impl_->assetStreamBridge != nullptr &&
-           PumpAssetStreamUploads(*impl_->assetStreamBridge);
+    if (impl_ == nullptr || !impl_->frameBegun) return false;
+    if (impl_->assetStreamBridge == nullptr) return true;
+    return PumpAssetStreamUploads(*impl_->assetStreamBridge);
 }
 
 const VulkanGPUTexture* Vulkan3DRenderer::FindStreamedTexture(const std::string& assetId) const noexcept {
