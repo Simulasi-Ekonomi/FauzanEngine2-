@@ -110,6 +110,8 @@ Aturan test:
 - Smoke baru wajib terdaftar di CMake canonical dan masuk manifest/ledger.
 - Test harus menguji success path, rejection/failure path, bounds, atomicity, ownership/lifetime, dan determinism yang relevan.
 - Untuk async GPU/resource streaming, test wajib membuktikan submission tidak sama dengan completion: authoritative fence/timeline completion harus terjadi sebelum Ready/publication, serta release/eviction tidak boleh menghancurkan borrowed synchronization handles.
+- Resource upload yang sedang in-flight wajib memiliki pin/lifetime contract di resource manager. `Release`, eviction, dan hot-reload harus menolak invalidasi resource selama pin aktif; pin harus dilepas tepat sekali pada successful completion atau cancellation/failure.
+- Bila upload task menyimpan observer/pointer ke resource manager, resource manager wajib hidup lebih lama dari seluruh pending upload; uploader harus di-flush/dihancurkan sebelum owner resource manager.
 - Benchmark wajib mencatat workload exact, build mode, hardware/runtime, elapsed time, dan exit status. Nama `bench_100k` bukan bukti 100K lulus.
 - Device/Termux/Vulkan evidence tidak boleh digantikan oleh source inspection atau software fallback.
 
@@ -173,6 +175,9 @@ Kalimat “done”, “fixed”, “ready”, atau “100%” tanpa command dan 
 - Force push, reset remote, delete branch, atau overwrite branch lain tanpa instruksi eksplisit owner.
 - Menganggap command recording/submission sebagai GPU completion.
 - Menghancurkan borrowed Vulkan fence/semaphore atau mendaftarkan owned synchronization handle lebih dari sekali.
+- Menjadikan `gpuResident`/Ready hanya karena command recording atau queue submission berhasil.
+- Membiarkan pending uploader task memegang `AssetResourceManager` yang sudah dihancurkan atau di-reset.
+- Melepas GPU upload pin lebih dari sekali atau mengubah residensi menjadi Ready sebelum authoritative completion.
 - Menghapus test/workflow untuk menyembunyikan failure.
 - Mengurangi workload benchmark atau melonggarkan threshold.
 - Mengubah ASAN/Release gate menjadi no-op.
@@ -188,5 +193,7 @@ Kalimat “done”, “fixed”, “ready”, atau “100%” tanpa command dan 
 > **Zero conflict** berarti integration tip tidak memiliki unresolved conflict, duplicate ownership, CMake ambiguity, atau workflow deletion yang tidak terdokumentasi.
 >
 > **100% capability** berarti implementasi, canonical integration, Release, ASAN, benchmark/platform evidence, failure-path behavior, dan handover semuanya tersedia pada revision yang sama.
+>
+> **Async GPU completion** berarti submission, authoritative completion, resource publication, renderer refresh, and release/eviction are separate auditable stages. A successful submission alone is never a Ready signal.
 
 Dokumen ini adalah aturan lintas-room. Jika dokumen branch lama bertentangan dengan dokumen ini, aturan ini dan `docs/AI_ENGINE_WORK_STANDARD.md` berlaku; perbedaan harus dicatat, bukan diselesaikan dengan asumsi.
