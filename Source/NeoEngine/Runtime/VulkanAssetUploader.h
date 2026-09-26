@@ -50,7 +50,10 @@ public:
                                   const std::vector<uint8_t>& indexData,
                                   VkBuffer vertexBuffer, VkBuffer indexBuffer) noexcept;
 
-    void AttachCompletionFence(VkFence fence) noexcept;
+    // The fence is borrowed by default; callers retain Vulkan fence ownership.
+    // Set takeOwnership only when this uploader created the fence specifically for
+    // these pending uploads. A borrowed fence is never destroyed by this class.
+    void AttachCompletionFence(VkFence fence, bool takeOwnership = false) noexcept;
     void AdvanceFrame(VkDevice device) noexcept;
     void Flush(VkDevice device) noexcept;
 
@@ -69,6 +72,7 @@ private:
     std::vector<UploadTask> pendingUploads_;
     VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
     VkDevice lastDevice_ = VK_NULL_HANDLE;
+    std::vector<VkFence> ownedCompletionFences_;
 };
 
 } // namespace NeoEngine
