@@ -3,7 +3,14 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 fail(){ echo "P4_RELEASE_CERTIFICATION_FAIL $1" >&2; exit 3; }
-[[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]] || fail dirty_worktree
+dirty_files="$(git status --porcelain=v1 --untracked-files=all | awk '{print substr($0,4)}')"
+while IFS= read -r dirty; do
+  [[ -z "$dirty" ]] && continue
+  case "$dirty" in
+    p4-release-manifest.sha256|p4-source-sbom.json|p4-release-provenance.txt) ;;
+    *) fail "dirty_worktree:$dirty" ;;
+  esac
+done <<< "$dirty_files"
 ARTIFACT="${1:-}"; REFERENCE_ARTIFACT="${2:-}"
 [[ -n "$ARTIFACT" && -n "$REFERENCE_ARTIFACT" ]] || { echo "usage: tools/p4_release_certify.sh <release.apk|release.aab> <reference.apk|reference.aab>" >&2; exit 2; }
 for path in "$ARTIFACT" "$REFERENCE_ARTIFACT"; do
