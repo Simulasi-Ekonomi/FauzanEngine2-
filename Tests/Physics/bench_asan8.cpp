@@ -25,13 +25,13 @@ int main() {
     printf("Create 20000 entities...\n");
     for (int i=0; i<20000; ++i) {
         EntityID id = em.CreateEntity(f);
-        auto* p = em.GetPosition(id);
-        auto* v = em.GetVelocity(id);
-        auto* c = em.GetCollider(id);
-        p->x = pd(rng); p->z = pd(rng);
-        v->vx = vd(rng); v->vz = vd(rng);
-        c->radius = rd(rng);
-        c->invMass = 1.0f / (c->radius * 10.0f);
+        em.SetPosX(id, pd(rng));
+        em.SetPosZ(id, pd(rng));
+        em.SetVelX(id, vd(rng));
+        em.SetVelZ(id, vd(rng));
+        const float radius = rd(rng);
+        em.SetRadius(id, radius);
+        em.SetInvMass(id, 1.0f / (radius * 10.0f));
     }
 
     printf("Warmup 1 frame (8 workers)...\n");
