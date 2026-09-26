@@ -101,8 +101,66 @@ struct Vulkan3DRenderer::Impl {
     VkDescriptorSetLayout skinningDescriptorSetLayout=VK_NULL_HANDLE;
     VkDescriptorPool skinningDescriptorPool=VK_NULL_HANDLE;
     VkDescriptorSet skinningDescriptorSet=VK_NULL_HANDLE;
+    VkDescriptorSetLayout textureDescriptorSetLayout=VK_NULL_HANDLE;
+    std::vector<VkDescriptorPool> textureDescriptorPools{};
+    VkDescriptorSet defaultTextureDescriptorSet=VK_NULL_HANDLE;
+    std::unordered_map<AssetID, VkDescriptorSet> streamedTextureDescriptors{};
+    VulkanGPUTexture defaultTexture{};
     void DestroySwapchainResources(){if(!device)return;hasPresentedFrame=false;lastPresentedImageIndex=UINT32_MAX;vkDeviceWaitIdle(device);for(auto f:framebuffers)vkDestroyFramebuffer(device,f,nullptr);framebuffers.clear();if(pipeline)vkDestroyPipeline(device,pipeline,nullptr);pipeline=VK_NULL_HANDLE;if(pipelineLayout)vkDestroyPipelineLayout(device,pipelineLayout,nullptr);pipelineLayout=VK_NULL_HANDLE;if(renderPass)vkDestroyRenderPass(device,renderPass,nullptr);renderPass=VK_NULL_HANDLE;if(depthView)vkDestroyImageView(device,depthView,nullptr);depthView=VK_NULL_HANDLE;if(depthImage)vkDestroyImage(device,depthImage,nullptr);depthImage=VK_NULL_HANDLE;if(depthMemory)vkFreeMemory(device,depthMemory,nullptr);depthMemory=VK_NULL_HANDLE;for(auto v:swapchainViews)vkDestroyImageView(device,v,nullptr);swapchainViews.clear();swapchainImages.clear();if(swapchain)vkDestroySwapchainKHR(device,swapchain,nullptr);swapchain=VK_NULL_HANDLE;}
-    void Destroy(){if(device){vkDeviceWaitIdle(device);uploader.Flush(device);streamedTextures.clear();assetStreamBridge=nullptr;skinningPalette.Destroy();}for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}if(skinningDescriptorPool)vkDestroyDescriptorPool(device,skinningDescriptorPool,nullptr);
+    bool CreateTextureDescriptorPool() {
+        if (device == VK_NULL_HANDLE || textureDescriptorSetLayout == VK_NULL_HANDLE) return false;
+        constexpr uint32_t kPoolCapacity = 256U;
+        const VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kPoolCapacity};
+        const VkDescriptorPoolCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0U,
+                                               kPoolCapacity, 1U, &poolSize};
+        VkDescriptorPool pool = VK_NULL_HANDLE;
+        if (vkCreateDescriptorPool(device, &info, nullptr, &pool) != VK_SUCCESS) return false;
+        try { textureDescriptorPools.push_back(pool); } catch (...) {
+            vkDestroyDescriptorPool(device, pool, nullptr);
+            return false;
+        }
+        return true;
+    }
+
+    bool AllocateTextureDescriptor(VkImageView view, VkSampler sampler, VkDescriptorSet& out) {
+        out = VK_NULL_HANDLE;
+        if (device == VK_NULL_HANDLE || textureDescriptorSetLayout == VK_NULL_HANDLE ||
+            view == VK_NULL_HANDLE || sampler == VK_NULL_HANDLE) return false;
+        for (VkDescriptorPool pool : textureDescriptorPools) {
+            VkDescriptorSetAllocateInfo alloc{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+            alloc.descriptorPool = pool;
+            alloc.descriptorSetCount = 1U;
+            alloc.pSetLayouts = &textureDescriptorSetLayout;
+            VkDescriptorSet set = VK_NULL_HANDLE;
+            const VkResult result = vkAllocateDescriptorSets(device, &alloc, &set);
+            if (result != VK_SUCCESS) continue;
+            const VkDescriptorImageInfo image{sampler, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            const VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, set, 0U, 0U, 1U,
+                                             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image, nullptr, nullptr};
+            vkUpdateDescriptorSets(device, 1U, &write, 0U, nullptr);
+            out = set;
+            return true;
+        }
+        if (!CreateTextureDescriptorPool()) return false;
+        VkDescriptorPool pool = textureDescriptorPools.back();
+        VkDescriptorSetAllocateInfo alloc{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        alloc.descriptorPool = pool;
+        alloc.descriptorSetCount = 1U;
+        alloc.pSetLayouts = &textureDescriptorSetLayout;
+        VkDescriptorSet set = VK_NULL_HANDLE;
+        if (vkAllocateDescriptorSets(device, &alloc, &set) != VK_SUCCESS) return false;
+        const VkDescriptorImageInfo image{sampler, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        const VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, set, 0U, 0U, 1U,
+                                         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &image, nullptr, nullptr};
+        vkUpdateDescriptorSets(device, 1U, &write, 0U, nullptr);
+        out = set;
+        return true;
+    }
+
+    void Destroy(){if(device){vkDeviceWaitIdle(device);uploader.Flush(device);streamedTextures.clear();streamedTextureDescriptors.clear();assetStreamBridge=nullptr;defaultTexture.Destroy();skinningPalette.Destroy();}for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}for (VkDescriptorPool pool : textureDescriptorPools) if (pool) vkDestroyDescriptorPool(device, pool, nullptr);
+textureDescriptorPools.clear();
+if(textureDescriptorSetLayout)vkDestroyDescriptorSetLayout(device,textureDescriptorSetLayout,nullptr);
+if(skinningDescriptorPool)vkDestroyDescriptorPool(device,skinningDescriptorPool,nullptr);
 if(skinningDescriptorSetLayout)vkDestroyDescriptorSetLayout(device,skinningDescriptorSetLayout,nullptr);
 if(commandPool)vkDestroyCommandPool(device,commandPool,nullptr);if(device)vkDestroyDevice(device,nullptr);if(surface&&instance)vkDestroySurfaceKHR(instance,surface,nullptr);if(instance)vkDestroyInstance(instance,nullptr);if(window)SDL_DestroyWindow(window);SDL_QuitSubSystem(SDL_INIT_VIDEO);SDL_Quit();}
 };
@@ -178,7 +236,30 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) 
             (void)bridge.FailGpuUpload(id);
             continue;
         }
+        VkDescriptorSet descriptor = VK_NULL_HANDLE;
+        if (!impl_->AllocateTextureDescriptor(texture.GetImageView(), texture.GetSampler(), descriptor)) {
+            impl_->streamedTextures.erase(it);
+            (void)bridge.FailGpuUpload(id);
+            continue;
+        }
+        try {
+            impl_->streamedTextureDescriptors.emplace(id, descriptor);
+        } catch (...) {
+            impl_->streamedTextures.erase(it);
+            (void)bridge.FailGpuUpload(id);
+            continue;
+        }
     }
+    return true;
+}
+
+bool Vulkan3DRenderer::BindStreamedTexture(const std::string& assetId) noexcept {
+    if (impl_ == nullptr || !impl_->frameBegun || assetId.empty()) return false;
+    const auto it = impl_->streamedTextureDescriptors.find(assetId);
+    if (it == impl_->streamedTextureDescriptors.end() || it->second == VK_NULL_HANDLE) return false;
+    vkCmdBindDescriptorSets(impl_->frames[impl_->frameSlot].commandBuffer,
+                            VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipelineLayout,
+                            1U, 1U, &it->second, 0U, nullptr);
     return true;
 }
 
@@ -206,6 +287,32 @@ bool Vulkan3DRenderer::Initialize(uint32_t width,uint32_t height,const char* tit
     VkCommandPoolCreateInfo pool{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};pool.queueFamilyIndex=impl->graphicsFamily;pool.flags=VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;if(vkCreateCommandPool(impl->device,&pool,nullptr,&impl->commandPool)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}for(auto& f:impl->frames){VkSemaphoreCreateInfo s{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};VkFenceCreateInfo fence{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};fence.flags=VK_FENCE_CREATE_SIGNALED_BIT;if(vkCreateSemaphore(impl->device,&s,nullptr,&f.imageAvailable)!=VK_SUCCESS||vkCreateSemaphore(impl->device,&s,nullptr,&f.renderFinished)!=VK_SUCCESS||vkCreateFence(impl->device,&fence,nullptr,&f.fence)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}VkCommandBufferAllocateInfo a{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};a.commandPool=impl->commandPool;a.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;a.commandBufferCount=1;if(vkAllocateCommandBuffers(impl->device,&a,&f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;impl->Destroy();return false;}}
     impl->uploader.SetPhysicalDevice(impl->physical);
     if (!impl->skinningPalette.Initialize(impl->device, impl->physical)) { lastError_=Vulkan3DRendererError::BufferFailure; impl->Destroy(); return false; }
+    VkDescriptorSetLayoutBinding textureBinding{};
+    textureBinding.binding=0U;
+    textureBinding.descriptorType=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureBinding.descriptorCount=1U;
+    textureBinding.stageFlags=VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkDescriptorSetLayoutCreateInfo textureLayout{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    textureLayout.bindingCount=1U;
+    textureLayout.pBindings=&textureBinding;
+    if (vkCreateDescriptorSetLayout(impl->device,&textureLayout,nullptr,&impl->textureDescriptorSetLayout)!=VK_SUCCESS) {
+        lastError_=Vulkan3DRendererError::PipelineFailure; impl->Destroy(); return false;
+    }
+    if (!impl->CreateTextureDescriptorPool()) {
+        lastError_=Vulkan3DRendererError::PipelineFailure; impl->Destroy(); return false;
+    }
+    std::array<uint8_t,4> defaultPixels{255U,255U,255U,255U};
+    if (!impl->defaultTexture.Initialize(impl->device, impl->physical, 1U, 1U) ||
+        !impl->defaultTexture.CreateSampler() ||
+        !impl->defaultTexture.UploadPixels(impl->graphicsQueue, impl->graphicsFamily, impl->physical,
+                                            defaultPixels.data(), defaultPixels.size())) {
+        lastError_=Vulkan3DRendererError::BufferFailure; impl->Destroy(); return false;
+    }
+    if (!impl->AllocateTextureDescriptor(impl->defaultTexture.GetImageView(),
+                                         impl->defaultTexture.GetSampler(),
+                                         impl->defaultTextureDescriptorSet)) {
+        lastError_=Vulkan3DRendererError::PipelineFailure; impl->Destroy(); return false;
+    }
     VkDescriptorSetLayoutBinding skinBinding{};
     skinBinding.binding=0U; skinBinding.descriptorType=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC; skinBinding.descriptorCount=1U; skinBinding.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;
     VkDescriptorSetLayoutCreateInfo skinLayout{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO}; skinLayout.bindingCount=1U; skinLayout.pBindings=&skinBinding;
@@ -232,6 +339,8 @@ bool Vulkan3DRenderer::Resize(uint32_t width,uint32_t height){
 }
 bool Vulkan3DRenderer::BeginFrame(float r,float g,float b,float a){if(!ready_||!impl_||impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];VkResult wait=vkWaitForFences(impl_->device,1,&f.fence,VK_TRUE,UINT64_MAX);if(wait!=VK_SUCCESS){lastError_=wait==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}impl_->uploader.AdvanceFrame(impl_->device);if(!impl_->skinningPalette.BeginFrame(impl_->frameSlot)){lastError_=Vulkan3DRendererError::BufferFailure;return false;}VkResult acq=vkAcquireNextImageKHR(impl_->device,impl_->swapchain,UINT64_MAX,f.imageAvailable,VK_NULL_HANDLE,&impl_->acquiredImageIndex);if(acq==VK_ERROR_OUT_OF_DATE_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(acq!=VK_SUCCESS&&acq!=VK_SUBOPTIMAL_KHR){lastError_=acq==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}vkResetFences(impl_->device,1,&f.fence);vkResetCommandBuffer(f.commandBuffer,0);f.vertexArena.used=f.indexArena.used=f.instanceArena.used=0;VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(f.commandBuffer,&begin)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}VkClearValue clear[2]{};clear[0].color={{r,g,b,a}};clear[1].depthStencil={1,0};VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};pass.renderPass=impl_->renderPass;pass.framebuffer=impl_->framebuffers[impl_->acquiredImageIndex];pass.renderArea.extent=impl_->extent;pass.clearValueCount=2;pass.pClearValues=clear;vkCmdBeginRenderPass(f.commandBuffer,&pass,VK_SUBPASS_CONTENTS_INLINE);VkViewport vp{0,0,(float)impl_->extent.width,(float)impl_->extent.height,0,1};VkRect2D sc{{0,0},impl_->extent};vkCmdSetViewport(f.commandBuffer,0,1,&vp);vkCmdSetScissor(f.commandBuffer,0,1,&sc);vkCmdBindPipeline(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipeline);
     const uint32_t defaultPaletteOffset=impl_->skinningPalette.DynamicOffset();vkCmdBindDescriptorSets(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipelineLayout,0,1,&impl_->skinningDescriptorSet,1,&defaultPaletteOffset);
+    if (impl_->defaultTextureDescriptorSet == VK_NULL_HANDLE) { lastError_=Vulkan3DRendererError::PipelineFailure; return false; }
+    vkCmdBindDescriptorSets(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipelineLayout,1,1,&impl_->defaultTextureDescriptorSet,0,nullptr);
     stats_.vertexCount=stats_.indexCount=0;impl_->frameBegun=true;return true;}
 
 bool Vulkan3DRenderer::DrawIndexed(std::span<const Vulkan3DVertex> vertices,std::span<const uint32_t> indices,const float* mvp){
