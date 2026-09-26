@@ -143,6 +143,7 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
 bool AssetResourceManager::Release(AssetResourceHandle handle) {
     if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
     LeaseSlot& lease = leases_[handle.slot];
+    if (slots_[lease.rootResourceSlot].gpuUploadsInFlight != 0U) return Fail(AssetResourceError::GpuUploadPending);
     if (lease.generation >= std::numeric_limits<uint32_t>::max() - 1U) return Fail(AssetResourceError::Capacity);
     if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     const uint16_t targetCount = static_cast<uint16_t>(lease.dependencyCount + 1U);
