@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-09-26  
 **PR:** #77 — P1 sandbox validation  
-**Last validated HEAD: 0142a35bc61bd9980f158950e4a78420247912c7 — exact-head Release/ASAN/sandbox validation pending
+**Last validated HEAD: 752a8d9dc15fa15a1a422c4bbaf952b5a66762f9 — exact-head validation pending
 **PR base:** sandbox-p1-unreal-parity-validation @ d50c43819f2b23a474bb2f9d7d02dfd4b09242ef  
 **State:** IMPLEMENTING P1 ASSET E2E REPAIR / NOT MERGE-READY — current edits are awaiting exact-head Release/ASAN/sandbox validation
 
@@ -25,7 +25,7 @@ PR #77 is open, conflict-free, and reports GitHub merge state `clean`. Passing C
 
 1. **Per-entity skeletal animation: INTEGRATED.** Each SceneEntity can own a controller and palette; runtime advances controllers with scaled fixed-tick time and commits all palettes atomically. Scene Vulkan draw consumes per-instance palettes. `neo_runtime_scene_animation_smoke` covers independent rates, pause, atomic failure preservation, unbind, and cleanup.
 2. **Asset import-to-live GPU route: PARTIAL.** `gltf_gpu_uploader_smoke` parses an in-memory glTF 2.0 data-URI payload and uploads the parsed skinning mesh through Vulkan mesh buffers. `scene_vulkan_render_adapter_smoke` imports the same glTF mesh, binds it to SceneMeshAdapter with per-mesh base color, draws through Vulkan, reads back two distinct rendered colors, and verifies GPU output changes. Texture sampling/material maps, complete dependency closure, persistent cache/cook/invalidation, and production filesystem/content authoring are not demonstrated end-to-end.
-3. **Streaming integration: PARTIAL.** AssetStreamingQueue enforces bounded queue/residency metadata, pending cancellation, and explicit GPU-memory release ownership. StreamManager implements bounded priority file I/O, queued/active cancellation, size/residency limits, completion reporting, and safe snapshots. AssetResourceManager now pins GPU uploads against release/eviction/hot-reload, tracks GPU residency, and rejects release while upload is in flight. VulkanAssetUploader now binds a resource handle to the upload task and publishes GPU residency only after the authoritative completion fence; a real Vulkan smoke target covers submission-vs-completion ordering. The full StreamManager -> queue -> uploader -> renderer notification/retry/eviction lifecycle is still not proven end-to-end.
+3. **Streaming integration: PARTIAL.** AssetStreamingQueue enforces bounded queue/residency metadata, pending cancellation, and explicit GPU-memory release ownership. StreamManager implements bounded priority file I/O, queued/active cancellation, size/residency limits, completion reporting, and safe snapshots. AssetResourceManager now pins GPU uploads against release/eviction/hot-reload, tracks GPU residency, and rejects release while upload is in flight. VulkanAssetUploader binds the exact resource handle to the GPU task and publishes residency only after authoritative fence completion. `Vulkan3DRenderer` now binds pending upload tasks to the actual submitted frame fence and advances the uploader after that fence is waited and before fence reuse. `NeoRuntime::Shutdown()` destroys the Vulkan renderer before the resource manager, satisfying the current documented observer lifetime contract. A real Vulkan uploader smoke covers submission-vs-completion ordering. The full StreamManager -> AssetStreamingQueue -> runtime resource acquisition -> GPU upload -> renderer refresh/texture consumption -> retry/eviction lifecycle is still not proven end-to-end.
 4. **Device and scale acceptance: OPEN / UNVERIFIED.** Headless CI does not establish physical-device acceptance or device-loss recovery. Animation batching/LOD and target-device performance evidence remain unverified.
 
 ## Active workstream registry
@@ -39,7 +39,7 @@ SCOPE: P1 asset pipeline and asynchronous file streaming integration
 GAP_IDS: P1-ASSET-E2E (PARTIAL), P1-STREAM-ASYNC (PARTIAL; current implementation unvalidated)
 FILES_EXPECTED_TO_CHANGE: StreamManager/AssetStreamingQueue runtime and smoke coverage, AssetResourceManager.h/.cpp, VulkanAssetUploader.h/.cpp, Tests/Runtime/asset_resource_manager_smoke.cpp, Tests/Runtime/vulkan_asset_uploader_smoke.cpp, Source/NeoEngine/CMakeLists.txt, .github/workflows/p1-p3-sandbox-validation.yml, BRANCH_STATUS.md
 CANONICAL_RUNTIME_PATH: glTF bytes -> GLTFLoader -> SceneMeshAdapter mesh/base-color binding -> SceneRenderAdapter::DrawVulkan3D -> Vulkan3DRenderer
-REQUIRED_CMAKE_TARGETS: stream_manager_async_file_smoke, gltf_gpu_uploader_smoke, scene_vulkan_render_adapter_smoke
+REQUIRED_CMAKE_TARGETS: stream_manager_async_file_smoke, asset_resource_manager_smoke, vulkan_asset_uploader_smoke, gltf_gpu_uploader_smoke, scene_vulkan_render_adapter_smoke
 RELEASE_TARGETS: canonical P1 target set; manifest count 79, pending exact-head CI
 ASAN_TARGETS: same canonical P1 target set; manifest count 79, leak detection enabled, pending exact-head CI
 BENCHMARK_OR_DEVICE_EVIDENCE: current evidence uses GitHub software Vulkan; physical device remains unverified
