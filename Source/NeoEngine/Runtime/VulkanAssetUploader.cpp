@@ -257,7 +257,7 @@ void VulkanAssetUploader::Flush(VkDevice device) noexcept {
                 }
             } else if (status == VK_SUCCESS) {
                 if (task.preservesResidentOnCompletion)
-                    (void)task.resourceManager->CompleteGpuRefresh(task.resourceHandle, 1U);
+                    (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
                 else
                     (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
             } else if (task.preservesResidentOnCompletion) {
