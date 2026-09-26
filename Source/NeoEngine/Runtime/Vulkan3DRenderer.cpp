@@ -285,11 +285,14 @@ bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) n
                     return;
                 }
 
-                const auto release = [this, id = task.assetId]() noexcept {
-                    if (impl_ != nullptr) {
-                        impl_->RetireStreamedTexture(id);
-                        impl_->RetireTextureDescriptor(id);
-                    }
+                const VkDeviceMemory expectedMemory = task.gpuMemory;
+                const auto release = [this, id = task.assetId, expectedMemory](VkDeviceMemory memory) noexcept {
+                    if (impl_ == nullptr || memory != expectedMemory) return;
+                    const auto textureIt = impl_->streamedTextures.find(id);
+                    if (textureIt == impl_->streamedTextures.end() ||
+                        textureIt->second.GetMemory() != memory) return;
+                    impl_->RetireStreamedTexture(id);
+                    impl_->RetireTextureDescriptor(id);
                 };
                 if (!bridge.CompleteGpuUpload(task.assetId, task.gpuMemory,
                                               task.gpuAllocationSizeMB, release)) {
