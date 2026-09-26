@@ -55,6 +55,11 @@ public:
     [[nodiscard]] bool TryDequeue(StreamRequest& out) noexcept;
     [[nodiscard]] bool CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
                                       uint32_t allocatedSizeMB) noexcept;
+    // Preferred ownership-safe form: the release callback is captured on this
+    // allocation, so concurrent assets cannot inherit another upload's owner.
+    [[nodiscard]] bool CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
+                                      uint32_t allocatedSizeMB,
+                                      GpuMemoryReleaseCallback releaseCallback) noexcept;
     [[nodiscard]] bool FailUpload(AssetID id) noexcept;
     [[nodiscard]] bool Release(AssetID id) noexcept;
 
