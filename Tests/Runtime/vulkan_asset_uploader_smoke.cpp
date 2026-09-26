@@ -72,7 +72,8 @@ int main() {
     AssetResourceHandle handle{};
     CHECK(resources.Acquire("gpu.texture", handle), "acquire texture");
 
-    CHECK(vkBeginCommandBuffer(commandBuffer, &(VkCommandBufferBeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO})) == VK_SUCCESS, "begin command buffer");
+    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo) == VK_SUCCESS, "begin command buffer");
 
     VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     barrier.srcAccessMask = 0;
