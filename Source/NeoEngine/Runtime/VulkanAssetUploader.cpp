@@ -330,6 +330,23 @@ bool VulkanAssetUploader::CopyBufferToImage(VkDevice device, VkCommandBuffer cmd
     if (targetLayout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
         targetLayout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return false;
 
+    VkImageMemoryBarrier toTransfer{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    toTransfer.srcAccessMask = 0U;
+    toTransfer.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    toTransfer.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    toTransfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toTransfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.image = targetImage;
+    toTransfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toTransfer.subresourceRange.baseMipLevel = 0U;
+    toTransfer.subresourceRange.levelCount = 1U;
+    toTransfer.subresourceRange.baseArrayLayer = 0U;
+    toTransfer.subresourceRange.layerCount = 1U;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0U, 0U, nullptr,
+                         0U, nullptr, 1U, &toTransfer);
+
     const VkBufferImageCopy region{0, 0, 0,
         {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1}, {0, 0, 0}, {width, height, 1}};
     vkCmdCopyBufferToImage(cmd, stagingBuffer, targetImage,
