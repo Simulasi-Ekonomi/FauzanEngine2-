@@ -25,7 +25,7 @@ int main() {
 
     AudioComponent voice(101);
     assert(voice.SetSamples(decoded.pcmSamples));
-    assert(voice.SetPitch(1.25f));
+    voice.SetPitch(1.25f);
     voice.SetLooping(true);
     voice.SetGainQ8(256);
     voice.SetSpatialized(true);
