@@ -54,7 +54,20 @@ int main() {
     ReplicationSnapshot snapshot{};
     if (!server.BuildServerSnapshot(1U, snapshot) || snapshot.count != 2U || snapshot.sequence != 1U || snapshot.states[0].networkId != 100U || snapshot.states[1].networkId != 200U) return 6;
     std::vector<uint8_t> encoded;
-    if (!ReplicationSnapshotCodec::Serialize(snapshot, encoded, codecError) || encoded.empty() || codecError != ReplicationError::None) return 7;
+    if (!ReplicationSnapshotCodec::Serialize(snapshot, encoded, codecError) || encoded.empty() || codecError != ReplicationError::None) {
+        std::fprintf(stderr, "REPLICATION_SERIALIZE_FAIL count=%u seq=%llu tick=%llu err=%u n0=%u o0=%u r0=%llu n1=%u o1=%u r1=%llu\\n",
+            static_cast<unsigned>(snapshot.count),
+            static_cast<unsigned long long>(snapshot.sequence),
+            static_cast<unsigned long long>(snapshot.serverTick),
+            static_cast<unsigned>(codecError),
+            snapshot.count > 0U ? snapshot.states[0].networkId : 0U,
+            snapshot.count > 0U ? snapshot.states[0].ownerId : 0U,
+            snapshot.count > 0U ? static_cast<unsigned long long>(snapshot.states[0].stateRevision) : 0ULL,
+            snapshot.count > 1U ? snapshot.states[1].networkId : 0U,
+            snapshot.count > 1U ? snapshot.states[1].ownerId : 0U,
+            snapshot.count > 1U ? static_cast<unsigned long long>(snapshot.states[1].stateRevision) : 0ULL);
+        return 7;
+    }
     std::vector<uint8_t> preservedBytes{0xA5U};
     ReplicationSnapshot invalidCodecSnapshot = snapshot;
     invalidCodecSnapshot.states[0].transform.x = std::numeric_limits<float>::quiet_NaN();
