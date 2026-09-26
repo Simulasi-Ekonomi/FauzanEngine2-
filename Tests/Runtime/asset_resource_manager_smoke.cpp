@@ -1,5 +1,6 @@
 #include "Runtime/AssetResourceManager.h"
 
+#include <cassert>
 #include <cstdint>
 #include <string>
 #include <cstddef>
