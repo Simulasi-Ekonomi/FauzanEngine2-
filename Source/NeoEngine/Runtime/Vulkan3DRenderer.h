@@ -77,6 +77,9 @@ public:
     // Records decoded streamed texture uploads into the active frame command buffer.
     bool PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) noexcept;
     bool PumpAssetStreamUploads() noexcept;
+    // Binds a completed streamed texture for subsequent draws in the active frame.
+    // The descriptor is immutable for the lifetime of the renderer-owned streamed resource.
+    bool BindStreamedTexture(const std::string& assetId) noexcept;
     [[nodiscard]] const VulkanGPUTexture* FindStreamedTexture(const std::string& assetId) const noexcept;
 
     // Copies the last successfully presented swapchain image into RGBA8 CPU memory.
