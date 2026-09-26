@@ -37,7 +37,7 @@ int main() {
     for (int i = 0; i < 5; ++i) {
         printf("  frame %d start...", i); fflush(stdout);
         phys->Step(em, 0.016f);
-        printf(" done. contacts=%zu, hash=%zu\n", phys->GetManifoldCount(), phys->GetSlotUsed());
+        printf(" done. contacts=%zu, hash=%zu\n", phys->GetManifoldCount());
     }
     printf("OK\n");
     JobSystem::Get().Shutdown();
