@@ -74,13 +74,16 @@ int main() {
     assert(released.empty());
 
     assert(bridge.Refresh(request));
-    assert(bridge.ResidentGpuUploadCount() == 0U);
-    assert(released.size() == 1U && released[0] == firstMemory);
+    // Two-phase refresh keeps the old resident GPU ownership valid until the
+    // replacement upload completes or is explicitly cancelled.
+    assert(bridge.ResidentGpuUploadCount() == 1U);
+    assert(bridge.PendingGpuUploadCount() == 1U);
+    assert(released.empty());
 
     bool refreshed = false;
     for (uint32_t i = 0U; i < 100U && !refreshed; ++i) {
         bridge.Pump();
-        refreshed = bridge.PendingGpuUploadCount() == 1U;
+        refreshed = queue.GetState(request.id) == StreamState::Uploading;
         if (!refreshed) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     assert(refreshed);
@@ -88,13 +91,20 @@ int main() {
     AssetResourceHandle refreshedHandle{};
     StreamRequest refreshedRequest{};
     assert(bridge.GetGpuUpload(request.id, refreshedRequest, refreshedHandle));
-    assert(queue.GetState(request.id) == StreamState::Uploading);
+    assert(queue.IsRefreshing(request.id));
     assert(refreshedRequest.id == request.id);
-    assert(refreshedHandle.generation != 0U);
+    assert(refreshedHandle == handle);
 
     assert(bridge.FailGpuUpload(request.id));
     assert(bridge.PendingGpuUploadCount() == 0U);
-    assert(queue.GetState(request.id) == StreamState::Failed);
+    assert(bridge.ResidentGpuUploadCount() == 1U);
+    assert(queue.IsReady(request.id));
+    assert(released.empty());
+
+    // A later explicit release still invokes the original resident owner exactly once.
+    assert(bridge.ReleaseGpuUpload(request.id));
+    assert(bridge.ResidentGpuUploadCount() == 0U);
+    assert(released.size() == 1U && released[0] == firstMemory);
 
     bridge.Stop();
     std::remove(path);
