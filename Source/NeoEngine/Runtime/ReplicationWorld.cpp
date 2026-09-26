@@ -102,8 +102,8 @@ Transform3 Lerp(const Transform3& from, const Transform3& to, uint16_t alphaPerm
 }
 
 bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, std::vector<uint8_t>& bytes, ReplicationError& error) {
-    bytes.clear();
-    bytes.shrink_to_fit();
+    // Transactional serialization: caller-owned output remains untouched on every failure.
+    std::vector<uint8_t> encoded;
     if (snapshot.sequence == 0U || snapshot.sequence == std::numeric_limits<uint64_t>::max() || snapshot.serverTick == std::numeric_limits<uint64_t>::max() || snapshot.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::InvalidSnapshot; return false; }
     for (uint16_t index = 0U; index < snapshot.count; ++index) {
         const ReplicatedEntityState& state = snapshot.states[index];
@@ -117,7 +117,8 @@ bool ReplicationSnapshotCodec::Serialize(const ReplicationSnapshot& snapshot, st
         const uint64_t checksum = Hash(content);
         AppendU64(content, checksum);
         if (content.size() != 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(snapshot.count) * (4U + 4U + 8U + 9U * sizeof(float)) + 8U) { error = ReplicationError::Capacity; return false; }
-        bytes = std::move(content);
+        encoded = std::move(content);
+        bytes = std::move(encoded);
         error = ReplicationError::None;
         return true;
     } catch (const std::bad_alloc&) {
