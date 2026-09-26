@@ -204,16 +204,18 @@ bool AssetResourceManager::CompleteGpuUpload(AssetResourceHandle handle) {
     return true;
 }
 
-bool AssetResourceManager::CompleteGpuRefresh(AssetResourceHandle handle) {
+bool AssetResourceManager::CompleteGpuRefresh(AssetResourceHandle handle, uint64_t newContentHash) {
     if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
+    if (newContentHash == 0U) return Fail(AssetResourceError::HotReloadRejected);
     LeaseSlot& lease = leases_[handle.slot];
     Slot& slot = slots_[lease.rootResourceSlot];
     if (slot.gpuUploadsInFlight == 0U) return Fail(AssetResourceError::GpuUploadNotPending);
-    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max() ||
+        slot.hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     --slot.gpuUploadsInFlight;
-    // A refresh never clears an already resident resource. New residency becomes
-    // authoritative only after the new upload's fence has completed.
     slot.gpuResident = true;
+    slot.contentHash = newContentHash;
+    ++slot.hotReloadGeneration;
     ++managerRevision_;
     lastError_ = AssetResourceError::None;
     return true;
