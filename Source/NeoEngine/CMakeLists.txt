@@ -299,8 +299,6 @@ set(XPBD_RUNTIME_SOURCES
     Renderer/RayTracing/RayTracingRenderer.cpp
     Renderer/Resources/BindlessResourceManager.cpp
     Renderer/VirtualGeometry/VirtualGeometrySystem.cpp
-)
-
     Core/GPU/GPUBufferPool.cpp
     Core/GPU/GPUMemoryBudget.cpp
     Core/GPU/GPUTextureCache.cpp
