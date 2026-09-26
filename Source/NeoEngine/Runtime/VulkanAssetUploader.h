@@ -1,12 +1,12 @@
 #pragma once
+#include "AssetResourceManager.h"
+
 #include <cstdint>
 #include <vector>
 #include <vulkan/vulkan.h>
 
 namespace NeoEngine {
 
-class AssetResourceManager;
-struct AssetResourceHandle;
 
 struct UploadTask {
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
