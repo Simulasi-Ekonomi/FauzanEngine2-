@@ -147,6 +147,7 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
 
         StreamRequest uploadRequest{};
         if (!queue_.BeginUpload(event.id, uploadRequest)) {
+            (void)resources_.CancelGpuUpload(handle);
             (void)resources_.Release(handle);
             std::lock_guard<std::mutex> lock(mutex_);
             requests_.erase(event.id);
