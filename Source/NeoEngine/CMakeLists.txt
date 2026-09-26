@@ -238,6 +238,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AuthoringCatalogVisualBinder.cpp
     Runtime/RouteRootMotionAdapter.cpp
     Runtime/StreamManager.cpp
+    Runtime/RuntimeAssetStreamBridge.cpp
     Runtime/InputMotionBridge.cpp
     Animation/SkeletalAnimationController.cpp
     Animation/SkeletalPoseClip.cpp
