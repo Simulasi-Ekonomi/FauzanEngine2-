@@ -21,6 +21,8 @@ struct UploadTask {
     AssetResourceManager* resourceManager = nullptr;
     AssetResourceHandle resourceHandle{};
     bool tracksResourceResidency = false;
+    VkDeviceMemory gpuMemory = VK_NULL_HANDLE;
+    uint32_t gpuAllocationSizeMB = 0U;
 };
 
 class VulkanAssetUploader {
@@ -59,6 +61,14 @@ public:
                                               VkDevice device, VkCommandBuffer cmd,
                                               VkImage targetImage, VkImageLayout targetLayout,
                                               uint32_t width, uint32_t height) noexcept;
+    [[nodiscard]] bool UploadTextureResource(AssetResourceManager& resources,
+                                              const AssetResourceHandle& handle,
+                                              const std::vector<uint8_t>& pixels,
+                                              VkDevice device, VkCommandBuffer cmd,
+                                              VkImage targetImage, VkImageLayout targetLayout,
+                                              uint32_t width, uint32_t height,
+                                              VkDeviceMemory gpuMemory,
+                                              uint32_t gpuAllocationSizeMB) noexcept;
 
     [[nodiscard]] bool UploadMesh(VkDevice device, VkCommandBuffer cmd,
                                   const std::vector<uint8_t>& vertexData,
