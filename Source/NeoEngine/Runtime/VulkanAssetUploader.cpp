@@ -239,6 +239,37 @@ void VulkanAssetUploader::AttachCompletionFence(VkFence fence, bool takeOwnershi
         if (task.completionFence == VK_NULL_HANDLE) task.completionFence = fence;
 }
 
+void VulkanAssetUploader::DiscardUnsubmitted(VkDevice device) noexcept {
+    if (device == VK_NULL_HANDLE) return;
+    for (const UploadTask& task : pendingUploads_) {
+        if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+            if (completionCallback_) {
+                try {
+                    completionCallback_(task, VK_ERROR_INITIALIZATION_FAILED);
+                } catch (...) {
+                    if (task.preservesResidentOnCompletion)
+                        (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                    else
+                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                }
+            } else if (task.preservesResidentOnCompletion) {
+                (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+            } else {
+                (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+            }
+        }
+        if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
+        if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
+    }
+    pendingUploads_.clear();
+    for (VkFence fence : ownedCompletionFences_) {
+        if (fence != VK_NULL_HANDLE) vkDestroyFence(device, fence, nullptr);
+    }
+    ownedCompletionFences_.clear();
+    currentStagingUsedMB_ = 0U;
+    lastDevice_ = device;
+}
+
 void VulkanAssetUploader::Flush(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
     for (const UploadTask& task : pendingUploads_) {
