@@ -99,6 +99,15 @@ jobs:
         run: |
           tools/p4_build_release_artifact.sh assembleRelease
 
+      - name: Build signed release AAB
+        env:
+          NEO_ANDROID_KEYSTORE: ${{ secrets.NEO_ANDROID_KEYSTORE }}
+          NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
+          NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
+          NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
+        run: |
+          tools/p4_build_release_artifact.sh bundleRelease
+
       - name: Upload release evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -106,6 +115,7 @@ jobs:
           name: p4-release-complete-validation
           path: |
             android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/bundle/release/app-release.aab
             android/app/build/outputs/apk/debug/app-debug.apk
             p4-release-manifest.sha256
             p4-source-sbom.json
