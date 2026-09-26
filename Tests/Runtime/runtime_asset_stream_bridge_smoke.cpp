@@ -6,16 +6,11 @@
 #include <cstdio>
 #include <fstream>
 #include <thread>
-#include <type_traits>
 #include <vector>
 
 namespace {
 VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
-    if constexpr (std::is_pointer_v<VkDeviceMemory>) {
-        return reinterpret_cast<VkDeviceMemory>(value);
-    } else {
-        return static_cast<VkDeviceMemory>(value);
-    }
+    return reinterpret_cast<VkDeviceMemory>(value);
 }
 }
 
