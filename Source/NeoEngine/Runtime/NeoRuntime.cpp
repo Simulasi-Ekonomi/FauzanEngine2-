@@ -541,6 +541,10 @@ bool NeoRuntime::Shutdown() {
     m_RenderedFarmFrames = 0U;
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
+    // Drain authoritative GPU completion while the Vulkan device is alive, then
+    // release queue-owned resident uploads before destroying the renderer.
+    if (m_VulkanRenderer != nullptr) m_VulkanRenderer->FlushAssetUploads();
+    if (m_AssetStreamBridge != nullptr) (void)m_AssetStreamBridge->ReleaseAllGpuUploads();
     m_VulkanRenderer.reset();
     if (m_AssetStreamBridge != nullptr) m_AssetStreamBridge->Stop();
     m_AssetStreamBridge.reset();
