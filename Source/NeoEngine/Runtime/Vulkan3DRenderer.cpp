@@ -180,12 +180,40 @@ bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) n
                 return;
             }
             if (result == VK_SUCCESS) {
+                const auto textureIt = impl_->streamedTextures.find(task.assetId);
+                if (textureIt == impl_->streamedTextures.end() ||
+                    !textureIt->second.IsValid()) {
+                    (void)bridge.FailGpuUpload(task.assetId);
+                    impl_->streamedTextures.erase(task.assetId);
+                    impl_->streamedTextureDescriptors.erase(task.assetId);
+                    return;
+                }
+                VkDescriptorSet descriptor = VK_NULL_HANDLE;
+                if (!impl_->AllocateTextureDescriptor(textureIt->second.GetImageView(),
+                                                      textureIt->second.GetSampler(), descriptor)) {
+                    (void)bridge.FailGpuUpload(task.assetId);
+                    impl_->streamedTextures.erase(task.assetId);
+                    impl_->streamedTextureDescriptors.erase(task.assetId);
+                    return;
+                }
+                try {
+                    impl_->streamedTextureDescriptors[task.assetId] = descriptor;
+                } catch (...) {
+                    (void)bridge.FailGpuUpload(task.assetId);
+                    impl_->streamedTextures.erase(task.assetId);
+                    impl_->streamedTextureDescriptors.erase(task.assetId);
+                    return;
+                }
                 const auto release = [this, id = task.assetId]() noexcept {
-                    if (impl_ != nullptr) impl_->streamedTextures.erase(id);
+                    if (impl_ != nullptr) {
+                        impl_->streamedTextureDescriptors.erase(id);
+                        impl_->streamedTextures.erase(id);
+                    }
                 };
                 if (!bridge.CompleteGpuUpload(task.assetId, task.gpuMemory,
                                               task.gpuAllocationSizeMB, release)) {
                     (void)bridge.FailGpuUpload(task.assetId);
+                    impl_->streamedTextureDescriptors.erase(task.assetId);
                     impl_->streamedTextures.erase(task.assetId);
                 }
                 return;
@@ -236,19 +264,7 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) 
             (void)bridge.FailGpuUpload(id);
             continue;
         }
-        VkDescriptorSet descriptor = VK_NULL_HANDLE;
-        if (!impl_->AllocateTextureDescriptor(texture.GetImageView(), texture.GetSampler(), descriptor)) {
-            impl_->streamedTextures.erase(it);
-            (void)bridge.FailGpuUpload(id);
-            continue;
-        }
-        try {
-            impl_->streamedTextureDescriptors.emplace(id, descriptor);
-        } catch (...) {
-            impl_->streamedTextures.erase(it);
-            (void)bridge.FailGpuUpload(id);
-            continue;
-        }
+
     }
     return true;
 }
@@ -269,10 +285,18 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads() noexcept {
     return PumpAssetStreamUploads(*impl_->assetStreamBridge);
 }
 
+bool Vulkan3DRenderer::IsStreamedTextureReady(const std::string& assetId) const noexcept {
+    if (impl_ == nullptr || assetId.empty()) return false;
+    const auto textureIt = impl_->streamedTextures.find(assetId);
+    const auto descriptorIt = impl_->streamedTextureDescriptors.find(assetId);
+    return textureIt != impl_->streamedTextures.end() && textureIt->second.IsValid() &&
+           descriptorIt != impl_->streamedTextureDescriptors.end() &&
+           descriptorIt->second != VK_NULL_HANDLE;
+}
+
 const VulkanGPUTexture* Vulkan3DRenderer::FindStreamedTexture(const std::string& assetId) const noexcept {
-    if (impl_ == nullptr) return nullptr;
-    const auto it = impl_->streamedTextures.find(assetId);
-    return it == impl_->streamedTextures.end() ? nullptr : &it->second;
+    if (!IsStreamedTextureReady(assetId)) return nullptr;
+    return &impl_->streamedTextures.find(assetId)->second;
 }
 
 
