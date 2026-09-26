@@ -2,9 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, p3-editor-android-production-night ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, p3-editor-android-production-night ]
   workflow_dispatch:
 
 jobs:
@@ -64,7 +64,7 @@ jobs:
 
   build-release:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/p3-editor-android-production-night'
 
     steps:
     - name: Checkout
