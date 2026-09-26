@@ -98,28 +98,19 @@ bool AssetStreamingQueue::BeginUpload(AssetID id, StreamRequest& out) noexcept {
     }
 }
 
-bool AssetStreamingQueue::BeginRefresh(AssetID id, StreamRequest& out) noexcept {
-    if (id.empty()) return false;
+bool AssetStreamingQueue::BeginRefresh(const StreamRequest& request) noexcept {
+    if (request.id.empty() || request.filepath.empty() || !std::isfinite(request.priority) ||
+        request.estimatedSizeMB == 0U || request.estimatedSizeMB > memoryBudgetMB_) return false;
     std::lock_guard<std::mutex> lock(mutex_);
-    auto it = loadedAssets_.find(id);
+    auto it = loadedAssets_.find(request.id);
     if (it == loadedAssets_.end() || it->second.state != StreamState::Ready ||
         it->second.gpuMemory == VK_NULL_HANDLE || it->second.allocatedSizeMB == 0U ||
         it->second.replacingResident) return false;
-
-    try {
-        StreamRequest selected{};
-        selected.id = id;
-        selected.filepath = id;
-        // The bridge supplies the real request after validating its own request map.
-        // Only the state transition belongs here; no queue item is inserted because
-        // refresh file I/O is owned by StreamManager.
-        out = std::move(selected);
-        it->second.state = StreamState::Uploading;
-        it->second.replacingResident = true;
-        return true;
-    } catch (...) {
-        return false;
-    }
+    // Refresh file I/O is owned by StreamManager, so the existing queue entry is
+    // retained while its state temporarily changes to Uploading.
+    it->second.state = StreamState::Uploading;
+    it->second.replacingResident = true;
+    return true;
 }
 
 bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
