@@ -33,6 +33,9 @@ public:
     void Stop() noexcept;
 
     [[nodiscard]] bool Request(const StreamRequest& request) noexcept;
+    // Releases the currently resident GPU version through its original ownership
+    // callback, then starts a fresh file-to-GPU lifecycle for the same asset ID.
+    [[nodiscard]] bool Refresh(const StreamRequest& request) noexcept;
     [[nodiscard]] bool Cancel(const AssetID& id) noexcept;
 
     // Commits successful file loads into AssetRegistry/AssetResourceManager and
