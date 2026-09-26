@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - sandbox-p0-validation-20260920
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/**'
@@ -32,7 +33,7 @@ jobs:
       - name: Install SDL3
         uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
         with:
-          version: 3.4.14
+          version: 3.4.16
           install-linux-dependencies: true
 
       - name: Run complete P2 Release coverage
