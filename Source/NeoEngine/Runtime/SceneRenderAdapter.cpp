@@ -203,6 +203,13 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             renderer.EndFrame();
             return false;
         }
+        if (!instance.sourceTextureAssetId.empty() &&
+            renderer.FindStreamedTexture(instance.sourceTextureAssetId) != nullptr &&
+            !renderer.BindStreamedTexture(instance.sourceTextureAssetId)) {
+            lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
+            renderer.EndFrame();
+            return false;
+        }
         if (!renderer.DrawIndexedSkinned(vertices, indices, Multiply(viewProjection, model).m, model.m)) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
