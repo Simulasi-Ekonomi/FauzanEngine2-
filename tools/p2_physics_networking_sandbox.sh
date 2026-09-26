@@ -30,7 +30,11 @@ for target in "${TARGETS[@]}"; do cmake --build "$BUILD_DIR" --target "$target" 
 pass=0
 fail=0
 for target in "${TARGETS[@]}"; do
-  if SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}" SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-dummy}" "$BUILD_DIR/$target" >>"$REPORT_DIR/execution.log" 2>&1; then
+  run_args=()
+  if [[ "$target" == "bench_100k_bodies_200k_collisions" ]]; then
+    run_args=("${P2_BENCH_FRAMES:-20}" "${P2_BENCH_WORKERS:-8}" "0")
+  fi
+  if SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}" SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-dummy}" "$BUILD_DIR/$target" "${run_args[@]}" >>"$REPORT_DIR/execution.log" 2>&1; then
     printf "%s\tPASS\n" "$target" | tee -a "$REPORT_DIR/execution.txt"
     pass=$((pass+1))
   else
