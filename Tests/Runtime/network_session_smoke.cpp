@@ -37,6 +37,14 @@ int main() {
         !Require(std::fabs(authoritative.x - 0.5F) < 0.0001F && std::fabs(authoritative.z - 0.25F) < 0.0001F, "authoritative_transform")) return 1;
 
     NetworkReconciliationReceipt receipt{};
+    NetworkTransformState nonFiniteAuthoritative = authoritative;
+    nonFiniteAuthoritative.x = std::numeric_limits<float>::quiet_NaN();
+    if (!Require(!client.reconcile(nonFiniteAuthoritative, 1U, receipt), "nonfinite_reconcile_reject") ||
+        !Require(client.lastError() == NetworkError::InvalidInput, "nonfinite_reconcile_error")) return 1;
+    NetworkTransformState exhaustedAuthoritative = authoritative;
+    exhaustedAuthoritative.revision = std::numeric_limits<uint64_t>::max();
+    if (!Require(!client.reconcile(exhaustedAuthoritative, 1U, receipt), "exhausted_revision_reject") ||
+        !Require(client.lastError() == NetworkError::InvalidInput, "exhausted_revision_error")) return 1;
     if (!Require(client.reconcile(authoritative, 1U, receipt), "reconcile") || !Require(client.lastError() == NetworkError::None, "reconcile_error") ||
         !Require(receipt.authoritativeRevision == 1U && receipt.acknowledgedInput == 1U, "reconcile_receipt") ||
         !Require(!receipt.reconciled || receipt.replayedInputs == 0U, "reconcile_replay")) return 1;
