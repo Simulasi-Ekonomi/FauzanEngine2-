@@ -35,6 +35,8 @@ int main() {
     if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 1U) return 3;
     if (!resources.CompleteGpuUpload(materialHandle)) return 3;
     if (!resources.Query(materialHandle, materialReceipt) || !materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
+    if (!resources.BeginGpuUpload(materialHandle) || !resources.CancelGpuUpload(materialHandle)) return 3;
+    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
     AssetResourceHandle materialHandle2{};
     if (!resources.Acquire("material.crop", materialHandle2) || materialHandle2.slot == materialHandle.slot || materialHandle2.generation == 0U || resources.TotalLeaseCount() != 6U || resources.ActiveLeaseCount() != 2U || !resources.Query(materialHandle, materialReceipt) || materialReceipt.refCount != 2U) return 4;
     AssetResourceReceipt textureReceipt{};
