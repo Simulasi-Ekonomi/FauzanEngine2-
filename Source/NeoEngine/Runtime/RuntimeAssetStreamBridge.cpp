@@ -30,18 +30,21 @@ void RuntimeAssetStreamBridge::Stop() noexcept {
     std::vector<AssetID> ids;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        ids.reserve(gpuUploads_.size());
+        ids.reserve(gpuUploads_.size() + residentGpuUploads_.size());
         for (const auto& [id, handle] : gpuUploads_) {
             (void)handle;
             ids.push_back(id);
         }
-        gpuUploads_.clear();
+        for (const auto& [id, handle] : residentGpuUploads_) {
+            (void)handle;
+            ids.push_back(id);
+        }
         requests_.clear();
         events_.clear();
     }
-    // GPU uploads are expected to be drained by the renderer before runtime
-    // shutdown. We deliberately do not synthesize completion or release handles.
-    (void)ids;
+    // Pending uploads must already have been failed/drained by the renderer;
+    // completed uploads must be explicitly released before renderer/device teardown.
+    // Do not erase ownership maps here: doing so would strand queue-owned callbacks.
 }
 
 bool RuntimeAssetStreamBridge::Request(const StreamRequest& request) noexcept {
@@ -208,6 +211,7 @@ bool RuntimeAssetStreamBridge::CompleteGpuUpload(
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
+    residentGpuUploads_[id] = handle;
     gpuUploads_.erase(id);
     requests_.erase(id);
     return true;
@@ -230,9 +234,46 @@ bool RuntimeAssetStreamBridge::FailGpuUpload(AssetID id) noexcept {
     return true;
 }
 
+bool RuntimeAssetStreamBridge::ReleaseGpuUpload(AssetID id) noexcept {
+    AssetResourceHandle handle{};
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto it = residentGpuUploads_.find(id);
+        if (it == residentGpuUploads_.end()) return false;
+        handle = it->second;
+    }
+    if (!queue_.Release(id)) return false;
+    if (!resources_.Release(handle)) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    residentGpuUploads_.erase(id);
+    return true;
+}
+
+bool RuntimeAssetStreamBridge::ReleaseAllGpuUploads() noexcept {
+    std::vector<AssetID> ids;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        ids.reserve(residentGpuUploads_.size());
+        for (const auto& [id, handle] : residentGpuUploads_) {
+            (void)handle;
+            ids.push_back(id);
+        }
+    }
+    bool success = true;
+    for (const AssetID& id : ids) {
+        if (!ReleaseGpuUpload(id)) success = false;
+    }
+    return success && ResidentGpuUploadCount() == 0U;
+}
+
 uint32_t RuntimeAssetStreamBridge::PendingGpuUploadCount() const noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     return static_cast<uint32_t>(gpuUploads_.size());
+}
+
+uint32_t RuntimeAssetStreamBridge::ResidentGpuUploadCount() const noexcept {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return static_cast<uint32_t>(residentGpuUploads_.size());
 }
 
 AssetKind RuntimeAssetStreamBridge::ToAssetKind(uint8_t kind) noexcept {
