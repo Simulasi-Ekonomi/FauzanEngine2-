@@ -15,6 +15,9 @@ struct UploadTask {
     VkImageLayout targetLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     uint32_t uploadSizeMB = 0;
     VkFence completionFence = VK_NULL_HANDLE;
+    AssetResourceManager* resourceManager = nullptr;
+    AssetResourceHandle resourceHandle{};
+    bool tracksResourceResidency = false;
 };
 
 class VulkanAssetUploader {
@@ -37,8 +40,9 @@ public:
                                      VkImage targetImage, VkImageLayout targetLayout,
                                      uint32_t width, uint32_t height) noexcept;
 
-    // Integrated resource-manager path: validates the live resource lease and
-    // uploads its current registry payload without bypassing ownership validation.
+    // Integrated resource-manager path: pins the live resource against eviction/reload,
+    // records the exact lease handle on the GPU task, and marks GPU residency only after
+    // the authoritative completion fence is observed. resources must outlive pending uploads.
     [[nodiscard]] bool UploadTextureResource(AssetResourceManager& resources,
                                               const AssetResourceHandle& handle,
                                               VkDevice device, VkCommandBuffer cmd,
