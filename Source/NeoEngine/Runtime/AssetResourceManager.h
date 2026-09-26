@@ -105,7 +105,7 @@ public:
     bool BeginGpuUpload(AssetResourceHandle handle);
     bool BeginGpuRefresh(AssetResourceHandle handle);
     bool CompleteGpuUpload(AssetResourceHandle handle);
-    bool CompleteGpuRefresh(AssetResourceHandle handle);
+    bool CompleteGpuRefresh(AssetResourceHandle handle, uint64_t newContentHash);
     bool CancelGpuUpload(AssetResourceHandle handle);
     bool CancelGpuRefresh(AssetResourceHandle handle);
     bool SyncHotReload(std::string_view assetId);
