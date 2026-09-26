@@ -69,7 +69,7 @@ private:
     [[nodiscard]] VkBuffer AllocateStagingBuffer(VkDevice device, size_t size,
                                                  VkDeviceMemory& outMemory) noexcept;
     [[nodiscard]] bool CopyBufferToImage(VkDevice device, VkCommandBuffer cmd,
-                                          VkBuffer stagingBuffer, VkImage targetImage,
+                                          VkBuffer stagingBuffer, VkImage targetImage, VkImageLayout targetLayout,
                                           uint32_t width, uint32_t height) noexcept;
 
     uint32_t stagingPoolSizeMB_;
