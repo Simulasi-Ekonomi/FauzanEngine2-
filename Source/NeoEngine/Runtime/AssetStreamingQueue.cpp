@@ -146,8 +146,10 @@ bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory, u
 bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMemory,
                                             uint32_t allocatedSizeMB,
                                             GpuMemoryReleaseCallback releaseCallback,
-                                            GpuMemoryReleaseCallback& oldReleaseCallback) noexcept {
+                                            GpuMemoryReleaseCallback& oldReleaseCallback,
+                                            VkDeviceMemory& oldGpuMemory) noexcept {
     oldReleaseCallback = {};
+    oldGpuMemory = VK_NULL_HANDLE;
     if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0U || !releaseCallback) return false;
 
     std::lock_guard<std::mutex> lock(mutex_);
@@ -157,6 +159,7 @@ bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMe
         it->second.allocatedSizeMB == 0U) return false;
 
     const uint32_t oldSize = it->second.allocatedSizeMB;
+    const VkDeviceMemory previousMemory = it->second.gpuMemory;
     if (residentMemoryMB_ < oldSize ||
         allocatedSizeMB > memoryBudgetMB_ ||
         residentMemoryMB_ - oldSize > memoryBudgetMB_ - allocatedSizeMB) return false;
@@ -174,6 +177,7 @@ bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMe
     it->second.replacingResident = false;
     residentMemoryMB_ = residentMemoryMB_ - oldSize + allocatedSizeMB;
     oldReleaseCallback = std::move(previous);
+    oldGpuMemory = previousMemory;
     return true;
 }
 
