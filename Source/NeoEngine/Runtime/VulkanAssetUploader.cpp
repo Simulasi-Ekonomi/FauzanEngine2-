@@ -63,8 +63,13 @@ bool VulkanAssetUploader::UploadTexture(VkDevice device, VkCommandBuffer cmd,
 
     try {
         pendingUploads_.reserve(pendingUploads_.size() + 1U);
-        pendingUploads_.push_back({stagingBuffer, stagingMemory, targetImage, targetLayout,
-                                   static_cast<uint32_t>(requestedMB64), VK_NULL_HANDLE, nullptr, {}, false});
+        UploadTask task{};
+        task.stagingBuffer = stagingBuffer;
+        task.stagingMemory = stagingMemory;
+        task.targetImage = targetImage;
+        task.targetLayout = targetLayout;
+        task.uploadSizeMB = static_cast<uint32_t>(requestedMB64);
+        pendingUploads_.push_back(std::move(task));
     } catch (...) {
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingMemory, nullptr);
@@ -208,10 +213,16 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     vkCmdCopyBuffer(cmd, indexStaging, indexBuffer, 1, &indexRegion);
     try {
         pendingUploads_.reserve(pendingUploads_.size() + 2U);
-        pendingUploads_.push_back({vertexStaging, vertexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
-                                   static_cast<uint32_t>(vertexMB64), VK_NULL_HANDLE, nullptr, {}, false});
-        pendingUploads_.push_back({indexStaging, indexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
-                                   static_cast<uint32_t>(indexMB64), VK_NULL_HANDLE, nullptr, {}, false});
+        UploadTask vertexTask{};
+        vertexTask.stagingBuffer = vertexStaging;
+        vertexTask.stagingMemory = vertexMemory;
+        vertexTask.uploadSizeMB = static_cast<uint32_t>(vertexMB64);
+        UploadTask indexTask{};
+        indexTask.stagingBuffer = indexStaging;
+        indexTask.stagingMemory = indexMemory;
+        indexTask.uploadSizeMB = static_cast<uint32_t>(indexMB64);
+        pendingUploads_.push_back(std::move(vertexTask));
+        pendingUploads_.push_back(std::move(indexTask));
     } catch (...) {
         vkDestroyBuffer(device, vertexStaging, nullptr);
         vkFreeMemory(device, vertexMemory, nullptr);
