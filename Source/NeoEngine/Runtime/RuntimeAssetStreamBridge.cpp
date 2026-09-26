@@ -126,9 +126,24 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
             continue;
         }
 
+        if (event.request.kind > static_cast<uint8_t>(AssetKind::Audio)) {
+            (void)queue_.FailUpload(event.id);
+            std::lock_guard<std::mutex> lock(mutex_);
+            requests_.erase(event.id);
+            continue;
+        }
         const AssetKind kind = ToAssetKind(event.request.kind);
-        if (!assets_.ImportBytes(event.request.id, kind, {}, std::move(event.bytes)) ||
-            !assets_.MarkReady(event.request.id)) {
+        const AssetDefinition* existing = assets_.Find(event.request.id);
+        bool committed = false;
+        if (existing != nullptr) {
+            if (existing->kind == kind && existing->state == AssetState::Ready) {
+                committed = assets_.ReplaceBytes(event.request.id, std::move(event.bytes));
+            }
+        } else {
+            committed = assets_.ImportBytes(event.request.id, kind, {}, std::move(event.bytes)) &&
+                        assets_.MarkReady(event.request.id);
+        }
+        if (!committed) {
             (void)queue_.FailUpload(event.id);
             std::lock_guard<std::mutex> lock(mutex_);
             requests_.erase(event.id);
