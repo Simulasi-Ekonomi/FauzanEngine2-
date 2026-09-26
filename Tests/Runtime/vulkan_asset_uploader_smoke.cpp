@@ -48,7 +48,7 @@ int main() {
     imageInfo.arrayLayers = 1U;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkImage image = VK_NULL_HANDLE;
@@ -86,7 +86,8 @@ int main() {
 
     VulkanAssetUploader uploader(8U);
     uploader.SetPhysicalDevice(physicalDevice);
-    CHECK(uploader.UploadTextureResource(resources, handle, device, commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1U, 1U), "record resource upload");
+    CHECK(!uploader.UploadTexture(device, commandBuffer, {1U, 2U, 3U, 4U}, image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1U, 1U), "reject unsupported target layout");
+    CHECK(uploader.UploadTextureResource(resources, handle, device, commandBuffer, image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1U, 1U), "record resource upload with shader-read publication layout");
 
     AssetResourceReceipt receipt{};
     CHECK(resources.Query(handle, receipt) && !receipt.gpuResident && receipt.gpuUploadsInFlight == 1U, "upload must remain pending before fence");
