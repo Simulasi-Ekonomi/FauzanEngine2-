@@ -31,7 +31,7 @@ int main() {
     voice.SetSpatialized(true);
     voice.SetPosition(2.0f, 0.0f, 0.0f);
 
-    assert(audio.Play(voice.Id(), voice.Samples(), voice.GainQ8(), voice.IsLooping(), voice.Pitch()));
+    assert(voice.Play(audio));
     assert(audio.QueuedVoiceCount() == 1U);
 
     const float movedPosition[3]{4.0f, 0.0f, 0.0f};
