@@ -170,12 +170,10 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) 
         }
         const uint32_t allocationMB = texture.GetAllocationSizeMB();
         if (allocationMB == 0U ||
-            !impl_->uploader.UploadTextureResource(*reinterpret_cast<AssetResourceManager*>(nullptr), handle, pixels,
+            !impl_->uploader.UploadTextureResource(bridge.Resources(), handle, pixels,
                                                      impl_->device, impl_->frames[impl_->frameSlot].commandBuffer,
                                                      texture.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                      width, height, texture.GetMemory(), allocationMB)) {
-            // The resource manager is supplied below through the bridge; this branch
-            // is replaced before integration is enabled.
             impl_->streamedTextures.erase(it);
             (void)bridge.FailGpuUpload(id);
             continue;
