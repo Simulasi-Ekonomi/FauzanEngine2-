@@ -136,6 +136,22 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
             continue;
         }
         const AssetKind kind = ToAssetKind(event.request.kind);
+        GpuTexturePayload decodedTexture{};
+        if (kind == AssetKind::Texture) {
+            RgbaTexture decoded{};
+            TextureDecodeError decodeError = TextureDecodeError::None;
+            bool decodedOk = PpmTextureDecoder::DecodeP6(event.bytes, decoded, decodeError);
+            if (!decodedOk) decodedOk = BmpTextureDecoder::DecodeBiRgb(event.bytes, decoded, decodeError);
+            if (!decodedOk || decoded.width == 0U || decoded.height == 0U || decoded.rgba.empty()) {
+                (void)queue_.FailUpload(event.id);
+                std::lock_guard<std::mutex> lock(mutex_);
+                requests_.erase(event.id);
+                return processed;
+            }
+            decodedTexture.rgba = std::move(decoded.rgba);
+            decodedTexture.width = decoded.width;
+            decodedTexture.height = decoded.height;
+        }
         const AssetDefinition* existing = assets_.Find(event.request.id);
         bool committed = false;
         if (existing != nullptr) {
@@ -174,8 +190,40 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
 
         std::lock_guard<std::mutex> lock(mutex_);
         gpuUploads_[event.id] = handle;
+        if (kind == AssetKind::Texture) gpuTexturePayloads_[event.id] = std::move(decodedTexture);
     }
     return processed;
+}
+
+bool RuntimeAssetStreamBridge::GetGpuUploadTextureData(
+    AssetID id, std::vector<uint8_t>& rgba, uint32_t& width, uint32_t& height) const noexcept {
+    rgba.clear();
+    width = 0U;
+    height = 0U;
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = gpuTexturePayloads_.find(id);
+    if (it == gpuTexturePayloads_.end() || it->second.rgba.empty() ||
+        it->second.width == 0U || it->second.height == 0U) return false;
+    rgba = it->second.rgba;
+    width = it->second.width;
+    height = it->second.height;
+    return true;
+}
+
+bool RuntimeAssetStreamBridge::GetPendingGpuUploadIds(std::vector<AssetID>& ids) const noexcept {
+    ids.clear();
+    std::lock_guard<std::mutex> lock(mutex_);
+    try {
+        ids.reserve(gpuUploads_.size());
+        for (const auto& [id, handle] : gpuUploads_) {
+            (void)handle;
+            ids.push_back(id);
+        }
+        return true;
+    } catch (...) {
+        ids.clear();
+        return false;
+    }
 }
 
 bool RuntimeAssetStreamBridge::GetGpuUpload(
@@ -212,6 +260,7 @@ bool RuntimeAssetStreamBridge::CompleteGpuUpload(
 
     std::lock_guard<std::mutex> lock(mutex_);
     residentGpuUploads_[id] = handle;
+    gpuTexturePayloads_.erase(id);
     gpuUploads_.erase(id);
     requests_.erase(id);
     return true;
@@ -245,6 +294,7 @@ bool RuntimeAssetStreamBridge::ReleaseGpuUpload(AssetID id) noexcept {
     if (!queue_.Release(id)) return false;
     if (!resources_.Release(handle)) return false;
     std::lock_guard<std::mutex> lock(mutex_);
+    gpuTexturePayloads_.erase(id);
     residentGpuUploads_.erase(id);
     return true;
 }
