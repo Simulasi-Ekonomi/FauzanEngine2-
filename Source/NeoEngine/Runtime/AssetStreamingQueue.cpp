@@ -89,7 +89,7 @@ bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory, u
     if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0) return false;
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = loadedAssets_.find(id);
-    if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading) return false;
+    if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading || !gpuMemoryReleaseCallback_) return false;
     if (allocatedSizeMB > memoryBudgetMB_ || residentMemoryMB_ > std::numeric_limits<uint32_t>::max() - allocatedSizeMB ||
         residentMemoryMB_ + allocatedSizeMB > memoryBudgetMB_) return false;
     try {
