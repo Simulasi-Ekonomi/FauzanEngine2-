@@ -8,12 +8,17 @@
 #include <functional>
 #include <curl/curl.h>
 #include <json/json.h>
+#if defined(__ANDROID__)
 #include <android/log.h>
-#include "ItemSerialTracker.h"
-
 #define LOG_TAG "AntiCheat"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#else
+#include <cstdio>
+#define LOGI(...) std::fprintf(stdout, __VA_ARGS__)
+#define LOGE(...) std::fprintf(stderr, __VA_ARGS__)
+#endif
+#include "ItemSerialTracker.h"
 
 namespace NeoEngine {
 
