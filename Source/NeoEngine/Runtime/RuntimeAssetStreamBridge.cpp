@@ -1,6 +1,7 @@
 #include "RuntimeAssetStreamBridge.h"
 
 #include <algorithm>
+#include <iterator>
 #include <utility>
 
 namespace NeoEngine {
