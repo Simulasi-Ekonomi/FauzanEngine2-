@@ -4,6 +4,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <cstdio>
 
 namespace {
 bool RunStaleRemoteEntityRegression() {
