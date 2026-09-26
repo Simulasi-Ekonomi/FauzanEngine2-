@@ -194,9 +194,11 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
         }
 
         const auto failEvent = [this, &event, isRefresh, pendingHandle]() noexcept {
-            (void)queue_.FailUpload(event.id);
             if (isRefresh) {
+                (void)queue_.FailUpload(event.id);
                 (void)resources_.CancelGpuRefresh(pendingHandle);
+            } else {
+                (void)queue_.CancelPending(event.id);
             }
             std::lock_guard<std::mutex> lock(mutex_);
             gpuTexturePayloads_.erase(event.id);
