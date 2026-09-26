@@ -139,6 +139,11 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
         lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
         return false;
     }
+    if (!renderer.PumpAssetStreamUploads()) {
+        lastError_ = SceneRenderAdapterError::VulkanFrameFailed;
+        (void)renderer.EndFrame();
+        return false;
+    }
 
     for (const SceneMeshInstance& instance : meshes.Instances()) {
         const Transform3* transform = world.GetTransform(instance.entity);
