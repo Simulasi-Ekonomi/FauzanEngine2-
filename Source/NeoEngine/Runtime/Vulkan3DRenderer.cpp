@@ -105,13 +105,17 @@ struct Vulkan3DRenderer::Impl {
     std::vector<VkDescriptorPool> textureDescriptorPools{};
     VkDescriptorSet defaultTextureDescriptorSet=VK_NULL_HANDLE;
     std::unordered_map<AssetID, VkDescriptorSet> streamedTextureDescriptors{};
+    struct RetiredTextureDescriptor { VkDescriptorSet descriptor = VK_NULL_HANDLE; uint32_t frameSlot = 0U; };
+    std::vector<RetiredTextureDescriptor> retiredTextureDescriptors{};
+    std::unordered_map<AssetID, uint32_t> streamedTextureLastBoundFrameSlot{};
     VulkanGPUTexture defaultTexture{};
     void DestroySwapchainResources(){if(!device)return;hasPresentedFrame=false;lastPresentedImageIndex=UINT32_MAX;vkDeviceWaitIdle(device);for(auto f:framebuffers)vkDestroyFramebuffer(device,f,nullptr);framebuffers.clear();if(pipeline)vkDestroyPipeline(device,pipeline,nullptr);pipeline=VK_NULL_HANDLE;if(pipelineLayout)vkDestroyPipelineLayout(device,pipelineLayout,nullptr);pipelineLayout=VK_NULL_HANDLE;if(renderPass)vkDestroyRenderPass(device,renderPass,nullptr);renderPass=VK_NULL_HANDLE;if(depthView)vkDestroyImageView(device,depthView,nullptr);depthView=VK_NULL_HANDLE;if(depthImage)vkDestroyImage(device,depthImage,nullptr);depthImage=VK_NULL_HANDLE;if(depthMemory)vkFreeMemory(device,depthMemory,nullptr);depthMemory=VK_NULL_HANDLE;for(auto v:swapchainViews)vkDestroyImageView(device,v,nullptr);swapchainViews.clear();swapchainImages.clear();if(swapchain)vkDestroySwapchainKHR(device,swapchain,nullptr);swapchain=VK_NULL_HANDLE;}
     bool CreateTextureDescriptorPool() {
         if (device == VK_NULL_HANDLE || textureDescriptorSetLayout == VK_NULL_HANDLE) return false;
         constexpr uint32_t kPoolCapacity = 256U;
         const VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kPoolCapacity};
-        const VkDescriptorPoolCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0U,
+        const VkDescriptorPoolCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr,
+                                               VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
                                                kPoolCapacity, 1U, &poolSize};
         VkDescriptorPool pool = VK_NULL_HANDLE;
         if (vkCreateDescriptorPool(device, &info, nullptr, &pool) != VK_SUCCESS) return false;
@@ -120,6 +124,31 @@ struct Vulkan3DRenderer::Impl {
             return false;
         }
         return true;
+    }
+
+    void RetireTextureDescriptor(const std::string& assetId) noexcept {
+        const auto descriptorIt = streamedTextureDescriptors.find(assetId);
+        if (descriptorIt == streamedTextureDescriptors.end() || descriptorIt->second == VK_NULL_HANDLE) return;
+        uint32_t slot = frameSlot;
+        const auto slotIt = streamedTextureLastBoundFrameSlot.find(assetId);
+        if (slotIt != streamedTextureLastBoundFrameSlot.end()) slot = slotIt->second;
+        try { retiredTextureDescriptors.push_back({descriptorIt->second, slot}); }
+        catch (...) { return; }
+        streamedTextureDescriptors.erase(descriptorIt);
+        streamedTextureLastBoundFrameSlot.erase(assetId);
+    }
+    void ReclaimRetiredTextureDescriptors(uint32_t completedFrameSlot) noexcept {
+        if (device == VK_NULL_HANDLE) return;
+        std::vector<RetiredTextureDescriptor> keep;
+        try { keep.reserve(retiredTextureDescriptors.size()); } catch (...) { return; }
+        for (const auto& retired : retiredTextureDescriptors) {
+            if (retired.descriptor != VK_NULL_HANDLE && retired.frameSlot == completedFrameSlot) {
+                for (VkDescriptorPool pool : textureDescriptorPools) {
+                    if (pool != VK_NULL_HANDLE && vkFreeDescriptorSets(device, pool, 1U, &retired.descriptor) == VK_SUCCESS) break;
+                }
+            } else keep.push_back(retired);
+        }
+        retiredTextureDescriptors.swap(keep);
     }
 
     bool AllocateTextureDescriptor(VkImageView view, VkSampler sampler, VkDescriptorSet& out) {
@@ -157,7 +186,7 @@ struct Vulkan3DRenderer::Impl {
         return true;
     }
 
-    void Destroy(){if(device){vkDeviceWaitIdle(device);uploader.Flush(device);streamedTextures.clear();streamedTextureDescriptors.clear();assetStreamBridge=nullptr;defaultTexture.Destroy();skinningPalette.Destroy();}for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}for (VkDescriptorPool pool : textureDescriptorPools) if (pool) vkDestroyDescriptorPool(device, pool, nullptr);
+    void Destroy(){if(device){vkDeviceWaitIdle(device);uploader.Flush(device);streamedTextures.clear();streamedTextureDescriptors.clear();streamedTextureLastBoundFrameSlot.clear();retiredTextureDescriptors.clear();assetStreamBridge=nullptr;defaultTexture.Destroy();skinningPalette.Destroy();}for(auto& f:frames){DestroyArena(device,f.vertexArena);DestroyArena(device,f.indexArena);DestroyArena(device,f.instanceArena);}DestroySwapchainResources();for(auto& f:frames){if(f.fence)vkDestroyFence(device,f.fence,nullptr);if(f.imageAvailable)vkDestroySemaphore(device,f.imageAvailable,nullptr);if(f.renderFinished)vkDestroySemaphore(device,f.renderFinished,nullptr);}for (VkDescriptorPool pool : textureDescriptorPools) if (pool) vkDestroyDescriptorPool(device, pool, nullptr);
 textureDescriptorPools.clear();
 if(textureDescriptorSetLayout)vkDestroyDescriptorSetLayout(device,textureDescriptorSetLayout,nullptr);
 if(skinningDescriptorPool)vkDestroyDescriptorPool(device,skinningDescriptorPool,nullptr);
@@ -206,7 +235,7 @@ bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) n
                 }
                 const auto release = [this, id = task.assetId]() noexcept {
                     if (impl_ != nullptr) {
-                        impl_->streamedTextureDescriptors.erase(id);
+                        impl_->RetireTextureDescriptor(id);
                         impl_->streamedTextures.erase(id);
                     }
                 };
@@ -273,6 +302,7 @@ bool Vulkan3DRenderer::BindStreamedTexture(const std::string& assetId) noexcept 
     if (impl_ == nullptr || !impl_->frameBegun || assetId.empty()) return false;
     const auto it = impl_->streamedTextureDescriptors.find(assetId);
     if (it == impl_->streamedTextureDescriptors.end() || it->second == VK_NULL_HANDLE) return false;
+    impl_->streamedTextureLastBoundFrameSlot[assetId] = impl_->frameSlot;
     vkCmdBindDescriptorSets(impl_->frames[impl_->frameSlot].commandBuffer,
                             VK_PIPELINE_BIND_POINT_GRAPHICS, impl_->pipelineLayout,
                             1U, 1U, &it->second, 0U, nullptr);
@@ -361,7 +391,7 @@ bool Vulkan3DRenderer::Resize(uint32_t width,uint32_t height){
     VkVertexInputBindingDescription bindings[2]{};bindings[0]={0,(uint32_t)sizeof(GpuVertex),VK_VERTEX_INPUT_RATE_VERTEX};bindings[1]={1,(uint32_t)sizeof(GpuInstance),VK_VERTEX_INPUT_RATE_INSTANCE};VkVertexInputAttributeDescription attrs[10]{{0,0,VK_FORMAT_R32G32B32_SFLOAT,0},{1,0,VK_FORMAT_R32G32B32_SFLOAT,12},{2,0,VK_FORMAT_R32G32_SFLOAT,24},{3,1,VK_FORMAT_R32G32B32A32_SFLOAT,0},{4,1,VK_FORMAT_R32G32B32A32_SFLOAT,16},{5,1,VK_FORMAT_R32G32B32A32_SFLOAT,32},{6,1,VK_FORMAT_R32G32B32A32_SFLOAT,48},{7,0,VK_FORMAT_R32G32B32A32_UINT,32},{8,0,VK_FORMAT_R32G32B32A32_SFLOAT,48},{9,0,VK_FORMAT_R32G32B32A32_SFLOAT,64}};VkPipelineVertexInputStateCreateInfo input{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};input.vertexBindingDescriptionCount=2;input.pVertexBindingDescriptions=bindings;input.vertexAttributeDescriptionCount=10;input.pVertexAttributeDescriptions=attrs;VkPipelineInputAssemblyStateCreateInfo assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};assembly.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;VkPipelineViewportStateCreateInfo viewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};viewport.viewportCount=1;viewport.scissorCount=1;VkPipelineRasterizationStateCreateInfo raster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};raster.polygonMode=VK_POLYGON_MODE_FILL;raster.cullMode=VK_CULL_MODE_BACK_BIT;raster.frontFace=VK_FRONT_FACE_CLOCKWISE;raster.lineWidth=1.0F;VkPipelineMultisampleStateCreateInfo ms{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};ms.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;VkPipelineDepthStencilStateCreateInfo ds{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};ds.depthTestEnable=VK_TRUE;ds.depthWriteEnable=VK_TRUE;ds.depthCompareOp=VK_COMPARE_OP_LESS;VkPipelineColorBlendAttachmentState ba{};ba.colorWriteMask=0xF;VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};blend.attachmentCount=1;blend.pAttachments=&ba;VkDynamicState dyns[2]{VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR};VkPipelineDynamicStateCreateInfo dyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};dyn.dynamicStateCount=2;dyn.pDynamicStates=dyns;VkPushConstantRange push{};push.stageFlags=VK_SHADER_STAGE_VERTEX_BIT;push.size=sizeof(float)*32U;VkDescriptorSetLayout pipelineLayouts[2]={impl_->skinningDescriptorSetLayout,impl_->textureDescriptorSetLayout};VkPipelineLayoutCreateInfo layout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};layout.setLayoutCount=2U;layout.pSetLayouts=pipelineLayouts;layout.pushConstantRangeCount=1;layout.pPushConstantRanges=&push;if(vkCreatePipelineLayout(impl_->device,&layout,nullptr,&impl_->pipelineLayout)!=VK_SUCCESS){vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::PipelineFailure;return false;}VkGraphicsPipelineCreateInfo pi{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};pi.stageCount=2;pi.pStages=stages;pi.pVertexInputState=&input;pi.pInputAssemblyState=&assembly;pi.pViewportState=&viewport;pi.pRasterizationState=&raster;pi.pMultisampleState=&ms;pi.pDepthStencilState=&ds;pi.pColorBlendState=&blend;pi.pDynamicState=&dyn;pi.layout=impl_->pipelineLayout;pi.renderPass=impl_->renderPass;if(vkCreateGraphicsPipelines(impl_->device,VK_NULL_HANDLE,1,&pi,nullptr,&impl_->pipeline)!=VK_SUCCESS){vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);lastError_=Vulkan3DRendererError::PipelineFailure;return false;}vkDestroyShaderModule(impl_->device,vert,nullptr);vkDestroyShaderModule(impl_->device,frag,nullptr);
     impl_->framebuffers.resize(impl_->swapchainViews.size());for(size_t i=0;i<impl_->swapchainViews.size();++i){VkImageView a[]={impl_->swapchainViews[i],impl_->depthView};VkFramebufferCreateInfo fb{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};fb.renderPass=impl_->renderPass;fb.attachmentCount=2;fb.pAttachments=a;fb.width=extent.width;fb.height=extent.height;fb.layers=1;if(vkCreateFramebuffer(impl_->device,&fb,nullptr,&impl_->framebuffers[i])!=VK_SUCCESS){lastError_=Vulkan3DRendererError::VulkanFailure;return false;}}stats_.width=extent.width;stats_.height=extent.height;return true;
 }
-bool Vulkan3DRenderer::BeginFrame(float r,float g,float b,float a){if(!ready_||!impl_||impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];VkResult wait=vkWaitForFences(impl_->device,1,&f.fence,VK_TRUE,UINT64_MAX);if(wait!=VK_SUCCESS){lastError_=wait==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}impl_->uploader.AdvanceFrame(impl_->device);if(!impl_->skinningPalette.BeginFrame(impl_->frameSlot)){lastError_=Vulkan3DRendererError::BufferFailure;return false;}VkResult acq=vkAcquireNextImageKHR(impl_->device,impl_->swapchain,UINT64_MAX,f.imageAvailable,VK_NULL_HANDLE,&impl_->acquiredImageIndex);if(acq==VK_ERROR_OUT_OF_DATE_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(acq!=VK_SUCCESS&&acq!=VK_SUBOPTIMAL_KHR){lastError_=acq==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}vkResetFences(impl_->device,1,&f.fence);vkResetCommandBuffer(f.commandBuffer,0);f.vertexArena.used=f.indexArena.used=f.instanceArena.used=0;VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(f.commandBuffer,&begin)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}VkClearValue clear[2]{};clear[0].color={{r,g,b,a}};clear[1].depthStencil={1,0};VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};pass.renderPass=impl_->renderPass;pass.framebuffer=impl_->framebuffers[impl_->acquiredImageIndex];pass.renderArea.extent=impl_->extent;pass.clearValueCount=2;pass.pClearValues=clear;vkCmdBeginRenderPass(f.commandBuffer,&pass,VK_SUBPASS_CONTENTS_INLINE);VkViewport vp{0,0,(float)impl_->extent.width,(float)impl_->extent.height,0,1};VkRect2D sc{{0,0},impl_->extent};vkCmdSetViewport(f.commandBuffer,0,1,&vp);vkCmdSetScissor(f.commandBuffer,0,1,&sc);vkCmdBindPipeline(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipeline);
+bool Vulkan3DRenderer::BeginFrame(float r,float g,float b,float a){if(!ready_||!impl_||impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];VkResult wait=vkWaitForFences(impl_->device,1,&f.fence,VK_TRUE,UINT64_MAX);if(wait!=VK_SUCCESS){lastError_=wait==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}impl_->uploader.AdvanceFrame(impl_->device);impl_->ReclaimRetiredTextureDescriptors(impl_->frameSlot);if(!impl_->skinningPalette.BeginFrame(impl_->frameSlot)){lastError_=Vulkan3DRendererError::BufferFailure;return false;}VkResult acq=vkAcquireNextImageKHR(impl_->device,impl_->swapchain,UINT64_MAX,f.imageAvailable,VK_NULL_HANDLE,&impl_->acquiredImageIndex);if(acq==VK_ERROR_OUT_OF_DATE_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(acq!=VK_SUCCESS&&acq!=VK_SUBOPTIMAL_KHR){lastError_=acq==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;return false;}vkResetFences(impl_->device,1,&f.fence);vkResetCommandBuffer(f.commandBuffer,0);f.vertexArena.used=f.indexArena.used=f.instanceArena.used=0;VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(f.commandBuffer,&begin)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}VkClearValue clear[2]{};clear[0].color={{r,g,b,a}};clear[1].depthStencil={1,0};VkRenderPassBeginInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};pass.renderPass=impl_->renderPass;pass.framebuffer=impl_->framebuffers[impl_->acquiredImageIndex];pass.renderArea.extent=impl_->extent;pass.clearValueCount=2;pass.pClearValues=clear;vkCmdBeginRenderPass(f.commandBuffer,&pass,VK_SUBPASS_CONTENTS_INLINE);VkViewport vp{0,0,(float)impl_->extent.width,(float)impl_->extent.height,0,1};VkRect2D sc{{0,0},impl_->extent};vkCmdSetViewport(f.commandBuffer,0,1,&vp);vkCmdSetScissor(f.commandBuffer,0,1,&sc);vkCmdBindPipeline(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipeline);
     const uint32_t defaultPaletteOffset=impl_->skinningPalette.DynamicOffset();vkCmdBindDescriptorSets(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipelineLayout,0,1,&impl_->skinningDescriptorSet,1,&defaultPaletteOffset);
     if (impl_->defaultTextureDescriptorSet == VK_NULL_HANDLE) { lastError_=Vulkan3DRendererError::PipelineFailure; return false; }
     vkCmdBindDescriptorSets(f.commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,impl_->pipelineLayout,1,1,&impl_->defaultTextureDescriptorSet,0,nullptr);
