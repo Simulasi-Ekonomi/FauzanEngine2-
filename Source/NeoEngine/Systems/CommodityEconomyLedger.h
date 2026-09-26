@@ -9,7 +9,7 @@
 
 namespace NeoEngine {
 enum class CommodityEconomyKind : uint8_t { HarvestGrant, CraftGrant, QuestGrant, ShopBuy, ShopSell };
-enum class CommodityEconomyError : uint8_t { None, InvalidCommand, UnknownCommodity, InvalidQuantity, InventoryLimit, InsufficientInventory, InsufficientCoins, Capacity, Overflow, Corrupt, UnsupportedVersion, ChecksumMismatch, TrailingBytes };
+enum class CommodityEconomyError : uint8_t { None, InvalidCommand, DuplicateCommand, UnknownCommodity, InvalidQuantity, InventoryLimit, InsufficientInventory, InsufficientCoins, Capacity, Overflow, Corrupt, UnsupportedVersion, ChecksumMismatch, TrailingBytes };
 struct CommodityEconomyCommand { std::string id; CommodityEconomyKind kind = CommodityEconomyKind::HarvestGrant; std::string commodityId; uint16_t quantity = 0; };
 class CommodityEconomyLedger {
 public:
