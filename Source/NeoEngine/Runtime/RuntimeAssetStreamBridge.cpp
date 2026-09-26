@@ -88,13 +88,60 @@ bool RuntimeAssetStreamBridge::Request(const StreamRequest& request) noexcept {
 
 bool RuntimeAssetStreamBridge::Refresh(const StreamRequest& request) noexcept {
     if (request.id.empty() || request.filepath.empty() || request.estimatedSizeMB == 0U) return false;
+
+    AssetResourceHandle handle{};
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!started_ || requests_.contains(request.id) ||
-            residentGpuUploads_.find(request.id) == residentGpuUploads_.end()) return false;
+        if (!started_ || requests_.contains(request.id)) return false;
+        const auto resident = residentGpuUploads_.find(request.id);
+        if (resident == residentGpuUploads_.end()) return false;
+        handle = resident->second;
+
+        // Begin the refresh while the resident resource remains leased and GPU-resident.
+        // The queue and resource manager both retain the previous owner until completion.
+        if (!resources_.BeginGpuRefresh(handle)) return false;
+        if (!queue_.BeginRefresh(request)) {
+            (void)resources_.CancelGpuRefresh(handle);
+            return false;
+        }
+        try {
+            gpuUploads_.emplace(request.id, handle);
+            requests_.emplace(request.id, request);
+        } catch (...) {
+            (void)queue_.FailUpload(request.id);
+            (void)resources_.CancelGpuRefresh(handle);
+            gpuUploads_.erase(request.id);
+            requests_.erase(request.id);
+            return false;
+        }
     }
-    if (!ReleaseGpuUpload(request.id)) return false;
-    return Request(request);
+
+    const bool accepted = streams_.RequestLoad(
+        request.filepath, static_cast<int>(request.priority),
+        [this, request](const std::vector<uint8_t>& bytes) {
+            LoadedEvent event{};
+            event.id = request.id;
+            event.request = request;
+            event.bytes = bytes;
+            event.success = true;
+            (void)QueueLoadedEvent(std::move(event));
+        },
+        [this, request](bool success) {
+            if (success) return;
+            LoadedEvent event{};
+            event.id = request.id;
+            event.request = request;
+            event.success = false;
+            (void)QueueLoadedEvent(std::move(event));
+        });
+    if (accepted) return true;
+
+    (void)queue_.FailUpload(request.id);
+    (void)resources_.CancelGpuRefresh(handle);
+    std::lock_guard<std::mutex> lock(mutex_);
+    gpuUploads_.erase(request.id);
+    requests_.erase(request.id);
+    return false;
 }
 
 bool RuntimeAssetStreamBridge::Cancel(const AssetID& id) noexcept {
