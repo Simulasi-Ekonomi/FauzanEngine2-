@@ -21,6 +21,9 @@ struct UploadTask {
     AssetResourceManager* resourceManager = nullptr;
     AssetResourceHandle resourceHandle{};
     bool tracksResourceResidency = false;
+    // True when an already resident resource is being refreshed in-place; cancellation
+    // must preserve the old residency rather than clearing it.
+    bool preservesResidentOnCompletion = false;
     VkDeviceMemory gpuMemory = VK_NULL_HANDLE;
     uint32_t gpuAllocationSizeMB = 0U;
 };
