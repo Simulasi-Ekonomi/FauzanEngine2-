@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <algorithm>
 #include <iostream>
@@ -146,11 +147,16 @@ int main() {
     for (uint32_t frame = 0U; frame < 120U && !refreshedStreamReady; ++frame) {
         bridge.Pump();
         TEST_CHECK(renderer.BeginFrame(), "BeginFrame during refreshed streamed texture lifecycle failed");
-        if (renderer.IsStreamedTextureReady(streamedTexture.id)) {
-            TEST_CHECK(renderer.BindStreamedTexture(streamedTexture.id), "Refreshed streamed texture descriptor bind failed");
+        const bool replacementCompleted = bridge.PendingGpuUploadCount() == 0U;
+        if (replacementCompleted) {
+            TEST_CHECK(renderer.IsStreamedTextureReady(streamedTexture.id),
+                       "Refreshed streamed texture descriptor must be resident after authoritative completion");
+            TEST_CHECK(renderer.BindStreamedTexture(streamedTexture.id),
+                       "Refreshed streamed texture descriptor bind failed");
             refreshedStreamReady = true;
         }
-        TEST_CHECK(renderer.DrawIndexed(vertices, indices, identity.data()), "Refreshed streamed texture frame draw failed");
+        TEST_CHECK(renderer.DrawIndexed(vertices, indices, identity.data()),
+                   "Refreshed streamed texture frame draw failed");
         TEST_CHECK(renderer.EndFrame(), "EndFrame during refreshed streamed texture lifecycle failed");
         if (!refreshedStreamReady) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
