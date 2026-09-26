@@ -38,7 +38,11 @@ public:
     [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const noexcept { return physicalDevice_; }
 
     // The Vulkan device must outlive this uploader while uploads are pending.
-    ~VulkanAssetUploader() noexcept { if (lastDevice_ != VK_NULL_HANDLE) Flush(lastDevice_); }
+    ~VulkanAssetUploader() noexcept {
+        // Renderer::Impl::Destroy() flushes while the Vulkan device is still alive.
+        // Avoid a second Flush after that device has already been destroyed.
+        if (lastDevice_ != VK_NULL_HANDLE && !pendingUploads_.empty()) Flush(lastDevice_);
+    }
     VulkanAssetUploader(const VulkanAssetUploader&) = delete;
     VulkanAssetUploader& operator=(const VulkanAssetUploader&) = delete;
 
