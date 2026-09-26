@@ -64,6 +64,41 @@ bool AssetStreamingQueue::CancelPending(AssetID id) noexcept {
     return true;
 }
 
+bool AssetStreamingQueue::BeginUpload(AssetID id, StreamRequest& out) noexcept {
+    if (id.empty()) return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto asset = loadedAssets_.find(id);
+    if (asset == loadedAssets_.end() || asset->second.state != StreamState::Pending) return false;
+
+    decltype(streamQueue_) remaining;
+    StreamRequest selected{};
+    bool found = false;
+    try {
+        while (!streamQueue_.empty()) {
+            StreamRequest candidate = streamQueue_.top();
+            streamQueue_.pop();
+            if (!found && candidate.id == id) {
+                selected = candidate;
+                found = true;
+            } else {
+                remaining.push(std::move(candidate));
+            }
+        }
+        if (!found) {
+            streamQueue_.swap(remaining);
+            return false;
+        }
+        out = selected;
+        streamQueue_.swap(remaining);
+        asset->second.state = StreamState::Uploading;
+        return true;
+    } catch (...) {
+        // Preserve the original pending queue as far as the priority_queue
+        // representation permits; never expose a partially transitioned asset.
+        return false;
+    }
+}
+
 bool AssetStreamingQueue::TryDequeue(StreamRequest& out) noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     while (!streamQueue_.empty()) {
