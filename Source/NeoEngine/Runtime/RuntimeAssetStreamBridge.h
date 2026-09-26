@@ -90,6 +90,9 @@ private:
     std::unordered_map<AssetID, AssetResourceHandle> gpuUploads_;
     std::unordered_map<AssetID, AssetResourceHandle> residentGpuUploads_;
     std::unordered_map<AssetID, GpuTexturePayload> gpuTexturePayloads_;
+    // Raw bytes are retained only for refresh transactions. The existing resident
+    // registry entry remains authoritative until the replacement GPU fence commits.
+    std::unordered_map<AssetID, std::vector<uint8_t>> pendingRefreshBytes_;
     std::unordered_map<AssetID, StreamRequest> requests_;
     bool started_ = false;
 };
