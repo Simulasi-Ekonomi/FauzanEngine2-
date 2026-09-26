@@ -278,8 +278,11 @@ bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) n
                 }
                 const auto release = [this, id = task.assetId]() noexcept {
                     if (impl_ != nullptr) {
-                        impl_->RetireTextureDescriptor(id);
+                        // Capture the last frame slot while it is still available.
+                        // Texture retirement must happen before descriptor retirement,
+                        // because descriptor retirement clears the slot bookkeeping.
                         impl_->RetireStreamedTexture(id);
+                        impl_->RetireTextureDescriptor(id);
                     }
                 };
                 if (!bridge.CompleteGpuUpload(task.assetId, task.gpuMemory,
