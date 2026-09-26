@@ -24,7 +24,10 @@ int main(int argc, char** argv) {
     constexpr int kWorkerCount = 8;
     const int frameCount = argc > 1 ? std::max(1, std::atoi(argv[1])) : kMeasuredFrames;
     const int workerCount = argc > 2 ? std::max(1, std::atoi(argv[2])) : kWorkerCount;
-    const bool phaseTimingEnabled = argc > 3 ? std::atoi(argv[3]) != 0 : true;
+    // Production performance gates must measure the solver without optional
+    // diagnostics changing the hot path. Pass argv[3]=1 when phase/probe telemetry
+    // itself is the object of investigation.
+    const bool phaseTimingEnabled = argc > 3 ? std::atoi(argv[3]) != 0 : false;
 
     std::printf("=== FAUZANENGINE XPBD 100K / 200K COLLISION PERFORMANCE GATE ===\n");
     std::printf("Bodies: %d active dynamic bodies | Required actual contacts: >= %zu | Radius: %.3f\n", kEntityCount, kMinimumCollisions, kRadius);
