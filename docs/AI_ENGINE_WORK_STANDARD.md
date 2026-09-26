@@ -114,6 +114,9 @@ Every relevant implementation must be checked for:
 - no double free;
 - no use-after-free;
 - no callback racing object destruction;
+- pending GPU upload tasks must not outlive the `AssetResourceManager` they reference;
+- uploader teardown must occur before destruction/reset of the referenced resource manager;
+- release/eviction/hot-reload must be blocked while an upload pin is active;
 - GPU resources are released at the correct lifetime;
 - failed allocations leave state unchanged where the API promises failure safety.
 
@@ -190,7 +193,7 @@ without creating competing transform authorities.
 
 ## 9. Asset pipeline requirements
 
-Asset streaming is not complete when metadata moves through a queue, when a command buffer is merely recorded/submitted, or when a state enum is advanced by a synthetic callback.
+Asset streaming is not complete when metadata moves through a queue, when a command buffer is merely recorded/submitted, or when a state enum is advanced by a synthetic callback. The current P1 contract requires a resource upload pin, exact resource-handle association with the pending GPU task, authoritative fence/timeline observation, and only then resource-manager residency publication.
 
 Validate:
 
@@ -312,6 +315,8 @@ A source review is useful but is not equivalent to runtime execution.
 
 When a layer cannot be tested in the current environment, say so explicitly.
 
+For the active P1 asset-uploader path, the minimum executable evidence is a real Vulkan smoke that proves: upload remains non-resident before the fence, submission is not completion, completion publishes residency, the exact resource handle is preserved, and borrowed synchronization handles remain owned by the caller.
+
 ## 17. Review and merge gate
 
 Do not merge merely because the PR is mergeable.
@@ -330,6 +335,8 @@ Before merge verify:
 
 If any of these are unknown, keep the PR open.
 
+For asynchronous asset work, also verify that the resource manager rejects release/eviction/hot-reload while an upload pin is active, permits release after the final successful completion, and clears the pin on cancellation/failure.
+
 ## 18. Documentation and handoff
 
 Every agent must leave a durable record:
@@ -344,6 +351,7 @@ Every agent must leave a durable record:
 - tests actually executed;
 - CI evidence;
 - known limitations;
+- explicit owner/lifetime order for asynchronous observers or resource managers;
 - next blocking task.
 
 Do not force the next agent to recover this information from chat history.
