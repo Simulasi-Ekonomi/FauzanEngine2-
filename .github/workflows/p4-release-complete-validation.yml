@@ -120,6 +120,41 @@ jobs:
         run: |
           tools/p4_build_release_artifact.sh bundleRelease
 
+      - name: Verify release artifact structure and signatures
+        run: |
+          python3 tools/p4_release_artifact_gate.py android/app/build/outputs/apk/release/app-release.apk
+          python3 tools/p4_release_artifact_gate.py android/app/build/outputs/bundle/release/app-release.aab
+
+      - name: Build a second signed APK for reproducibility evidence
+        env:
+          NEO_ANDROID_KEYSTORE: ${{ runner.temp }}/neoengine-release.keystore
+          NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
+          NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
+          NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/repro-apk"
+          tools/p4_build_release_artifact.sh assembleRelease
+          cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/repro-apk/app-release.apk"
+
+      - name: Verify reproducible release APK
+        run: |
+          python3 tools/p4_reproducibility_gate.py             android/app/build/outputs/apk/release/app-release.apk             "$RUNNER_TEMP/repro-apk/app-release.apk"
+
+      - name: Build a second signed AAB for reproducibility evidence
+        env:
+          NEO_ANDROID_KEYSTORE: ${{ runner.temp }}/neoengine-release.keystore
+          NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
+          NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
+          NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/repro-aab"
+          tools/p4_build_release_artifact.sh bundleRelease
+          cp android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/repro-aab/app-release.aab"
+
+      - name: Verify reproducible release AAB
+        run: |
+          python3 tools/p4_reproducibility_gate.py             android/app/build/outputs/bundle/release/app-release.aab             "$RUNNER_TEMP/repro-aab/app-release.aab"
+
       - name: Upload release evidence
         if: always()
         uses: actions/upload-artifact@v4
