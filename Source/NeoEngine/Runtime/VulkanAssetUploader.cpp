@@ -134,6 +134,8 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
     task.resourceManager = &resources;
     task.resourceHandle = handle;
     task.tracksResourceResidency = true;
+    task.preservesResidentOnCompletion = preUploadReceipt.gpuResident &&
+        preUploadReceipt.gpuUploadsInFlight != 0U;
     if (gpuMemory != VK_NULL_HANDLE) {
         task.gpuMemory = gpuMemory;
         task.gpuAllocationSizeMB = gpuAllocationSizeMB;
@@ -240,12 +242,26 @@ void VulkanAssetUploader::AttachCompletionFence(VkFence fence, bool takeOwnershi
 void VulkanAssetUploader::Flush(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
     for (const UploadTask& task : pendingUploads_) {
+        const VkResult status = task.completionFence != VK_NULL_HANDLE
+            ? vkGetFenceStatus(device, task.completionFence)
+            : VK_NOT_READY;
         if (task.tracksResourceResidency && task.resourceManager != nullptr) {
-            const VkResult status = task.completionFence != VK_NULL_HANDLE
-                ? vkGetFenceStatus(device, task.completionFence)
-                : VK_NOT_READY;
-            if (status == VK_SUCCESS) {
-                (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
+            if (completionCallback_) {
+                try {
+                    completionCallback_(task, status == VK_SUCCESS ? VK_SUCCESS : VK_NOT_READY);
+                } catch (...) {
+                    if (task.preservesResidentOnCompletion)
+                        (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
+                    else
+                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                }
+            } else if (status == VK_SUCCESS) {
+                if (task.preservesResidentOnCompletion)
+                    (void)task.resourceManager->CompleteGpuRefresh(task.resourceHandle, 1U);
+                else
+                    (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
+            } else if (task.preservesResidentOnCompletion) {
+                (void)task.resourceManager->CancelGpuRefresh(task.resourceHandle);
             } else {
                 (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
             }
