@@ -168,7 +168,7 @@ bool AssetResourceManager::BeginGpuUpload(AssetResourceHandle handle) {
     if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
     LeaseSlot& lease = leases_[handle.slot];
     Slot& slot = slots_[lease.rootResourceSlot];
-    if (slot.gpuUploadsInFlight == std::numeric_limits<uint16_t>::max()) return Fail(AssetResourceError::Capacity);
+    if (slot.gpuUploadsInFlight == std::numeric_limits<uint16_t>::max() || managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     if (slot.state != AssetResourceState::Ready) return Fail(AssetResourceError::NotReady);
     ++slot.gpuUploadsInFlight;
     slot.gpuResident = false;
@@ -182,8 +182,9 @@ bool AssetResourceManager::CompleteGpuUpload(AssetResourceHandle handle) {
     LeaseSlot& lease = leases_[handle.slot];
     Slot& slot = slots_[lease.rootResourceSlot];
     if (slot.gpuUploadsInFlight == 0U) return Fail(AssetResourceError::GpuUploadNotPending);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     --slot.gpuUploadsInFlight;
-    slot.gpuResident = true;
+    slot.gpuResident = slot.gpuUploadsInFlight == 0U;
     ++managerRevision_;
     lastError_ = AssetResourceError::None;
     return true;
@@ -194,6 +195,7 @@ bool AssetResourceManager::CancelGpuUpload(AssetResourceHandle handle) {
     LeaseSlot& lease = leases_[handle.slot];
     Slot& slot = slots_[lease.rootResourceSlot];
     if (slot.gpuUploadsInFlight == 0U) return Fail(AssetResourceError::GpuUploadNotPending);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     --slot.gpuUploadsInFlight;
     if (slot.gpuUploadsInFlight == 0U) slot.gpuResident = false;
     ++managerRevision_;
