@@ -44,7 +44,8 @@ public:
                      std::function<void(const std::vector<uint8_t>&)> callback,
                      std::function<void(bool)> onComplete = {}) noexcept;
     // Cancels a queued or active file read. Active reads observe cancellation
-    // between bounded chunks; callbacks are never invoked for cancelled loads.
+    // between bounded chunks; the data callback is suppressed for cancelled loads,
+    // while the completion callback still receives false exactly once.
     [[nodiscard]] bool Cancel(const std::string& path) noexcept;
 
     // Compatibility accessor: the pointer remains valid only until that asset is
