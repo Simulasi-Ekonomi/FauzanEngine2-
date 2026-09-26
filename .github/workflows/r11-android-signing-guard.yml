@@ -2,13 +2,13 @@ name: R11 Android signing guard
 
 on:
   push:
-    branches: [ main, p3-editor-android-production-night ]
+    branches: [ main, p3-editor-android-production-night, sandbox-p0-validation-20260920 ]
     paths:
       - 'android/app/build.gradle'
       - 'tools/android_release_signing_guard_smoke.sh'
       - '.github/workflows/r11-android-signing-guard.yml'
   pull_request:
-    branches: [ main, p3-editor-android-production-night ]
+    branches: [ main, p3-editor-android-production-night, sandbox-p0-validation-20260920 ]
     paths:
       - 'android/app/build.gradle'
       - 'tools/android_release_signing_guard_smoke.sh'
