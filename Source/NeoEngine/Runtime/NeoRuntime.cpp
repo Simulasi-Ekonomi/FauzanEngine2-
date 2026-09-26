@@ -64,6 +64,10 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     if (!authoritySession->Initialize(*authority)) { m_LastError = RuntimeError::AuthorityFailed; m_State = RuntimeState::Failed; return false; }
     auto assets = std::make_unique<AssetRegistry>();
     auto resources = std::make_unique<AssetResourceManager>(*assets);
+    auto streamManager = std::make_unique<StreamManager>();
+    auto assetStreamingQueue = std::make_unique<AssetStreamingQueue>();
+    auto assetStreamBridge = std::make_unique<RuntimeAssetStreamBridge>(*assets, *resources, *streamManager, *assetStreamingQueue);
+    if (!assetStreamBridge->Start()) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto renderer = std::make_unique<SoftwareRenderer>();
     if (!renderer->Initialize(config.renderWidth, config.renderHeight)) { m_LastError = RuntimeError::InvalidConfiguration; m_State = RuntimeState::Failed; return false; }
     auto surfacePresenter = std::unique_ptr<SoftwareSurfacePresenter>{};
@@ -158,6 +162,9 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_FarmAuthoritySession = std::move(authoritySession);
     m_Assets = std::move(assets);
     m_Resources = std::move(resources);
+    m_StreamManager = std::move(streamManager);
+    m_AssetStreamingQueue = std::move(assetStreamingQueue);
+    m_AssetStreamBridge = std::move(assetStreamBridge);
     m_Actors = std::move(actors);
     m_Replication = std::move(replication);
     m_Authoring = std::make_unique<AuthoringCatalog>();
@@ -237,6 +244,7 @@ bool NeoRuntime::SubmitFarmAuthoritativeCommand(uint64_t sessionHandle,
 
 bool NeoRuntime::Tick() {
     if (m_State != RuntimeState::Initialized || !m_Farm || !m_FarmWorld || !m_FarmAuthority || !m_Assets || !m_Resources || !m_Actors || !m_Replication || !m_Authoring || !m_AuthoringWorld || !m_Clock || !m_Timers || !m_Events || !m_Scene || !m_Clock->Advance(1.0F / 60.0F)) { m_LastError = RuntimeError::InvalidState; return false; }
+    if (m_AssetStreamBridge != nullptr) (void)m_AssetStreamBridge->Pump();
     std::vector<RuntimeTimerFire> fires;
     if (!m_Timers->Advance(m_Clock->Snapshot().scaledDeltaSeconds, fires)) { m_LastError = RuntimeError::InvalidState; return false; }
     for (const RuntimeTimerFire& fire : fires) if (!m_Events->Queue({RuntimeEventKind::TimerFired, fire.userTag, static_cast<int32_t>(fire.fireCount), m_Clock->Snapshot().fixedStepCount})) { m_LastError = RuntimeError::InvalidState; return false; }
@@ -534,6 +542,10 @@ bool NeoRuntime::Shutdown() {
     m_LastFarmRenderReceipt = {};
     m_HasFarmRenderReceipt = false;
     m_VulkanRenderer.reset();
+    if (m_AssetStreamBridge != nullptr) m_AssetStreamBridge->Stop();
+    m_AssetStreamBridge.reset();
+    m_AssetStreamingQueue.reset();
+    m_StreamManager.reset();
     m_SceneRenderAdapter.reset();
     m_SceneCamera.reset();
     for(auto& binding:m_SceneSkeletalAnimations)binding=SceneSkeletalAnimationBinding{};
@@ -582,3 +594,18 @@ bool NeoRuntime::Shutdown() {
 }
 
 } // namespace NeoEngine
+
+
+bool NeoRuntime::RequestStreamedAsset(const StreamRequest& request) {
+    if (m_State != RuntimeState::Initialized || !m_AssetStreamBridge) { m_LastError = RuntimeError::InvalidState; return false; }
+    const bool ok = m_AssetStreamBridge->Request(request);
+    m_LastError = ok ? RuntimeError::None : RuntimeError::InvalidState;
+    return ok;
+}
+
+bool NeoRuntime::CancelStreamedAsset(const AssetID& id) {
+    if (m_State != RuntimeState::Initialized || !m_AssetStreamBridge) { m_LastError = RuntimeError::InvalidState; return false; }
+    const bool ok = m_AssetStreamBridge->Cancel(id);
+    m_LastError = ok ? RuntimeError::None : RuntimeError::InvalidState;
+    return ok;
+}
