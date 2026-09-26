@@ -170,6 +170,10 @@ NEXT_OWNER_AND_NEXT_ACTION:
 
 Kalimat “done”, “fixed”, “ready”, atau “100%” tanpa command dan result dianggap tidak valid.
 
+## 9.1 Runtime asset-stream handoff
+
+Asynchronous `StreamManager` callbacks are handoff-only: they may enqueue immutable load results but must not directly mutate `AssetRegistry`, `AssetResourceManager`, or `AssetStreamingQueue`. Canonical state transitions occur on the runtime thread through the bridge pump; GPU Ready publication remains authoritative to fence/timeline completion.
+
 ## 10. Forbidden actions
 
 - Force push, reset remote, delete branch, atau overwrite branch lain tanpa instruksi eksplisit owner.
