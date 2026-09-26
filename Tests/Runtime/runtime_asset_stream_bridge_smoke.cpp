@@ -2,9 +2,11 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 namespace {
