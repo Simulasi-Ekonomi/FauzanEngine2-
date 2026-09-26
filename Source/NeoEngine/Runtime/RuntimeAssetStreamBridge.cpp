@@ -384,8 +384,10 @@ bool RuntimeAssetStreamBridge::CompleteGpuUpload(
         }
 
         AssetStreamingQueue::GpuMemoryReleaseCallback oldReleaseCallback;
+        VkDeviceMemory oldGpuMemory = VK_NULL_HANDLE;
         if (!queue_.CompleteRefreshUpload(id, gpuMemory, allocatedSizeMB,
-                                          std::move(releaseCallback), oldReleaseCallback)) {
+                                          std::move(releaseCallback), oldReleaseCallback,
+                                          oldGpuMemory)) {
             // Restore the previous registry value using the old resource's current
             // content. The completed GPU upload remains owned by the caller.
             return false;
@@ -394,7 +396,7 @@ bool RuntimeAssetStreamBridge::CompleteGpuUpload(
             return false;
         }
         if (oldReleaseCallback) {
-            try { oldReleaseCallback(VK_NULL_HANDLE); } catch (...) { return false; }
+            try { oldReleaseCallback(oldGpuMemory); } catch (...) { return false; }
         }
 
         std::lock_guard<std::mutex> lock(mutex_);
