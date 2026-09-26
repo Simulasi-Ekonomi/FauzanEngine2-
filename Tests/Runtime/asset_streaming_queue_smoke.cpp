@@ -76,6 +76,42 @@ int main() {
     assert(queue.GetMemory("high") == FakeDeviceMemory(1));
     assert(queue.GetResidentMB() == 3);
 
+    AssetStreamingQueue refreshQueue(8, 8);
+    std::vector<VkDeviceMemory> refreshReleased;
+    refreshQueue.SetGpuMemoryReleaseCallback([&refreshReleased](VkDeviceMemory memory) {
+        refreshReleased.push_back(memory);
+    });
+    assert(refreshQueue.Enqueue(StreamRequest{"refresh", "refresh.obj", 2.0f, 2, 1}));
+    assert(refreshQueue.TryDequeue(next));
+    assert(next.id == "refresh");
+    assert(refreshQueue.CompleteUpload("refresh", FakeDeviceMemory(21), 2));
+    assert(refreshQueue.BeginRefresh(StreamRequest{"refresh", "refresh-new.obj", 5.0f, 3, 1}));
+    assert(refreshQueue.IsRefreshing("refresh"));
+    assert(refreshQueue.GetResidentMB() == 2);
+    assert(!refreshQueue.Release("refresh"));
+
+    AssetStreamingQueue::GpuMemoryReleaseCallback oldRefreshOwner;
+    VkDeviceMemory oldRefreshMemory = VK_NULL_HANDLE;
+    assert(refreshQueue.CompleteRefreshUpload(
+        "refresh", FakeDeviceMemory(22), 3,
+        [&refreshReleased](VkDeviceMemory memory) { refreshReleased.push_back(memory); },
+        oldRefreshOwner, oldRefreshMemory));
+    assert(refreshQueue.IsReady("refresh"));
+    assert(refreshQueue.GetMemory("refresh") == FakeDeviceMemory(22));
+    assert(refreshQueue.GetResidentMB() == 3);
+    assert(oldRefreshMemory == FakeDeviceMemory(21));
+    assert(refreshReleased.empty());
+    assert(oldRefreshOwner);
+    oldRefreshOwner(oldRefreshMemory);
+    assert(refreshReleased.size() == 1 && refreshReleased[0] == FakeDeviceMemory(21));
+
+    assert(refreshQueue.BeginRefresh(StreamRequest{"refresh", "refresh-failed.obj", 4.0f, 3, 1}));
+    assert(refreshQueue.IsRefreshing("refresh"));
+    assert(refreshQueue.FailUpload("refresh"));
+    assert(refreshQueue.IsReady("refresh"));
+    assert(refreshQueue.GetMemory("refresh") == FakeDeviceMemory(22));
+    assert(refreshQueue.GetResidentMB() == 3);
+
     assert(queue.TryDequeue(next));
     assert(next.id == "low");
     assert(queue.FailUpload("low"));
