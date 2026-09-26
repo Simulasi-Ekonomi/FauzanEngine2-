@@ -21,6 +21,7 @@ This repository is a production-oriented 3D game-engine project. Treat the curre
 13. **GPU-resource lifetime is explicit.** When an uploader stores an `AssetResourceManager*` or equivalent ownership observer for pending work, the resource manager must outlive every pending upload and the uploader must be destroyed/flushed before the manager. Do not retain raw ownership observers past their owner lifetime.
 14. **Residency follows authoritative completion.** A resource upload may increase an in-flight count when submission is recorded, but `gpuResident`/Ready publication can only become true after the authoritative synchronization object reports completion. Multiple uploads for one resource remain non-resident until the final in-flight upload completes.
 15. **Vulkan helpers fail closed.** Command-buffer begin/end, queue submission/idle, required image-layout transitions, and binding operations whose return codes are available must be checked. Unsupported transition pairs must be rejected explicitly; helper functions must not return success after an unverified Vulkan operation.
+16. **File-stream callbacks do not mutate runtime asset state directly.** Asynchronous `StreamManager` callbacks must hand off immutable load results to a synchronized runtime-thread pump before mutating `AssetRegistry`, `AssetResourceManager`, or `AssetStreamingQueue`; GPU residency remains authoritative to the Vulkan completion path.
 
 ## Required workflow
 
