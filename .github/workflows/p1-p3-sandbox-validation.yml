@@ -1,4 +1,4 @@
-name: P1-P3 sandbox validation — P1 CMake + Release 79/79 + ASAN 79/79
+name: P1-P3 sandbox validation — P1 CMake + Release 80/80 + ASAN 80/80
 
 on:
   push:
@@ -48,10 +48,10 @@ jobs:
           test ! -e Source/NeoEngine/SDL_vulkan.h
       - name: Configure Release
         run: cmake -S Source/NeoEngine -B build/p1-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include
-      - name: Build Release 77/77 target set
+      - name: Build Release 80/80 target set
         run: |
           cmake --build build/p1-release --target all -j2
-      - name: Define exact P1 77-target manifest
+      - name: Define exact P1 80-target manifest
         run: |
           cat > /tmp/p1_targets.raw <<'EOF'
           animation_playback_control_binding_smoke
@@ -69,6 +69,7 @@ jobs:
           neo_runtime_ecs_integration_smoke
           runtime_frame_contract_smoke
           asset_streaming_queue_smoke
+          runtime_asset_stream_bridge_smoke
           stream_manager_async_file_smoke
           gameplay_physics_query_smoke
           gltf_mesh_builder_smoke
@@ -135,8 +136,8 @@ jobs:
           opengl_renderer_smoke
           EOF
           sed -E 's/^[[:space:]]+//' /tmp/p1_targets.raw > /tmp/p1_targets.txt
-          test "$(wc -l < /tmp/p1_targets.txt)" -eq 79
-      - name: Run Release 79/79
+          test "$(wc -l < /tmp/p1_targets.txt)" -eq 80
+      - name: Run Release 80/80
         run: |
           pass=0
           fail=0
@@ -150,21 +151,21 @@ jobs:
               echo "$t" | tee -a /tmp/p1_release_failures.txt
             fi
           done < /tmp/p1_targets.txt
-          echo "P1 RELEASE: pass=$pass fail=$fail total=79"
+          echo "P1 RELEASE: pass=$pass fail=$fail total=80"
           if test "$fail" -ne 0; then
             echo "FAILED RELEASE TARGETS:"
             cat /tmp/p1_release_failures.txt
           fi
-          test "$pass" -eq 78
+          test "$pass" -eq 80
           test "$fail" -eq 0
-      - name: Configure ASAN 79/79
+      - name: Configure ASAN 80/80
         run: |
           cmake -S Source/NeoEngine -B build/p1-asan -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DNEO_RAPIDJSON_INCLUDE_DIR=/usr/include \
             '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' \
             '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
-      - name: Build ASAN 79/79 target set
+      - name: Build ASAN 80/80 target set
         run: |
           cmake --build build/p1-asan --target all -j2
           while IFS= read -r t; do
@@ -172,7 +173,7 @@ jobs:
           done < /tmp/p1_targets.txt
           echo "ASAN manifest targets resolved: $(wc -l < /tmp/p1_targets.txt)"
           test "$(wc -l < /tmp/p1_targets.txt)" -eq 79
-      - name: Run ASAN 79/79 — final sandbox gate
+      - name: Run ASAN 80/80 — final sandbox gate
         env:
           ASAN_OPTIONS: detect_leaks=1
           LSAN_OPTIONS: suppressions=.github/asan/third_party_sdl_x11.lsan.supp
@@ -183,6 +184,6 @@ jobs:
             echo "RUN ASAN $t"
             if xvfb-run -a "./build/p1-asan/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
           done < /tmp/p1_targets.txt
-          echo "P1 ASAN: pass=$pass fail=$fail total=79"
+          echo "P1 ASAN: pass=$pass fail=$fail total=80"
           test "$pass" -eq 78
           test "$fail" -eq 0
