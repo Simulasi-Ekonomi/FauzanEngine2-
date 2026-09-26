@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -10,7 +11,7 @@ namespace NeoEngine {
 
 
 struct UploadTask {
-    AssetID assetId{};
+    std::string assetId{};
     VkBuffer stagingBuffer = VK_NULL_HANDLE;
     VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
     VkImage targetImage = VK_NULL_HANDLE;
