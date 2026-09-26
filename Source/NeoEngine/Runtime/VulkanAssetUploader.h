@@ -53,6 +53,12 @@ public:
                                               VkDevice device, VkCommandBuffer cmd,
                                               VkImage targetImage, VkImageLayout targetLayout,
                                               uint32_t width, uint32_t height) noexcept;
+    [[nodiscard]] bool UploadTextureResource(AssetResourceManager& resources,
+                                              const AssetResourceHandle& handle,
+                                              const std::vector<uint8_t>& pixels,
+                                              VkDevice device, VkCommandBuffer cmd,
+                                              VkImage targetImage, VkImageLayout targetLayout,
+                                              uint32_t width, uint32_t height) noexcept;
 
     [[nodiscard]] bool UploadMesh(VkDevice device, VkCommandBuffer cmd,
                                   const std::vector<uint8_t>& vertexData,
