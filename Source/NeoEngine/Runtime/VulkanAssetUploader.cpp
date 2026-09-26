@@ -188,7 +188,10 @@ void VulkanAssetUploader::Flush(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
     for (const UploadTask& task : pendingUploads_) {
         if (task.tracksResourceResidency && task.resourceManager != nullptr) {
-            if (task.completionFence != VK_NULL_HANDLE) {
+            const VkResult status = task.completionFence != VK_NULL_HANDLE
+                ? vkGetFenceStatus(device, task.completionFence)
+                : VK_NOT_READY;
+            if (status == VK_SUCCESS) {
                 (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
             } else {
                 (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
@@ -212,10 +215,17 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
     for (size_t i = 0; i < pendingUploads_.size(); ++i) {
         UploadTask& task = pendingUploads_[i];
         const VkFence fence = task.completionFence;
-        const bool complete = fence != VK_NULL_HANDLE && vkGetFenceStatus(device, fence) == VK_SUCCESS;
-        if (complete) {
+        const VkResult status = fence != VK_NULL_HANDLE ? vkGetFenceStatus(device, fence) : VK_NOT_READY;
+        if (status == VK_SUCCESS) {
             if (task.tracksResourceResidency && task.resourceManager != nullptr)
                 (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
+            if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
+            if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
+            continue;
+        }
+        if (status != VK_NOT_READY && task.tracksResourceResidency && task.resourceManager != nullptr)
+            (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+        if (status != VK_NOT_READY) {
             if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
             if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
             continue;
