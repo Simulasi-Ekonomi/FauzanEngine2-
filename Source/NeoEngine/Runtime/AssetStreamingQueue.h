@@ -70,7 +70,8 @@ public:
     [[nodiscard]] bool CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMemory,
                                              uint32_t allocatedSizeMB,
                                              GpuMemoryReleaseCallback releaseCallback,
-                                             GpuMemoryReleaseCallback& oldReleaseCallback) noexcept;
+                                             GpuMemoryReleaseCallback& oldReleaseCallback,
+                                             VkDeviceMemory& oldGpuMemory) noexcept;
     [[nodiscard]] bool FailUpload(AssetID id) noexcept;
     [[nodiscard]] bool Release(AssetID id) noexcept;
 
