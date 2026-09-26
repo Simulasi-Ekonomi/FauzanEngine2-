@@ -18,6 +18,8 @@ This repository is a production-oriented 3D game-engine project. Treat the curre
 10. **No premature merge.** Merge only after applicable review comments are resolved, CI is green, the diff is coherent, and the implementation is actually integrated.
 11. **Async completion is authoritative.** For asynchronous asset/GPU pipelines, command recording or upload submission is not completion. A resource may become Ready only after the authoritative completion mechanism (for example a fence/timeline semaphore or equivalent) has been observed successfully and the owning resource manager has committed the result.
 12. **GPU ownership is explicit.** Every Vulkan resource or synchronization primitive must have one unambiguous destruction owner. Borrowed handles must never be destroyed by consumers; owned handles must be destroyed exactly once. Tests must cover duplicate-registration and teardown paths where applicable.
+13. **GPU-resource lifetime is explicit.** When an uploader stores an `AssetResourceManager*` or equivalent ownership observer for pending work, the resource manager must outlive every pending upload and the uploader must be destroyed/flushed before the manager. Do not retain raw ownership observers past their owner lifetime.
+14. **Residency follows authoritative completion.** A resource upload may increase an in-flight count when submission is recorded, but `gpuResident`/Ready publication can only become true after the authoritative synchronization object reports completion. Multiple uploads for one resource remain non-resident until the final in-flight upload completes.
 
 ## Required workflow
 
@@ -110,7 +112,7 @@ Before starting new P0–P3 feature expansion, finish the outstanding repair/int
 3. connect `SceneWorld`/ECS mesh data to the canonical Vulkan 3D renderer;
 4. make `NeoRuntime` 3D-first without deleting legitimate software fallback paths;
 5. integrate canonical XPBD V5 into the runtime and authoritative Scene/Gameplay path;
-6. repair asset streaming GPU ownership and resident-budget accounting and verify submission→GPU completion→Ready publication→renderer refresh→release/eviction end to end;
+6. repair asset streaming GPU ownership and resident-budget accounting and verify submission→GPU completion→Ready publication→renderer refresh→release/eviction end to end. The current P1 implementation also requires uploader-before-resource-manager teardown ordering and blocks release/eviction/hot-reload while uploads remain in flight;
 7. complete animation, audio, networking, and Android runtime seams;
 8. only then resume the planned P0–P3 expansion/closure work.
 
@@ -123,6 +125,8 @@ Before starting new P0–P3 feature expansion, finish the outstanding repair/int
 - Do not resurrect a stale branch wholesale when the same functionality is already on `main`.
 - Do not call a source-only seam "production integrated".
 - Do not claim Unreal parity from file count; judge it from working end-to-end capability.
+- Do not mark GPU residency from command recording or queue submission alone.
+- Do not destroy, reset, or evict a resource manager while an uploader still retains pending resource-tracking tasks.
 
 ## Handoff requirement
 
