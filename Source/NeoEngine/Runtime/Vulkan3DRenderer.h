@@ -64,6 +64,10 @@ public:
                               std::span<const float> modelViewProjections4x4);
 
     bool EndFrame();
+    // Forces tracked asset uploads to observe their authoritative completion state
+    // while the Vulkan device is still valid. Call before destroying the renderer
+    // and before releasing runtime-owned streamed GPU resources.
+    void FlushAssetUploads() noexcept;
 
     // Copies the last successfully presented swapchain image into RGBA8 CPU memory.
     // Must be called after EndFrame() and before the next BeginFrame().
