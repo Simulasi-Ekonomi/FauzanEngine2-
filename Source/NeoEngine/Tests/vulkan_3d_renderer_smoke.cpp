@@ -30,6 +30,15 @@ int main() {
         };
         texture.write(reinterpret_cast<const char*>(pixels), sizeof(pixels));
     }
+    NeoEngine::Vulkan3DRenderer renderer;
+    if (!renderer.Initialize(640, 480, "NeoEngine Vulkan3D Smoke") ||
+        !renderer.BindAssetStreamBridge(bridge)) {
+        std::remove(texturePath);
+        bridge.Stop();
+        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL init_or_bind error=%u\n", static_cast<unsigned>(renderer.LastError()));
+        return 1;
+    }
+
     NeoEngine::StreamRequest textureRequest{};
     textureRequest.id = "vulkan.smoke.texture";
     textureRequest.filepath = texturePath;
@@ -52,15 +61,6 @@ int main() {
         std::remove(texturePath);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL texture_pending\n");
-        return 1;
-    }
-
-    NeoEngine::Vulkan3DRenderer renderer;
-    if (!renderer.Initialize(640, 480, "NeoEngine Vulkan3D Smoke") ||
-        !renderer.BindAssetStreamBridge(bridge)) {
-        std::remove(texturePath);
-        bridge.Stop();
-        std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL init_or_bind error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 1;
     }
 
