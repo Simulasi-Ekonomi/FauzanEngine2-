@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <limits>
 
 namespace NeoEngine::Networking {
 
@@ -17,7 +18,13 @@ public:
     [[nodiscard]] ReconnectDecision next(uint32_t attempt) const {
         if (attempt == 0 || attempt > attempts_) return {};
         uint64_t delay=initial_;
-        for (uint32_t i=1;i<attempt;++i) delay*=2;
+        for (uint32_t i=1;i<attempt;++i) {
+            if (delay >= max_ || delay > std::numeric_limits<uint64_t>::max() / 2U) {
+                delay = max_;
+                break;
+            }
+            delay *= 2U;
+        }
         if (delay>max_) delay=max_;
         return {true,static_cast<uint32_t>(delay),attempt};
     }
