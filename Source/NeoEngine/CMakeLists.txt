@@ -77,8 +77,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/PBRRenderPipeline.cpp
     Runtime/ShaderLibrary.cpp
     Runtime/AssetRegistry.cpp
-    Runtime/CommodityCatalog.cpp
-    Runtime/CommodityEconomyLedger.cpp
+    Systems/CommodityCatalog.cpp
+    Systems/CommodityEconomyLedger.cpp
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/Vulkan3DRenderer.cpp
