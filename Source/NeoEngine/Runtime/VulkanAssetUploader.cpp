@@ -93,6 +93,12 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
     task.resourceManager = &resources;
     task.resourceHandle = handle;
     task.tracksResourceResidency = true;
+    AssetResourceReceipt receipt{};
+    if (!resources.Query(handle, receipt) || receipt.assetId.empty()) {
+        (void)resources.CancelGpuUpload(handle);
+        return false;
+    }
+    task.assetId = receipt.assetId;
     return true;
 }
 
@@ -219,15 +225,27 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
         const VkFence fence = task.completionFence;
         const VkResult status = fence != VK_NULL_HANDLE ? vkGetFenceStatus(device, fence) : VK_NOT_READY;
         if (status == VK_SUCCESS) {
-            if (task.tracksResourceResidency && task.resourceManager != nullptr)
+            if (completionCallback_) {
+                try { completionCallback_(task, VK_SUCCESS); } catch (...) {
+                    if (task.tracksResourceResidency && task.resourceManager != nullptr)
+                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                }
+            } else if (task.tracksResourceResidency && task.resourceManager != nullptr) {
                 (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
+            }
             if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
             if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
             continue;
         }
-        if (status != VK_NOT_READY && task.tracksResourceResidency && task.resourceManager != nullptr)
-            (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
         if (status != VK_NOT_READY) {
+            if (completionCallback_) {
+                try { completionCallback_(task, status); } catch (...) {
+                    if (task.tracksResourceResidency && task.resourceManager != nullptr)
+                        (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+                }
+            } else if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+                (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+            }
             if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
             if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
             continue;
@@ -295,3 +313,7 @@ bool VulkanAssetUploader::CopyBufferToImage(VkDevice device, VkCommandBuffer cmd
 }
 
 } // namespace NeoEngine
+
+void NeoEngine::VulkanAssetUploader::SetUploadCompletionCallback(UploadCompletionCallback callback) noexcept {
+    completionCallback_ = std::move(callback);
+}
