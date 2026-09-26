@@ -456,9 +456,7 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_physics_pose_sync_smoke.cpp")
     add_xpbd_executable(scene_physics_pose_sync_smoke ../../Tests/Runtime/scene_physics_pose_sync_smoke.cpp)
 endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/bench_100k_bodies_200k_collisions.cpp")
-    add_xpbd_executable(bench_100k_bodies_200k_collisions ../../Tests/bench_100k_bodies_200k_collisions.cpp)
-endif()
+add_xpbd_executable(bench_100k_bodies_200k_collisions ../../Tests/bench_100k_bodies_200k_collisions.cpp)
 
 message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
 
