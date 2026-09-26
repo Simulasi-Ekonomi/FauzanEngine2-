@@ -1,31 +1,31 @@
 # BRANCH STATUS — p4-release-certification-night
 
-**Audit date:** 2026-09-22  
-**Branch:** p4-release-certification-night  
-**Compare with main:** 175 commits ahead / 67 behind; diverged  
-**State:** no active PR located
+**Audit date:** 2026-09-26
+**Branch:** p4-release-certification-night
+**Current compare with main:** 212 commits ahead / 245 behind; diverged
+**Merge-base:** 580f009ecbde0aa66f0334071064cd0d3adce9a3
+**Active PR:** none
 
-## Critical audit finding
-The branch comparison shows deletion of multiple existing CI workflows, including:
-- P0 sandbox validation
-- Android build
-- web build
-- networking smoke
-- PBR validation
-- R1/R2/R3/R4/R5/R6/R8/R9 workflows
-- renderer 3D smoke
+## Current findings
 
-Those deletions are not certification evidence and must not be used to make CI green. They must be reviewed before any promotion/merge.
+- P4 release-certification tooling is present: release manifest, source SBOM, reproducibility, artifact, and provenance gates.
+- Canonical CMake currently excludes `Systems/ItemSerialTracker.cpp`.
+- Workflow inventory is currently preserved relative to `main`; no upstream CI deletion was observed in the current branch tree. Older notes claiming broad workflow deletion are historical/stale and must not be used as current evidence.
+- Android Release packaging was hardened to fail closed: keystore material is required, Release APK+AAB are built, and APK signing is verified with `apksigner`.
+- No exact-head P4 CI certification evidence is currently established.
+- The branch remains highly diverged from current `main`; no promotion or merge decision is justified from this branch state alone.
 
-## Added P4 tooling
-The branch adds release-manifest, source-SBOM, reproducibility, artifact and provenance gates. These are useful certification infrastructure, but their presence does not prove release certification.
+## Required evidence before promotion
 
-## Required evidence
-- Preserve/restore required upstream CI coverage before certification.
-- Validate release artifact gates against a real canonical build.
-- Run Release + ASAN/integration/regression suites on one exact revision.
-- Verify reproducible packaging/signing, migration/recovery, device/runtime gates and provenance.
-- Do not mark P4 100% from scripts or documentation alone.
+- Reconcile the P4 work against the current main baseline without destructive wholesale merge.
+- Run the P4 release-certification workflow on the exact final SHA.
+- Validate release manifest and source SBOM against the exact HEAD/tree.
+- Validate signed APK/AAB artifacts and provenance/reproducibility.
+- Run applicable Release/ASAN/integration gates on the same revision.
+- Re-audit canonical runtime scope, duplicate source trees, and workflow preservation immediately before any merge.
 
-## Documentation rule
-This file is authoritative for the current branch audit. Older release documents containing unsupported readiness claims must be rewritten as historical records or removed.
+## Status
+
+**BLOCKED / UNVERIFIED**
+
+This file records current evidence only. Commit count, source count, or tool presence does not change certification status.
