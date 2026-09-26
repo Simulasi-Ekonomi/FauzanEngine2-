@@ -308,6 +308,11 @@ bool Vulkan3DRenderer::ReadbackLastFrame(std::vector<uint8_t>& rgba8){
     return true;
 }
 
+void Vulkan3DRenderer::FlushAssetUploads() noexcept {
+    if (impl_ == nullptr || impl_->device == VK_NULL_HANDLE) return;
+    impl_->uploader.Flush(impl_->device);
+}
+
 bool Vulkan3DRenderer::EndFrame(){if(!impl_||!impl_->frameBegun){lastError_=Vulkan3DRendererError::FrameFailure;return false;}Frame& f=impl_->frames[impl_->frameSlot];vkCmdEndRenderPass(f.commandBuffer);if(vkEndCommandBuffer(f.commandBuffer)!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}VkPipelineStageFlags stage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&f.imageAvailable;submit.pWaitDstStageMask=&stage;submit.commandBufferCount=1;submit.pCommandBuffers=&f.commandBuffer;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&f.renderFinished;VkResult s=vkQueueSubmit(impl_->graphicsQueue,1,&submit,f.fence);if(s!=VK_SUCCESS){lastError_=s==VK_ERROR_DEVICE_LOST?Vulkan3DRendererError::DeviceLost:Vulkan3DRendererError::FrameFailure;impl_->frameBegun=false;return false;}impl_->uploader.AttachCompletionFence(f.fence,false);VkPresentInfoKHR p{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};p.waitSemaphoreCount=1;p.pWaitSemaphores=&f.renderFinished;p.swapchainCount=1;p.pSwapchains=&impl_->swapchain;p.pImageIndices=&impl_->acquiredImageIndex;VkResult presented=vkQueuePresentKHR(impl_->presentQueue,&p);impl_->frameBegun=false;if(presented==VK_SUCCESS||presented==VK_SUBOPTIMAL_KHR){impl_->lastPresentedImageIndex=impl_->acquiredImageIndex;impl_->hasPresentedFrame=true;}impl_->frameSlot=(impl_->frameSlot+1U)%2U;stats_.frameIndex++;if(presented==VK_ERROR_OUT_OF_DATE_KHR||presented==VK_SUBOPTIMAL_KHR){lastError_=Vulkan3DRendererError::SwapchainOutOfDate;return false;}if(presented==VK_ERROR_DEVICE_LOST){lastError_=Vulkan3DRendererError::DeviceLost;return false;}if(presented!=VK_SUCCESS){lastError_=Vulkan3DRendererError::FrameFailure;return false;}lastError_=Vulkan3DRendererError::None;return true;}
 void Vulkan3DRenderer::Reset(){ready_=false;if(impl_){impl_->Destroy();delete impl_;impl_=nullptr;}stats_={};lastError_=Vulkan3DRendererError::None;}
 } // namespace NeoEngine
