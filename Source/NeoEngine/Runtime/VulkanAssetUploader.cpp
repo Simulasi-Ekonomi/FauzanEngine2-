@@ -77,9 +77,21 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
                                                  VkDevice device, VkCommandBuffer cmd,
                                                  VkImage targetImage, VkImageLayout targetLayout,
                                                  uint32_t width, uint32_t height) noexcept {
+    if (!resources.BeginGpuUpload(handle)) return false;
     const std::vector<uint8_t>* data = resources.Data(handle);
-    if (data == nullptr || data->empty()) return false;
-    return UploadTexture(device, cmd, *data, targetImage, targetLayout, width, height);
+    if (data == nullptr || data->empty()) {
+        resources.CancelGpuUpload(handle);
+        return false;
+    }
+    if (!UploadTexture(device, cmd, *data, targetImage, targetLayout, width, height)) {
+        resources.CancelGpuUpload(handle);
+        return false;
+    }
+    UploadTask& task = pendingUploads_.back();
+    task.resourceManager = &resources;
+    task.resourceHandle = handle;
+    task.tracksResourceResidency = true;
+    return true;
 }
 
 bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
@@ -142,9 +154,9 @@ bool VulkanAssetUploader::UploadMesh(VkDevice device, VkCommandBuffer cmd,
     try {
         pendingUploads_.reserve(pendingUploads_.size() + 2U);
         pendingUploads_.push_back({vertexStaging, vertexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
-                                   static_cast<uint32_t>(vertexMB64), VK_NULL_HANDLE});
+                                   static_cast<uint32_t>(vertexMB64), VK_NULL_HANDLE, nullptr, {}, false});
         pendingUploads_.push_back({indexStaging, indexMemory, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED,
-                                   static_cast<uint32_t>(indexMB64), VK_NULL_HANDLE});
+                                   static_cast<uint32_t>(indexMB64), VK_NULL_HANDLE, nullptr, {}, false});
     } catch (...) {
         vkDestroyBuffer(device, vertexStaging, nullptr);
         vkFreeMemory(device, vertexMemory, nullptr);
@@ -175,6 +187,13 @@ void VulkanAssetUploader::AttachCompletionFence(VkFence fence, bool takeOwnershi
 void VulkanAssetUploader::Flush(VkDevice device) noexcept {
     if (device == VK_NULL_HANDLE || (lastDevice_ != VK_NULL_HANDLE && device != lastDevice_) || vkDeviceWaitIdle(device) != VK_SUCCESS) return;
     for (const UploadTask& task : pendingUploads_) {
+        if (task.tracksResourceResidency && task.resourceManager != nullptr) {
+            if (task.completionFence != VK_NULL_HANDLE) {
+                (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
+            } else {
+                (void)task.resourceManager->CancelGpuUpload(task.resourceHandle);
+            }
+        }
         if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
         if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
     }
@@ -195,6 +214,8 @@ void VulkanAssetUploader::AdvanceFrame(VkDevice device) noexcept {
         const VkFence fence = task.completionFence;
         const bool complete = fence != VK_NULL_HANDLE && vkGetFenceStatus(device, fence) == VK_SUCCESS;
         if (complete) {
+            if (task.tracksResourceResidency && task.resourceManager != nullptr)
+                (void)task.resourceManager->CompleteGpuUpload(task.resourceHandle);
             if (task.stagingBuffer) vkDestroyBuffer(device, task.stagingBuffer, nullptr);
             if (task.stagingMemory) vkFreeMemory(device, task.stagingMemory, nullptr);
             continue;
