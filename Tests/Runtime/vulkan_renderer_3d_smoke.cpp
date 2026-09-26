@@ -1,4 +1,5 @@
 #include "Runtime/Vulkan3DRenderer.h"
+#include "Runtime/RuntimeAssetStreamBridge.h"
 #include <SDL3/SDL.h>
 
 #include <array>
@@ -7,6 +8,8 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+#include <fstream>
+#include <thread>
 
 #define TEST_CHECK(cond, msg) \
     do { \
@@ -19,7 +22,24 @@
 int main() {
     std::cout << "[Smoke Test] Starting vulkan_renderer_3d_smoke...\n";
 
-    NeoEngine::Vulkan3DRenderer renderer;
+    using namespace NeoEngine;
+    AssetRegistry assets;
+    AssetResourceManager resources(assets);
+    StreamManager streams(1, 8, 1024U, 1024U);
+    AssetStreamingQueue queue(16U, 8U);
+    RuntimeAssetStreamBridge bridge(assets, resources, streams, queue);
+    TEST_CHECK(bridge.Start(), "Runtime asset stream bridge should start");
+
+    const char* texturePath = "vulkan_renderer_3d_stream_refresh.ppm";
+    {
+        std::ofstream file(texturePath, std::ios::binary);
+        const char header[] = "P6\n1 1\n255\n";
+        const unsigned char pixel[] = {255U, 0U, 0U};
+        file.write(header, sizeof(header) - 1U);
+        file.write(reinterpret_cast<const char*>(pixel), sizeof(pixel));
+    }
+
+    Vulkan3DRenderer renderer;
     if (!renderer.Initialize(800, 600, "NeoEngine Vulkan 3D Smoke")) {
         std::cerr << "[TEST FAIL] Vulkan3DRenderer initialization failed with error "
                   << static_cast<int>(renderer.LastError()) << " SDL=" << SDL_GetError() << "\n";
@@ -27,6 +47,15 @@ int main() {
     }
 
     TEST_CHECK(renderer.Ready(), "Renderer should report Ready after successful initialization");
+    TEST_CHECK(renderer.BindAssetStreamBridge(bridge), "Renderer should bind canonical streamed asset bridge");
+
+    StreamRequest streamedTexture{};
+    streamedTexture.id = "renderer.refresh.texture";
+    streamedTexture.filepath = texturePath;
+    streamedTexture.priority = 10.0F;
+    streamedTexture.estimatedSizeMB = 1U;
+    streamedTexture.kind = static_cast<uint8_t>(AssetKind::Texture);
+    TEST_CHECK(bridge.Request(streamedTexture), "Initial streamed texture request failed");
 
     const std::array<NeoEngine::Vulkan3DVertex, 3> vertices{{
         {-0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, {}, {}},
@@ -87,8 +116,51 @@ int main() {
     const uint64_t secondChecksum = std::accumulate(secondFrame.begin(), secondFrame.end(), uint64_t{0});
     TEST_CHECK(secondChecksum != firstChecksum, "GPU skinning palette change did not alter presented pixels");
 
+    bool initialStreamReady = false;
+    for (uint32_t frame = 0U; frame < 120U && !initialStreamReady; ++frame) {
+        bridge.Pump();
+        TEST_CHECK(renderer.BeginFrame(), "BeginFrame during initial streamed texture lifecycle failed");
+        if (renderer.IsStreamedTextureReady(streamedTexture.id)) {
+            TEST_CHECK(renderer.BindStreamedTexture(streamedTexture.id), "Initial streamed texture descriptor bind failed");
+            initialStreamReady = true;
+        }
+        TEST_CHECK(renderer.DrawIndexed(vertices, indices, identity.data()), "Initial streamed texture frame draw failed");
+        TEST_CHECK(renderer.EndFrame(), "EndFrame during initial streamed texture lifecycle failed");
+        if (!initialStreamReady) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    TEST_CHECK(initialStreamReady, "Initial streamed texture did not reach authoritative GPU readiness");
+
+    {
+        std::ofstream file(texturePath, std::ios::binary | std::ios::trunc);
+        const char header[] = "P6\n1 1\n255\n";
+        const unsigned char pixel[] = {0U, 0U, 255U};
+        file.write(header, sizeof(header) - 1U);
+        file.write(reinterpret_cast<const char*>(pixel), sizeof(pixel));
+    }
+
+    TEST_CHECK(bridge.Refresh(streamedTexture), "Resident streamed texture refresh request failed");
+    TEST_CHECK(bridge.ResidentGpuUploadCount() == 0U, "Old streamed GPU residency must be released before refresh");
+    TEST_CHECK(!renderer.IsStreamedTextureReady(streamedTexture.id), "Old renderer texture must leave the resident map during refresh");
+
+    bool refreshedStreamReady = false;
+    for (uint32_t frame = 0U; frame < 120U && !refreshedStreamReady; ++frame) {
+        bridge.Pump();
+        TEST_CHECK(renderer.BeginFrame(), "BeginFrame during refreshed streamed texture lifecycle failed");
+        if (renderer.IsStreamedTextureReady(streamedTexture.id)) {
+            TEST_CHECK(renderer.BindStreamedTexture(streamedTexture.id), "Refreshed streamed texture descriptor bind failed");
+            refreshedStreamReady = true;
+        }
+        TEST_CHECK(renderer.DrawIndexed(vertices, indices, identity.data()), "Refreshed streamed texture frame draw failed");
+        TEST_CHECK(renderer.EndFrame(), "EndFrame during refreshed streamed texture lifecycle failed");
+        if (!refreshedStreamReady) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    TEST_CHECK(refreshedStreamReady, "Refreshed streamed texture did not reach authoritative GPU readiness");
+
     renderer.Reset();
     TEST_CHECK(!renderer.Ready(), "Renderer should not be ready after Reset");
+    TEST_CHECK(bridge.ReleaseAllGpuUploads(), "Resident refreshed GPU upload release failed");
+    bridge.Stop();
+    std::remove(texturePath);
 
     std::cout << "[Smoke Test] vulkan_renderer_3d_smoke passed successfully!\n";
     return 0;
