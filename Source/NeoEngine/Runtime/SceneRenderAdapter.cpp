@@ -204,7 +204,7 @@ bool SceneRenderAdapter::DrawVulkan3D(const SceneWorld& world, const SceneMeshAd
             return false;
         }
         if (!instance.sourceTextureAssetId.empty() &&
-            renderer.FindStreamedTexture(instance.sourceTextureAssetId) != nullptr &&
+            renderer.IsStreamedTextureReady(instance.sourceTextureAssetId) &&
             !renderer.BindStreamedTexture(instance.sourceTextureAssetId)) {
             lastError_ = SceneRenderAdapterError::VulkanMeshDrawFailed;
             renderer.EndFrame();
