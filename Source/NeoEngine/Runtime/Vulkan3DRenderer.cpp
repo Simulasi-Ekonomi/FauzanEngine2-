@@ -303,7 +303,16 @@ bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) n
 
                 const VkDeviceMemory expectedMemory = task.gpuMemory;
                 const auto release = [this, id = task.assetId, expectedMemory](VkDeviceMemory memory) noexcept {
-                    if (impl_ == nullptr || memory != expectedMemory) return;
+                    if (impl_ == nullptr || memory == VK_NULL_HANDLE || memory != expectedMemory) return;
+
+                    const auto pendingIt = impl_->pendingStreamedTextures.find(id);
+                    if (pendingIt != impl_->pendingStreamedTextures.end() &&
+                        pendingIt->second.GetMemory() == memory) {
+                        pendingIt->second.Destroy();
+                        impl_->pendingStreamedTextures.erase(pendingIt);
+                        return;
+                    }
+
                     const auto textureIt = impl_->streamedTextures.find(id);
                     if (textureIt == impl_->streamedTextures.end() ||
                         textureIt->second.GetMemory() != memory) return;
