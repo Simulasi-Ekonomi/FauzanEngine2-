@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-09-26  
 **PR:** #77 — P1 sandbox validation  
-**Last validated HEAD: 752a8d9dc15fa15a1a422c4bbaf952b5a66762f9 — exact-head validation pending
+**Last validated HEAD: 3483ac10163e71ff94d58e2590420b2d3890ae6d — exact-head validation pending
 **PR base:** sandbox-p1-unreal-parity-validation @ d50c43819f2b23a474bb2f9d7d02dfd4b09242ef  
 **State:** IMPLEMENTING P1 ASSET E2E REPAIR / NOT MERGE-READY — current edits are awaiting exact-head Release/ASAN/sandbox validation
 
@@ -36,10 +36,10 @@ BRANCH: p1-renderer-asset-animation-night
 BASE_SHA: d50c43819f2b23a474bb2f9d7d02dfd4b09242ef
 OWNER: primary Codex task
 SCOPE: P1 asset pipeline and asynchronous file streaming integration
-GAP_IDS: P1-ASSET-E2E (PARTIAL), P1-STREAM-ASYNC (PARTIAL; current implementation unvalidated)
+GAP_IDS: P1-ASSET-E2E (PARTIAL), P1-STREAM-ASYNC (PARTIAL), P1-GPU-FENCE-LIFETIME (IMPLEMENTED-UNVERIFIED; exact-head validation pending)
 FILES_EXPECTED_TO_CHANGE: StreamManager/AssetStreamingQueue runtime and smoke coverage, AssetResourceManager.h/.cpp, VulkanAssetUploader.h/.cpp, Tests/Runtime/asset_resource_manager_smoke.cpp, Tests/Runtime/vulkan_asset_uploader_smoke.cpp, Source/NeoEngine/CMakeLists.txt, .github/workflows/p1-p3-sandbox-validation.yml, BRANCH_STATUS.md
 CANONICAL_RUNTIME_PATH: glTF bytes -> GLTFLoader -> SceneMeshAdapter mesh/base-color binding -> SceneRenderAdapter::DrawVulkan3D -> Vulkan3DRenderer
-REQUIRED_CMAKE_TARGETS: stream_manager_async_file_smoke, asset_resource_manager_smoke, vulkan_asset_uploader_smoke, gltf_gpu_uploader_smoke, scene_vulkan_render_adapter_smoke
+REQUIRED_CMAKE_TARGETS: stream_manager_async_file_smoke, asset_streaming_queue_smoke, asset_resource_manager_smoke, vulkan_asset_uploader_smoke, gltf_gpu_uploader_smoke, scene_vulkan_render_adapter_smoke
 RELEASE_TARGETS: canonical P1 target set; manifest count 79, pending exact-head CI
 ASAN_TARGETS: same canonical P1 target set; manifest count 79, leak detection enabled, pending exact-head CI
 BENCHMARK_OR_DEVICE_EVIDENCE: current evidence uses GitHub software Vulkan; physical device remains unverified
