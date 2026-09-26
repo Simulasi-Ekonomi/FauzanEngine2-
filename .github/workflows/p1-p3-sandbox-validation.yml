@@ -12,6 +12,7 @@ on:
       - 'Tests/**'
       - 'FauzanEngine/backend/**'
       - 'Source/NeoEngine/CMakeLists.txt'
+      - 'BRANCH_STATUS.md'
   workflow_dispatch:
 
 permissions:
