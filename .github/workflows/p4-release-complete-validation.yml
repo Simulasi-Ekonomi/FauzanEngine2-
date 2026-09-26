@@ -186,6 +186,16 @@ jobs:
         run: |
           python3 tools/p4_reproducibility_gate.py             android/app/build/outputs/bundle/release/app-release.aab             "$RUNNER_TEMP/repro-aab/app-release.aab"
 
+      - name: Run end-to-end P4 release certification and provenance
+        run: |
+          mkdir -p "$RUNNER_TEMP/p4-reference"
+          cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/p4-reference/app-release.apk"
+          tools/p4_release_certify.sh \\
+            android/app/build/outputs/apk/release/app-release.apk \\
+            "$RUNNER_TEMP/repro-apk/app-release.apk"
+          python3 tools/verify_release_provenance.py android/app/build/outputs/apk/release/app-release.apk
+          test -s p4-release-provenance.txt
+
       - name: Upload release evidence
         if: always()
         uses: actions/upload-artifact@v4
