@@ -55,7 +55,7 @@ public:
     [[nodiscard]] bool BeginUpload(AssetID id, StreamRequest& out) noexcept;
     // Starts a refresh while retaining the currently resident GPU allocation.
     // The old allocation remains owned until CompleteUpload commits the replacement.
-    [[nodiscard]] bool BeginRefresh(AssetID id, StreamRequest& out) noexcept;
+    [[nodiscard]] bool BeginRefresh(const StreamRequest& request) noexcept;
     [[nodiscard]] bool TryDequeue(StreamRequest& out) noexcept;
     [[nodiscard]] bool CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
                                       uint32_t allocatedSizeMB) noexcept;
