@@ -28,7 +28,8 @@ public:
     void SetPhysicalDevice(VkPhysicalDevice physicalDevice) noexcept { physicalDevice_ = physicalDevice; }
     [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const noexcept { return physicalDevice_; }
 
-    ~VulkanAssetUploader() noexcept = default;
+    // The Vulkan device must outlive this uploader while uploads are pending.
+    ~VulkanAssetUploader() noexcept { if (lastDevice_ != VK_NULL_HANDLE) Flush(lastDevice_); }
     VulkanAssetUploader(const VulkanAssetUploader&) = delete;
     VulkanAssetUploader& operator=(const VulkanAssetUploader&) = delete;
 
