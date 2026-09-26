@@ -98,6 +98,9 @@ struct Vulkan3DRenderer::Impl {
     VulkanAssetUploader uploader{};
     RuntimeAssetStreamBridge* assetStreamBridge = nullptr;
     std::unordered_map<AssetID, VulkanGPUTexture> streamedTextures{};
+    // During refresh the new GPU image is kept separately so the current resident
+    // descriptor/image remain usable until authoritative completion commits.
+    std::unordered_map<AssetID, VulkanGPUTexture> pendingStreamedTextures{};
     struct RetiredStreamedTexture {
         VulkanGPUTexture texture{};
         uint32_t frameSlot = 0U;
@@ -244,43 +247,46 @@ bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) n
     impl_->assetStreamBridge = &bridge;
     impl_->uploader.SetUploadCompletionCallback(
         [this, &bridge](const UploadTask& task, VkResult result) {
+            const bool isRefresh = impl_ != nullptr &&
+                impl_->pendingStreamedTextures.contains(task.assetId);
+            auto failRendererUpload = [&]() noexcept {
+                if (impl_ == nullptr) return;
+                if (isRefresh) impl_->pendingStreamedTextures.erase(task.assetId);
+                else impl_->streamedTextures.erase(task.assetId);
+            };
+
             if (task.assetId.empty() || task.gpuMemory == VK_NULL_HANDLE ||
                 task.gpuAllocationSizeMB == 0U) {
                 (void)bridge.FailGpuUpload(task.assetId);
-                impl_->streamedTextures.erase(task.assetId);
+                failRendererUpload();
                 return;
             }
+
             if (result == VK_SUCCESS) {
-                const auto textureIt = impl_->streamedTextures.find(task.assetId);
-                if (textureIt == impl_->streamedTextures.end() ||
-                    !textureIt->second.IsValid()) {
+                VulkanGPUTexture* texture = nullptr;
+                if (isRefresh) {
+                    const auto textureIt = impl_->pendingStreamedTextures.find(task.assetId);
+                    if (textureIt != impl_->pendingStreamedTextures.end()) texture = &textureIt->second;
+                } else {
+                    const auto textureIt = impl_->streamedTextures.find(task.assetId);
+                    if (textureIt != impl_->streamedTextures.end()) texture = &textureIt->second;
+                }
+                if (texture == nullptr || !texture->IsValid()) {
                     (void)bridge.FailGpuUpload(task.assetId);
-                    impl_->streamedTextures.erase(task.assetId);
-                    impl_->streamedTextureDescriptors.erase(task.assetId);
+                    failRendererUpload();
                     return;
                 }
+
                 VkDescriptorSet descriptor = VK_NULL_HANDLE;
-                if (!impl_->AllocateTextureDescriptor(textureIt->second.GetImageView(),
-                                                      textureIt->second.GetSampler(), descriptor)) {
+                if (!impl_->AllocateTextureDescriptor(texture->GetImageView(),
+                                                      texture->GetSampler(), descriptor)) {
                     (void)bridge.FailGpuUpload(task.assetId);
-                    impl_->streamedTextures.erase(task.assetId);
-                    impl_->streamedTextureDescriptors.erase(task.assetId);
+                    failRendererUpload();
                     return;
                 }
-                try {
-                    impl_->streamedTextureDescriptors[task.assetId] = descriptor;
-                } catch (...) {
-                    impl_->FreeTextureDescriptorImmediate(descriptor);
-                    (void)bridge.FailGpuUpload(task.assetId);
-                    impl_->streamedTextures.erase(task.assetId);
-                    impl_->streamedTextureDescriptors.erase(task.assetId);
-                    return;
-                }
+
                 const auto release = [this, id = task.assetId]() noexcept {
                     if (impl_ != nullptr) {
-                        // Capture the last frame slot while it is still available.
-                        // Texture retirement must happen before descriptor retirement,
-                        // because descriptor retirement clears the slot bookkeeping.
                         impl_->RetireStreamedTexture(id);
                         impl_->RetireTextureDescriptor(id);
                     }
@@ -288,15 +294,44 @@ bool Vulkan3DRenderer::BindAssetStreamBridge(RuntimeAssetStreamBridge& bridge) n
                 if (!bridge.CompleteGpuUpload(task.assetId, task.gpuMemory,
                                               task.gpuAllocationSizeMB, release)) {
                     impl_->FreeTextureDescriptorImmediate(descriptor);
-                    impl_->streamedTextureDescriptors.erase(task.assetId);
-                    impl_->streamedTextureLastBoundFrameSlot.erase(task.assetId);
                     (void)bridge.FailGpuUpload(task.assetId);
-                    impl_->streamedTextures.erase(task.assetId);
+                    failRendererUpload();
+                    return;
+                }
+
+                if (isRefresh) {
+                    auto node = impl_->pendingStreamedTextures.extract(task.assetId);
+                    if (!node.empty()) {
+                        try {
+                            impl_->streamedTextures.insert(std::move(node));
+                            impl_->streamedTextureDescriptors.emplace(task.assetId, descriptor);
+                        } catch (...) {
+                            // The new resource is already authoritative. Free the
+                            // descriptor and release the new resident image through
+                            // its canonical owner; never touch a submitted old image.
+                            impl_->FreeTextureDescriptorImmediate(descriptor);
+                            impl_->streamedTextureDescriptors.erase(task.assetId);
+                            (void)bridge.ReleaseGpuUpload(task.assetId);
+                            return;
+                        }
+                    } else {
+                        impl_->FreeTextureDescriptorImmediate(descriptor);
+                        (void)bridge.ReleaseGpuUpload(task.assetId);
+                        return;
+                    }
+                } else {
+                    try {
+                        impl_->streamedTextureDescriptors.emplace(task.assetId, descriptor);
+                    } catch (...) {
+                        impl_->FreeTextureDescriptorImmediate(descriptor);
+                        (void)bridge.ReleaseGpuUpload(task.assetId);
+                    }
                 }
                 return;
             }
+
             (void)bridge.FailGpuUpload(task.assetId);
-            impl_->streamedTextures.erase(task.assetId);
+            failRendererUpload();
         });
     return true;
 }
@@ -307,11 +342,15 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) 
     if (!bridge.GetPendingGpuUploadIds(ids)) return false;
     try {
         impl_->streamedTextures.reserve(impl_->streamedTextures.size() + ids.size());
+        impl_->pendingStreamedTextures.reserve(impl_->pendingStreamedTextures.size() + ids.size());
     } catch (...) {
         return false;
     }
     for (const AssetID& id : ids) {
-        if (id.empty() || impl_->streamedTextures.contains(id)) continue;
+        if (id.empty()) continue;
+        const bool isRefresh = impl_->streamedTextures.contains(id);
+        auto& textureMap = isRefresh ? impl_->pendingStreamedTextures : impl_->streamedTextures;
+        if (textureMap.contains(id)) continue;
         StreamRequest request{};
         AssetResourceHandle handle{};
         if (!bridge.GetGpuUpload(id, request, handle)) return false;
@@ -322,12 +361,12 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) 
             (void)bridge.FailGpuUpload(id);
             continue;
         }
-        auto [it, inserted] = impl_->streamedTextures.try_emplace(id);
+        auto [it, inserted] = textureMap.try_emplace(id);
         if (!inserted) continue;
         VulkanGPUTexture& texture = it->second;
         if (!texture.Initialize(impl_->device, impl_->physical, width, height) ||
             !texture.CreateSampler()) {
-            impl_->streamedTextures.erase(it);
+            textureMap.erase(it);
             (void)bridge.FailGpuUpload(id);
             continue;
         }
@@ -337,7 +376,7 @@ bool Vulkan3DRenderer::PumpAssetStreamUploads(RuntimeAssetStreamBridge& bridge) 
                                                      impl_->device, impl_->frames[impl_->frameSlot].commandBuffer,
                                                      texture.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                      width, height, texture.GetMemory(), allocationMB)) {
-            impl_->streamedTextures.erase(it);
+            textureMap.erase(it);
             (void)bridge.FailGpuUpload(id);
             continue;
         }
