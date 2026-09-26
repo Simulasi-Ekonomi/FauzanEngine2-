@@ -88,6 +88,7 @@ jobs:
             Runtime/Vulkan3DRenderer.cpp \
             Runtime/VulkanAssetUploader.cpp \
             Runtime/VulkanGPUBuffer.cpp \
+            Runtime/VulkanGPUTexture.cpp \
             Runtime/AssetResourceManager.cpp \
             Runtime/AssetRegistry.cpp \
             Runtime/AssetStreamingQueue.cpp \
