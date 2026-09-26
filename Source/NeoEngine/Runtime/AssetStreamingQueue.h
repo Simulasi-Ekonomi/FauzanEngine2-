@@ -48,6 +48,10 @@ public:
     // Cancels a request still waiting in the priority queue. Once dequeued,
     // cancellation belongs to the upload owner and this call returns false.
     [[nodiscard]] bool CancelPending(AssetID id) noexcept;
+    // Transitions one specific pending asset to Uploading without disturbing
+    // higher-priority requests. This is the ownership-safe handoff used when an
+    // asynchronous file stream completes out of priority order.
+    [[nodiscard]] bool BeginUpload(AssetID id, StreamRequest& out) noexcept;
     [[nodiscard]] bool TryDequeue(StreamRequest& out) noexcept;
     [[nodiscard]] bool CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
                                       uint32_t allocatedSizeMB) noexcept;
