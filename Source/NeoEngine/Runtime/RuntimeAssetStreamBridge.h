@@ -4,6 +4,8 @@
 #include "AssetResourceManager.h"
 #include "AssetStreamingQueue.h"
 #include "StreamManager.h"
+#include "BmpTexture.h"
+#include "PpmTexture.h"
 
 #include <cstdint>
 #include <mutex>
@@ -40,6 +42,9 @@ public:
 
     [[nodiscard]] bool GetGpuUpload(AssetID id, StreamRequest& request,
                                     AssetResourceHandle& handle) const noexcept;
+    [[nodiscard]] bool GetGpuUploadTextureData(AssetID id, std::vector<uint8_t>& rgba,
+                                               uint32_t& width, uint32_t& height) const noexcept;
+    [[nodiscard]] bool GetPendingGpuUploadIds(std::vector<AssetID>& ids) const noexcept;
 
     // Called only after the real GPU completion fence has been observed. The
     // release callback becomes the queue's explicit owner of the accepted memory.
@@ -54,6 +59,12 @@ public:
     [[nodiscard]] uint32_t ResidentGpuUploadCount() const noexcept;
 
 private:
+    struct GpuTexturePayload {
+        std::vector<uint8_t> rgba;
+        uint32_t width = 0U;
+        uint32_t height = 0U;
+    };
+
     struct LoadedEvent {
         AssetID id;
         StreamRequest request;
@@ -73,6 +84,7 @@ private:
     std::vector<LoadedEvent> events_;
     std::unordered_map<AssetID, AssetResourceHandle> gpuUploads_;
     std::unordered_map<AssetID, AssetResourceHandle> residentGpuUploads_;
+    std::unordered_map<AssetID, GpuTexturePayload> gpuTexturePayloads_;
     std::unordered_map<AssetID, StreamRequest> requests_;
     bool started_ = false;
 };
