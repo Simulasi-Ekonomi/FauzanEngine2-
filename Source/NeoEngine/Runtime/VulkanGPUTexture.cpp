@@ -165,7 +165,10 @@ bool VulkanGPUTexture::TransitionImageLayout(VkQueue graphicsQueue, VkCommandPoo
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+        return false;
+    }
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -197,18 +200,24 @@ bool VulkanGPUTexture::TransitionImageLayout(VkQueue graphicsQueue, VkCommandPoo
 
     vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-    vkEndCommandBuffer(commandBuffer);
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+        return false;
+    }
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphicsQueue);
+    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+        return false;
+    }
+    const VkResult idleResult = vkQueueWaitIdle(graphicsQueue);
 
     vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
-    return true;
+    return idleResult == VK_SUCCESS;
 }
 
 bool VulkanGPUTexture::UploadPixels(VkQueue graphicsQueue,
@@ -267,16 +276,31 @@ bool VulkanGPUTexture::UploadPixels(VkQueue graphicsQueue,
         return false;
     }
 
-    vkBindBufferMemory(device_, stagingBuffer, stagingBufferMemory, 0);
+    if (vkBindBufferMemory(device_, stagingBuffer, stagingBufferMemory, 0) != VK_SUCCESS) {
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
 
     // 2. Map & Copy
     void* data = nullptr;
-    vkMapMemory(device_, stagingBufferMemory, 0, dataSize, 0, &data);
+    if (vkMapMemory(device_, stagingBufferMemory, 0, dataSize, 0, &data) != VK_SUCCESS || data == nullptr) {
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
     std::memcpy(data, pixels, static_cast<size_t>(dataSize));
     vkUnmapMemory(device_, stagingBufferMemory);
 
     // 3. Layout UNDEFINED -> DST_OPTIMAL
-    TransitionImageLayout(graphicsQueue, commandPool, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    if (!TransitionImageLayout(graphicsQueue, commandPool, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)) {
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
 
     // 4. Copy Buffer to Image
     VkCommandBufferAllocateInfo cmdAllocInfo{};
@@ -286,12 +310,23 @@ bool VulkanGPUTexture::UploadPixels(VkQueue graphicsQueue,
     cmdAllocInfo.commandBufferCount = 1;
 
     VkCommandBuffer cmd = VK_NULL_HANDLE;
-    vkAllocateCommandBuffers(device_, &cmdAllocInfo, &cmd);
+    if (vkAllocateCommandBuffers(device_, &cmdAllocInfo, &cmd) != VK_SUCCESS) {
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cmd, &beginInfo);
+    if (vkBeginCommandBuffer(cmd, &beginInfo) != VK_SUCCESS) {
+        vkFreeCommandBuffers(device_, commandPool, 1, &cmd);
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
 
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
@@ -306,19 +341,36 @@ bool VulkanGPUTexture::UploadPixels(VkQueue graphicsQueue,
 
     vkCmdCopyBufferToImage(cmd, stagingBuffer, image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-    vkEndCommandBuffer(cmd);
+    if (vkEndCommandBuffer(cmd) != VK_SUCCESS) {
+        vkFreeCommandBuffers(device_, commandPool, 1, &cmd);
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
 
-    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphicsQueue);
+    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS ||
+        vkQueueWaitIdle(graphicsQueue) != VK_SUCCESS) {
+        vkFreeCommandBuffers(device_, commandPool, 1, &cmd);
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
     vkFreeCommandBuffers(device_, commandPool, 1, &cmd);
 
     // 5. Layout DST_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
-    TransitionImageLayout(graphicsQueue, commandPool, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    if (!TransitionImageLayout(graphicsQueue, commandPool, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)) {
+        vkDestroyBuffer(device_, stagingBuffer, nullptr);
+        vkFreeMemory(device_, stagingBufferMemory, nullptr);
+        vkDestroyCommandPool(device_, commandPool, nullptr);
+        return false;
+    }
 
     // Cleanup Staging Buffer and Pool
     vkDestroyBuffer(device_, stagingBuffer, nullptr);
