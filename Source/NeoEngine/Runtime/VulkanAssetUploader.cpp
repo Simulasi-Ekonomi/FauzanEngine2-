@@ -79,13 +79,32 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
                                                  VkDevice device, VkCommandBuffer cmd,
                                                  VkImage targetImage, VkImageLayout targetLayout,
                                                  uint32_t width, uint32_t height) noexcept {
-    if (!resources.BeginGpuUpload(handle)) return false;
     const std::vector<uint8_t>* data = resources.Data(handle);
-    if (data == nullptr || data->empty()) {
+    if (data == nullptr || data->empty()) return false;
+    return UploadTextureResource(resources, handle, *data, device, cmd, targetImage,
+                                 targetLayout, width, height);
+}
+
+bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
+                                                 const AssetResourceHandle& handle,
+                                                 const std::vector<uint8_t>& pixels,
+                                                 VkDevice device, VkCommandBuffer cmd,
+                                                 VkImage targetImage, VkImageLayout targetLayout,
+                                                 uint32_t width, uint32_t height) noexcept {
+    if (pixels.empty() || width == 0U || height == 0U) return false;
+    if (!resources.BeginGpuUpload(handle)) return false;
+    if (pixels.size() > std::numeric_limits<uint64_t>::max() / 4ULL ||
+        static_cast<uint64_t>(width) * static_cast<uint64_t>(height) >
+            std::numeric_limits<uint64_t>::max() / 4ULL ||
+        pixels.size() != static_cast<size_t>(static_cast<uint64_t>(width) * height * 4ULL)) {
         resources.CancelGpuUpload(handle);
         return false;
     }
-    if (!UploadTexture(device, cmd, *data, targetImage, targetLayout, width, height)) {
+    if (!UploadTexture(device, cmd, pixels, targetImage, targetLayout, width, height)) {
+        resources.CancelGpuUpload(handle);
+        return false;
+    }
+    if (pendingUploads_.empty()) {
         resources.CancelGpuUpload(handle);
         return false;
     }
@@ -95,7 +114,7 @@ bool VulkanAssetUploader::UploadTextureResource(AssetResourceManager& resources,
     task.tracksResourceResidency = true;
     AssetResourceReceipt receipt{};
     if (!resources.Query(handle, receipt) || receipt.assetId.empty()) {
-        (void)resources.CancelGpuUpload(handle);
+        resources.CancelGpuUpload(handle);
         return false;
     }
     task.assetId = receipt.assetId;
