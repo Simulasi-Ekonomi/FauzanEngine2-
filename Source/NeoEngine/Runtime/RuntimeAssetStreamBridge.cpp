@@ -86,6 +86,17 @@ bool RuntimeAssetStreamBridge::Request(const StreamRequest& request) noexcept {
     return true;
 }
 
+bool RuntimeAssetStreamBridge::Refresh(const StreamRequest& request) noexcept {
+    if (request.id.empty() || request.filepath.empty() || request.estimatedSizeMB == 0U) return false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!started_ || requests_.contains(request.id) ||
+            residentGpuUploads_.find(request.id) == residentGpuUploads_.end()) return false;
+    }
+    if (!ReleaseGpuUpload(request.id)) return false;
+    return Request(request);
+}
+
 bool RuntimeAssetStreamBridge::Cancel(const AssetID& id) noexcept {
     StreamRequest request{};
     {
