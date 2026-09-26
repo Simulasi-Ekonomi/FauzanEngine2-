@@ -29,6 +29,7 @@ struct StreamedAssetInfo {
     VkDeviceMemory gpuMemory = VK_NULL_HANDLE;
     uint32_t allocatedSizeMB = 0;
     uint64_t lastAccessFrame = 0;
+    bool replacingResident = false;
     std::function<void(VkDeviceMemory)> gpuMemoryReleaseCallback{};
 };
 
@@ -52,6 +53,9 @@ public:
     // higher-priority requests. This is the ownership-safe handoff used when an
     // asynchronous file stream completes out of priority order.
     [[nodiscard]] bool BeginUpload(AssetID id, StreamRequest& out) noexcept;
+    // Starts a refresh while retaining the currently resident GPU allocation.
+    // The old allocation remains owned until CompleteUpload commits the replacement.
+    [[nodiscard]] bool BeginRefresh(AssetID id, StreamRequest& out) noexcept;
     [[nodiscard]] bool TryDequeue(StreamRequest& out) noexcept;
     [[nodiscard]] bool CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
                                       uint32_t allocatedSizeMB) noexcept;
@@ -60,10 +64,18 @@ public:
     [[nodiscard]] bool CompleteUpload(AssetID id, VkDeviceMemory gpuMemory,
                                       uint32_t allocatedSizeMB,
                                       GpuMemoryReleaseCallback releaseCallback) noexcept;
+    // Completes a resident refresh and returns the old allocation's release owner.
+    // The caller must invoke the returned callback exactly once after the replacement
+    // has been committed and its completion fence observed.
+    [[nodiscard]] bool CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMemory,
+                                             uint32_t allocatedSizeMB,
+                                             GpuMemoryReleaseCallback releaseCallback,
+                                             GpuMemoryReleaseCallback& oldReleaseCallback) noexcept;
     [[nodiscard]] bool FailUpload(AssetID id) noexcept;
     [[nodiscard]] bool Release(AssetID id) noexcept;
 
     [[nodiscard]] bool IsReady(AssetID id) const noexcept;
+    [[nodiscard]] bool IsRefreshing(AssetID id) const noexcept;
     [[nodiscard]] StreamState GetState(AssetID id) const noexcept;
     [[nodiscard]] VkDeviceMemory GetMemory(AssetID id) const noexcept;
 
