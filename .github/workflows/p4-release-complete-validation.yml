@@ -60,7 +60,7 @@ jobs:
           sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev mesa-vulkan-drivers libjsoncpp-dev libglm-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
 
       - name: Install SDL3 for canonical engine validation
-        uses: libsdl-org/setup-sdl@afd98199e97f9c2aa739474be7e0886d149a5e47
+        uses: libsdl-org/setup-sdl@30cb786f3595c27d05018cd374b679f2313c59d3
         with:
           version: 3.4.16
           install-linux-dependencies: true
