@@ -67,12 +67,12 @@ public:
     void MarkAccessed(AssetID id, uint64_t frameNumber) noexcept;
     [[nodiscard]] bool EvictToBudget() noexcept;
 
-    // The queue stores ownership metadata for VkDeviceMemory. Production Vulkan
-    // owners must bind a release callback so Release/Evict/destruction actually
-    // return the allocation to the Vulkan device. Existing callers may leave this
-    // unset when they use non-owning/test handles. Each ready allocation captures
-    // the callback active when its upload is accepted; replacing the queue callback
-    // never changes ownership of an existing allocation.
+    // The queue stores ownership metadata for VkDeviceMemory. Every accepted
+    // GPU allocation must have a release callback so Release/Evict/destruction
+    // always have a real Vulkan ownership path. Test handles use the same explicit
+    // owner contract; CompleteUpload fails closed when no callback is installed.
+    // Each ready allocation captures the callback active when its upload is
+    // accepted; replacing the queue callback never changes existing ownership.
     void SetGpuMemoryReleaseCallback(GpuMemoryReleaseCallback callback) noexcept;
     [[nodiscard]] bool HasGpuMemoryReleaseCallback() const noexcept;
 
