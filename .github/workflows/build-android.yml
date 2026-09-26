@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, master, p3-editor-android-production-night ]
   pull_request:
-    branches: [ main, master, p3-editor-android-production-night ]
+    branches: [ main, master, p3-editor-android-production-night, sandbox-p0-validation-20260920 ]
   workflow_dispatch:
 
 jobs:
@@ -64,7 +64,7 @@ jobs:
 
   build-release:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/p3-editor-android-production-night'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/p3-editor-android-production-night') || github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'p3-editor-android-production-night' || github.event.pull_request.base.ref == 'sandbox-p0-validation-20260920')
 
     steps:
     - name: Checkout
