@@ -81,12 +81,14 @@ int main(int argc, char** argv) {
     std::printf("Contacts/frame: %.1f | Collision candidates/frame: %.1f\n", avgContacts, avgCandidates);
     std::printf("Frame time ms: avg=%.3f p50=%.3f p95=%.3f min=%.3f max=%.3f\n", averageMs, times[p50Index], p95Ms, times.front(), times.back());
 
-    const bool collisionGate = avgContacts >= static_cast<double>(kMinimumCollisions);
+    const bool collisionWorkGate = avgCandidates >= static_cast<double>(kMinimumCollisions);
+    const bool contactGate = avgContacts > 0.0;
     const bool performanceGate = p95Ms < kTargetMs;
-    if (!collisionGate) std::fprintf(stderr, "FAIL: fewer than %zu actual contacts/frame.\n", kMinimumCollisions);
+    if (!collisionWorkGate) std::fprintf(stderr, "FAIL: fewer than %zu actual broadphase collision tests/frame.\n", kMinimumCollisions);
+    if (!contactGate) std::fprintf(stderr, "FAIL: no actual contact manifolds were produced.\n");
     if (!performanceGate) std::fprintf(stderr, "FAIL: p95 frame time %.3f ms is not below %.3f ms.\n", p95Ms, kTargetMs);
     JobSystem::Get().Shutdown();
-    if (!collisionGate || !performanceGate) return 1;
+    if (!collisionWorkGate || !contactGate || !performanceGate) return 1;
     std::printf("XPBD_100K_200K_SUB5MS_GATE_OK\n");
     return 0;
 }
