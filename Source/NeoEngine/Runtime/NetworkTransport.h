@@ -2,7 +2,9 @@
 
 #include <array>
 #include <cstddef>
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <vector>
 
@@ -34,7 +36,8 @@ public:
     static constexpr std::size_t kMaxPayloadBytes = 64U * 1024U;
 
     bool Enqueue(uint32_t peerId, NetworkDelivery delivery, std::span<const uint8_t> payload) {
-        if (peerId == 0U || payload.empty() || payload.size() > kMaxPayloadBytes || count_ >= kCapacity) { ++stats_.rejected; return false; }
+        if (peerId == 0U || payload.empty() || payload.size() > kMaxPayloadBytes || count_ >= kCapacity ||
+            sequence_ == std::numeric_limits<uint64_t>::max()) { ++stats_.rejected; return false; }
         NetworkDatagram& packet = packets_[(head_ + count_) % kCapacity];
         packet = {};
         packet.peerId = peerId;
@@ -111,11 +114,15 @@ struct NetworkInterestEntry {
 class NetworkInterestFilter {
 public:
     static bool IsRelevant(const NetworkInterestVolume& volume, float x, float y, float z) {
-        if (!(volume.radius > 0.0F)) return false;
+        if (!std::isfinite(volume.radius) || !(volume.radius > 0.0F) ||
+            !std::isfinite(volume.centerX) || !std::isfinite(volume.centerY) || !std::isfinite(volume.centerZ) ||
+            !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) return false;
         const float dx = x - volume.centerX;
         const float dy = y - volume.centerY;
         const float dz = z - volume.centerZ;
-        return dx * dx + dy * dy + dz * dz <= volume.radius * volume.radius;
+        const float distanceSquared = dx * dx + dy * dy + dz * dz;
+        const float radiusSquared = volume.radius * volume.radius;
+        return std::isfinite(distanceSquared) && std::isfinite(radiusSquared) && distanceSquared <= radiusSquared;
     }
 };
 
