@@ -81,21 +81,30 @@ jobs:
           bash tools/release_manifest.sh /tmp/p4-release-manifest.second.sha256
           cmp -s p4-release-manifest.sha256 /tmp/p4-release-manifest.second.sha256
 
+      - name: Materialize release signing keystore
+        env:
+          NEO_ANDROID_KEYSTORE_B64: ${{ secrets.NEO_ANDROID_KEYSTORE_B64 }}
+        run: |
+          test -n "$NEO_ANDROID_KEYSTORE_B64"
+          printf '%s' "$NEO_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/neoengine-release.keystore"
+          test -s "$RUNNER_TEMP/neoengine-release.keystore"
+
       - name: Require release signing material
         env:
-          NEO_ANDROID_KEYSTORE: ${{ secrets.NEO_ANDROID_KEYSTORE }}
+          NEO_ANDROID_KEYSTORE: ${{ runner.temp }}/neoengine-release.keystore
           NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
           NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
           NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
         run: |
           test -n "$NEO_ANDROID_KEYSTORE"
+          test -s "$NEO_ANDROID_KEYSTORE"
           test -n "$NEO_ANDROID_KEY_ALIAS"
           test -n "$NEO_ANDROID_STORE_PASSWORD"
           test -n "$NEO_ANDROID_KEY_PASSWORD"
 
       - name: Build signed release APK
         env:
-          NEO_ANDROID_KEYSTORE: ${{ secrets.NEO_ANDROID_KEYSTORE }}
+          NEO_ANDROID_KEYSTORE: ${{ runner.temp }}/neoengine-release.keystore
           NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
           NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
           NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
@@ -104,7 +113,7 @@ jobs:
 
       - name: Build signed release AAB
         env:
-          NEO_ANDROID_KEYSTORE: ${{ secrets.NEO_ANDROID_KEYSTORE }}
+          NEO_ANDROID_KEYSTORE: ${{ runner.temp }}/neoengine-release.keystore
           NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
           NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
           NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
