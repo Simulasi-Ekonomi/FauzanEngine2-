@@ -15,6 +15,7 @@
 #include "Networking/NetworkStressHarness.h"
 #include "Networking/NetworkTickScheduler.h"
 #include <cstdio>
+#include <limits>
 #include <vector>
 
 using namespace NeoEngine;
@@ -129,6 +130,6 @@ int main() {
         !Require(reliable.shouldAccept(1), "reliable_accept") || !Require(reliable.receive(1), "reliable_receive") ||
         !Require(reliable.acknowledge(1), "reliable_ack") || !Require(reliable.inFlight() == 0, "reliable_complete")) return 15;
 
-    std::puts("NETWORK_EXTENDED_SMOKE_OK authority=1 actor=1 relevancy=1 coordinator=1 rpc=1 reconnect=1 resume=1 delta=1 smoothing=1 tick=1 stress=1 reliable=1");
+    std::puts("NETWORK_EXTENDED_SMOKE_OK authority=1 actor=1 relevancy=1 numeric=1 coordinator=1 rpc=1 reconnect=1 resume=1 delta=1 smoothing=1 tick=1 stress=1 reliable=1");
     return 0;
 }
