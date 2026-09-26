@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-09-26  
 **PR:** #77 — P1 sandbox validation  
-**Last validated HEAD: 918d56fc2b0fcfa338b09a693f01b63a3468e514 — awaiting exact-head CI
+**Last validated HEAD: 0142a35bc61bd9980f158950e4a78420247912c7 — exact-head Release/ASAN/sandbox validation pending
 **PR base:** sandbox-p1-unreal-parity-validation @ d50c43819f2b23a474bb2f9d7d02dfd4b09242ef  
 **State:** IMPLEMENTING P1 ASSET E2E REPAIR / NOT MERGE-READY — current edits are awaiting exact-head Release/ASAN/sandbox validation
 
