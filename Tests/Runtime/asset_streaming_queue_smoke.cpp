@@ -49,6 +49,13 @@ int main() {
     assert(queue.Enqueue(low));
 
     StreamRequest next{};
+    // GPU ownership must be explicit; an upload without a release owner is rejected.
+    AssetStreamingQueue ownershipRequiredQueue(8, 8);
+    assert(ownershipRequiredQueue.Enqueue(StreamRequest{"unowned", "unowned.obj", 1.0f, 1, 1}));
+    assert(ownershipRequiredQueue.TryDequeue(next));
+    assert(!ownershipRequiredQueue.CompleteUpload("unowned", FakeDeviceMemory(99), 1));
+    assert(ownershipRequiredQueue.GetState("unowned") == StreamState::Uploading);
+    assert(ownershipRequiredQueue.FailUpload("unowned"));
     assert(queue.TryDequeue(next));
     assert(next.id == "high");
     assert(queue.GetState("high") == StreamState::Uploading);
