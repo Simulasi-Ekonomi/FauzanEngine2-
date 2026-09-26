@@ -160,7 +160,10 @@ void VulkanAssetUploader::AttachCompletionFence(VkFence fence, bool takeOwnershi
     if (fence == VK_NULL_HANDLE || pendingUploads_.empty()) return;
     if (takeOwnership) {
         try {
-            ownedCompletionFences_.push_back(fence);
+            if (std::find(ownedCompletionFences_.begin(), ownedCompletionFences_.end(), fence) ==
+                ownedCompletionFences_.end()) {
+                ownedCompletionFences_.push_back(fence);
+            }
         } catch (...) {
             return;
         }
