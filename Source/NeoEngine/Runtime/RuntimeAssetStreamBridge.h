@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace NeoEngine {
@@ -47,7 +48,10 @@ public:
         AssetStreamingQueue::GpuMemoryReleaseCallback releaseCallback) noexcept;
 
     [[nodiscard]] bool FailGpuUpload(AssetID id) noexcept;
+    [[nodiscard]] bool ReleaseGpuUpload(AssetID id) noexcept;
+    [[nodiscard]] bool ReleaseAllGpuUploads() noexcept;
     [[nodiscard]] uint32_t PendingGpuUploadCount() const noexcept;
+    [[nodiscard]] uint32_t ResidentGpuUploadCount() const noexcept;
 
 private:
     struct LoadedEvent {
@@ -68,6 +72,7 @@ private:
     mutable std::mutex mutex_;
     std::vector<LoadedEvent> events_;
     std::unordered_map<AssetID, AssetResourceHandle> gpuUploads_;
+    std::unordered_map<AssetID, AssetResourceHandle> residentGpuUploads_;
     std::unordered_map<AssetID, StreamRequest> requests_;
     bool started_ = false;
 };
