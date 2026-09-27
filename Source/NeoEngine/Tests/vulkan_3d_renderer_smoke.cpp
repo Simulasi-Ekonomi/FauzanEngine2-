@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <vector>
 #include <fstream>
+#include <filesystem>
 #include <thread>
 #include <chrono>
 
@@ -20,9 +21,11 @@ int main() {
         return 1;
     }
 
-    const char* texturePath = "vulkan_3d_stream_texture.ppm";
+    const std::filesystem::path textureFile =
+        std::filesystem::temp_directory_path() / "fauzanengine_vulkan_3d_stream_texture.ppm";
+    const std::string texturePath = textureFile.string();
     {
-        std::ofstream texture(texturePath, std::ios::binary);
+        std::ofstream texture(textureFile, std::ios::binary);
         texture << "P6\n2 2\n255\n";
         const unsigned char pixels[] = {
             255U, 0U, 0U, 255U, 0U, 0U,
@@ -33,7 +36,8 @@ int main() {
     NeoEngine::Vulkan3DRenderer renderer;
     if (!renderer.Initialize(640, 480, "NeoEngine Vulkan3D Smoke") ||
         !renderer.BindAssetStreamBridge(bridge)) {
-        std::remove(texturePath);
+        std::error_code textureRemoveError;
+        std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL init_or_bind error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 1;
@@ -46,7 +50,8 @@ int main() {
     textureRequest.estimatedSizeMB = 1U;
     textureRequest.kind = static_cast<uint8_t>(NeoEngine::AssetKind::Texture);
     if (!bridge.Request(textureRequest)) {
-        std::remove(texturePath);
+        std::error_code textureRemoveError;
+        std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL bridge_request\n");
         return 1;
