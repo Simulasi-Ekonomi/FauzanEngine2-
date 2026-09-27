@@ -165,8 +165,10 @@ bool EditorSceneAgentAPI::Execute(std::string_view request, EditorSceneSession& 
         lastError_ = EditorAgentError::None; response = SceneResult("selectMany", session); return true;
     }
     if (operation == "query") {
-        if (!HasOnly(root, {"operation", "offset", "limit"}) ||
-            (root.isMember("offset") && !root["offset"].isUInt()) ||
+        if (!HasOnly(root, {"operation", "offset", "limit"})) {
+            return Fail(EditorAgentError::UnknownField, response);
+        }
+        if ((root.isMember("offset") && !root["offset"].isUInt()) ||
             (root.isMember("limit") && !root["limit"].isUInt())) {
             return Fail(EditorAgentError::InvalidArgument, response);
         }
