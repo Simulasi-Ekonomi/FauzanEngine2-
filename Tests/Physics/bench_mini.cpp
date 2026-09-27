@@ -30,7 +30,12 @@ int main() {
         totalEntity += ch->count;
     }
     printf("Total entity di chunk: %zu\n", totalEntity);
-    if (chunks.empty() || chunks.front()->radius == nullptr || chunks.front()->count < 2U) {\n        std::fprintf(stderr, "bench_mini: canonical collider SoA unavailable\\n");\n        JobSystem::Get().Shutdown();\n        return 2;\n    }\n    printf("Radius via SoA: a=%f b=%f\\n", chunks.front()->radius[0], chunks.front()->radius[1]);
+    if (chunks.empty() || chunks.front()->radius == nullptr || chunks.front()->count < 2U) {
+        std::fprintf(stderr, "bench_mini: canonical collider SoA unavailable\n");
+        JobSystem::Get().Shutdown();
+        return 2;
+    }
+    printf("Radius via SoA: a=%f b=%f\n", chunks.front()->radius[0], chunks.front()->radius[1]);
 
     // Step
     printf("Step...\n");
