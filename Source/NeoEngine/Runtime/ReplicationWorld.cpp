@@ -204,7 +204,7 @@ bool ReplicationWorld::RegisterEntity(SceneEntity entity, uint32_t networkId, ui
         const Transform3* transform = sceneWorld_.GetTransform(entity);
         if (transform == nullptr) return Fail(ReplicationError::InvalidEntity);
         slot = {};
-        slot.registered = true; slot.entity = entity; slot.networkId = networkId; slot.ownerId = ownerId; slot.authoritative = *transform; slot.previousAuthoritative = *transform; slot.hasAuthoritative = role_ == ReplicationRole::Server;
+        slot.registered = true; slot.entity = entity; slot.networkId = networkId; slot.ownerId = ownerId; slot.authoritative = *transform; slot.previousAuthoritative = *transform; slot.hasAuthoritative = true; slot.hasReceivedAuthoritativeSnapshot = role_ == ReplicationRole::Server;
         ++registeredCount_; lastError_ = ReplicationError::None; return true;
     }
     return Fail(ReplicationError::Capacity);
@@ -480,7 +480,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         // On the first authoritative snapshot, the interpolation baseline is the
         // transform currently rendered by the client. Subsequent snapshots use the
         // preceding authoritative state so interpolation remains continuous.
-        if (slot.hasAuthoritative) {
+        if (slot.hasReceivedAuthoritativeSnapshot) {
             slot.previousAuthoritative = slot.authoritative;
         } else {
             const Transform3* currentTransform = sceneWorld_.GetTransform(slot.entity);
@@ -491,6 +491,7 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
         slot.ownerId = state.ownerId;
         slot.stateRevision = state.stateRevision;
         slot.hasAuthoritative = true;
+        slot.hasReceivedAuthoritativeSnapshot = true;
     }
     if (allowDynamicLifecycle_) for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) if (slots_[slotIndex].registered && !presentSlots[slotIndex]) {
         slots_[slotIndex] = {};
@@ -519,7 +520,7 @@ bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
     changed.fill(false);
     for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
         const Slot& slot = slots_[slotIndex];
-        if (!slot.registered || slot.ownerId == localClientId_ || !slot.hasAuthoritative) continue;
+        if (!slot.registered || slot.ownerId == localClientId_ || !slot.hasAuthoritative || !slot.hasReceivedAuthoritativeSnapshot) continue;
         const Transform3* previous = sceneWorld_.GetTransform(slot.entity);
         if (previous == nullptr) {
             for (uint16_t rollbackIndex = 0U; rollbackIndex < kMaxEntities; ++rollbackIndex)
