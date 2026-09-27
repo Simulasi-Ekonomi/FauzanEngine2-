@@ -63,17 +63,21 @@ int main() {
         if (!pending) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     if (!pending) {
+        const std::error_code textureSizeError = [&textureFile] {
+            std::error_code ec;
+            (void)std::filesystem::file_size(textureFile, ec);
+            return ec;
+        }();
+        std::fprintf(stderr,
+                     "VULKAN3D_SMOKE_FAIL texture_pending path_exists=%u stream_queue=%zu stream_loaded=%zu bridge_pending=%u bridge_resident=%u queue_state=%u size_error=%u\n",
+                     std::filesystem::exists(textureFile) ? 1U : 0U,
+                     streams.GetQueueSize(), streams.GetLoadedCount(),
+                     bridge.PendingGpuUploadCount(), bridge.ResidentGpuUploadCount(),
+                     static_cast<unsigned>(queue.GetState(textureRequest.id)),
+                     textureSizeError ? 1U : 0U);
         std::error_code textureRemoveError;
         std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
-        std::error_code textureSizeError;
-        const auto textureSize = std::filesystem::file_size(textureFile, textureSizeError);
-        std::fprintf(stderr,
-                     "VULKAN3D_SMOKE_FAIL texture_pending path_exists=%u size=%llu stream_queue=%zu stream_loaded=%zu bridge_pending=%u bridge_resident=%u\n",
-                     std::filesystem::exists(textureFile) ? 1U : 0U,
-                     textureSizeError ? 0ULL : static_cast<unsigned long long>(textureSize),
-                     streams.GetQueueSize(), streams.GetLoadedCount(),
-                     bridge.PendingGpuUploadCount(), bridge.ResidentGpuUploadCount());
         return 1;
     }
 
