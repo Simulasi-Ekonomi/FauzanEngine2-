@@ -97,6 +97,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/VulkanAssetUploader.cpp
+    Runtime/VulkanContext.cpp
+    Runtime/VulkanGPUTexture.cpp
     Runtime/VulkanBootstrap.cpp
     Runtime/GameplayTriggerTracker.cpp
     Runtime/Vulkan3DRenderer.cpp
