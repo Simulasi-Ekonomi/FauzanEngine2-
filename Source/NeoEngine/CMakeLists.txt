@@ -111,6 +111,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanOffscreen.cpp
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanSwapchainManager.cpp
+    Runtime/VulkanSyncPrimitives.cpp
     Runtime/VulkanDescriptorManager.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
