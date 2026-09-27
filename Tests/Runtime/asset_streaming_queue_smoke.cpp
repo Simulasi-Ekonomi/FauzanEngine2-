@@ -6,11 +6,8 @@
 
 namespace {
 VkDeviceMemory FakeDeviceMemory(uintptr_t value) {
-    if constexpr (std::is_pointer_v<VkDeviceMemory>) {
-        return reinterpret_cast<VkDeviceMemory>(value);
-    } else {
-        return static_cast<VkDeviceMemory>(value);
-    }
+    if constexpr (std::is_pointer_v<VkDeviceMemory>) return reinterpret_cast<VkDeviceMemory>(value);
+    return std::bit_cast<VkDeviceMemory>(value);
 }
 }
 #include <cstdint>
