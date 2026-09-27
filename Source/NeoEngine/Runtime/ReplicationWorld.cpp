@@ -204,7 +204,7 @@ bool ReplicationWorld::RegisterEntity(SceneEntity entity, uint32_t networkId, ui
         const Transform3* transform = sceneWorld_.GetTransform(entity);
         if (transform == nullptr) return Fail(ReplicationError::InvalidEntity);
         slot = {};
-        slot.registered = true; slot.entity = entity; slot.networkId = networkId; slot.ownerId = ownerId; slot.authoritative = *transform; slot.previousAuthoritative = *transform; slot.hasAuthoritative = true;
+        slot.registered = true; slot.entity = entity; slot.networkId = networkId; slot.ownerId = ownerId; slot.authoritative = *transform; slot.previousAuthoritative = *transform; slot.hasAuthoritative = role_ == ReplicationRole::Server;
         ++registeredCount_; lastError_ = ReplicationError::None; return true;
     }
     return Fail(ReplicationError::Capacity);
