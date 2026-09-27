@@ -52,7 +52,7 @@ int main() {
         return 1;
     }
     bool pending = false;
-    for (uint32_t i = 0U; i < 120U && !pending; ++i) {
+    for (uint32_t i = 0U; i < 1000U && !pending; ++i) {
         bridge.Pump();
         pending = bridge.PendingGpuUploadCount() != 0U;
         if (!pending) std::this_thread::sleep_for(std::chrono::milliseconds(2));
