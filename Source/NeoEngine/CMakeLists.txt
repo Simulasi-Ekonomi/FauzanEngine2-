@@ -106,6 +106,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanAssetUploader.cpp
+    Runtime/VulkanContext.cpp
+    Runtime/VulkanGPUTexture.cpp
     Runtime/VulkanDescriptorManager.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
