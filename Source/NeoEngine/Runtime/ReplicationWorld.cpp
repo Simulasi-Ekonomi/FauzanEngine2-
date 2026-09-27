@@ -477,7 +477,16 @@ bool ReplicationWorld::ApplyServerSnapshot(const ReplicationSnapshot& snapshot, 
             continue;
         }
         slot.hasPrediction = false;
-        slot.previousAuthoritative = slot.authoritative;
+        // On the first authoritative snapshot, the interpolation baseline is the
+        // transform currently rendered by the client. Subsequent snapshots use the
+        // preceding authoritative state so interpolation remains continuous.
+        if (slot.hasAuthoritative) {
+            slot.previousAuthoritative = slot.authoritative;
+        } else {
+            const Transform3* currentTransform = sceneWorld_.GetTransform(slot.entity);
+            if (currentTransform == nullptr) return failTransaction(ReplicationError::InvalidEntity);
+            slot.previousAuthoritative = *currentTransform;
+        }
         slot.authoritative = state.transform;
         slot.ownerId = state.ownerId;
         slot.stateRevision = state.stateRevision;
