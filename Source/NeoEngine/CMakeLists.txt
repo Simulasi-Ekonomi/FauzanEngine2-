@@ -100,6 +100,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUTexture.cpp
     Runtime/VulkanOffscreen.cpp
+    Runtime/VulkanShaderProbe.cpp
+    Runtime/VulkanSwapchainManager.cpp
     Runtime/VulkanBootstrap.cpp
     Runtime/GameplayTriggerTracker.cpp
     Runtime/Vulkan3DRenderer.cpp
