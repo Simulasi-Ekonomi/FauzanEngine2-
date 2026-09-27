@@ -134,6 +134,7 @@ private:
         Transform3 authoritative{};
         Transform3 predictedTransform{};
         bool hasAuthoritative = false;
+        bool hasReceivedAuthoritativeSnapshot = false;
         bool hasPrediction = false;
     };
 
