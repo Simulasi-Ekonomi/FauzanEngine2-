@@ -26,7 +26,7 @@ int main() {
         texture << "P6\n2 2\n255\n";
         const unsigned char pixels[] = {
             255U, 0U, 0U, 255U, 0U, 0U,
-            255U, 0U, 0U
+            255U, 0U, 0U, 255U, 0U, 0U
         };
         texture.write(reinterpret_cast<const char*>(pixels), sizeof(pixels));
     }
