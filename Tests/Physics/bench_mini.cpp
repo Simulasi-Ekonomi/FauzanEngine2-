@@ -26,11 +26,11 @@ int main() {
     printf("Jumlah chunk: %zu\n", chunks.size());
     size_t totalEntity = 0;
     for (auto* ch : chunks) {
-        printf("  chunk mask=0x%x count=%zu\n", ch->mask, ch->count);
+        printf("  chunk mask=0x%x count=%zu\n", ch->componentMask, ch->count);
         totalEntity += ch->count;
     }
     printf("Total entity di chunk: %zu\n", totalEntity);
-    printf("Radius via SoA: a=%f b=%f\n", em.GetRadius(a), em.GetRadius(b));
+    if (chunks.empty() || chunks.front()->radius == nullptr || chunks.front()->count < 2U) {\n        std::fprintf(stderr, "bench_mini: canonical collider SoA unavailable\\n");\n        JobSystem::Get().Shutdown();\n        return 2;\n    }\n    printf("Radius via SoA: a=%f b=%f\\n", chunks.front()->radius[0], chunks.front()->radius[1]);
 
     // Step
     printf("Step...\n");
