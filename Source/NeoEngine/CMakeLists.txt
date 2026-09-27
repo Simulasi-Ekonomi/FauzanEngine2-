@@ -98,6 +98,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/Vulkan3DRenderer.cpp
+    Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/VulkanRenderer3D.cpp
     Runtime/VulkanRenderPassManager.cpp
     Runtime/VulkanGraphicsPipeline.cpp
