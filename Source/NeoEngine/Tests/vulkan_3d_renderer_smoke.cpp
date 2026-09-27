@@ -12,7 +12,7 @@
 int main() {
     NeoEngine::AssetRegistry registry;
     NeoEngine::AssetResourceManager resources(registry);
-    NeoEngine::StreamManager streams(1U, 8U, 16U, 64U);
+    NeoEngine::StreamManager streams(1U, 8U, 64U, 128U);
     NeoEngine::AssetStreamingQueue queue(16U, 8U);
     NeoEngine::RuntimeAssetStreamBridge bridge(registry, resources, streams, queue);
     if (!bridge.Start()) {
