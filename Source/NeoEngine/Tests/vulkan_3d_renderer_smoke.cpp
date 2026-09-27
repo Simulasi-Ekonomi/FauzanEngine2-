@@ -63,7 +63,8 @@ int main() {
         if (!pending) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
     if (!pending) {
-        std::remove(texturePath);
+        std::error_code textureRemoveError;
+        std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL texture_pending\n");
         return 1;
@@ -160,7 +161,8 @@ int main() {
 
     // The first frame records the decoded texture upload outside the render pass.
     if (!renderer.BeginFrame() || !renderer.EndFrame()) {
-        std::remove(texturePath);
+        std::error_code textureRemoveError;
+        std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL texture_upload_frame error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 9;
@@ -171,7 +173,8 @@ int main() {
         !renderer.BindStreamedTexture(textureRequest.id) ||
         !renderer.DrawIndexed(triangle, triangleIndices, identity.data()) ||
         !renderer.EndFrame()) {
-        std::remove(texturePath);
+        std::error_code textureRemoveError;
+        std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL texture_bind_draw error=%u\n", static_cast<unsigned>(renderer.LastError()));
         return 10;
@@ -179,7 +182,8 @@ int main() {
 
     std::vector<uint8_t> texturedFrame;
     if (!renderer.ReadbackLastFrame(texturedFrame) || texturedFrame.size() != 640U * 480U * 4U) {
-        std::remove(texturePath);
+        std::error_code textureRemoveError;
+        std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL texture_readback\n");
         return 11;
@@ -187,7 +191,8 @@ int main() {
     const size_t center = ((480U / 2U) * 640U + (640U / 2U)) * 4U;
     if (texturedFrame[center + 0U] <= texturedFrame[center + 1U] * 2U ||
         texturedFrame[center + 0U] <= texturedFrame[center + 2U] * 2U) {
-        std::remove(texturePath);
+        std::error_code textureRemoveError;
+        std::filesystem::remove(textureFile, textureRemoveError);
         bridge.Stop();
         std::fprintf(stderr, "VULKAN3D_SMOKE_FAIL texture_sampling rgba=%u,%u,%u,%u\n",
                      texturedFrame[center + 0U], texturedFrame[center + 1U],
@@ -196,7 +201,8 @@ int main() {
     }
 
     bridge.Stop();
-    std::remove(texturePath);
+    std::error_code textureRemoveError;
+    std::filesystem::remove(textureFile, textureRemoveError);
     std::printf("VULKAN3D_SMOKE_OK frames=%llu final_vertices=%u final_indices=%u instances=%zu texture_upload=1 texture_fence=1 texture_sampling=1 size=%ux%u\n",
                 static_cast<unsigned long long>(renderer.LastFrameStats().frameIndex),
                 renderer.LastFrameStats().vertexCount, renderer.LastFrameStats().indexCount,
