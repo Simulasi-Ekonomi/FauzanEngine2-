@@ -15,12 +15,12 @@ int main() {
     printf("Create 500 entities...\n");
     for (int i = 0; i < 500; ++i) {
         EntityID id = em.CreateEntity(f);
-        auto* p = em.GetPosition(id);
-        auto* v = em.GetVelocity(id);
-        auto* c = em.GetCollider(id);
-        p->x = (i % 20) * 2.0f; p->z = (i / 20) * 2.0f;
-        v->vx = 0; v->vz = 0;
-        c->radius = 0.8f; c->invMass = 1.0f;
+        em.SetPosX(id, (i % 20) * 2.0f);
+        em.SetPosZ(id, (i / 20) * 2.0f);
+        em.SetVelX(id, 0.0f);
+        em.SetVelZ(id, 0.0f);
+        em.SetRadius(id, 0.8f);
+        em.SetInvMass(id, 1.0f);
     }
     printf("Step 5 frames...\n");
     for (int i = 0; i < 5; ++i) {
