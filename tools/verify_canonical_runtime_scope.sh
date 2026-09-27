@@ -65,9 +65,9 @@ find "$engine_root" -type f \( -name '*.h' -o -name '*.cpp' \) -print0 \
 
 if ! diff -u "$tmp_dir/manifest_paths" "$tmp_dir/observed_marker_paths"; then
     printf 'canonical-runtime-scope: marker manifest mismatch\n' >&2
-    printf '--- MANIFEST ---\n' >&2
+    printf '%s\n' '--- MANIFEST ---' >&2
     cat "$tmp_dir/manifest_paths" >&2
-    printf '--- OBSERVED ---\n' >&2
+    printf '%s\n' '--- OBSERVED ---' >&2
     cat "$tmp_dir/observed_marker_paths" >&2
     die "unclassified, stale, or removed capability-marker path"
 fi
