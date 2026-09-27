@@ -113,12 +113,12 @@ int main() {
     if (localAfterReconcile == nullptr || std::abs(localAfterReconcile->x - 6.0F) > 0.0001F) return 17;
     if (!client.SetInterpolationAlphaPermille(500U) || !client.ApplyInterpolation(apply) || apply.sequence != 1U || apply.serverTick != 1U || apply.appliedEntities != 0U || apply.spawnedEntities != 0U || apply.despawnedEntities != 0U || apply.interpolatedEntities != 1U || apply.reconciledPredictions != 0U || !apply.accepted) return 18;
     const Transform3* remoteAfterInterpolation = clientScene.GetTransform(clientRemote);
-    if (remoteAfterInterpolation == nullptr || std::abs(remoteAfterInterpolation->x - 15.0F) > 0.0001F) return 19;
+    if (remoteAfterInterpolation == nullptr || std::abs(remoteAfterInterpolation->x - 15.0F) > 0.0001F) { std::fprintf(stderr, "INTERP_FAIL first x=%f expected=15 alpha=%u\n", remoteAfterInterpolation ? remoteAfterInterpolation->x : -999.0F, 500U); return 19; }
     SceneWorld interpolationScene;
     SceneEntity interpolationFirst{}, interpolationSecond{};
-    if (!interpolationScene.Create(interpolationFirst) || !interpolationScene.Create(interpolationSecond) || !interpolationScene.SetTransform(interpolationFirst, {2.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !interpolationScene.SetTransform(interpolationSecond, {3.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) return 19;
+    if (!interpolationScene.Create(interpolationFirst) || !interpolationScene.Create(interpolationSecond) || !interpolationScene.SetTransform(interpolationFirst, {2.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}) || !interpolationScene.SetTransform(interpolationSecond, {3.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F})) { std::fprintf(stderr, "INTERP_FAIL setup\n"); return 19; }
     ReplicationWorld interpolationClient(interpolationScene, ReplicationRole::Client, 7U);
-    if (!interpolationClient.RegisterEntity(interpolationFirst, 401U, 8U) || !interpolationClient.RegisterEntity(interpolationSecond, 402U, 8U) || !interpolationClient.SetInterpolationAlphaPermille(500U) || !interpolationScene.Destroy(interpolationSecond)) return 19;
+    if (!interpolationClient.RegisterEntity(interpolationFirst, 401U, 8U) || !interpolationClient.RegisterEntity(interpolationSecond, 402U, 8U) || !interpolationClient.SetInterpolationAlphaPermille(500U) || !interpolationScene.Destroy(interpolationSecond)) { std::fprintf(stderr, "INTERP_FAIL registration\n"); return 19; }
     ReplicationApplyReceipt preservedInterpolationReceipt{0U, 0U, 0U, 0U, 0U, 99U, 77U, false};
     if (interpolationClient.ApplyInterpolation(preservedInterpolationReceipt) || interpolationClient.LastError() != ReplicationError::SceneApplyRejected || preservedInterpolationReceipt.interpolatedEntities != 99U || preservedInterpolationReceipt.reconciledPredictions != 77U || preservedInterpolationReceipt.accepted) return 19;
     const Transform3* interpolationFirstAfterFailure = interpolationScene.GetTransform(interpolationFirst);
