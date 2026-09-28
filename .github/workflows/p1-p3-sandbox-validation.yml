@@ -47,6 +47,7 @@ jobs:
           xvfb-run -a -s "-screen 0 1280x720x24" tools/p3_editor_android_sandbox.sh Build/p3-release
 
       - name: Run complete P3 ASAN coverage
+        if: always()
         env:
           SDL_VIDEODRIVER: x11
           SDL_AUDIODRIVER: dummy
