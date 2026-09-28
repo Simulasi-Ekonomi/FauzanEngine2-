@@ -93,6 +93,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
+    Runtime/GameplayTriggerTracker.cpp
     Runtime/CanonicalReplicationBridge.cpp
     Physics/V5/XPBDPhysicsSystem.cpp
     Runtime/SceneECSBridge.cpp
