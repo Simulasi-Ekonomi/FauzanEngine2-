@@ -1,5 +1,7 @@
 #pragma once
 #include <vector>
+#include <algorithm>
+#include <cstdio>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -8,12 +10,15 @@
 #include <functional>
 #include <curl/curl.h>
 #include <json/json.h>
+#if defined(__ANDROID__)
 #include <android/log.h>
+#define NEO_ANTICHEAT_LOGI(...) __android_log_print(ANDROID_LOG_INFO, "AntiCheat", __VA_ARGS__)
+#define NEO_ANTICHEAT_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "AntiCheat", __VA_ARGS__)
+#else
+#define NEO_ANTICHEAT_LOGI(...) do { std::fprintf(stderr, "[INFO][AntiCheat] "); std::fprintf(stderr, __VA_ARGS__); std::fputc('\n', stderr); } while (false)
+#define NEO_ANTICHEAT_LOGE(...) do { std::fprintf(stderr, "[ERROR][AntiCheat] "); std::fprintf(stderr, __VA_ARGS__); std::fputc('\n', stderr); } while (false)
+#endif
 #include "ItemSerialTracker.h"
-
-#define LOG_TAG "AntiCheat"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 namespace NeoEngine {
 
@@ -157,7 +162,7 @@ public:
 
         if (m_OnPlayerBanned) m_OnPlayerBanned(ban);
 
-        LOGI("BAN: %s (%s) - %s - %s", 
+        NEO_ANTICHEAT_LOGI("BAN: %s (%s) - %s - %s", 
              record.playerName.c_str(), record.playerId.c_str(), 
              record.cheatType.c_str(), 
              ban.isPermanent ? "PERMANENT" : "TEMPORARY");
@@ -212,7 +217,7 @@ public:
                     m_OnItemDestroyed(currentOwnerId, serialNumber);
                 }
 
-                LOGI("Contaminated item %s destroyed from %s (refund: %d gold)", 
+                NEO_ANTICHEAT_LOGI("Contaminated item %s destroyed from %s (refund: %d gold)", 
                      serialNumber.c_str(), currentOwnerName.c_str(), refundAmount);
                 return;
             }
@@ -244,13 +249,13 @@ public:
                             const std::string& itemSerial) {
         // Cek apakah seller adalah cheater
         if (IsPlayerBanned(sellerId)) {
-            LOGE("Transaction blocked: Seller %s is banned", sellerId.c_str());
+            NEO_ANTICHEAT_LOGE("Transaction blocked: Seller %s is banned", sellerId.c_str());
             return false;
         }
 
         // Cek apakah item terkontaminasi
         if (IsItemContaminated(itemSerial)) {
-            LOGE("Transaction blocked: Item %s is contaminated (cheat origin)", itemSerial.c_str());
+            NEO_ANTICHEAT_LOGE("Transaction blocked: Item %s is contaminated (cheat origin)", itemSerial.c_str());
             // Musnahkan item, tapi jangan ban buyer
             DestroyContaminatedItem(itemSerial, sellerId, "Seller", 0);
             return false;
