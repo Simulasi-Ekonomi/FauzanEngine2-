@@ -4,17 +4,14 @@
 #include <chrono>
 #include <random>
 #include <cstdio>
-#include <vector>
 
 using namespace NeoEngine;
 
 void RunBenchmark(int entityCount, const char* label) {
-    // Init engine systems
     ArchetypeManager em;
     XPBDPhysicsSystem phys;
-    JobSystem::Get().Initialize(8);   // 8 worker threads
+    JobSystem::Get().Initialize(8);
 
-    // Create entities randomly in a 100x100 area
     std::mt19937 rng(42);
     std::uniform_real_distribution<float> posDist(-50.0f, 50.0f);
     std::uniform_real_distribution<float> velDist(-2.0f, 2.0f);
@@ -22,24 +19,24 @@ void RunBenchmark(int entityCount, const char* label) {
 
     const uint32_t flags = COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER;
     for (int i = 0; i < entityCount; ++i) {
-        EntityID id = em.CreateEntity(flags);
-        auto* pos = em.GetPosition(id);
-        auto* vel = em.GetVelocity(id);
-        auto* col = em.GetCollider(id);
-        pos->x = posDist(rng);
-        pos->z = posDist(rng);
-        vel->vx = velDist(rng);
-        vel->vz = velDist(rng);
-        col->radius = radiusDist(rng);
-        col->invMass = 1.0f / (col->radius * 10.0f);  // heavier bigger objects
+        const EntityID id = em.CreateEntity(flags);
+        const float x = posDist(rng);
+        const float z = posDist(rng);
+        const float vx = velDist(rng);
+        const float vz = velDist(rng);
+        const float radius = radiusDist(rng);
+        em.SetPosX(id, x);
+        em.SetPosZ(id, z);
+        em.SetVelX(id, vx);
+        em.SetVelZ(id, vz);
+        em.SetRadius(id, radius);
+        em.SetInvMass(id, 1.0f / (radius * 10.0f));
     }
 
-    // Warmup
     for (int f = 0; f < 30; ++f) {
         phys.Step(em, 0.016f);
     }
 
-    // Benchmark
     constexpr int measFrames = 100;
     double totalMs = 0.0;
     size_t totalContacts = 0;
@@ -53,7 +50,7 @@ void RunBenchmark(int entityCount, const char* label) {
     }
 
     double avgMs = totalMs / measFrames;
-    double avgContacts = (double)totalContacts / measFrames;
+    double avgContacts = static_cast<double>(totalContacts) / measFrames;
     printf("Benchmark %s (%d entities):\n", label, entityCount);
     printf("  Avg frame time: %.2f ms\n", avgMs);
     printf("  Avg contacts  : %.0f\n", avgContacts);
