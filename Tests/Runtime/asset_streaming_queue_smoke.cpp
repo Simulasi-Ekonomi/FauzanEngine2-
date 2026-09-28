@@ -110,13 +110,13 @@ int main() {
     });
     assert(retryQueue.Enqueue(StreamRequest{"retry", "retry.obj", 1.0f, 2, 1}));
     assert(retryQueue.TryDequeue(next));
-    assert(retryQueue.CompleteUpload("retry", FakeDeviceMemory(12), 2));
+    assert(retryQueue.CompleteUpload("retry", FakeDeviceMemory<VkDeviceMemory>(12), 2));
     assert(!retryQueue.Release("retry"));
     assert(retryQueue.IsReady("retry"));
-    assert(retryQueue.GetMemory("retry") == FakeDeviceMemory(12));
+    assert(retryQueue.GetMemory("retry") == FakeDeviceMemory<VkDeviceMemory>(12));
     assert(retryQueue.GetResidentMB() == 2);
     assert(retryQueue.Release("retry"));
-    assert(retryReleased.size() == 1 && retryReleased[0] == FakeDeviceMemory(12));
+    assert(retryReleased.size() == 1 && retryReleased[0] == FakeDeviceMemory<VkDeviceMemory>(12));
     assert(retryQueue.GetResidentMB() == 0);
 
     std::cout << "ASSET_STREAMING_QUEUE_SMOKE_OK\n";
