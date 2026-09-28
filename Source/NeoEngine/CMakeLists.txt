@@ -200,6 +200,7 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceCheckpointFile.cpp
     Systems/CommodityCatalog.cpp
     Systems/CommodityEconomyLedger.cpp
+    Systems/FarmTelemetryAdapter.cpp
     Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmWorldTool.cpp
     Systems/ItemSerialTracker.cpp
