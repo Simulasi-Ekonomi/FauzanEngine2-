@@ -240,7 +240,19 @@ int main() {
     atomicSnapshot.states[0] = {700U, 7U, 1U, {2.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
     atomicSnapshot.states[1] = {701U, 8U, 1U, {std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
     ReplicationApplyReceipt atomicReceipt{41U, 42U, 43U, 44U, 45U, 46U, 47U, true};
-    if (atomicClient.ApplyServerSnapshot(atomicSnapshot, atomicReceipt) || atomicClient.LastError() != ReplicationError::InvalidSnapshot || atomicClient.RegisteredCount() != 1U || atomicClient.IsRegistered(701U) || atomicReceipt.sequence != 41U || atomicReceipt.serverTick != 42U || atomicReceipt.appliedEntities != 43U || atomicReceipt.spawnedEntities != 44U || atomicReceipt.despawnedEntities != 45U || atomicReceipt.interpolatedEntities != 46U || atomicReceipt.reconciledPredictions != 47U || atomicReceipt.accepted) return 32;
+    const bool atomicAccepted = atomicClient.ApplyServerSnapshot(atomicSnapshot, atomicReceipt);
+    const bool atomicReceiptPreserved = atomicReceipt.sequence == 41U && atomicReceipt.serverTick == 42U && atomicReceipt.appliedEntities == 43U && atomicReceipt.spawnedEntities == 44U && atomicReceipt.despawnedEntities == 45U && atomicReceipt.interpolatedEntities == 46U && atomicReceipt.reconciledPredictions == 47U && atomicReceipt.accepted;
+    if (atomicAccepted || atomicClient.LastError() != ReplicationError::InvalidSnapshot || atomicClient.RegisteredCount() != 1U || atomicClient.IsRegistered(701U) || !atomicReceiptPreserved) {
+        std::fprintf(stderr, "ATOMIC_FAIL accepted=%d err=%u registered=%u has701=%d receipt=%llu,%llu,%u,%u,%u,%u,%u,%d checksum=%llu\\n",
+            atomicAccepted ? 1 : 0, static_cast<unsigned>(atomicClient.LastError()), static_cast<unsigned>(atomicClient.RegisteredCount()),
+            atomicClient.IsRegistered(701U) ? 1 : 0,
+            static_cast<unsigned long long>(atomicReceipt.sequence), static_cast<unsigned long long>(atomicReceipt.serverTick),
+            static_cast<unsigned>(atomicReceipt.appliedEntities), static_cast<unsigned>(atomicReceipt.spawnedEntities),
+            static_cast<unsigned>(atomicReceipt.despawnedEntities), static_cast<unsigned>(atomicReceipt.interpolatedEntities),
+            static_cast<unsigned>(atomicReceipt.reconciledPredictions), atomicReceipt.accepted ? 1 : 0,
+            static_cast<unsigned long long>(atomicSnapshot.checksum));
+        return 32;
+    }
     const Transform3* atomicTransform = atomicScene.GetTransform(atomicExisting);
     if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) return 32;
 
