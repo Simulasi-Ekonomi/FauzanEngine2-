@@ -287,6 +287,17 @@ uint32_t RuntimeAssetStreamBridge::Pump(uint32_t maxRequests) noexcept {
                 requests_.erase(event.id);
                 continue;
             }
+            try {
+                std::lock_guard<std::mutex> lock(mutex_);
+                gpuUploads_.emplace(event.id, handle);
+            } catch (...) {
+                (void)queue_.FailUpload(event.id);
+                (void)resources_.CancelGpuUpload(handle);
+                (void)resources_.Release(handle);
+                std::lock_guard<std::mutex> lock(mutex_);
+                requests_.erase(event.id);
+                continue;
+            }
         }
 
         if (!isRefresh && kind == AssetKind::Texture) {
