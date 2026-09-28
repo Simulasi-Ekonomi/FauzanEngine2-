@@ -1,8 +1,10 @@
 #include "Runtime/CanonicalRuntimeWorld.h"
+#include "Runtime/CanonicalReplicationBridge.h"
 
 #include <cassert>
 #include <cmath>
 #include <vector>
+#include <limits>
 
 int main() {
     using namespace NeoEngine;
