@@ -267,7 +267,7 @@ int main() {
     NeoEngine::VulkanGraphicsPipeline pipeline;
     if (!pipeline.Initialize(device, pipelineConfig)) return 1;
 
-    NeoEngine::GPUDrivenRenderer indirect;
+    ::GPUDrivenRenderer indirect;
     if (!indirect.Initialize(device, physical, 2)) return 1;
     if (!indirect.TrySubmitDraw({3, 1, 0, 0, 0}) || !indirect.TrySubmitDraw({3, 1, 3, 3, 1})) return 1;
 
