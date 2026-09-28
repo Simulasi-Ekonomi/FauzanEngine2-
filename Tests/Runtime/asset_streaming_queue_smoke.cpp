@@ -45,7 +45,7 @@ int main() {
 
     assert(queue.CompleteUpload("high", FakeDeviceMemory<VkDeviceMemory>(1), 3));
     assert(queue.IsReady("high"));
-    assert(queue.GetMemory("high") == FakeDeviceMemory(1));
+    assert(queue.GetMemory("high") == FakeDeviceMemory<VkDeviceMemory>(1));
     assert(queue.GetResidentMB() == 3);
 
     assert(queue.TryDequeue(next));
@@ -82,7 +82,7 @@ int main() {
     assert(queue.GetResidentMB() == 0);
     assert(!queue.Release("high"));
     assert(released.size() == 2);
-    assert(released[1] == FakeDeviceMemory(1));
+    assert(released[1] == FakeDeviceMemory<VkDeviceMemory>(1));
 
     // Existing allocations retain the releaser that owned them even if the
     // queue callback is replaced later (e.g. after a Vulkan device recreation).
