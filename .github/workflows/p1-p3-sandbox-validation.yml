@@ -52,7 +52,7 @@ jobs:
           SDL_VIDEODRIVER: x11
           SDL_AUDIODRIVER: dummy
           ASAN_OPTIONS: detect_leaks=1
-          LSAN_OPTIONS: suppressions=${GITHUB_WORKSPACE}/.github/asan/lsan-sdl3-x11.supp
+          LSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/asan/lsan-sdl3-x11.supp
           P3_BUILD_TYPE: Debug
           P3_CMAKE_CXX_FLAGS: -fsanitize=address -fno-omit-frame-pointer
           P3_CMAKE_EXE_LINKER_FLAGS: -fsanitize=address
