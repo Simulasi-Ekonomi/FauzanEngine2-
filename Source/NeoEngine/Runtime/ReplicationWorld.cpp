@@ -314,7 +314,7 @@ bool ReplicationWorld::ApplyClientAcknowledgement(const ReplicationAcknowledgeme
     const AcknowledgementRecord& record = acknowledgementHistory_[acknowledgement.sequence % kMaxAcknowledgementHistory];
     if (record.sequence != acknowledgement.sequence) return Fail(ReplicationError::StaleAcknowledgement);
     if (acknowledgement.serverTick != record.serverTick || acknowledgement.checksum != record.checksum) return Fail(ReplicationError::InvalidAcknowledgement);
-    if (acknowledgement.sequence < acknowledgedSequence_) return Fail(ReplicationError::StaleAcknowledgement);
+    if (acknowledgement.sequence <= acknowledgedSequence_) return Fail(ReplicationError::StaleAcknowledgement);
     acknowledgedSequence_ = acknowledgement.sequence;
     acknowledgedServerTick_ = acknowledgement.serverTick;
     lastError_ = ReplicationError::None;
