@@ -525,7 +525,7 @@ bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
         if (previous == nullptr) {
             for (uint16_t rollbackIndex = 0U; rollbackIndex < kMaxEntities; ++rollbackIndex)
                 if (changed[rollbackIndex]) (void)sceneWorld_.SetTransform(slots_[rollbackIndex].entity, previousTransforms[rollbackIndex]);
-            return Fail(ReplicationError::InvalidEntity);
+            return Fail(ReplicationError::SceneApplyRejected);
         }
         if (!slot.hasAuthoritative || !slot.hasReceivedAuthoritativeSnapshot) continue;
         previousTransforms[slotIndex] = *previous;
