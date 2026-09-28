@@ -137,7 +137,7 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
     constexpr size_t kEntityBytes = 4U + 4U + 8U + 9U * sizeof(float);
     if (count > (kMaxBytes - (4U + 2U + 8U + 8U + 2U + 8U)) / kEntityBytes) { error = ReplicationError::CorruptSnapshot; return false; }
     const size_t expectedSize = 4U + 2U + 8U + 8U + 2U + static_cast<size_t>(count) * kEntityBytes + 8U;
-    if (bytes.size() != expectedSize || expectedSize > kMaxBytes || expectedSize < 38U) { error = ReplicationError::CorruptSnapshot; return false; }
+    if (bytes.size() != expectedSize || expectedSize > kMaxBytes || expectedSize < (4U + 2U + 8U + 8U + 2U + 8U)) { error = ReplicationError::CorruptSnapshot; return false; }
     candidate.sequence = sequence; candidate.serverTick = serverTick; candidate.count = count; candidate.checksum = 0U;
     if (candidate.count > ReplicationSnapshot::kMaxEntities) { error = ReplicationError::Capacity; return false; }
     for (uint16_t index = 0U; index < count; ++index) {
