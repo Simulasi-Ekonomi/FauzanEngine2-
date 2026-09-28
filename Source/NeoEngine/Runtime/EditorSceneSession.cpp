@@ -51,7 +51,7 @@ bool EditorSceneSession::UpdateTransform(uint32_t actorId, const Transform3& tra
 }
 bool EditorSceneSession::ReparentActor(uint32_t actorId, uint32_t parentId, const AssetRegistry& assets) {
     if (document_.revision == 0U || document_.revision == std::numeric_limits<uint64_t>::max()) { lastError_ = EditorSceneSessionError::InvalidDocument; return false; }
-    if (actorId == parentId) { lastError_ = EditorSceneSessionError::DocumentLoadFailed; return false; }
+    if (actorId == parentId) { lastError_ = EditorSceneSessionError::InvalidHierarchy; return false; }
     EditorSceneDocument candidate = document_;
     const auto found = std::find_if(candidate.actors.begin(), candidate.actors.end(), [actorId](const EditorSceneActor& actor) { return actor.id == actorId; });
     if (found == candidate.actors.end()) { lastError_ = EditorSceneSessionError::UnknownActor; return false; }
