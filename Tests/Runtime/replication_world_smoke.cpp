@@ -209,7 +209,21 @@ int main() {
     despawnSnapshot.sequence = 2U;
     despawnSnapshot.serverTick = 11U;
     std::vector<uint8_t> despawnBytes;
-    if (!ReplicationSnapshotCodec::Serialize(despawnSnapshot, despawnBytes, codecError) || !ReplicationSnapshotCodec::Deserialize(despawnBytes, decoded, codecError) || !dynamicClient.ApplyServerSnapshot(decoded, apply) || apply.despawnedEntities != 1U || dynamicClient.RegisteredCount() != 0U || dynamicClient.IsRegistered(300U)) return 30;
+    if (!ReplicationSnapshotCodec::Serialize(despawnSnapshot, despawnBytes, codecError) ||
+        !ReplicationSnapshotCodec::Deserialize(despawnBytes, decoded, codecError) ||
+        !dynamicClient.ApplyServerSnapshot(decoded, apply) ||
+        apply.despawnedEntities != 1U || dynamicClient.RegisteredCount() != 0U || dynamicClient.IsRegistered(300U)) {
+        std::fprintf(stderr, "DESPAWN_FAIL err=%u applyAccepted=%d despawned=%u registered=%u stillRegistered=%d seq=%llu tick=%llu checksum=%llu\\n",
+            static_cast<unsigned>(dynamicClient.LastError()),
+            apply.accepted ? 1 : 0,
+            static_cast<unsigned>(apply.despawnedEntities),
+            static_cast<unsigned>(dynamicClient.RegisteredCount()),
+            dynamicClient.IsRegistered(300U) ? 1 : 0,
+            static_cast<unsigned long long>(decoded.sequence),
+            static_cast<unsigned long long>(decoded.serverTick),
+            static_cast<unsigned long long>(decoded.checksum));
+        return 30;
+    }
     if (!RunStaleRemoteEntityRegression()) return 31;
 
     // Atomicity: a dynamic lifecycle snapshot containing a valid spawn followed by
