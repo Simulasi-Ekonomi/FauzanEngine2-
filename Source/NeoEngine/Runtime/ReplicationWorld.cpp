@@ -520,13 +520,14 @@ bool ReplicationWorld::ApplyInterpolation(ReplicationApplyReceipt& receipt) {
     changed.fill(false);
     for (uint16_t slotIndex = 0U; slotIndex < kMaxEntities; ++slotIndex) {
         const Slot& slot = slots_[slotIndex];
-        if (!slot.registered || slot.ownerId == localClientId_ || !slot.hasAuthoritative || !slot.hasReceivedAuthoritativeSnapshot) continue;
+        if (!slot.registered || slot.ownerId == localClientId_) continue;
         const Transform3* previous = sceneWorld_.GetTransform(slot.entity);
         if (previous == nullptr) {
             for (uint16_t rollbackIndex = 0U; rollbackIndex < kMaxEntities; ++rollbackIndex)
                 if (changed[rollbackIndex]) (void)sceneWorld_.SetTransform(slots_[rollbackIndex].entity, previousTransforms[rollbackIndex]);
             return Fail(ReplicationError::InvalidEntity);
         }
+        if (!slot.hasAuthoritative || !slot.hasReceivedAuthoritativeSnapshot) continue;
         previousTransforms[slotIndex] = *previous;
         const Transform3 candidate = Lerp(slot.previousAuthoritative, slot.authoritative, interpolationAlphaPermille_);
         if (!sceneWorld_.SetTransform(slot.entity, candidate)) {
