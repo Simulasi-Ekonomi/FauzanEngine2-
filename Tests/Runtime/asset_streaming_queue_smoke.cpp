@@ -76,7 +76,7 @@ int main() {
     assert(queue.IsReady("high"));
     assert(!queue.IsReady("old"));
     assert(released.size() == 1);
-    assert(released[0] == FakeDeviceMemory(2));
+    assert(released[0] == FakeDeviceMemory<VkDeviceMemory>(2));
 
     assert(queue.Release("high"));
     assert(queue.GetResidentMB() == 0);
