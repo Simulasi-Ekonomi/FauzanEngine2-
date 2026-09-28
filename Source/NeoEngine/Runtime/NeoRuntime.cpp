@@ -182,6 +182,7 @@ bool NeoRuntime::Initialize(const RuntimeConfig& config) {
     m_MotionAuthority = std::move(motionAuthority);
     m_Scene = std::move(scene);
     m_ECS = std::move(ecs);
+    m_SceneMeshes = std::make_unique<SceneMeshAdapter>();
     m_SceneECSBridge = std::move(sceneECSBridge);
     m_SceneCameraConfig = config.sceneCamera;
     m_RenderWidth = config.renderWidth;
