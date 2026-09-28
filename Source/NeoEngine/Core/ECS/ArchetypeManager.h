@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
+#include <utility>
 
 namespace NeoEngine {
 
@@ -102,6 +103,7 @@ private:
     EntityID nextEntityID_ = 0;
     std::unordered_map<EntityID, ArchetypeChunk*> entityToChunk_;
     std::unordered_map<EntityID, size_t> entityToIndex_;
+    std::unordered_map<EntityID, std::pair<uint64_t, uint64_t>> meshAssetIdentity_;
     uint64_t physicsRevision_ = 1;
 };
 
