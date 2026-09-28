@@ -31,9 +31,12 @@ void RunST(int n, const char* label) {
         const float vz = vd(rng);
         const float radius = rd(rng);
         const float invMass = 1.0f / (radius * 10.0f);
-        em.SetPosition(id, Position{px, 0.0F, pz});
-        em.SetVelocity(id, Velocity{vx, 0.0F, vz});
-        em.SetCollider(id, Collider{radius, invMass});
+        em.SetPosX(id, px);
+        em.SetPosZ(id, pz);
+        em.SetVelX(id, vx);
+        em.SetVelZ(id, vz);
+        em.SetRadius(id, radius);
+        em.SetInvMass(id, invMass);
     }
 
     printf("  [%s] Warmup 30 frame...\n", label);
