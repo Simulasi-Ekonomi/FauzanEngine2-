@@ -25,13 +25,15 @@ void RunST(int n, const char* label) {
     printf("  [%s] Membuat %d entity...\n", label, n);
     for (int i=0; i<n; ++i) {
         EntityID id = em.CreateEntity(f);
-        auto* p = em.GetPosition(id);
-        auto* v = em.GetVelocity(id);
-        auto* c = em.GetCollider(id);
-        p->x = pd(rng); p->z = pd(rng);
-        v->vx = vd(rng); v->vz = vd(rng);
-        c->radius = rd(rng);
-        c->invMass = 1.0f / (c->radius * 10.0f);
+        const float px = pd(rng);
+        const float pz = pd(rng);
+        const float vx = vd(rng);
+        const float vz = vd(rng);
+        const float radius = rd(rng);
+        const float invMass = 1.0f / (radius * 10.0f);
+        em.SetPosition(id, Position{px, 0.0F, pz});
+        em.SetVelocity(id, Velocity{vx, 0.0F, vz});
+        em.SetCollider(id, Collider{radius, invMass});
     }
 
     printf("  [%s] Warmup 30 frame...\n", label);
