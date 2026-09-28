@@ -10,7 +10,6 @@ using namespace NeoEngine;
 
 void RunBenchmark(int entityCount, const char* label) {
     ArchetypeManager em;
-    // Alokasi XPBDPhysicsSystem di heap agar stack tidak overflow
     auto phys = std::make_unique<XPBDPhysicsSystem>();
     JobSystem::Get().Initialize(8);
 
@@ -21,36 +20,31 @@ void RunBenchmark(int entityCount, const char* label) {
 
     const uint32_t flags = COMP_POSITION | COMP_VELOCITY | COMP_COLLIDER;
     for (int i = 0; i < entityCount; ++i) {
-        EntityID id = em.CreateEntity(flags);
-        auto* pos = em.GetPosition(id);
-        auto* vel = em.GetVelocity(id);
-        auto* col = em.GetCollider(id);
-        pos->x = posDist(rng);
-        pos->z = posDist(rng);
-        vel->vx = velDist(rng);
-        vel->vz = velDist(rng);
-        col->radius = radiusDist(rng);
-        col->invMass = 1.0f / (col->radius * 10.0f);
+        const EntityID id = em.CreateEntity(flags);
+        const float radius = radiusDist(rng);
+        em.SetPosX(id, posDist(rng));
+        em.SetPosZ(id, posDist(rng));
+        em.SetVelX(id, velDist(rng));
+        em.SetVelZ(id, velDist(rng));
+        em.SetRadius(id, radius);
+        em.SetInvMass(id, 1.0f / (radius * 10.0f));
     }
 
-    for (int f = 0; f < 30; ++f) {
-        phys->Step(em, 0.016f);
-    }
+    for (int f = 0; f < 30; ++f) phys->Step(em, 0.016f);
 
     constexpr int measFrames = 100;
     double totalMs = 0.0;
     size_t totalContacts = 0;
     for (int f = 0; f < measFrames; ++f) {
-        auto t1 = std::chrono::steady_clock::now();
+        const auto t1 = std::chrono::steady_clock::now();
         phys->Step(em, 0.016f);
-        auto t2 = std::chrono::steady_clock::now();
-        double ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
-        totalMs += ms;
+        const auto t2 = std::chrono::steady_clock::now();
+        totalMs += std::chrono::duration<double, std::milli>(t2 - t1).count();
         totalContacts += phys->GetManifoldCount();
     }
 
-    double avgMs = totalMs / measFrames;
-    double avgContacts = (double)totalContacts / measFrames;
+    const double avgMs = totalMs / measFrames;
+    const double avgContacts = static_cast<double>(totalContacts) / measFrames;
     printf("Benchmark %s (%d entities):\n", label, entityCount);
     printf("  Avg frame time: %.2f ms\n", avgMs);
     printf("  Avg contacts  : %.0f\n", avgContacts);
