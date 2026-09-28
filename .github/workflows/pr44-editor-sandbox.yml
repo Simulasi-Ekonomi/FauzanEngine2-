@@ -41,13 +41,23 @@ jobs:
           cmake --build build/pr44-release --target             editor_scene_agent_smoke             editor_scene_session_smoke             audio_subsystem_smoke             neo_runtime_audio_smoke             wav_audio_pitch_regression_smoke             pbr_lighting_smoke             vulkan_renderer_3d_smoke             -j2
       - name: Run PR44 functional smoke targets
         run: |
-          ./build/pr44-release/editor_scene_agent_smoke
-          ./build/pr44-release/editor_scene_session_smoke
-          ./build/pr44-release/audio_subsystem_smoke
-          ./build/pr44-release/neo_runtime_audio_smoke
-          ./build/pr44-release/wav_audio_pitch_regression_smoke
-          ./build/pr44-release/pbr_lighting_smoke
-          ./build/pr44-release/vulkan_renderer_3d_smoke
+          set +e
+          status=0
+          for test in \
+            editor_scene_agent_smoke \
+            editor_scene_session_smoke \
+            audio_subsystem_smoke \
+            neo_runtime_audio_smoke \
+            wav_audio_pitch_regression_smoke \
+            pbr_lighting_smoke \
+            vulkan_renderer_3d_smoke; do
+            echo "=== PR44 RELEASE: $test ==="
+            "./build/pr44-release/$test"
+            rc=$?
+            echo "=== PR44 RELEASE: $test exit=$rc ==="
+            if [ "$rc" -ne 0 ]; then status=1; fi
+          done
+          exit "$status"
       - name: Configure ASAN
         run: cmake -S Source/NeoEngine -B build/pr44-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer' '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address'
       - name: Build PR44 functional smoke targets ASAN
@@ -57,10 +67,20 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
         run: |
-          ./build/pr44-asan/editor_scene_agent_smoke
-          ./build/pr44-asan/editor_scene_session_smoke
-          ./build/pr44-asan/audio_subsystem_smoke
-          ./build/pr44-asan/neo_runtime_audio_smoke
-          ./build/pr44-asan/wav_audio_pitch_regression_smoke
-          ./build/pr44-asan/pbr_lighting_smoke
-          ./build/pr44-asan/vulkan_renderer_3d_smoke
+          set +e
+          status=0
+          for test in \
+            editor_scene_agent_smoke \
+            editor_scene_session_smoke \
+            audio_subsystem_smoke \
+            neo_runtime_audio_smoke \
+            wav_audio_pitch_regression_smoke \
+            pbr_lighting_smoke \
+            vulkan_renderer_3d_smoke; do
+            echo "=== PR44 ASAN: $test ==="
+            "./build/pr44-asan/$test"
+            rc=$?
+            echo "=== PR44 ASAN: $test exit=$rc ==="
+            if [ "$rc" -ne 0 ]; then status=1; fi
+          done
+          exit "$status"
