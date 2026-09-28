@@ -218,6 +218,7 @@ void ArchetypeManager::SetComponentMask(EntityID id, uint32_t componentMask) {
     if (newChunk->count >= newChunk->capacity) return;
     const size_t newIndex = newChunk->count++;
     newChunk->entities[newIndex] = id;
+    const auto identityIt = meshAssetIdentity_.find(id);
     if (newChunk->posX && oldChunk->posX) newChunk->posX[newIndex] = oldChunk->posX[oldIndex];
     if (newChunk->posY && oldChunk->posY) newChunk->posY[newIndex] = oldChunk->posY[oldIndex];
     if (newChunk->posZ && oldChunk->posZ) newChunk->posZ[newIndex] = oldChunk->posZ[oldIndex];
@@ -227,8 +228,15 @@ void ArchetypeManager::SetComponentMask(EntityID id, uint32_t componentMask) {
     if (newChunk->radius && oldChunk->radius) newChunk->radius[newIndex] = oldChunk->radius[oldIndex];
     if (newChunk->invMass && oldChunk->invMass) newChunk->invMass[newIndex] = oldChunk->invMass[oldIndex];
     if (newChunk->meshID && oldChunk->meshID) newChunk->meshID[newIndex] = oldChunk->meshID[oldIndex];
-    if (newChunk->meshAssetHash && oldChunk->meshAssetHash) newChunk->meshAssetHash[newIndex] = oldChunk->meshAssetHash[oldIndex];
-    if (newChunk->materialAssetHash && oldChunk->materialAssetHash) newChunk->materialAssetHash[newIndex] = oldChunk->materialAssetHash[oldIndex];
+    if (newChunk->meshAssetHash) {
+        if (oldChunk->meshAssetHash) {
+            newChunk->meshAssetHash[newIndex] = oldChunk->meshAssetHash[oldIndex];
+            newChunk->materialAssetHash[newIndex] = oldChunk->materialAssetHash[oldIndex];
+        } else if (identityIt != meshAssetIdentity_.end()) {
+            newChunk->meshAssetHash[newIndex] = identityIt->second.first;
+            newChunk->materialAssetHash[newIndex] = identityIt->second.second;
+        }
+    }
     if (newChunk->rotX && oldChunk->rotX) newChunk->rotX[newIndex] = oldChunk->rotX[oldIndex];
     if (newChunk->rotY && oldChunk->rotY) newChunk->rotY[newIndex] = oldChunk->rotY[oldIndex];
     if (newChunk->rotZ && oldChunk->rotZ) newChunk->rotZ[newIndex] = oldChunk->rotZ[oldIndex];
@@ -311,6 +319,7 @@ void ArchetypeManager::DestroyEntity(EntityID id) {
     --chunk->count;
     entityToChunk_.erase(chunkIt);
     entityToIndex_.erase(indexIt);
+    meshAssetIdentity_.erase(id);
     MarkPhysicsDirty();
 }
 
@@ -359,6 +368,7 @@ void ArchetypeManager::SetMeshAssetIdentity(EntityID id, uint64_t meshHash, uint
     if (chunk->meshAssetHash[index] == meshHash && chunk->materialAssetHash[index] == materialHash) return;
     chunk->meshAssetHash[index] = meshHash;
     chunk->materialAssetHash[index] = materialHash;
+    meshAssetIdentity_[id] = {meshHash, materialHash};
     MarkPhysicsDirty();
 }
 
