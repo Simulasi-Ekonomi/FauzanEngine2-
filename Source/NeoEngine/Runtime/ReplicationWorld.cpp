@@ -227,7 +227,6 @@ bool ReplicationWorld::BuildServerSnapshot(uint64_t serverTick, ReplicationSnaps
     if (serverTick < lastServerTick_) return Fail(ReplicationError::StaleSnapshot);
     if (registeredCount_ > kMaxEntities) return Fail(ReplicationError::Capacity);
     if (snapshotSequence_ == std::numeric_limits<uint64_t>::max()) return Fail(ReplicationError::Capacity);
-    snapshot = {};
     struct CandidateState { uint16_t slotIndex = 0U; ReplicatedEntityState state{}; Transform3 previous{}; };
     std::array<CandidateState, kMaxEntities> candidates{};
     uint16_t count = 0U;
