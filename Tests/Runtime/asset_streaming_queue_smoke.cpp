@@ -93,10 +93,10 @@ int main() {
     assert(ownershipQueue.Enqueue(StreamRequest{"owned", "owned.obj", 1.0f, 2, 1}));
     assert(ownershipQueue.TryDequeue(next));
     assert(next.id == "owned");
-    assert(ownershipQueue.CompleteUpload("owned", FakeDeviceMemory(11), 2));
+    assert(ownershipQueue.CompleteUpload("owned", FakeDeviceMemory<VkDeviceMemory>(11), 2));
     ownershipQueue.SetGpuMemoryReleaseCallback([&ownerB](VkDeviceMemory memory) { ownerB.push_back(memory); });
     assert(ownershipQueue.Release("owned"));
-    assert(ownerA.size() == 1 && ownerA[0] == FakeDeviceMemory(11));
+    assert(ownerA.size() == 1 && ownerA[0] == FakeDeviceMemory<VkDeviceMemory>(11));
     assert(ownerB.empty());
 
     // A throwing releaser must not make an allocation disappear or corrupt
