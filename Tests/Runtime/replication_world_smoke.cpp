@@ -271,6 +271,12 @@ int main() {
         lifecycleReceipt.spawnedEntities != 54U || lifecycleReceipt.despawnedEntities != 55U ||
         lifecycleReceipt.interpolatedEntities != 56U || lifecycleReceipt.reconciledPredictions != 57U || lifecycleReceipt.accepted) return 33;
     atomicTransform = atomicScene.GetTransform(atomicExisting);
-    if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) return 33;
+    if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) {
+        std::fprintf(stderr, "LIFECYCLE_PRESTATE_FAIL transform=%d x=%f seq=%llu err=%u registered=%u has700=%d has701=%d\\n",
+            atomicTransform != nullptr ? 1 : 0, atomicTransform != nullptr ? atomicTransform->x : -999.0F,
+            static_cast<unsigned long long>(atomicClient.SnapshotSequence()), static_cast<unsigned>(atomicClient.LastError()),
+            static_cast<unsigned>(atomicClient.RegisteredCount()), atomicClient.IsRegistered(700U) ? 1 : 0, atomicClient.IsRegistered(701U) ? 1 : 0);
+        return 33;
+    }
     return 0;
 }
