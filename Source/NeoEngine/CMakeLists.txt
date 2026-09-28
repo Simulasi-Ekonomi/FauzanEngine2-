@@ -120,6 +120,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
     Runtime/RuntimeClock.cpp
+    Runtime/AndroidLifecycleGate.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
