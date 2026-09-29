@@ -169,7 +169,6 @@ set(XPBD_RUNTIME_SOURCES
     Systems/CurriculumSystem.cpp
     Systems/AgricultureCurriculum.cpp
     Systems/AuthoringCatalog.cpp
-    Systems/ItemSerialTracker.cpp
     Systems/FarmSystem.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
