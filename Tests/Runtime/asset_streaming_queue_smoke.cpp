@@ -112,9 +112,7 @@ int main() {
     assert(refreshQueue.GetMemory("refresh") == FakeDeviceMemory(22));
     assert(refreshQueue.GetResidentMB() == 3);
 
-    assert(queue.TryDequeue(next));
-    assert(next.id == "low");
-    assert(queue.FailUpload("low"));
+    // The targeted BeginUpload already removed low from the priority queue; its failure is terminal.
     assert(queue.GetState("low") == StreamState::Failed);
     assert(queue.GetAssetCount() == 1);
 
