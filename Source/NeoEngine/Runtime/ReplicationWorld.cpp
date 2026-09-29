@@ -155,7 +155,8 @@ bool ReplicationSnapshotCodec::Deserialize(std::span<const uint8_t> bytes, Repli
 }
 
 bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement& acknowledgement, std::vector<uint8_t>& bytes, ReplicationError& error) {
-    bytes.clear();
+    // Transactional serialization: preserve caller-owned output on every failure.
+    std::vector<uint8_t> encoded;
     if (acknowledgement.sequence == 0U || acknowledgement.sequence == std::numeric_limits<uint64_t>::max() || acknowledgement.checksum == 0U || acknowledgement.checksum == std::numeric_limits<uint64_t>::max() || acknowledgement.serverTick == std::numeric_limits<uint64_t>::max()) { error = ReplicationError::InvalidAcknowledgement; return false; }
     try {
         std::vector<uint8_t> content;
@@ -164,7 +165,8 @@ bool ReplicationAcknowledgementCodec::Serialize(const ReplicationAcknowledgement
         if (content.size() + sizeof(uint64_t) > kMaxBytes) { error = ReplicationError::Capacity; return false; }
         AppendU64(content, Hash(content));
         if (content.size() != 38U || content.size() > kMaxBytes) { error = ReplicationError::Capacity; return false; }
-        bytes = std::move(content);
+        encoded = std::move(content);
+        bytes = std::move(encoded);
         error = ReplicationError::None;
         return true;
     } catch (const std::bad_alloc&) {
