@@ -144,7 +144,8 @@ jobs:
           SDL_VIDEODRIVER: x11
         run: |
           mapfile -t targets < /tmp/p1_targets.txt
-          start=$(( ${{ matrix.shard }} * 27 ))
+          SHARD=${{ matrix.shard }}
+          start=$(( SHARD * 27 ))
           end=$(( start + 27 ))
           pass=0; fail=0
           for ((i=start;i<end;i++)); do
@@ -277,7 +278,8 @@ jobs:
           LSAN_OPTIONS: suppressions=.github/asan/lsan-sdl3-x11.supp
         run: |
           mapfile -t targets < /tmp/p1_targets.txt
-          start=$(( matrix.shard * 27 ))
+          SHARD=${{ matrix.shard }}
+          start=$(( SHARD * 27 ))
           end=$(( start + 27 ))
           pass=0; fail=0
           for ((i=start;i<end;i++)); do
