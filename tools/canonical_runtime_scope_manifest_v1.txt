@@ -31,5 +31,5 @@ non_active_legacy|Core/Memory/MemoryPool.h
 non_active_experimental|ECS/V4/FauzanECSSystems.h
 active_enum_marker|Runtime/RendererCapability.h
 non_active_legacy|Streaming/StreamManager.h
-non_active_legacy|Systems/ItemSerialTracker.cpp
+active_fail_closed_legacy|Systems/ItemSerialTracker.cpp
 third_party_upstream_marker|ThirdParty/tiny_obj_loader.h
