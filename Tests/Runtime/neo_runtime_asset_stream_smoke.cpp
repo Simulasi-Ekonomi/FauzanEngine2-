@@ -20,7 +20,11 @@ int main() {
     NeoRuntime runtime;
     RuntimeConfig config{};
     config.farmNpcCount = 1U;
-    assert(runtime.Initialize(config));
+    if (!runtime.Initialize(config)) {
+        std::fprintf(stderr, "RUNTIME_INIT_FAIL error=%u\\n", static_cast<unsigned>(runtime.LastError()));
+        std::remove(path);
+        return 1;
+    }
 
     StreamRequest request{};
     request.id = "runtime.stream.smoke";
@@ -33,7 +37,14 @@ int main() {
     bool ready = false;
     for (uint32_t i = 0U; i < 120U && !ready; ++i) {
         assert(runtime.Tick());
-        const AssetDefinition* definition = runtime.Assets()->Find(request.id);
+        const AssetRegistry* assets = runtime.Assets();
+        if (assets == nullptr) {
+            std::fprintf(stderr, "ASSET_REGISTRY_MISSING state=%u\\n", static_cast<unsigned>(runtime.State()));
+            runtime.Shutdown();
+            std::remove(path);
+            return 1;
+        }
+        const AssetDefinition* definition = assets->Find(request.id);
         ready = definition != nullptr && definition->state == AssetState::Ready;
         if (!ready) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
