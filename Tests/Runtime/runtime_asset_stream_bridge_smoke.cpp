@@ -102,9 +102,18 @@ int main() {
 
     std::vector<VkDeviceMemory> replacementReleased;
     const VkDeviceMemory secondMemory = FakeDeviceMemory(0x2002U);
-    assert(bridge.CompleteGpuUpload(
+    const bool replacementComplete = bridge.CompleteGpuUpload(
         request.id, secondMemory, 1U,
-        [&replacementReleased](VkDeviceMemory memory) { replacementReleased.push_back(memory); }));
+        [&replacementReleased](VkDeviceMemory memory) { replacementReleased.push_back(memory); });
+    if (!replacementComplete) {
+        AssetResourceReceipt failedReceipt{};
+        (void)resources.Query(handle, failedReceipt);
+        std::fprintf(stderr, "REFRESH_COMPLETE_FAIL queueState=%u resident=%u pending=%u resourceError=%u inFlight=%u residentGpu=%d\\n",
+            static_cast<unsigned>(queue.GetState(request.id)),
+            bridge.ResidentGpuUploadCount(), bridge.PendingGpuUploadCount(), static_cast<unsigned>(resources.LastError()),
+            static_cast<unsigned>(failedReceipt.gpuUploadsInFlight), failedReceipt.gpuResident ? 1 : 0);
+    }
+    assert(replacementComplete);
     assert(bridge.PendingGpuUploadCount() == 0U);
     assert(bridge.ResidentGpuUploadCount() == 1U);
     assert(queue.IsReady(request.id));
