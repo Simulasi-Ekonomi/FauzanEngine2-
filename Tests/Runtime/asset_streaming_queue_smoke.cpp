@@ -101,7 +101,10 @@ int main() {
     assert(refreshQueue.GetResidentMB() == 3);
     assert(oldRefreshMemory == FakeDeviceMemory(21));
     assert(refreshReleased.empty());
-    assert(oldRefreshOwner);
+    if (!oldRefreshOwner) {
+        std::cerr << "REFRESH_OWNER_MISSING\n";
+        return 1;
+    }
     oldRefreshOwner(oldRefreshMemory);
     assert(refreshReleased.size() == 1 && refreshReleased[0] == FakeDeviceMemory(21));
 
