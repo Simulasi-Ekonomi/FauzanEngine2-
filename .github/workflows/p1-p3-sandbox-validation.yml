@@ -6,6 +6,7 @@ on:
       - p3-editor-android-production-night
   pull_request:
     branches:
+      - main
       - sandbox-p0-validation-20260920
     paths:
       - 'Source/NeoEngine/**'
