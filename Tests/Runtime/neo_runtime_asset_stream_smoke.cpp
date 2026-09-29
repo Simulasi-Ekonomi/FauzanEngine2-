@@ -11,8 +11,10 @@ int main() {
     const char* path = "neo_runtime_asset_stream_smoke.bin";
     {
         std::ofstream file(path, std::ios::binary);
-        const unsigned char bytes[] = {0x10U, 0x20U, 0x30U, 0x40U};
-        file.write(reinterpret_cast<const char*>(bytes), sizeof(bytes));
+        const char header[] = "P6\n1 1\n255\n";
+        const unsigned char pixel[] = {16U, 32U, 48U};
+        file.write(header, sizeof(header) - 1U);
+        file.write(reinterpret_cast<const char*>(pixel), sizeof(pixel));
     }
 
     NeoRuntime runtime;
