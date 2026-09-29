@@ -274,7 +274,7 @@ jobs:
           SDL_VIDEODRIVER: x11
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
-          LSAN_OPTIONS: suppressions=.github/asan/third_party_sdl_x11.lsan.supp
+          LSAN_OPTIONS: suppressions=.github/asan/lsan-sdl3-x11.supp
         run: |
           mapfile -t targets < /tmp/p1_targets.txt
           start=$(( matrix.shard * 27 ))
