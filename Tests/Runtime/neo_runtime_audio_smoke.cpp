@@ -3,7 +3,6 @@
 #include "Runtime/WavAudioParser.h"
 
 #include <SDL3/SDL.h>
-#include <cassert>
 #include <limits>
 
 int main() {
@@ -48,7 +47,8 @@ int main() {
     assert(audio.QueuedVoiceCount() == 1U);
 
     SDL_Delay(40);
-    assert(audio.FramesMixed() > 0U);
+    assert(audio.MixFrames(1024));
+    assert(audio.FramesMixed() >= 1024U);
     assert(audio.Stop(101));
     assert(audio.QueuedVoiceCount() == 0U);
 
