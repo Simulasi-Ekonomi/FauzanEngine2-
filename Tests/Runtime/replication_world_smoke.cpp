@@ -264,12 +264,24 @@ int main() {
     lifecycleRollback.count = 1U;
     lifecycleRollback.states[0] = {701U, 8U, 1U, {std::numeric_limits<float>::quiet_NaN(), 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}};
     ReplicationApplyReceipt lifecycleReceipt{51U, 52U, 53U, 54U, 55U, 56U, 57U, true};
-    if (atomicClient.ApplyServerSnapshot(lifecycleRollback, lifecycleReceipt) ||
-        atomicClient.LastError() != ReplicationError::InvalidSnapshot ||
-        atomicClient.RegisteredCount() != 1U || !atomicClient.IsRegistered(700U) || atomicClient.IsRegistered(701U) ||
-        lifecycleReceipt.sequence != 51U || lifecycleReceipt.serverTick != 52U || lifecycleReceipt.appliedEntities != 53U ||
-        lifecycleReceipt.spawnedEntities != 54U || lifecycleReceipt.despawnedEntities != 55U ||
-        lifecycleReceipt.interpolatedEntities != 56U || lifecycleReceipt.reconciledPredictions != 57U || lifecycleReceipt.accepted) return 33;
+    const bool lifecycleAccepted = atomicClient.ApplyServerSnapshot(lifecycleRollback, lifecycleReceipt);
+    const bool lifecycleContractOk = !lifecycleAccepted &&
+        atomicClient.LastError() == ReplicationError::InvalidSnapshot &&
+        atomicClient.RegisteredCount() == 1U && atomicClient.IsRegistered(700U) && !atomicClient.IsRegistered(701U) &&
+        lifecycleReceipt.sequence == 51U && lifecycleReceipt.serverTick == 52U && lifecycleReceipt.appliedEntities == 53U &&
+        lifecycleReceipt.spawnedEntities == 54U && lifecycleReceipt.despawnedEntities == 55U &&
+        lifecycleReceipt.interpolatedEntities == 56U && lifecycleReceipt.reconciledPredictions == 57U && lifecycleReceipt.accepted;
+    if (!lifecycleContractOk) {
+        std::fprintf(stderr, "LIFECYCLE_CONTRACT_FAIL accepted=%d err=%u registered=%u has700=%d has701=%d receipt=%llu,%llu,%u,%u,%u,%u,%u,%d checksum=%llu\\n",
+            lifecycleAccepted ? 1 : 0, static_cast<unsigned>(atomicClient.LastError()), static_cast<unsigned>(atomicClient.RegisteredCount()),
+            atomicClient.IsRegistered(700U) ? 1 : 0, atomicClient.IsRegistered(701U) ? 1 : 0,
+            static_cast<unsigned long long>(lifecycleReceipt.sequence), static_cast<unsigned long long>(lifecycleReceipt.serverTick),
+            static_cast<unsigned>(lifecycleReceipt.appliedEntities), static_cast<unsigned>(lifecycleReceipt.spawnedEntities),
+            static_cast<unsigned>(lifecycleReceipt.despawnedEntities), static_cast<unsigned>(lifecycleReceipt.interpolatedEntities),
+            static_cast<unsigned>(lifecycleReceipt.reconciledPredictions), lifecycleReceipt.accepted ? 1 : 0,
+            static_cast<unsigned long long>(lifecycleRollback.checksum));
+        return 33;
+    }
     atomicTransform = atomicScene.GetTransform(atomicExisting);
     if (atomicTransform == nullptr || std::abs(atomicTransform->x - 1.0F) > 0.0001F || atomicClient.SnapshotSequence() != 0U) {
         std::fprintf(stderr, "LIFECYCLE_PRESTATE_FAIL transform=%d x=%f seq=%llu err=%u registered=%u has700=%d has701=%d\\n",
