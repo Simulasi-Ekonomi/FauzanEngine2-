@@ -13,7 +13,7 @@ NeoEngine::Mat4 Translation(float x, float y, float z) {
 }
 NeoEngine::SkeletalPoseKeyframe Key(float time, float x, float y, float z) {
     NeoEngine::SkeletalPoseKeyframe k{};
-    k.time = time; k.translation = {x, y, z};
+    k.time = time; k.translation = {x, y, z}; k.rotation = {0.0F, 0.0F, 0.0F, 1.0F}; k.scale = {1.0F, 1.0F, 1.0F};
     return k;
 }
 bool Near(float a, float b) { return std::fabs(a - b) < 0.0001F; }
