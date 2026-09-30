@@ -378,10 +378,16 @@ bool ArchetypeManager::TryGetMeshAssetIdentity(EntityID id, uint64_t& meshHash, 
     if (chunkIt == entityToChunk_.end() || indexIt == entityToIndex_.end() || chunkIt->second == nullptr) return false;
     const ArchetypeChunk* chunk = chunkIt->second;
     const size_t index = indexIt->second;
-    if (index >= chunk->count || chunk->meshAssetHash == nullptr || chunk->materialAssetHash == nullptr) return false;
-    meshHash = chunk->meshAssetHash[index];
-    materialHash = chunk->materialAssetHash[index];
-    return meshHash != 0U && materialHash != 0U;
+    if (index < chunk->count && chunk->meshAssetHash != nullptr && chunk->materialAssetHash != nullptr) {
+        meshHash = chunk->meshAssetHash[index];
+        materialHash = chunk->materialAssetHash[index];
+        if (meshHash != 0U && materialHash != 0U) return true;
+    }
+    const auto identityIt = meshAssetIdentity_.find(id);
+    if (identityIt == meshAssetIdentity_.end() || identityIt->second.first == 0U || identityIt->second.second == 0U) return false;
+    meshHash = identityIt->second.first;
+    materialHash = identityIt->second.second;
+    return true;
 }
 
 bool ArchetypeManager::TryGetPosition(EntityID id, float& x, float& y, float& z) const {
