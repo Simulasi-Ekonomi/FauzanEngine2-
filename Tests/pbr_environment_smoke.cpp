@@ -2,15 +2,16 @@
 #include "Runtime/PBREnvironment.h"
 #include "Runtime/PBREnvironmentDescriptorSet.h"
 
-#include <cassert>
 #include <cstdint>
 #include <fstream>
+#include <cstdlib>
 #include <string>
 
 namespace {
+#define REQUIRE(...) do { if (!(__VA_ARGS__)) std::abort(); } while (false)
 void WriteTinyHDR(const std::string& path) {
     std::ofstream out(path, std::ios::binary);
-    assert(out);
+    REQUIRE(out);
     out << "#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 2 +X 2\n";
     const uint8_t scanline[] = {
         2,2,0,2, 130,128, 130,128, 130,128, 130,129,
@@ -30,42 +31,42 @@ int main() {
     config.irradianceFaceSize = 4;
     config.prefilterFaceSize = 8;
     config.prefilterSamples = 8;
-    assert(environment.LoadHDR(path, config));
-    assert(environment.IsCpuReady());
-    assert(environment.Format() == VK_FORMAT_R16G16B16A16_SFLOAT);
-    assert(environment.EnvironmentFaceSize() == 8);
-    assert(environment.IrradianceFaceSize() == 4);
-    assert(environment.PrefilterFaceSize() == 8);
-    assert(environment.PrefilterMipLevels() == 4);
-    assert(environment.Settings().maxReflectionLod == 3.0f);
-    assert(NeoEngine::ValidatePBRIBLSettings(environment.Settings()));
+    REQUIRE(environment.LoadHDR(path, config));
+    REQUIRE(environment.IsCpuReady());
+    REQUIRE(environment.Format() == VK_FORMAT_R16G16B16A16_SFLOAT);
+    REQUIRE(environment.EnvironmentFaceSize() == 8);
+    REQUIRE(environment.IrradianceFaceSize() == 4);
+    REQUIRE(environment.PrefilterFaceSize() == 8);
+    REQUIRE(environment.PrefilterMipLevels() == 4);
+    REQUIRE(environment.Settings().maxReflectionLod == 3.0f);
+    REQUIRE(NeoEngine::ValidatePBRIBLSettings(environment.Settings()));
 
-    assert(environment.UploadToVulkan());
-    assert(environment.IsGpuReady());
-    assert(environment.EnvironmentView() != VK_NULL_HANDLE);
-    assert(environment.EnvironmentSampler() != VK_NULL_HANDLE);
-    assert(environment.IrradianceView() != VK_NULL_HANDLE);
-    assert(environment.IrradianceSampler() != VK_NULL_HANDLE);
-    assert(environment.PrefilteredView() != VK_NULL_HANDLE);
-    assert(environment.PrefilteredSampler() != VK_NULL_HANDLE);
+    REQUIRE(environment.UploadToVulkan());
+    REQUIRE(environment.IsGpuReady());
+    REQUIRE(environment.EnvironmentView() != VK_NULL_HANDLE);
+    REQUIRE(environment.EnvironmentSampler() != VK_NULL_HANDLE);
+    REQUIRE(environment.IrradianceView() != VK_NULL_HANDLE);
+    REQUIRE(environment.IrradianceSampler() != VK_NULL_HANDLE);
+    REQUIRE(environment.PrefilteredView() != VK_NULL_HANDLE);
+    REQUIRE(environment.PrefilteredSampler() != VK_NULL_HANDLE);
 
     NeoEngine::BRDFLut brdfLut;
-    assert(brdfLut.Initialize(environment.Device(), environment.PhysicalDevice(),
+    REQUIRE(brdfLut.Initialize(environment.Device(), environment.PhysicalDevice(),
                               environment.GraphicsQueue(), environment.GraphicsQueueFamily()));
-    assert(brdfLut.Generate());
-    assert(brdfLut.IsValid());
+    REQUIRE(brdfLut.Generate());
+    REQUIRE(brdfLut.IsValid());
 
     NeoEngine::PBREnvironmentDescriptorSet environmentDescriptors;
-    assert(environmentDescriptors.Initialize(environment.Device()));
-    assert(environmentDescriptors.IsValid());
+    REQUIRE(environmentDescriptors.Initialize(environment.Device()));
+    REQUIRE(environmentDescriptors.IsValid());
     VkDescriptorSet environmentSet = environmentDescriptors.AllocateSet();
-    assert(environmentSet != VK_NULL_HANDLE);
+    REQUIRE(environmentSet != VK_NULL_HANDLE);
     environmentDescriptors.Update(environmentSet, environment,
                                    brdfLut.GetImageView(), brdfLut.GetSampler());
 
     environmentDescriptors.Destroy();
     brdfLut.Destroy();
     environment.Destroy();
-    assert(!environment.IsGpuReady());
+    REQUIRE(!environment.IsGpuReady());
     return 0;
 }
