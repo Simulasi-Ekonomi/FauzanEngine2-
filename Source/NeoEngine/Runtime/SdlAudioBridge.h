@@ -28,6 +28,7 @@ public:
     bool UpdateVoicePitch(uint32_t id, float pitch);
     bool UpdateVoiceGain(uint32_t id, uint16_t gainQ8);
     bool SetListener(const AudioListener& listener);
+    bool MixFrames(uint32_t frameCount);
     void Reset();
 
     [[nodiscard]] bool IsReady() const { return stream_ != nullptr; }
