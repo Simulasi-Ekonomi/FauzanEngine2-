@@ -151,6 +151,31 @@ bool SdlAudioBridge::SetListener(const AudioListener& listener) {
     return true;
 }
 
+bool SdlAudioBridge::MixFrames(uint32_t frameCount) {
+    if (frameCount == 0U || frameCount > kMaxCallbackFrames || stream_ == nullptr) {
+        lastError_ = stream_ == nullptr ? SdlAudioBridgeError::NotInitialized : SdlAudioBridgeError::InvalidConfiguration;
+        return false;
+    }
+    SDL_LockAudioStream(stream_);
+    if (callbackBuffer_.size() < static_cast<size_t>(frameCount) * kStereoChannels) {
+        SDL_UnlockAudioStream(stream_);
+        lastError_ = SdlAudioBridgeError::InvalidConfiguration;
+        return false;
+    }
+    mixer_.Mix(frameCount, callbackBuffer_);
+    const size_t byteCount = static_cast<size_t>(frameCount) * sizeof(int16_t) * kStereoChannels;
+    if (byteCount > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+        SDL_PutAudioStreamData(stream_, callbackBuffer_.data(), static_cast<int>(byteCount)) != 0) {
+        SDL_UnlockAudioStream(stream_);
+        lastError_ = SdlAudioBridgeError::DeviceOpenFailed;
+        return false;
+    }
+    framesMixed_.fetch_add(frameCount, std::memory_order_relaxed);
+    SDL_UnlockAudioStream(stream_);
+    lastError_ = SdlAudioBridgeError::None;
+    return true;
+}
+
 uint16_t SdlAudioBridge::QueuedVoiceCount() const {
     if (stream_ == nullptr) return 0;
     SDL_LockAudioStream(stream_);
