@@ -202,7 +202,6 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceCheckpointFile.cpp
     Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmWorldTool.cpp
-    Systems/ItemSerialTracker.cpp
     Systems/TelemetryOutbox.cpp
     Systems/TrustSafetySystem.cpp
     Systems/GridNavigation.cpp
