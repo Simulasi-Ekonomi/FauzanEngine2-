@@ -4,16 +4,20 @@
 #include "Runtime/SceneWorld.h"
 #include "Runtime/Vulkan3DRenderer.h"
 
-#include <cassert>
+#include <cstdlib>
+#include <iostream>
+#include <utility>
+
+#define REQUIRE(...) do { if (!(__VA_ARGS__)) { std::cerr << "SCENE_VULKAN_REQUIRE_FAIL:" << __FILE__ << ":" << __LINE__ << " expr=" << #__VA_ARGS__ << std::endl; return 1; } } while (false)
 
 int main() {
     using namespace NeoEngine;
 
     SceneWorld world;
     SceneEntity entity{};
-    assert(world.Create(entity));
-    assert(world.SetTransform(entity, {0.0F, 0.0F, 3.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}));
-    assert(world.UpdateTransforms());
+    REQUIRE(world.Create(entity));
+    REQUIRE(world.SetTransform(entity, {0.0F, 0.0F, 3.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F}));
+    REQUIRE(world.UpdateTransforms());
 
     SceneMeshAdapter meshes;
     SceneMeshInstance mesh{};
@@ -24,7 +28,7 @@ int main() {
         {{0.0F, 0.8F, 0.0F}, {0.0F, 0.0F, 1.0F}, 0.5F, 1.0F}
     };
     mesh.indices = {0, 1, 2};
-    assert(meshes.Add(std::move(mesh)));
+    REQUIRE(meshes.Add(std::move(mesh)));
 
     RenderCamera camera;
     RenderCameraConfig cameraConfig{};
@@ -35,14 +39,14 @@ int main() {
     cameraConfig.aspect = 1.0F;
     cameraConfig.nearPlane = 0.1F;
     cameraConfig.farPlane = 100.0F;
-    assert(camera.Initialize(cameraConfig));
+    REQUIRE(camera.Initialize(cameraConfig));
 
     Vulkan3DRenderer renderer;
     if (!renderer.Initialize(256, 256, "NeoEngine Scene 3D Smoke")) return 2;
 
     SceneRenderAdapter adapter;
     if (!adapter.DrawVulkan3D(world, meshes, camera, renderer)) return 3;
-    if (renderer.LastFrameStats().indexCount != 3U) return 4;
-    if (renderer.LastFrameStats().vertexCount != 3U) return 5;
+    REQUIRE(renderer.LastFrameStats().indexCount == 3U);
+    REQUIRE(renderer.LastFrameStats().vertexCount == 3U);
     return 0;
 }
