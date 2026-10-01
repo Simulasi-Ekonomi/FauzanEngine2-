@@ -19,7 +19,24 @@ def parse_sources(cmake: Path) -> list[str]:
     match = re.search(r"set\(XPBD_RUNTIME_SOURCES\s*(.*?)\n\)", text, re.S)
     if not match:
         raise SystemExit("XPBD_RUNTIME_SOURCES block not found")
-    return re.findall(r"^\s+([^\s()]+\.cpp)\s*$", match.group(1), re.M)
+
+    sources = re.findall(r"^\s+([^\s()]+\.cpp)\s*$", match.group(1), re.M)
+
+    # Explicit target_sources registrations are part of the canonical runtime
+    # boundary too. Normalize CMAKE_CURRENT_SOURCE_DIR-qualified paths so the
+    # audit has one deterministic source identity space.
+    for target_match in re.finditer(
+        r"target_sources\(NeoEngineRuntime\s+PRIVATE\s*(.*?)\n\)",
+        text,
+        re.S,
+    ):
+        sources.extend(
+            re.findall(
+                r"\"(?:\$\{CMAKE_CURRENT_SOURCE_DIR\}/)?([^\"\s]+\.cpp)\"",
+                target_match.group(1),
+            )
+        )
+    return sources
 
 
 def main() -> int:
