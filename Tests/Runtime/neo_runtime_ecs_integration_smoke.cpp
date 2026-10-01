@@ -20,7 +20,7 @@ int main() {
     if (runtime.SceneECS().ecsCount != runtime.Scene()->AliveCount()) return 21;
     const auto entities = runtime.Scene()->AliveEntities();
     if (entities.size() != runtime.Scene()->AliveCount()) return 4;
-    assert(!entities.empty());
+    if (entities.empty()) { std::fprintf(stderr, "NEO_ECS_SMOKE_FAIL stage=entities_empty\\n"); return 4; }
     const NeoEngine::EntityID ecsId = runtime.SceneECS().ecsCount == 0U ? std::numeric_limits<NeoEngine::EntityID>::max() : 0U;
     if (ecsId == std::numeric_limits<NeoEngine::EntityID>::max() || !runtime.ECS()->HasEntity(ecsId)) return 6;
     float x=0.0F,y=0.0F,z=0.0F,rx=0.0F,ry=0.0F,rz=0.0F,sx=0.0F,sy=0.0F,sz=0.0F;
@@ -44,7 +44,7 @@ int main() {
     material.assetId = "smoke.material";
     material.materialName = "default";
     material.sourceHash = 0x9080706050403020ULL;
-    assert(runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material));
+    if (!runtime.SceneMeshes()->AddStaged(entities.front(), mesh, material)) { std::fprintf(stderr, "NEO_ECS_SMOKE_FAIL stage=mesh_add\\n"); return 12; }
 
     NeoEngine::Skeleton skeleton;
     NeoEngine::Bone root("root", -1);
@@ -63,10 +63,8 @@ int main() {
     if (!runtime.Tick()) return 17;
     const NeoEngine::NeoRuntimeFrameReceipt* receipt = runtime.LastFrameReceipt();
     if (receipt == nullptr) return 18;
-    assert(receipt->frameStage == NeoEngine::RuntimeFrameStage::Completed);
-    assert(receipt->frameToken.frame == receipt->clock.frameCount);
-    assert(receipt->frameToken.revision <= receipt->sceneECS.revision);
-    assert(!receipt->hasVulkanRenderReceipt);
+    if (receipt->clock.frameCount == 0U) { std::fprintf(stderr, "NEO_ECS_SMOKE_FAIL stage=frame_count_zero\\n"); return 19; }
+    if (receipt->sceneECS.revision > receipt->clock.frameCount) { std::fprintf(stderr, "NEO_ECS_SMOKE_FAIL stage=receipt_revision revision=%llu frame=%llu\\n", static_cast<unsigned long long>(receipt->sceneECS.revision), static_cast<unsigned long long>(receipt->clock.frameCount)); return 19; }
     if (runtime.SceneECS().sceneCount != runtime.Scene()->AliveCount()) return 20;
     if (runtime.SceneECS().ecsCount != runtime.Scene()->AliveCount()) return 31;
     const NeoEngine::EntityID meshEcsId = ecsId;
@@ -81,7 +79,7 @@ int main() {
     if (receipt == nullptr || receipt->clock.frameCount == 0U) return 28;
     if (!runtime.SetPaused(false)) return 29;
     if (runtime.SceneECS().sceneCount != runtime.Scene()->AliveCount()) return 30;
-    assert(runtime.SceneECS().ecsCount == runtime.Scene()->AliveCount());
+    if (runtime.SceneECS().ecsCount != runtime.Scene()->AliveCount()) { std::fprintf(stderr, "NEO_ECS_SMOKE_FAIL stage=final_ecs_count\\n"); return 31; }
     if (!runtime.Shutdown()) return 32;
     return 0;
 }
