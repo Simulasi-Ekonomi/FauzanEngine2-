@@ -1,5 +1,6 @@
 #include "Core/ECS/ArchetypeManager.h"
-#include <cmath>\n#include <cstdio>
+#include <cmath>
+#include <cstdio>
 
 #define REQUIRE(...) do { if (!(__VA_ARGS__)) { std::fprintf(stderr, "MIGRATION_REQUIRE_FAIL:" #__VA_ARGS__ "\n"); return 1; } } while (false)
 
