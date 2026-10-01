@@ -88,6 +88,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanOffscreen.cpp
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanGraphicsPipeline.cpp
+    Runtime/VulkanRenderCommandRecorder.cpp
+    Runtime/VulkanRenderPassManager.cpp
     Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
