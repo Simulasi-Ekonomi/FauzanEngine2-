@@ -1,0 +1,25 @@
+name: R12 launch readiness guard
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'release_readiness_matrix.md'
+      - 'tools/launch_readiness_guard_smoke.sh'
+      - '.github/workflows/r12-launch-readiness-guard.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'release_readiness_matrix.md'
+      - 'tools/launch_readiness_guard_smoke.sh'
+      - '.github/workflows/r12-launch-readiness-guard.yml'
+  workflow_dispatch:
+
+jobs:
+  launch-readiness-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify mandatory gate guard
+        run: ./tools/launch_readiness_guard_smoke.sh
