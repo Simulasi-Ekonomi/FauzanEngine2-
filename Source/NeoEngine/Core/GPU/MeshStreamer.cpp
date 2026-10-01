@@ -1,49 +1,50 @@
 #include "MeshStreamer.h"
 
-namespace NeoEngine {
+namespace NeoEngine
+{
 
-MeshStreamer::~MeshStreamer() {
-    Destroy();
-}
-
-bool MeshStreamer::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, std::size_t capacityBytes) {
+bool MeshStreamer::Initialize(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize capacityBytes)
+{
     if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE || capacityBytes == 0) {
         return false;
     }
 
     Destroy();
-    device_ = device;
-    physicalDevice_ = physicalDevice;
 
-    if (!buffer_.Initialize(device_, physicalDevice_, static_cast<VkDeviceSize>(capacityBytes),
-                            VulkanBufferType::VertexBuffer,
-                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+    if (!buffer_.Initialize(
+            device,
+            physicalDevice,
+            capacityBytes,
+            VulkanBufferType::VertexBuffer,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
         Destroy();
         return false;
     }
 
+    capacityBytes_ = capacityBytes;
     uploadedBytes_ = 0;
     return true;
 }
 
-bool MeshStreamer::UploadMesh(const void* vertices, std::size_t bytes) {
-    if (!IsValid() || vertices == nullptr || bytes == 0 || bytes > GetCapacityBytes()) {
+bool MeshStreamer::UploadMesh(const void* vertices, VkDeviceSize byteCount)
+{
+    if (!IsValid() || vertices == nullptr || byteCount == 0 || byteCount > capacityBytes_) {
         return false;
     }
 
-    if (!buffer_.UploadData(vertices, static_cast<VkDeviceSize>(bytes))) {
+    if (!buffer_.UploadData(vertices, byteCount)) {
         return false;
     }
 
-    uploadedBytes_ = bytes;
+    uploadedBytes_ = byteCount;
     return true;
 }
 
-void MeshStreamer::Destroy() {
+void MeshStreamer::Destroy()
+{
     buffer_.Destroy();
-    device_ = VK_NULL_HANDLE;
-    physicalDevice_ = VK_NULL_HANDLE;
+    capacityBytes_ = 0;
     uploadedBytes_ = 0;
 }
 
-} // namespace NeoEngine
+}

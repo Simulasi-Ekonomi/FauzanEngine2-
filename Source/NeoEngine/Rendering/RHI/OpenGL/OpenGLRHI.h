@@ -10,6 +10,7 @@ public:
     static OpenGLRHI& Get();
     
     bool Initialize(EGLNativeWindowType window);
+    bool InitializeHeadless(int width, int height);
     void Shutdown();
     
     void BeginFrame();
@@ -31,12 +32,16 @@ public:
 
 private:
     OpenGLRHI() = default;
+    bool InitializeSurface(EGLint surfaceType, EGLNativeWindowType window, int width, int height);
     
     EGLDisplay m_Display = EGL_NO_DISPLAY;
     EGLSurface m_Surface = EGL_NO_SURFACE;
     EGLContext m_Context = EGL_NO_CONTEXT;
     int m_Width = 0, m_Height = 0;
     bool m_Initialized = false;
+    bool m_EglInitialized = false;
+    bool m_Headless = false;
+    EGLNativeWindowType m_Window{};
 };
 
 } // namespace NeoEngine

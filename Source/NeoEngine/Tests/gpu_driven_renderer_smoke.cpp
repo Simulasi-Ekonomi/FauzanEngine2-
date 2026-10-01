@@ -1,8 +1,9 @@
 #include "Renderer/GPUDrivenRenderer.h"
 
-#include <cassert>
 #include <cstdint>
 #include <vector>
+
+#define REQUIRE(...) do { if (!(__VA_ARGS__)) return 1; } while (false)
 
 int main() {
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
@@ -16,13 +17,13 @@ int main() {
     instanceInfo.pApplicationInfo = &app;
 
     VkInstance instance = VK_NULL_HANDLE;
-    assert(vkCreateInstance(&instanceInfo, nullptr, &instance) == VK_SUCCESS);
+    REQUIRE(vkCreateInstance(&instanceInfo, nullptr, &instance) == VK_SUCCESS);
 
     uint32_t physicalCount = 0;
-    assert(vkEnumeratePhysicalDevices(instance, &physicalCount, nullptr) == VK_SUCCESS);
-    assert(physicalCount > 0);
+    REQUIRE(vkEnumeratePhysicalDevices(instance, &physicalCount, nullptr) == VK_SUCCESS);
+    REQUIRE(physicalCount > 0);
     std::vector<VkPhysicalDevice> physicalDevices(physicalCount);
-    assert(vkEnumeratePhysicalDevices(instance, &physicalCount, physicalDevices.data()) == VK_SUCCESS);
+    REQUIRE(vkEnumeratePhysicalDevices(instance, &physicalCount, physicalDevices.data()) == VK_SUCCESS);
 
     VkPhysicalDevice physical = physicalDevices.front();
     uint32_t familyCount = 0;
@@ -37,7 +38,7 @@ int main() {
             break;
         }
     }
-    assert(graphicsFamily != UINT32_MAX);
+    REQUIRE(graphicsFamily != UINT32_MAX);
 
     float priority = 1.0F;
     VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -50,37 +51,37 @@ int main() {
     deviceInfo.pQueueCreateInfos = &queueInfo;
 
     VkDevice device = VK_NULL_HANDLE;
-    assert(vkCreateDevice(physical, &deviceInfo, nullptr, &device) == VK_SUCCESS);
+    REQUIRE(vkCreateDevice(physical, &deviceInfo, nullptr, &device) == VK_SUCCESS);
 
     GPUDrivenRenderer indirect;
-    assert(indirect.Initialize(device, physical, 128));
-    assert(indirect.IsInitialized());
-    assert(indirect.HasGpuBuffer());
-    assert(indirect.Capacity() > 0);
+    REQUIRE(indirect.Initialize(device, physical, 128));
+    REQUIRE(indirect.IsInitialized());
+    REQUIRE(indirect.HasGpuBuffer());
+    REQUIRE(indirect.Capacity() > 0);
 
-    assert(indirect.TrySubmitDraw({36, 1, 0, 0, 0}));
-    assert(indirect.TrySubmitDraw({36, 8, 36, 12, 1}));
-    assert(indirect.TrySubmitDraw({6, 64, 72, 20, 9}));
-    assert(indirect.PendingDrawCount() == 3);
+    REQUIRE(indirect.TrySubmitDraw({36, 1, 0, 0, 0}));
+    REQUIRE(indirect.TrySubmitDraw({36, 8, 36, 12, 1}));
+    REQUIRE(indirect.TrySubmitDraw({6, 64, 72, 20, 9}));
+    REQUIRE(indirect.PendingDrawCount() == 3);
 
     VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolInfo.queueFamilyIndex = graphicsFamily;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     VkCommandPool pool = VK_NULL_HANDLE;
-    assert(vkCreateCommandPool(device, &poolInfo, nullptr, &pool) == VK_SUCCESS);
+    REQUIRE(vkCreateCommandPool(device, &poolInfo, nullptr, &pool) == VK_SUCCESS);
 
     VkCommandBufferAllocateInfo allocation{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     allocation.commandPool = pool;
     allocation.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocation.commandBufferCount = 1;
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
-    assert(vkAllocateCommandBuffers(device, &allocation, &commandBuffer) == VK_SUCCESS);
+    REQUIRE(vkAllocateCommandBuffers(device, &allocation, &commandBuffer) == VK_SUCCESS);
 
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    assert(vkBeginCommandBuffer(commandBuffer, &begin) == VK_SUCCESS);
-    assert(indirect.Execute(commandBuffer));
-    assert(indirect.PendingDrawCount() == 0);
-    assert(vkEndCommandBuffer(commandBuffer) == VK_SUCCESS);
+    REQUIRE(vkBeginCommandBuffer(commandBuffer, &begin) == VK_SUCCESS);
+    REQUIRE(indirect.Execute(commandBuffer));
+    REQUIRE(indirect.PendingDrawCount() == 0);
+    REQUIRE(vkEndCommandBuffer(commandBuffer) == VK_SUCCESS);
 
     indirect.Destroy();
     vkDestroyCommandPool(device, pool, nullptr);

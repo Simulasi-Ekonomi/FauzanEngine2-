@@ -1,0 +1,5 @@
+# SDL3/X11 external allocations on the GitHub Ubuntu X11 backend.
+# These stacks originate inside SDL X11 display/keyboard initialization.
+# Keep leak detection enabled for NeoEngine-owned allocations.
+leak:X11_InitKeyboard
+leak:X11_GetGlobalContentScale

@@ -26,6 +26,7 @@ public:
     static Renderer& Get();
     
     bool Init(void* window, int w, int h);
+    bool InitHeadless(int w, int h);
     void Shutdown();
     
     void BeginFrame();
@@ -47,6 +48,7 @@ private:
     Renderer() = default;
     
     bool m_Initialized = false;
+    bool m_Headless = false;
     int m_Width = 0, m_Height = 0;
     std::vector<std::unique_ptr<Mesh>> m_Meshes;
     std::vector<std::unique_ptr<Texture>> m_Textures;

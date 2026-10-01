@@ -36,6 +36,7 @@ public:
 
     [[nodiscard]] VkImage GetImage() const { return image_; }
     [[nodiscard]] VkDeviceMemory GetMemory() const { return memory_; }
+    [[nodiscard]] uint32_t GetAllocationSizeMB() const noexcept;
     [[nodiscard]] VkImageView GetImageView() const { return imageView_; }
     [[nodiscard]] VkSampler GetSampler() const { return sampler_; }
     [[nodiscard]] uint32_t GetWidth() const { return width_; }

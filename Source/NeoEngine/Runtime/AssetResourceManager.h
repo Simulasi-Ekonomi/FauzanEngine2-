@@ -23,6 +23,8 @@ enum class AssetResourceError : uint8_t {
     RefcountOverflow,
     RefcountUnderflow,
     HotReloadRejected,
+    GpuUploadPending,
+    GpuUploadNotPending,
     BudgetExceeded,
     MissingAsset,
     InvalidEvictionPlan,
@@ -46,6 +48,8 @@ struct AssetResourceReceipt {
     uint16_t dependencyCount = 0U;
     uint64_t hotReloadGeneration = 0U;
     uint32_t resourceGeneration = 0U;
+    bool gpuResident = false;
+    uint16_t gpuUploadsInFlight = 0U;
 };
 
 struct AssetEvictionTarget {
@@ -98,6 +102,12 @@ public:
 
     bool Acquire(std::string_view assetId, AssetResourceHandle& handle);
     bool Release(AssetResourceHandle handle);
+    bool BeginGpuUpload(AssetResourceHandle handle);
+    bool BeginGpuRefresh(AssetResourceHandle handle);
+    bool CompleteGpuUpload(AssetResourceHandle handle);
+    bool CompleteGpuRefresh(AssetResourceHandle handle, uint64_t newContentHash);
+    bool CancelGpuUpload(AssetResourceHandle handle);
+    bool CancelGpuRefresh(AssetResourceHandle handle);
     bool SyncHotReload(std::string_view assetId);
     bool ReloadIfSafe(std::string_view assetId);
     bool EvictUnleased(uint16_t& evictedResources);
@@ -125,6 +135,8 @@ private:
         uint64_t contentHash = 0U;
         uint64_t hotReloadGeneration = 0U;
         uint32_t refCount = 0U;
+        uint16_t gpuUploadsInFlight = 0U;
+        bool gpuResident = false;
         uint16_t dependencyCount = 0U;
         std::array<uint16_t, kMaxDependencyClosure> dependencySlots{};
     };
