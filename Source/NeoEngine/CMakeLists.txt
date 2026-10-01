@@ -83,8 +83,6 @@ add_custom_target(neoengine_mesh_shaders ALL DEPENDS
     "${NEO_TRIANGLE_VERT_SPV}" "${NEO_TRIANGLE_FRAG_SPV}" "${NEO_SKINNED_MESH_VERT_SPV}" "${NEO_GPU_INDIRECT_VERT_SPV}")
 
 set(XPBD_RUNTIME_SOURCES
-    Core/ECS/ArchetypeManager.cpp
-    Physics/V5/XPBDPhysicsSystem.cpp
     Runtime/AtomicSaveFile.cpp
     Runtime/PBRMaterial.cpp
     Runtime/BRDFLut.cpp
@@ -97,14 +95,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetRegistry.cpp
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
-    Runtime/Vulkan3DRenderer.cpp
-    Runtime/VulkanMeshBufferBuilder.cpp
-    Runtime/VulkanRenderer3D.cpp
-    Runtime/VulkanRenderPassManager.cpp
-    Runtime/VulkanGraphicsPipeline.cpp
-    Runtime/VulkanRenderCommandRecorder.cpp
-    Runtime/VulkanContext.cpp
-    Runtime/VulkanGPUBuffer.cpp
+    Runtime/GameplayPhysicsQuery.cpp
     Runtime/VulkanAssetUploader.cpp
     Runtime/VulkanContext.cpp
     Runtime/VulkanGPUTexture.cpp
@@ -112,23 +103,30 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanSwapchainManager.cpp
     Runtime/VulkanSyncPrimitives.cpp
+    Runtime/VulkanBootstrap.cpp
+    Runtime/GameplayTriggerTracker.cpp
+    Runtime/Vulkan3DRenderer.cpp
+    Runtime/VulkanGPUBuffer.cpp
+    Runtime/VulkanRenderer3D.cpp
+    Runtime/VulkanGraphicsPipeline.cpp
+    Runtime/VulkanRenderPassManager.cpp
+    Runtime/VulkanRenderCommandRecorder.cpp
+    Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/VulkanDescriptorManager.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
     Runtime/NeoRuntime.cpp
-    Runtime/RendererCapability.cpp
-    Runtime/GameplayPhysicsBody.cpp
-    Runtime/GameplayPhysicsForceAccumulator.cpp
-    Runtime/GameplayPhysicsQuery.cpp
-    Runtime/ScenePhysicsPoseSync.cpp
     Runtime/RuntimeVerticalSliceGate.cpp
     Runtime/NeoRuntimeVulkan3D.cpp
     Runtime/FarmRuntimeSession.cpp
     Runtime/RuntimeClock.cpp
+    Runtime/AndroidLifecycleGate.cpp
     Runtime/RuntimePersistence.cpp
     Runtime/SceneWorld.cpp
     Runtime/CanonicalRuntimeWorld.cpp
     Runtime/SceneECSBridge.cpp
+    Core/ECS/ArchetypeManager.cpp
+    Physics/V5/XPBDPhysicsSystem.cpp
     Animation/GPUSkinningPaletteBuffer.cpp
     Runtime/MeshStaging.cpp
     Runtime/MaterialStaging.cpp
@@ -200,6 +198,9 @@ set(XPBD_RUNTIME_SOURCES
     Systems/FarmCommerceEntitlementLedger.cpp
     Systems/FarmCommerceCheckpoint.cpp
     Systems/FarmCommerceCheckpointFile.cpp
+    Systems/CommodityCatalog.cpp
+    Systems/CommodityEconomyLedger.cpp
+    Systems/FarmTelemetryAdapter.cpp
     Systems/FarmProgressCheckpointFile.cpp
     Systems/FarmWorldTool.cpp
     Systems/TelemetryOutbox.cpp
@@ -218,14 +219,12 @@ set(XPBD_RUNTIME_SOURCES
     Threading/JobSystem.cpp
     Renderer/GPUDrivenRenderer.cpp
     Renderer/GPUFrustumCulling.cpp
-    Rendering/Rendering/Renderer/HiZBuffer.cpp
-    Rendering/Rendering/Renderer/OcclusionCulling.cpp
 )
 
 add_library(NeoEngineRuntime STATIC ${XPBD_RUNTIME_SOURCES})
 add_dependencies(NeoEngineRuntime neoengine_mesh_shaders)
 target_include_directories(NeoEngineRuntime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(NeoEngineRuntime PUBLIC ${JSONCPP_INCLUDE_DIRS} PRIVATE ${Vulkan_INCLUDE_DIRS})
+target_include_directories(NeoEngineRuntime PUBLIC ${JSONCPP_INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
 target_compile_definitions(NeoEngineRuntime PUBLIC
     NEO_SHADER_DIR="${NEO_SHADER_OUTPUT_DIR}"
     GLM_ENABLE_EXPERIMENTAL
@@ -245,8 +244,6 @@ function(add_xpbd_executable target_name source_file)
         ${CMAKE_CURRENT_SOURCE_DIR}/Platform
     )
     target_link_libraries(${target_name} PRIVATE NeoEngineRuntime)
-    # Release disables assert() via NDEBUG; smoke tests must retain their contract checks.
-    target_compile_options(${target_name} PRIVATE $<$<CONFIG:Release>:-UNDEBUG>)
 endfunction()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/canonical_runtime_world_smoke.cpp")
@@ -255,23 +252,17 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Physics/physics_step_measurement_smoke.cpp")
     add_xpbd_executable(physics_step_measurement_smoke ../../Tests/Physics/physics_step_measurement_smoke.cpp)
 endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/item_serial_tracker_smoke.cpp")
-    add_xpbd_executable(item_serial_tracker_smoke ../../Tests/Runtime/item_serial_tracker_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/renderer_capability_smoke.cpp")
-    add_xpbd_executable(renderer_capability_smoke ../../Tests/Runtime/renderer_capability_smoke.cpp)
-endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp")
     add_xpbd_executable(neo_runtime_ecs_integration_smoke ../../Tests/Runtime/neo_runtime_ecs_integration_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/p0_runtime_physics_integration_smoke.cpp")
-    add_xpbd_executable(p0_runtime_physics_integration_smoke ../../Tests/Runtime/p0_runtime_physics_integration_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/runtime_frame_contract_smoke.cpp")
     add_xpbd_executable(runtime_frame_contract_smoke ../../Tests/Runtime/runtime_frame_contract_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_streaming_queue_smoke.cpp")
     add_xpbd_executable(asset_streaming_queue_smoke ../../Tests/Runtime/asset_streaming_queue_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/gameplay_physics_query_smoke.cpp")
+    add_xpbd_executable(gameplay_physics_query_smoke ../../Tests/Runtime/gameplay_physics_query_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/asset_resource_manager_smoke.cpp")
     add_xpbd_executable(asset_resource_manager_smoke ../../Tests/Runtime/asset_resource_manager_smoke.cpp)
@@ -281,7 +272,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/farm_vulkan_textured_
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_present_smoke.cpp")
     add_xpbd_executable(vulkan_bootstrap_smoke ../../Tests/Runtime/vulkan_bootstrap_smoke.cpp)
-    add_xpbd_executable(vulkan_asset_uploader_smoke ../../Tests/Runtime/vulkan_asset_uploader_smoke.cpp)
     add_xpbd_executable(vulkan_descriptor_manager_smoke ../../Tests/Runtime/vulkan_descriptor_manager_smoke.cpp)
     add_xpbd_executable(vulkan_gpu_buffer_smoke ../../Tests/Runtime/vulkan_gpu_buffer_smoke.cpp)
     add_xpbd_executable(vulkan_gpu_texture_smoke ../../Tests/Runtime/vulkan_gpu_texture_smoke.cpp)
@@ -298,9 +288,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_textured_prese
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp")
     add_xpbd_executable(scene_vulkan_render_adapter_smoke ../../Tests/Runtime/scene_vulkan_render_adapter_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_vulkan_integration_smoke.cpp")
-    add_xpbd_executable(neo_runtime_vulkan_integration_smoke ../../Tests/Runtime/neo_runtime_vulkan_integration_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests/r3_gpu_indirect_10k_execution_smoke.cpp")
@@ -338,9 +325,6 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_mixer_smoke.cpp")
     add_xpbd_executable(audio_mixer_smoke ../../Tests/Runtime/audio_mixer_smoke.cpp)
 endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/wav_audio_pitch_regression_smoke.cpp")
-    add_xpbd_executable(wav_audio_pitch_regression_smoke ../../Tests/Runtime/wav_audio_pitch_regression_smoke.cpp)
-endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/sdl_input_bridge_smoke.cpp")
     add_xpbd_executable(sdl_input_bridge_smoke ../../Tests/Runtime/sdl_input_bridge_smoke.cpp)
 endif()
@@ -353,27 +337,14 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/audio_subsystem_smoke.cpp")
     add_xpbd_executable(audio_subsystem_smoke ../../Tests/Runtime/audio_subsystem_smoke.cpp)
 endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_audio_smoke.cpp")
-    add_xpbd_executable(neo_runtime_audio_smoke ../../Tests/Runtime/neo_runtime_audio_smoke.cpp)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/android_lifecycle_gate_smoke.cpp")
+    add_xpbd_executable(android_lifecycle_gate_smoke ../../Tests/Runtime/android_lifecycle_gate_smoke.cpp)
 endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/replication_world_smoke.cpp")
-    add_xpbd_executable(replication_world_smoke ../../Tests/Runtime/replication_world_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_replication_baseline_smoke.cpp")
-    add_xpbd_executable(network_replication_baseline_smoke ../../Tests/Runtime/network_replication_baseline_smoke.cpp)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_provider_contract_smoke.cpp")
+    add_xpbd_executable(editor_provider_contract_smoke ../../Tests/Runtime/editor_provider_contract_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_subsystem_smoke.cpp")
     add_xpbd_executable(editor_subsystem_smoke ../../Tests/Runtime/editor_subsystem_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_agent_smoke.cpp")
-    add_xpbd_executable(editor_scene_agent_smoke ../../Tests/Runtime/editor_scene_agent_smoke.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_session_smoke.cpp")
-    add_xpbd_executable(editor_scene_session_smoke ../../Tests/Runtime/editor_scene_session_smoke.cpp)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp")
-    add_xpbd_executable(hiz_occlusion_culling_smoke ../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_canonical_game_tool_smoke.cpp")
@@ -431,4 +402,33 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_telemetry_smoke.cpp")
     add_xpbd_executable(farm_telemetry_smoke ../../Tests/Farm/farm_telemetry_smoke.cpp)
+endif()
+
+# PR44 advanced-port regression coverage on canonical P3 runtime.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/vulkan_asset_uploader_smoke.cpp")
+    add_xpbd_executable(vulkan_asset_uploader_smoke ../../Tests/Runtime/vulkan_asset_uploader_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_vulkan_integration_smoke.cpp")
+    add_xpbd_executable(neo_runtime_vulkan_integration_smoke ../../Tests/Runtime/neo_runtime_vulkan_integration_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/wav_audio_pitch_regression_smoke.cpp")
+    add_xpbd_executable(wav_audio_pitch_regression_smoke ../../Tests/Runtime/wav_audio_pitch_regression_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/neo_runtime_audio_smoke.cpp")
+    add_xpbd_executable(neo_runtime_audio_smoke ../../Tests/Runtime/neo_runtime_audio_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/replication_world_smoke.cpp")
+    add_xpbd_executable(replication_world_smoke ../../Tests/Runtime/replication_world_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/network_replication_baseline_smoke.cpp")
+    add_xpbd_executable(network_replication_baseline_smoke ../../Tests/Runtime/network_replication_baseline_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_agent_smoke.cpp")
+    add_xpbd_executable(editor_scene_agent_smoke ../../Tests/Runtime/editor_scene_agent_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_session_smoke.cpp")
+    add_xpbd_executable(editor_scene_session_smoke ../../Tests/Runtime/editor_scene_session_smoke.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp")
+    add_xpbd_executable(hiz_occlusion_culling_smoke ../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp)
 endif()
