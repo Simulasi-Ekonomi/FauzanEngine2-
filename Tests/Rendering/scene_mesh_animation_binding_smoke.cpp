@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 namespace {
@@ -23,16 +24,17 @@ int main() {
     using namespace NeoEngine;
     SceneMeshAdapter adapter;
     SceneEntity entity{};
+    entity.index = 0U;
     std::vector<MeshVertex> vertices(1);
     vertices[0].position = {0.0F, 0.0F, 0.0F};
     std::vector<uint16_t> indices{0, 0, 0};
     MeshMaterial material{};
-    if (!adapter.Add({entity, vertices, indices, material})) return 1;
+    if (!adapter.Add({entity, vertices, indices, material})) { std::fprintf(stderr, "SCENE_MESH_FAIL:Add error=%u\n", static_cast<unsigned>(adapter.LastError())); return 1; }
 
     Skeleton skeleton;
     Bone root{"root", -1};
     root.localBindPose = Translation(0.0F, 0.0F, 0.0F);
-    if (!skeleton.TryAddBone(root)) return 1;
+    if (!skeleton.TryAddBone(root)) { std::fprintf(stderr, "SCENE_MESH_FAIL:TryAddBone\n"); return 1; }
 
     SkeletalPoseClip clip;
     if (!clip.Configure(1U) ||
