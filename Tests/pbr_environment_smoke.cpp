@@ -62,15 +62,26 @@ int main() {
     std::cerr << "PBR_ENV_STAGE:BRDF_INIT_OK" << std::endl;
     REQUIRE(brdfLut.Generate());
     std::cerr << "PBR_ENV_STAGE:BRDF_GENERATE_OK" << std::endl;
+    std::cerr << "PBR_ENV_BRDF_STATE:image=" << brdfLut.GetImage()
+              << " view=" << brdfLut.GetImageView()
+              << " sampler=" << brdfLut.GetSampler()
+              << " valid=" << (brdfLut.IsValid() ? 1 : 0) << std::endl;
     REQUIRE(brdfLut.IsValid());
+    REQUIRE(brdfLut.GetImage() != VK_NULL_HANDLE);
+    REQUIRE(brdfLut.GetImageView() != VK_NULL_HANDLE);
+    REQUIRE(brdfLut.GetSampler() != VK_NULL_HANDLE);
 
+    std::cerr << "PBR_ENV_STAGE:DESCRIPTOR_INIT_BEGIN" << std::endl;
     NeoEngine::PBREnvironmentDescriptorSet environmentDescriptors;
     REQUIRE(environmentDescriptors.Initialize(environment.Device()));
+    std::cerr << "PBR_ENV_STAGE:DESCRIPTOR_INIT_OK" << std::endl;
     REQUIRE(environmentDescriptors.IsValid());
     VkDescriptorSet environmentSet = environmentDescriptors.AllocateSet();
+    std::cerr << "PBR_ENV_STAGE:DESCRIPTOR_ALLOC_RESULT set=" << environmentSet << std::endl;
     REQUIRE(environmentSet != VK_NULL_HANDLE);
     environmentDescriptors.Update(environmentSet, environment,
                                    brdfLut.GetImageView(), brdfLut.GetSampler());
+    std::cerr << "PBR_ENV_STAGE:DESCRIPTOR_UPDATE_OK" << std::endl;
 
     environmentDescriptors.Destroy();
     brdfLut.Destroy();
