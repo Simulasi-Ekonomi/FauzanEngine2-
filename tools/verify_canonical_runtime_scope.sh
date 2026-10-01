@@ -17,18 +17,25 @@ die() {
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
-awk '
-    /^set\(XPBD_RUNTIME_SOURCES[[:space:]]*$/ { inside = 1; next }
-    inside && /^[[:space:]]*\)[[:space:]]*$/ { exit }
-    inside {
-        sub(/#.*/, "")
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "")
-        if ($0 != "") print $0
-    }
-' "$cmake_file" | sort -u > "$tmp_dir/active_sources"
+{
+    awk '
+        /^set\(XPBD_RUNTIME_SOURCES[[:space:]]*$/ { inside = 1; next }
+        inside && /^[[:space:]]*\)[[:space:]]*$/ { exit }
+        inside {
+            sub(/#.*/, "")
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+            if ($0 != "") print $0
+        }
+    ' "$cmake_file"
 
-[[ -s "$tmp_dir/active_sources" ]] || die "XPBD_RUNTIME_SOURCES could not be parsed"
+    # Explicit NeoEngineRuntime target_sources are canonical too. Normalize
+    # CMAKE_CURRENT_SOURCE_DIR-qualified entries into the same relative path
+    # namespace used by XPBD_RUNTIME_SOURCES.
+    sed -n '/target_sources(NeoEngineRuntime PRIVATE/,/^[[:space:]]*)[[:space:]]*$/p' "$cmake_file" |
+        sed -n 's#.*"\${CMAKE_CURRENT_SOURCE_DIR}/\([^"]*\.cpp\)".*#\1#p'
+} | sort -u > "$tmp_dir/active_sources"
 
+[[ -s "$tmp_dir/active_sources" ]] || die "canonical runtime source list could not be parsed"
 awk -F'|' '
     /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
     NF != 2 || $1 == "" || $2 == "" { exit 2 }
