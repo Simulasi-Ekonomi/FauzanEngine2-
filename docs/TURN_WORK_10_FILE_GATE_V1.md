@@ -1,22 +1,36 @@
 # Turn Work Gate — 10 Real Files Per Branch
 
-**BINDING.** Each turn must deliver at least 10 distinct real source files on this branch. One file with many guards/checks counts as one file. Test-only/docs-only/formatting/duplicate guards do not count. Every counted file must map Gap ID → file → API/function → implementation → integration path → validation result. If fewer than 10 independently actionable gaps remain, report the verified count instead of inventing work. This document itself never counts toward the 10.
+Status: **BINDING**
 
-## Turn ledger
+This document changes the turn accounting rule. A turn is not counted as completed work merely because one file contains many guards, assertions, checks, or helper branches.
+
+## Mandatory per-turn delivery
+- Minimum **10 distinct real source files** per active branch.
+- Each file must close a distinct technical gap or materially integrate an existing capability.
+- A test-only change, documentation-only change, duplicate guard, assertion, counter, or formatting change does **not** count as one of the 10.
+- One source file with 10 checks counts as **one file**, not ten.
+- Every counted file must map to: Gap ID -> exact file -> API/function -> implementation -> caller/integration path -> validation result.
+- If a branch has fewer than 10 independently actionable gaps remaining, report the verified number instead of inventing work.
+- No merge/readiness/100% claim is allowed from commit count, line count, file count, or CI labels.
+- Release and ASAN failures remain blockers; unverified source remains IMPLEMENTED-UNVERIFIED.
+- This MD itself is **governance only and never counts toward the 10 files**.
+
+## Required turn ledger
 | # | Gap ID | File | Implementation/integration | Validation |
 |---:|---|---|---|---|
-|1|OPEN|TBD|TBD|TBD|
-|2|OPEN|TBD|TBD|TBD|
-|3|OPEN|TBD|TBD|TBD|
-|4|OPEN|TBD|TBD|TBD|
-|5|OPEN|TBD|TBD|TBD|
-|6|OPEN|TBD|TBD|TBD|
-|7|OPEN|TBD|TBD|TBD|
-|8|OPEN|TBD|TBD|TBD|
-|9|OPEN|TBD|TBD|TBD|
-|10|OPEN|TBD|TBD|TBD|
+| 1 | OPEN | TBD | TBD | TBD |
+| 2 | OPEN | TBD | TBD | TBD |
+| 3 | OPEN | TBD | TBD | TBD |
+| 4 | OPEN | TBD | TBD | TBD |
+| 5 | OPEN | TBD | TBD | TBD |
+| 6 | OPEN | TBD | TBD | TBD |
+| 7 | OPEN | TBD | TBD | TBD |
+| 8 | OPEN | TBD | TBD | TBD |
+| 9 | OPEN | TBD | TBD | TBD |
+| 10 | OPEN | TBD | TBD | TBD |
 
-No merge/100% claim from commit count or line count. Release/ASAN failures remain blockers.
+## Stop condition
+Do not mark a turn complete until all counted files are actually changed, integrated where required, and their validation status is explicitly recorded.
 
 ## Mandatory execution rule — no idle turns
 - When the user says **Lanjut**, immediately execute identified real gap work; do not spend the turn on explanations or repeated scans when actionable source/API evidence is already available.
