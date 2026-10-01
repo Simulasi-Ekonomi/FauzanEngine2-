@@ -13,7 +13,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 
 ## Integrity
 
-- Canonical source entries: **123**
+- Canonical source entries: **124**
 - Duplicate entries: **0**
 - Duplicate paths: none
 
@@ -39,6 +39,8 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/VulkanOffscreen.cpp`
 - `Runtime/VulkanGPUBuffer.cpp`
 - `Runtime/VulkanGraphicsPipeline.cpp`
+- `Runtime/VulkanRenderCommandRecorder.cpp`
+- `Runtime/VulkanRenderPassManager.cpp`
 - `Runtime/VulkanMeshBufferBuilder.cpp`
 - `Runtime/VulkanPresentProbe.cpp`
 - `Runtime/VulkanTexturedPresent.cpp`
@@ -124,7 +126,6 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Systems/FarmCommerceCheckpoint.cpp`
 - `Systems/FarmCommerceCheckpointFile.cpp`
 - `Systems/FarmWorldTool.cpp`
-- `Systems/ItemSerialTracker.cpp`
 - `Systems/TelemetryOutbox.cpp`
 - `Systems/TrustSafetySystem.cpp`
 - `Systems/GridNavigation.cpp`
