@@ -5,10 +5,11 @@
 #include <cstdint>
 #include <fstream>
 #include <cstdlib>
+#include <iostream>
 #include <string>
 
 namespace {
-#define REQUIRE(...) do { if (!(__VA_ARGS__)) std::abort(); } while (false)
+#define REQUIRE(...) do { if (!(__VA_ARGS__)) { std::cerr << "PBR_ENV_REQUIRE_FAIL:" << __FILE__ << ":" << __LINE__ << " expr=" << #__VA_ARGS__ << std::endl; std::abort(); } } while (false)
 void WriteTinyHDR(const std::string& path) {
     std::ofstream out(path, std::ios::binary);
     REQUIRE(out);
