@@ -571,87 +571,87 @@
 - [x] P2.1a: Add a fail-closed canonical runtime scope manifest and verifier that enumerates every current NeoEngine placeholder-marker file, explicitly distinguishes the active fail-closed legacy `EngineLoop` from non-active legacy/experimental files, and rejects any unclassified marker or accidental legacy source admission to `XPBD_RUNTIME_SOURCES`. The verifier and adversarial smoke pass with 150 active sources, 29 tracked marker paths, and 2 approved active markers; `runtime_smoke` passes in Release and AddressSanitizer with `detect_leaks=1` on head `31ca16e1abf61b168fa857f5ae57e0be3b9a06a0`. This classifies the current marker inventory only and does not close P2.1 or certify unmarked code, renderer, network, Android, payments, or release readiness.
 - [ ] P2.2: Reproduce broad non-Vulkan Release and ASAN `detect_leaks=1` suites on a single tip revision under a storage-aware build strategy before making cross-engine readiness claims.
 - [x] P2.2a: Execute a bounded representative non-Vulkan smoke matrix on one canonical tip in Release and AddressSanitizer with leak detection, recording exact target coverage and any external-driver exceptions without claiming whole-engine coverage; do not expand to every duplicate-heavy executable target. `docs/BROAD_NON_VULKAN_SMOKE_EVIDENCE_V1.md` records the exact 35-target set; all 35/35 pass in Release and ASAN `detect_leaks=1`. The run is headless with dummy SDL drivers; Vulkan `glslc` discovery is an external configuration exception and Vulkan presentation is not counted.
-\n## 2026-09-21 — Turn 2: PR44 audio parser/mixer production hardening\n- [x] B5-01 bounded parsed WAV sample rate to the canonical PCM limit.\n- [x] B5-02 bounded parsed PCM byte-rate representation.\n- [x] B5-03 aligned WavAudioData::channels with the parser's mono downmix output.\n- [x] B5-04 preserved frame/sample count bounds before allocation and decode.\n- [x] B5-05 verified generated WAV output size exactly matches its declared payload.\n- [x] B5-06 rejected synthetic frequencies above Nyquist.\n- [x] B5-07 bounded owned voice vector capacity in AudioMixer::Play.\n- [x] B5-08 bounded spatial voice capacity before ownership copy.\n- [x] B5-09 revalidated spatial position finiteness at the attenuation/pan commit boundary.\n- [x] B5-10 canonicalized listener forward/up vectors after normalization.\n- [x] B5-11 evicted malformed persistent voices before mixing rather than silently carrying invalid state.\n- [x] B5-12 bounded stereo output capacity before the mixing loop.\n
+\n## 2026-09-21 — Turn 2: Android/editor vertical-slice and native render integration\n- [x] B4-01 captured the initial Scene/ECS revision before executing the vertical-slice tick.\n- [x] B4-02 bounded pre-tick Scene/ECS counters before narrowing them to receipt types.\n- [x] B4-03 enforced Scene/ECS receipt-count equality.\n- [x] B4-04 enforced non-regressing physics revision at the pre-tick boundary.\n- [x] B4-05 validated the pre-tick receipt state transactionally before mutation.\n- [x] B4-06 validated canonical runtime state after tick.\n- [x] B4-07 bounded post-tick Scene/ECS counts and cross-checked both counters.\n- [x] B4-08 rejected terminal post-tick revision values.\n- [x] B4-09 revalidated post-tick Scene/ECS receipt consistency.\n- [x] B4-10 bound the Android JNI bridge to canonical NeoRuntime initialization/tick/render/shutdown on the active JNI path.\n- [x] B4-11 added the canonical SoftwareRenderer to the Android native CMake source set.\n- [x] B4-12 added a real native framebuffer render/hash path to NeoEngineCanonicalBridge and exposed it to Java.\n- [x] B4-13 bound Java canonical tick acceptance to successful native rendering instead of telemetry-only success.\n
 
 ## 2026-09-21 — Turn 3 — 11+ substantive implementation/integration ledger
-- [x] p3-pr44-advanced-port T3-01: voice admission rejects full mixer.
-- [x] p3-pr44-advanced-port T3-02: sample vector capacity bounded.
-- [x] p3-pr44-advanced-port T3-03: sample vector max_size checked.
-- [x] p3-pr44-advanced-port T3-04: spatial voice sample max_size checked.
-- [x] p3-pr44-advanced-port T3-05: duplicate voice IDs rejected.
-- [x] p3-pr44-advanced-port T3-06: pitch finite and bounded.
-- [x] p3-pr44-advanced-port T3-07: gain nonzero invariant preserved.
-- [x] p3-pr44-advanced-port T3-08: listener basis normalized.
-- [x] p3-pr44-advanced-port T3-09: listener orthogonality checked.
-- [x] p3-pr44-advanced-port T3-10: mix frame count bounded.
-- [x] p3-pr44-advanced-port T3-11: output stereo cardinality verified.
+- [x] p3-editor-android-production-night T3-01: Android render width persisted in JNI state.
+- [x] p3-editor-android-production-night T3-02: Android render height persisted in JNI state.
+- [x] p3-editor-android-production-night T3-03: render dimensions reset on shutdown.
+- [x] p3-editor-android-production-night T3-04: native init rejects oversized dimensions.
+- [x] p3-editor-android-production-night T3-05: native tick requires initialized runtime.
+- [x] p3-editor-android-production-night T3-06: native tick delta finite/bounded.
+- [x] p3-editor-android-production-night T3-07: native frame counter overflow guarded.
+- [x] p3-editor-android-production-night T3-08: native render requires running state.
+- [x] p3-editor-android-production-night T3-09: native render requires canonical runtime receipt.
+- [x] p3-editor-android-production-night T3-10: render telemetry entity bound enforced.
+- [x] p3-editor-android-production-night T3-11: render telemetry triangle/draw-call bounds enforced.
 
 
 ## 2026-09-21 — Turn 4 — substantive implementation/integration ledger
-- [x] p3-pr44-advanced-port T4-01: mixer overflow no longer clears live voices destructively.
-- [x] p3-pr44-advanced-port T4-02: voice sample capacity is validated before ownership transfer.
-- [x] p3-pr44-advanced-port T4-03: committed voice samples are revalidated after move.
-- [x] p3-pr44-advanced-port T4-04: spatial voice samples are revalidated after copy.
-- [x] p3-pr44-advanced-port T4-05: voice position updates require an existing voice pool.
-- [x] p3-pr44-advanced-port T4-06: voice pitch updates require an existing voice pool.
-- [x] p3-pr44-advanced-port T4-07: voice gain updates require an existing voice pool.
-- [x] p3-pr44-advanced-port T4-08: Clear removes redundant second clear and keeps lifecycle deterministic.
-- [x] p3-pr44-advanced-port T4-09: mix output byte-size overflow is bounded.
-- [x] p3-pr44-advanced-port T4-10: mix rejects oversized voice sample capacity.
-- [x] p3-pr44-advanced-port T4-11: spatial mixing revalidates voice positions before distance math.
+- [x] p3-editor-android-production-night T4-01: world streaming requires running canonical runtime.
+- [x] p3-editor-android-production-night T4-02: streamed chunk object count bounded before allocation.
+- [x] p3-editor-android-production-night T4-03: streamed object transforms must be finite.
+- [x] p3-editor-android-production-night T4-04: streamed object scales must be positive.
+- [x] p3-editor-android-production-night T4-05: native init bounds framebuffer pixel budget.
+- [x] p3-editor-android-production-night T4-06: shutdown rejects null JNI environment before JNI calls.
+- [x] p3-editor-android-production-night T4-07: actor IDs are allocated transactionally.
+- [x] p3-editor-android-production-night T4-08: actor creation has global cardinality cap.
+- [x] p3-editor-android-production-night T4-09: actor names and types cannot be empty.
+- [x] p3-editor-android-production-night T4-10: touch pointer IDs are bounded.
+- [x] p3-editor-android-production-night T4-11: key events require initialized native runtime.
 
 
 ## 2026-09-21 — Turn 5 — implementation/integration correction ledger
-- [x] T5 voice overflow no destructive clear.
-- [x] T5 voice sample capacity bound retained.
-- [x] T5 post-move sample validation retained.
-- [x] T5 spatial sample validation retained.
-- [x] T5 existing-voice requirement for position update.
-- [x] T5 existing-voice requirement for pitch update.
-- [x] T5 existing-voice requirement for gain update.
-- [x] T5 Clear lifecycle simplified without redundant mutation.
-- [x] T5 mix output allocation overflow guard.
-- [x] T5 per-voice capacity guard during mixing.
-- [x] T5 spatial position finiteness guard during mixing.
+- [x] T5 running-state streaming gate retained.
+- [x] T5 stream object cardinality cap retained.
+- [x] T5 finite transform validation retained.
+- [x] T5 positive scale validation retained.
+- [x] T5 framebuffer pixel budget retained.
+- [x] T5 JNI shutdown null guard retained.
+- [x] T5 actor ID allocation corrected to transactional increment.
+- [x] T5 actor cardinality cap retained.
+- [x] T5 empty actor metadata rejected.
+- [x] T5 touch pointer range bounded.
+- [x] T5 key event lifecycle guard retained.
 
 
 ## 2026-09-21 — Turn 6 — implementation/integration ledger
-- [x] T6-01 impossible uint16 gain upper-bound check removed.
-- [x] T6-02 spatial voice position finiteness validated.
-- [x] T6-03 voice pool existence required for spatial updates.
-- [x] T6-04 voice pool existence required for pitch updates.
-- [x] T6-05 voice pool existence required for gain updates.
-- [x] T6-06 sample capacity bounded before ownership transfer.
-- [x] T6-07 post-move sample capacity revalidated.
-- [x] T6-08 spatial sample capacity revalidated.
-- [x] T6-09 mix output size remains bounded.
-- [x] T6-10 voice cursor remains finite during mixing.
-- [x] T6-11 Clear lifecycle remains deterministic.
+- [x] T6-01 actor container cardinality is bounded.
+- [x] T6-02 actor name index cardinality is bounded.
+- [x] T6-03 touch coordinates remain finite.
+- [x] T6-04 touch pointer ID remains bounded.
+- [x] T6-05 touch input requires running runtime.
+- [x] T6-06 native render dimensions remain bounded.
+- [x] T6-07 framebuffer pixel budget remains bounded.
+- [x] T6-08 streamed transforms remain finite.
+- [x] T6-09 streamed scales remain positive.
+- [x] T6-10 actor metadata remains non-empty.
+- [x] T6-11 JNI lifecycle rejects invalid runtime state.
 
 
 ## 2026-09-21 — Turn 7 — implementation/integration ledger
-- [x] T7-01 invalid mixer voice count no longer clears live state.
-- [x] T7-02 spatial sample capacity checked before insertion.
-- [x] T7-03 spatial sample capacity rechecked after copy.
-- [x] T7-04 spatial sample emptiness rejected.
-- [x] T7-05 stop rejects empty voice pool.
-- [x] T7-06 mix validates voice sample capacity.
-- [x] T7-07 mix preserves output fail-closed behavior.
-- [x] T7-08 spatial positions remain finite.
-- [x] T7-09 listener vectors remain normalized.
-- [x] T7-10 voice pitch remains finite and bounded.
-- [x] T7-11 mixer lifecycle remains deterministic.
+- [x] T7-01 actor JSON validates positive actor ID.
+- [x] T7-02 actor JSON rejects empty actor names.
+- [x] T7-03 actor JSON rejects empty actor types.
+- [x] T7-04 actor JSON rejects empty colors.
+- [x] T7-05 actor JSON bounds name length.
+- [x] T7-06 actor JSON bounds type length.
+- [x] T7-07 actor JSON bounds color length.
+- [x] T7-08 actor JSON validates roughness.
+- [x] T7-09 actor JSON validates metalness.
+- [x] T7-10 actor JSON validates transform finiteness.
+- [x] T7-11 actor JSON rejects truncated snprintf output.
 
 
 ## 2026-09-21 — Turn 8 — implementation/integration ledger
-- [x] T8-01 invalid mixer voice count no longer clears state.
-- [x] T8-02 spatial sample capacity checked.
-- [x] T8-03 spatial sample emptiness checked.
-- [x] T8-04 mix frame count bounded by integer output range.
-- [x] T8-05 listener position finiteness validated.
-- [x] T8-06 listener basis finiteness validated.
-- [x] T8-07 listener orthogonality remains validated.
-- [x] T8-08 mix output cardinality remains bounded.
-- [x] T8-09 voice sample capacity rechecked during mix.
-- [x] T8-10 voice gain remains representable.
-- [x] T8-11 voice identity remains bounded.
+- [x] T8-01 streamed chunk object count capped.
+- [x] T8-02 streamed chunk coordinates bounded.
+- [x] T8-03 global actor cardinality capped.
+- [x] T8-04 actor ID exhaustion rejected.
+- [x] T8-05 camera updates require running runtime.
+- [x] T8-06 camera coordinates bounded.
+- [x] T8-07 JNI init requires JavaVM.
+- [x] T8-08 JNI init rejects inconsistent existing runtime state.
+- [x] T8-09 runtime error checked before native runtime publication.
+- [x] T8-10 JNI frame telemetry reset on init.
+- [x] T8-11 shutdown disables streaming before runtime destruction.
