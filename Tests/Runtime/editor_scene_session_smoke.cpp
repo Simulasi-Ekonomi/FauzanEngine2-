@@ -2,6 +2,8 @@
 #include "Runtime/SoftwareRenderer.h"
 
 #include <cstdio>
+#include <cstdlib>
+#define REQUIRE_STAGE(expr, label) do { if (!(expr)) { std::fprintf(stderr, "PR44_SESSION_FAIL:%s\n", label); return 1; } } while (false)
 #include <vector>
 
 int main() {
@@ -22,10 +24,10 @@ int main() {
     if(session.AddActor({5,0,EditorSceneActorKind::Empty,{}},assets)||session.LastError()!=EditorSceneSessionError::DuplicateActorId||!session.Save(saved)||saved.revision!=7U||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
     if(session.UpdateTransform(10,{0,0,3,0,0,0,0,1,1},assets)||session.LastError()!=EditorSceneSessionError::DocumentLoadFailed||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
     std::printf("S4_HIERARCHY_OK\\n");
-    if(!session.UpdateTransform(10,{1.0F,0,3,0,0,0,1,1,1},assets)||session.Document().revision!=8U||session.HasUnsavedChanges()||!session.CanUndo()||session.CanRedo())return 1;
-    if(!session.Undo(assets)||session.Document().revision!=7U||session.HasUnsavedChanges()||!session.CanRedo())return 1;
-    if(!session.Redo(assets)||session.Document().revision!=8U||!session.HasUnsavedChanges()||!session.CanUndo()||session.CanRedo())return 1;
-    if(!session.RevertToSaved(assets)||session.Document().revision!=7U||session.HasUnsavedChanges()||session.CanUndo()||session.CanRedo()||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
+    REQUIRE_STAGE(session.UpdateTransform(10,{1.0F,0,3,0,0,0,1,1,1},assets),"S5_UPDATE"); REQUIRE_STAGE(session.Document().revision==8U,"S5_UPDATE_REV"); REQUIRE_STAGE(!session.HasUnsavedChanges(),"S5_UPDATE_SAVED"); REQUIRE_STAGE(session.CanUndo(),"S5_CAN_UNDO"); REQUIRE_STAGE(!session.CanRedo(),"S5_NO_REDO");
+    REQUIRE_STAGE(session.Undo(assets),"S5_UNDO"); REQUIRE_STAGE(session.Document().revision==7U,"S5_UNDO_REV"); REQUIRE_STAGE(!session.HasUnsavedChanges(),"S5_UNDO_SAVED"); REQUIRE_STAGE(session.CanRedo(),"S5_CAN_REDO");
+    REQUIRE_STAGE(session.Redo(assets),"S5_REDO"); REQUIRE_STAGE(session.Document().revision==8U,"S5_REDO_REV"); REQUIRE_STAGE(session.HasUnsavedChanges(),"S5_REDO_DIRTY"); REQUIRE_STAGE(session.CanUndo(),"S5_REDO_CAN_UNDO"); REQUIRE_STAGE(!session.CanRedo(),"S5_REDO_NO_REDO");
+    REQUIRE_STAGE(session.RevertToSaved(assets),"S5_REVERT"); REQUIRE_STAGE(session.Document().revision==7U,"S5_REVERT_REV"); REQUIRE_STAGE(!session.HasUnsavedChanges(),"S5_REVERT_SAVED"); REQUIRE_STAGE(!session.CanUndo(),"S5_REVERT_NO_UNDO"); REQUIRE_STAGE(!session.CanRedo(),"S5_REVERT_NO_REDO"); REQUIRE_STAGE(renderer.Clear(0xFF000000U),"S5_REVERT_CLEAR"); REQUIRE_STAGE(session.RenderViewport(camera,renderer,{{0,0,-1}}),"S5_REVERT_RENDER"); REQUIRE_STAGE(renderer.FrameHash()==movedHash,"S5_REVERT_HASH");
     if(!session.SelectActor(10))return 1; EditorSceneDocument invalid=document; invalid.revision=2; invalid.actors[1].assetId="missing.sprite"; if(session.Open(invalid,assets)||session.LastError()!=EditorSceneSessionError::DocumentLoadFailed||session.SelectedActorId()!=10U||!renderer.Clear(0xFF000000U)||!session.RenderViewport(camera,renderer,{{0,0,-1}})||renderer.FrameHash()!=movedHash)return 1;
     EditorSceneDocument reduced{EditorSceneDocument::kVersion,"reduced",1,{{5,0,EditorSceneActorKind::Empty,{}}}}; if(!session.Open(reduced,assets)||session.HasSelection())return 1;
     std::printf("S5_UNDO_REDO_OK\\n");
