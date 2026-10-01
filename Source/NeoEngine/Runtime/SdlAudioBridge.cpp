@@ -165,7 +165,7 @@ bool SdlAudioBridge::MixFrames(uint32_t frameCount) {
     mixer_.Mix(frameCount, callbackBuffer_);
     const size_t byteCount = static_cast<size_t>(frameCount) * sizeof(int16_t) * kStereoChannels;
     if (byteCount > static_cast<size_t>(std::numeric_limits<int>::max()) ||
-        SDL_PutAudioStreamData(stream_, callbackBuffer_.data(), static_cast<int>(byteCount)) != 0) {
+        !SDL_PutAudioStreamData(stream_, callbackBuffer_.data(), static_cast<int>(byteCount))) {
         SDL_UnlockAudioStream(stream_);
         lastError_ = SdlAudioBridgeError::DeviceOpenFailed;
         return false;
