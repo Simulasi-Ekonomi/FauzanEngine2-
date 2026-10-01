@@ -32,7 +32,9 @@ int main() {
     config.irradianceFaceSize = 4;
     config.prefilterFaceSize = 8;
     config.prefilterSamples = 8;
+    std::cerr << "PBR_ENV_STAGE:LOAD_BEGIN" << std::endl;
     REQUIRE(environment.LoadHDR(path, config));
+    std::cerr << "PBR_ENV_STAGE:LOAD_OK" << std::endl;
     REQUIRE(environment.IsCpuReady());
     REQUIRE(environment.Format() == VK_FORMAT_R16G16B16A16_SFLOAT);
     REQUIRE(environment.EnvironmentFaceSize() == 8);
@@ -42,7 +44,9 @@ int main() {
     REQUIRE(environment.Settings().maxReflectionLod == 3.0f);
     REQUIRE(NeoEngine::ValidatePBRIBLSettings(environment.Settings()));
 
+    std::cerr << "PBR_ENV_STAGE:UPLOAD_BEGIN" << std::endl;
     REQUIRE(environment.UploadToVulkan());
+    std::cerr << "PBR_ENV_STAGE:UPLOAD_OK" << std::endl;
     REQUIRE(environment.IsGpuReady());
     REQUIRE(environment.EnvironmentView() != VK_NULL_HANDLE);
     REQUIRE(environment.EnvironmentSampler() != VK_NULL_HANDLE);
@@ -52,9 +56,12 @@ int main() {
     REQUIRE(environment.PrefilteredSampler() != VK_NULL_HANDLE);
 
     NeoEngine::BRDFLut brdfLut;
+    std::cerr << "PBR_ENV_STAGE:BRDF_INIT_BEGIN" << std::endl;
     REQUIRE(brdfLut.Initialize(environment.Device(), environment.PhysicalDevice(),
                               environment.GraphicsQueue(), environment.GraphicsQueueFamily()));
+    std::cerr << "PBR_ENV_STAGE:BRDF_INIT_OK" << std::endl;
     REQUIRE(brdfLut.Generate());
+    std::cerr << "PBR_ENV_STAGE:BRDF_GENERATE_OK" << std::endl;
     REQUIRE(brdfLut.IsValid());
 
     NeoEngine::PBREnvironmentDescriptorSet environmentDescriptors;
