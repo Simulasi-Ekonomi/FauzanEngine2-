@@ -1,6 +1,6 @@
 # Canonical Active C++ Source Manifest
 
-Generated from `Source/NeoEngine/CMakeLists.txt` on 2026-09-21.
+Generated from `Source/NeoEngine/CMakeLists.txt` on 2026-10-01.
 
 This manifest is an audit artifact, not a second build definition. The canonical build authority remains CMake.
 
@@ -13,14 +13,12 @@ This manifest is an audit artifact, not a second build definition. The canonical
 
 ## Integrity
 
-- Canonical source entries: **115**
+- Canonical source entries: **123**
 - Duplicate entries: **0**
 - Duplicate paths: none
 
 ## Sources
 
-- `Core/ECS/ArchetypeManager.cpp`
-- `Runtime/AtomicSaveFile.cpp`
 - `Runtime/PBRMaterial.cpp`
 - `Runtime/BRDFLut.cpp`
 - `Runtime/PBRLighting.cpp`
@@ -32,12 +30,16 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/AssetRegistry.cpp`
 - `Runtime/AssetResourceManager.cpp`
 - `Runtime/AssetStreamingQueue.cpp`
+- `Runtime/GameplayPhysicsQuery.cpp`
 - `Runtime/Vulkan3DRenderer.cpp`
 - `Runtime/VulkanBootstrap.cpp`
 - `Runtime/VulkanContext.cpp`
 - `Runtime/VulkanDescriptorManager.cpp`
 - `Runtime/VulkanGPUTexture.cpp`
 - `Runtime/VulkanOffscreen.cpp`
+- `Runtime/VulkanGPUBuffer.cpp`
+- `Runtime/VulkanGraphicsPipeline.cpp`
+- `Runtime/VulkanMeshBufferBuilder.cpp`
 - `Runtime/VulkanPresentProbe.cpp`
 - `Runtime/VulkanTexturedPresent.cpp`
 - `Runtime/NeoRuntime.cpp`
@@ -48,7 +50,10 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/SceneWorld.cpp`
 - `Runtime/CanonicalRuntimeWorld.cpp`
 - `Runtime/GameplayTriggerTracker.cpp`
+- `Runtime/CanonicalReplicationBridge.cpp`
+- `Physics/V5/XPBDPhysicsSystem.cpp`
 - `Runtime/SceneECSBridge.cpp`
+- `Animation/GPUSkinningPaletteBuffer.cpp`
 - `Runtime/MeshStaging.cpp`
 - `Runtime/MaterialStaging.cpp`
 - `Runtime/TextureStaging.cpp`
@@ -136,3 +141,4 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Threading/JobSystem.cpp`
 - `Renderer/GPUDrivenRenderer.cpp`
 - `Renderer/GPUFrustumCulling.cpp`
+- `Core/ECS/ArchetypeManager.cpp`
