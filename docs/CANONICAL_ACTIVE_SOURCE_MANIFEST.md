@@ -37,6 +37,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/VulkanContext.cpp`
 - `Runtime/VulkanDescriptorManager.cpp`
 - `Runtime/VulkanGPUTexture.cpp`
+- `Runtime/VulkanOffscreen.cpp`
 - `Runtime/VulkanPresentProbe.cpp`
 - `Runtime/VulkanTexturedPresent.cpp`
 - `Runtime/NeoRuntime.cpp`
