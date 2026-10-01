@@ -10,7 +10,7 @@ int main() {
     REQUIRE(ecs.HasEntity(id));
     ecs.SetPosX(id, 1.0F); ecs.SetPosY(id, 2.0F); ecs.SetPosZ(id, 3.0F);
     ecs.SetTransform(id, 1.0F, 2.0F, 3.0F, 0.0F, 0.5F, 0.0F, 2.0F, 3.0F, 4.0F);
-    ecs.SetComponentMask(id, NeoEngine::COMP_POSITION | NeoEngine::COMP_ROTATION | NeoEngine::COMP_MESH);
+    ecs.SetComponentMask(id, NeoEngine::COMP_POSITION | NeoEngine::COMP_ROTATION | NeoEngine::COMP_MESH | NeoEngine::COMP_VELOCITY);
     ecs.SetMeshAssetIdentity(id, 0x1122334455667788ULL, 0x8877665544332211ULL);
     const auto before = ecs.GetPhysicsRevision();
     ecs.SetComponentMask(id, NeoEngine::COMP_POSITION | NeoEngine::COMP_ROTATION | NeoEngine::COMP_VELOCITY | NeoEngine::COMP_COLLIDER);
