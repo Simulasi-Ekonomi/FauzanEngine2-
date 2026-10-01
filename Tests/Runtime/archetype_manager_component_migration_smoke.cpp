@@ -24,7 +24,7 @@ int main() {
     uint64_t meshHash=0U, materialHash=0U;
     REQUIRE(ecs.TryGetMeshAssetIdentity(id, meshHash, materialHash));
     REQUIRE(meshHash==0x1122334455667788ULL && materialHash==0x8877665544332211ULL);
-    ecs.SetComponentMask(id, NeoEngine::COMP_POSITION | NeoEngine::COMP_ROTATION | NeoEngine::COMP_MESH);
+    ecs.SetComponentMask(id, NeoEngine::COMP_POSITION | NeoEngine::COMP_ROTATION | NeoEngine::COMP_MESH | NeoEngine::COMP_VELOCITY);
     ecs.SetMeshAssetIdentity(id, 0x1122334455667788ULL, 0x8877665544332211ULL);
     REQUIRE(ecs.TryGetMeshAssetIdentity(id, meshHash, materialHash));
     REQUIRE(meshHash==0x1122334455667788ULL && materialHash==0x8877665544332211ULL);
