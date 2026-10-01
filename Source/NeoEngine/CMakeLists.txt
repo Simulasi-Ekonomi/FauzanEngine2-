@@ -85,6 +85,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanContext.cpp
     Runtime/VulkanDescriptorManager.cpp
     Runtime/VulkanGPUTexture.cpp
+    Runtime/VulkanOffscreen.cpp
     Runtime/VulkanGPUBuffer.cpp
     Runtime/VulkanGraphicsPipeline.cpp
     Runtime/VulkanMeshBufferBuilder.cpp
