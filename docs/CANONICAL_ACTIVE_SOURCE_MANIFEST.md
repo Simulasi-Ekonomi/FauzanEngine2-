@@ -13,7 +13,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 
 ## Integrity
 
-- Canonical source entries: **113**
+- Canonical source entries: **115**
 - Duplicate entries: **0**
 - Duplicate paths: none
 
@@ -35,6 +35,8 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/Vulkan3DRenderer.cpp`
 - `Runtime/VulkanBootstrap.cpp`
 - `Runtime/VulkanContext.cpp`
+- `Runtime/VulkanDescriptorManager.cpp`
+- `Runtime/VulkanGPUTexture.cpp`
 - `Runtime/VulkanPresentProbe.cpp`
 - `Runtime/VulkanTexturedPresent.cpp`
 - `Runtime/NeoRuntime.cpp`
