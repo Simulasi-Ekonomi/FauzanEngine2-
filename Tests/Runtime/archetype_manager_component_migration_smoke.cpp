@@ -1,7 +1,7 @@
 #include "Core/ECS/ArchetypeManager.h"
-#include <cmath>
+#include <cmath>\n#include <cstdio>
 
-#define REQUIRE(...) do { if (!(__VA_ARGS__)) return 1; } while (false)
+#define REQUIRE(...) do { if (!(__VA_ARGS__)) { std::fprintf(stderr, "MIGRATION_REQUIRE_FAIL:" #__VA_ARGS__ "\n"); return 1; } } while (false)
 
 int main() {
     NeoEngine::ArchetypeManager ecs;
