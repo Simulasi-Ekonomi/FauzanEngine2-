@@ -84,8 +84,12 @@ int main() {
     std::cerr << "PBR_ENV_STAGE:DESCRIPTOR_UPDATE_OK" << std::endl;
 
     environmentDescriptors.Destroy();
+    std::cerr << "PBR_ENV_STAGE:DESCRIPTOR_DESTROY_OK" << std::endl;
     brdfLut.Destroy();
+    std::cerr << "PBR_ENV_STAGE:BRDF_DESTROY_OK" << std::endl;
     environment.Destroy();
+    std::cerr << "PBR_ENV_STAGE:ENVIRONMENT_DESTROY_OK gpu_ready=" << (environment.IsGpuReady() ? 1 : 0) << std::endl;
     REQUIRE(!environment.IsGpuReady());
+    std::cerr << "PBR_ENV_STAGE:COMPLETE" << std::endl;
     return 0;
 }
