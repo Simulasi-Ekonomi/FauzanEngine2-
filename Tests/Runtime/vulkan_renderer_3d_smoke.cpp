@@ -23,9 +23,9 @@ int main() {
     TEST_CHECK(renderer.Ready(), "Vulkan3DRenderer should be ready after Initialize");
 
     const std::vector<NeoEngine::Vulkan3DVertex> vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-        {{ 0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-        {{ 0.0f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.5f, 1.0f}}
+        {-0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f},
+        { 0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f},
+        { 0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 1.0f}
     };
     const std::vector<uint32_t> indices = {0, 1, 2};
     constexpr std::array<float, 16> identity = {
