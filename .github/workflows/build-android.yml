@@ -1,0 +1,145 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master, p3-editor-android-production-night ]
+  pull_request:
+    branches: [ main, master, p3-editor-android-production-night, sandbox-p0-validation-20260920 ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v4
+      with:
+        packages: ''
+
+    - name: Install Android build packages
+      run: |
+        sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: editor/package-lock.json
+
+    - name: Build Editor (React)
+      run: |
+        cd editor
+        npm ci
+        npm run build
+        mkdir -p ../android/app/src/main/assets/editor
+        cp -r dist/* ../android/app/src/main/assets/editor/
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
+
+    - name: Build Debug APK
+      run: |
+        cd android
+        gradle assembleDebug --no-daemon
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: NeoEngine-Debug-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+
+  build-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/p3-editor-android-production-night') || github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'p3-editor-android-production-night' || github.event.pull_request.base.ref == 'sandbox-p0-validation-20260920')
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v4
+      with:
+        packages: ''
+
+    - name: Install Android build packages
+      run: |
+        sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: editor/package-lock.json
+
+    - name: Build Editor
+      run: |
+        cd editor
+        npm ci
+        npm run build
+        mkdir -p ../android/app/src/main/assets/editor
+        cp -r dist/* ../android/app/src/main/assets/editor/
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.4'
+
+    - name: Materialize release keystore
+      env:
+        NEO_ANDROID_KEYSTORE_B64: ${{ secrets.NEO_ANDROID_KEYSTORE_B64 }}
+      run: |
+        test -n "$NEO_ANDROID_KEYSTORE_B64"
+        printf '%s' "$NEO_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/neoengine-release.keystore"
+        test -s "$RUNNER_TEMP/neoengine-release.keystore"
+
+    - name: Build signed Release APK and AAB
+      env:
+        NEO_ANDROID_KEYSTORE: ${{ runner.temp }}/neoengine-release.keystore
+        NEO_ANDROID_KEY_ALIAS: ${{ secrets.NEO_ANDROID_KEY_ALIAS }}
+        NEO_ANDROID_STORE_PASSWORD: ${{ secrets.NEO_ANDROID_STORE_PASSWORD }}
+        NEO_ANDROID_KEY_PASSWORD: ${{ secrets.NEO_ANDROID_KEY_PASSWORD }}
+      run: |
+        test -n "$NEO_ANDROID_KEY_ALIAS"
+        test -n "$NEO_ANDROID_STORE_PASSWORD"
+        test -n "$NEO_ANDROID_KEY_PASSWORD"
+        cd android
+        gradle assembleRelease bundleRelease --no-daemon
+
+    - name: Verify signed release APK
+      run: |
+        apksigner verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+
+    - name: Verify signed release AAB
+      run: |
+        test -s android/app/build/outputs/bundle/release/app-release.aab
+        jarsigner -verify -verbose -certs android/app/build/outputs/bundle/release/app-release.aab
+
+    - name: Upload signed release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: NeoEngine-P3-Signed-Release
+        path: |
+          android/app/build/outputs/apk/release/app-release.apk
+          android/app/build/outputs/bundle/release/app-release.aab
+        retention-days: 90
