@@ -1,0 +1,85 @@
+name: P3 editor Android complete validation
+
+on:
+  push:
+    branches:
+      - p3-editor-android-production-night
+  pull_request:
+    branches:
+      - main
+      - sandbox-p0-validation-20260920
+    paths:
+      - 'Source/NeoEngine/**'
+      - 'Tests/**'
+      - 'tools/p3_editor_android_sandbox.sh'
+      - 'tools/android_lifecycle_bridge_source_smoke.sh'
+      - '.github/workflows/p1-p3-sandbox-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-asan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libvulkan-dev mesa-vulkan-drivers vulkan-tools libjsoncpp-dev libglm-dev libcurl4-openssl-dev rapidjson-dev glslang-tools pkg-config xvfb libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxinerama-dev libwayland-dev libasound2-dev
+
+      - name: Install SDL3
+        uses: libsdl-org/setup-sdl@30cb786f3595c27d05018cd374b679f2313c59d3
+        with:
+          version: 3.4.16
+          install-linux-dependencies: true
+
+      - name: Run complete P3 Release coverage
+        env:
+          SDL_VIDEODRIVER: x11
+          SDL_AUDIODRIVER: dummy
+          P3_BUILD_TYPE: Release
+          P3_BUILD_JOBS: 2
+        run: |
+          chmod +x tools/p3_editor_android_sandbox.sh
+          xvfb-run -a -s "-screen 0 1280x720x24" tools/p3_editor_android_sandbox.sh Build/p3-release
+
+      - name: Run complete P3 ASAN coverage
+        if: always()
+        env:
+          SDL_VIDEODRIVER: x11
+          SDL_AUDIODRIVER: dummy
+          ASAN_OPTIONS: detect_leaks=1
+          LSAN_OPTIONS: suppressions=${{ github.workspace }}/.github/asan/lsan-sdl3-x11.supp
+          P3_BUILD_TYPE: Debug
+          P3_CMAKE_CXX_FLAGS: -fsanitize=address -fno-omit-frame-pointer
+          P3_CMAKE_EXE_LINKER_FLAGS: -fsanitize=address
+          P3_BUILD_JOBS: 2
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" tools/p3_editor_android_sandbox.sh Build/p3-asan
+
+      - name: Report P3 coverage
+        if: always()
+        run: |
+          echo "=== RELEASE ==="
+          cat Build/p3-release/sandbox-report/summary.txt 2>/dev/null || true
+          echo "=== ASAN ==="
+          cat Build/p3-asan/sandbox-report/summary.txt 2>/dev/null || true
+          echo "=== MARKERS ==="
+          cat Build/p3-release/sandbox-report/static_markers.txt 2>/dev/null || true
+          cat Build/p3-asan/sandbox-report/static_markers.txt 2>/dev/null || true
+          echo "=== ANDROID LIFECYCLE ==="
+          cat Build/p3-release/sandbox-report/android_lifecycle_bridge.log 2>/dev/null || true
+
+      - name: Upload P3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-complete-coverage
+          path: |
+            Build/p3-release/sandbox-report/
+            Build/p3-asan/sandbox-report/
+          if-no-files-found: warn
