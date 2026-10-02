@@ -91,6 +91,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/VulkanShaderProbe.cpp
     Runtime/VulkanRenderCommandRecorder.cpp
     Runtime/VulkanRenderPassManager.cpp
+    Runtime/VulkanSwapchainManager.cpp
+    Runtime/VulkanSyncPrimitives.cpp
     Runtime/VulkanMeshBufferBuilder.cpp
     Runtime/VulkanPresentProbe.cpp
     Runtime/VulkanTexturedPresent.cpp
