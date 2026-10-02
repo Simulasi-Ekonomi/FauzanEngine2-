@@ -1,0 +1,3 @@
+leak:X11_InitKeyboard
+leak:X11_GetGlobalContentScale
+leak:libvulkan_lvp.so
