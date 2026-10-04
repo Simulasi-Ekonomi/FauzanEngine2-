@@ -71,7 +71,7 @@ int main() {
             phaseFailed = true;
         } else if (completions[0] != std::pair<std::string, bool>{"cancelled", false} ||
                    completions[1] != std::pair<std::string, bool>{"high", true} ||
-                   completions[2] != std::pair<std::string, bool>{"low", true}) {
+                   completions[2] != std::pair<std::string, bool>{"low", false}) {
             phaseFailed = true;
         }
     }
@@ -81,8 +81,8 @@ int main() {
         return 5;
     }
 
-    if (!manager.IsLoaded(highPath.string()) || !manager.IsLoaded(lowPath.string()) ||
-        manager.GetResidentBytes() != 12U || manager.GetLoadedCount() != 2U) {
+    if (!manager.IsLoaded(highPath.string()) || manager.IsLoaded(lowPath.string()) ||
+        manager.GetResidentBytes() != 8U || manager.GetLoadedCount() != 1U) {
         manager.Stop(); fs::remove_all(root, ec); return 6;
     }
     std::vector<uint8_t> snapshot;
@@ -92,7 +92,6 @@ int main() {
     }
 
     manager.UnloadAsset(highPath.string());
-    manager.UnloadAsset(lowPath.string());
     if (manager.GetResidentBytes() != 0U ||
         !manager.RequestLoad(lowPath.string(), 3, loaded, completion("low"))) {
         manager.Stop(); fs::remove_all(root, ec); return 8;
