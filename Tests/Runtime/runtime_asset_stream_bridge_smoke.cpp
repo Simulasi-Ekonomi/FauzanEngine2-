@@ -1,6 +1,5 @@
 #include "Runtime/RuntimeAssetStreamBridge.h"
 
-#include <cassert>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -30,8 +29,13 @@ int main() {
     StreamManager streams(1, 8, 1024U, 1024U);
     AssetStreamingQueue queue(16U, 8U);
     RuntimeAssetStreamBridge bridge(registry, resources, streams, queue);
+    auto fail = [&](int code) {
+        bridge.Stop();
+        std::remove(path);
+        return code;
+    };
 
-    assert(bridge.Start());
+    if (!bridge.Start()) return fail(1);
 
     StreamRequest request{};
     request.id = "smoke.texture";
@@ -39,7 +43,7 @@ int main() {
     request.priority = 10.0F;
     request.estimatedSizeMB = 1U;
     request.kind = static_cast<uint8_t>(AssetKind::Texture);
-    assert(bridge.Request(request));
+    if (!bridge.Request(request)) return fail(2);
 
     for (uint32_t i = 0U; i < 100U && bridge.PendingGpuUploadCount() == 0U; ++i) {
         bridge.Pump();
@@ -49,27 +53,27 @@ int main() {
 
     AssetResourceHandle handle{};
     StreamRequest upload{};
-    assert(bridge.GetGpuUpload(request.id, upload, handle));
-    assert(upload.id == request.id);
-    assert(queue.GetState(request.id) == StreamState::Uploading);
+    if (!bridge.GetGpuUpload(request.id, upload, handle) ||
+        upload.id != request.id ||
+        queue.GetState(request.id) != StreamState::Uploading) return fail(3);
 
     AssetResourceReceipt receipt{};
-    assert(resources.Query(handle, receipt));
-    assert(receipt.gpuUploadsInFlight == 1U);
-    assert(!receipt.gpuResident);
+    if (!resources.Query(handle, receipt) ||
+        receipt.gpuUploadsInFlight != 1U ||
+        receipt.gpuResident) return fail(4);
 
     std::vector<VkDeviceMemory> released;
     const VkDeviceMemory firstMemory = FakeDeviceMemory(0x1001U);
-    assert(bridge.CompleteGpuUpload(
-        request.id, firstMemory, 1U,
-        [&released](VkDeviceMemory memory) { released.push_back(memory); }));
-    assert(bridge.PendingGpuUploadCount() == 0U);
-    assert(bridge.ResidentGpuUploadCount() == 1U);
-    assert(queue.IsReady(request.id));
-    assert(released.empty());
+    if (!bridge.CompleteGpuUpload(
+            request.id, firstMemory, 1U,
+            [&released](VkDeviceMemory memory) { released.push_back(memory); })) return fail(5);
+    if (bridge.PendingGpuUploadCount() != 0U ||
+        bridge.ResidentGpuUploadCount() != 1U ||
+        !queue.IsReady(request.id) ||
+        !released.empty()) return fail(6);
 
     AssetResourceReceipt beforeRefresh{};
-    assert(resources.Query(handle, beforeRefresh));
+    if (!resources.Query(handle, beforeRefresh)) return fail(7);
     const uint64_t firstContentHash = beforeRefresh.contentHash;
 
     {
@@ -80,25 +84,31 @@ int main() {
         file.write(reinterpret_cast<const char*>(pixel), sizeof(pixel));
     }
 
-    assert(bridge.Refresh(request));
-    assert(bridge.ResidentGpuUploadCount() == 1U);
-    assert(bridge.PendingGpuUploadCount() == 1U);
-    assert(released.empty());
+    if (!bridge.Refresh(request) ||
+        bridge.ResidentGpuUploadCount() != 1U ||
+        bridge.PendingGpuUploadCount() != 1U ||
+        !released.empty()) return fail(8);
 
+    // BeginRefresh marks the queue Uploading immediately. Wait for Pump() to
+    // publish the decoded refresh payload, which is the actual GPU-upload handoff.
     bool refreshed = false;
     for (uint32_t i = 0U; i < 100U && !refreshed; ++i) {
         bridge.Pump();
-        refreshed = queue.GetState(request.id) == StreamState::Uploading;
+        std::vector<uint8_t> rgba;
+        uint32_t width = 0U;
+        uint32_t height = 0U;
+        refreshed = bridge.GetGpuUploadTextureData(request.id, rgba, width, height) &&
+                    !rgba.empty() && width == 1U && height == 1U;
         if (!refreshed) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-    assert(refreshed);
+    if (!refreshed) return fail(9);
 
     AssetResourceHandle refreshedHandle{};
     StreamRequest refreshedRequest{};
-    assert(bridge.GetGpuUpload(request.id, refreshedRequest, refreshedHandle));
-    assert(queue.IsRefreshing(request.id));
-    assert(refreshedRequest.id == request.id);
-    assert(refreshedHandle == handle);
+    if (!bridge.GetGpuUpload(request.id, refreshedRequest, refreshedHandle) ||
+        !queue.IsRefreshing(request.id) ||
+        refreshedRequest.id != request.id ||
+        refreshedHandle != handle) return fail(10);
 
     std::vector<VkDeviceMemory> replacementReleased;
     const VkDeviceMemory secondMemory = FakeDeviceMemory(0x2002U);
@@ -108,42 +118,49 @@ int main() {
     if (!replacementComplete) {
         AssetResourceReceipt failedReceipt{};
         (void)resources.Query(handle, failedReceipt);
-        std::fprintf(stderr, "REFRESH_COMPLETE_FAIL queueState=%u resident=%u pending=%u resourceError=%u inFlight=%u residentGpu=%d\\n",
+        std::fprintf(stderr,
+            "REFRESH_COMPLETE_FAIL queueState=%u resident=%u pending=%u resourceError=%u inFlight=%u residentGpu=%d\n",
             static_cast<unsigned>(queue.GetState(request.id)),
-            bridge.ResidentGpuUploadCount(), bridge.PendingGpuUploadCount(), static_cast<unsigned>(resources.LastError()),
-            static_cast<unsigned>(failedReceipt.gpuUploadsInFlight), failedReceipt.gpuResident ? 1 : 0);
+            bridge.ResidentGpuUploadCount(), bridge.PendingGpuUploadCount(),
+            static_cast<unsigned>(resources.LastError()),
+            static_cast<unsigned>(failedReceipt.gpuUploadsInFlight),
+            failedReceipt.gpuResident ? 1 : 0);
+        return fail(11);
     }
-    assert(replacementComplete);
-    assert(bridge.PendingGpuUploadCount() == 0U);
-    assert(bridge.ResidentGpuUploadCount() == 1U);
-    assert(queue.IsReady(request.id));
-    assert(released.size() == 1U && released[0] == firstMemory);
-    assert(replacementReleased.empty());
+    if (bridge.PendingGpuUploadCount() != 0U ||
+        bridge.ResidentGpuUploadCount() != 1U ||
+        !queue.IsReady(request.id) ||
+        released.size() != 1U || released[0] != firstMemory ||
+        !replacementReleased.empty()) return fail(12);
 
     AssetResourceReceipt afterRefresh{};
-    assert(resources.Query(handle, afterRefresh));
-    assert(afterRefresh.gpuResident && afterRefresh.gpuUploadsInFlight == 0U);
-    assert(afterRefresh.contentHash != firstContentHash);
+    if (!resources.Query(handle, afterRefresh) ||
+        !afterRefresh.gpuResident ||
+        afterRefresh.gpuUploadsInFlight != 0U ||
+        afterRefresh.contentHash == firstContentHash) return fail(13);
 
     // Failure of a subsequent refresh must preserve the newly resident version.
-    assert(bridge.Refresh(request));
-    assert(bridge.PendingGpuUploadCount() == 1U);
+    if (!bridge.Refresh(request) || bridge.PendingGpuUploadCount() != 1U) return fail(14);
     bool refreshingAgain = false;
     for (uint32_t i = 0U; i < 100U && !refreshingAgain; ++i) {
         bridge.Pump();
-        refreshingAgain = queue.GetState(request.id) == StreamState::Uploading;
+        std::vector<uint8_t> rgba;
+        uint32_t width = 0U;
+        uint32_t height = 0U;
+        refreshingAgain = bridge.GetGpuUploadTextureData(request.id, rgba, width, height) &&
+                          !rgba.empty() && width == 1U && height == 1U;
         if (!refreshingAgain) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-    assert(refreshingAgain);
-    assert(bridge.FailGpuUpload(request.id));
-    assert(bridge.PendingGpuUploadCount() == 0U);
-    assert(bridge.ResidentGpuUploadCount() == 1U);
-    assert(queue.IsReady(request.id));
+    if (!refreshingAgain || !queue.IsRefreshing(request.id)) return fail(15);
+    if (!bridge.FailGpuUpload(request.id) ||
+        bridge.PendingGpuUploadCount() != 0U ||
+        bridge.ResidentGpuUploadCount() != 1U ||
+        !queue.IsReady(request.id)) return fail(16);
 
-    assert(bridge.ReleaseGpuUpload(request.id));
-    assert(bridge.ResidentGpuUploadCount() == 0U);
-    assert(released.size() == 1U && released[0] == firstMemory);
-    assert(replacementReleased.size() == 1U && replacementReleased[0] == secondMemory);
+    if (!bridge.ReleaseGpuUpload(request.id) ||
+        bridge.ResidentGpuUploadCount() != 0U ||
+        released.size() != 1U || released[0] != firstMemory ||
+        replacementReleased.size() != 1U || replacementReleased[0] != secondMemory) return fail(17);
 
     bridge.Stop();
     std::remove(path);
