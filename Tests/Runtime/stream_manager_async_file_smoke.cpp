@@ -51,99 +51,128 @@ int main() {
 
     if (!manager.RequestLoad(lowPath.string(), 1, loaded, completion("cancelled")) ||
         !manager.RequestLoad(highPath.string(), 10, loaded, completion("high")) ||
-        manager.RequestLoad(tooLargePath.string(), 0, {}, completion("unexpected")) || manager.GetQueueSize() != 2U) {
+        manager.RequestLoad(tooLargePath.string(), 0, {}, completion("unexpected")) ||
+        manager.GetQueueSize() != 2U) {
         fs::remove_all(root, ec);
         return 3;
     }
     if (!manager.Cancel(lowPath.string()) || manager.Cancel(lowPath.string()) ||
-        manager.GetQueueSize() != 1U || !manager.RequestLoad(lowPath.string(), 1, loaded, completion("low"))) {
+        manager.GetQueueSize() != 1U ||
+        !manager.RequestLoad(lowPath.string(), 1, loaded, completion("low"))) {
         fs::remove_all(root, ec);
         return 4;
     }
 
     manager.Start();
+    bool phaseFailed = false;
     {
         std::unique_lock<std::mutex> lock(callbackMutex);
         if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 3U; })) {
-            manager.Stop(); fs::remove_all(root, ec); return 5;
-        }
-        if (completions[0] != std::pair<std::string, bool>{"cancelled", false} ||
-            completions[1] != std::pair<std::string, bool>{"high", true} ||
-            completions[2] != std::pair<std::string, bool>{"low", false}) {
-            manager.Stop(); fs::remove_all(root, ec); return 6;
+            phaseFailed = true;
+        } else if (completions[0] != std::pair<std::string, bool>{"cancelled", false} ||
+                   completions[1] != std::pair<std::string, bool>{"high", true} ||
+                   completions[2] != std::pair<std::string, bool>{"low", true}) {
+            phaseFailed = true;
         }
     }
-    if (!manager.IsLoaded(highPath.string()) || manager.IsLoaded(lowPath.string()) ||
-        manager.GetResidentBytes() != 8U || manager.GetLoadedCount() != 1U) {
-        manager.Stop(); fs::remove_all(root, ec); return 7;
+    if (phaseFailed) {
+        manager.Stop();
+        fs::remove_all(root, ec);
+        return 5;
+    }
+
+    if (!manager.IsLoaded(highPath.string()) || !manager.IsLoaded(lowPath.string()) ||
+        manager.GetResidentBytes() != 12U || manager.GetLoadedCount() != 2U) {
+        manager.Stop(); fs::remove_all(root, ec); return 6;
     }
     std::vector<uint8_t> snapshot;
     if (!manager.GetAssetCopy(highPath.string(), snapshot) || snapshot.size() != 8U ||
         manager.GetAssetCopy("missing", snapshot)) {
-        manager.Stop(); fs::remove_all(root, ec); return 8;
+        manager.Stop(); fs::remove_all(root, ec); return 7;
     }
 
     manager.UnloadAsset(highPath.string());
+    manager.UnloadAsset(lowPath.string());
     if (manager.GetResidentBytes() != 0U ||
         !manager.RequestLoad(lowPath.string(), 3, loaded, completion("low"))) {
-        manager.Stop(); fs::remove_all(root, ec); return 9;
+        manager.Stop(); fs::remove_all(root, ec); return 8;
     }
+    phaseFailed = false;
     {
         std::unique_lock<std::mutex> lock(callbackMutex);
-        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 3U; }) ||
-            completions.back() != std::pair<std::string, bool>{"low", true}) {
-            manager.Stop(); fs::remove_all(root, ec); return 10;
+        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 4U; })) {
+            phaseFailed = true;
+        } else if (completions.back() != std::pair<std::string, bool>{"low", true}) {
+            phaseFailed = true;
         }
     }
+    if (phaseFailed) {
+        manager.Stop(); fs::remove_all(root, ec); return 9;
+    }
     if (!manager.IsLoaded(lowPath.string()) || manager.GetResidentBytes() != 4U) {
-        manager.Stop(); fs::remove_all(root, ec); return 11;
+        manager.Stop(); fs::remove_all(root, ec); return 10;
     }
 
     manager.UnloadAsset(lowPath.string());
     if (!manager.RequestLoad(tooLargePath.string(), 1, {}, completion("oversize"))) {
-        manager.Stop(); fs::remove_all(root, ec); return 12;
+        manager.Stop(); fs::remove_all(root, ec); return 11;
     }
+    phaseFailed = false;
     {
         std::unique_lock<std::mutex> lock(callbackMutex);
-        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 4U; }) ||
-            completions.back() != std::pair<std::string, bool>{"oversize", false}) {
-            manager.Stop(); fs::remove_all(root, ec); return 13;
+        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 5U; })) {
+            phaseFailed = true;
+        } else if (completions.back() != std::pair<std::string, bool>{"oversize", false}) {
+            phaseFailed = true;
         }
+    }
+    if (phaseFailed) {
+        manager.Stop(); fs::remove_all(root, ec); return 12;
     }
 
     manager.Stop();
     if (manager.GetQueueSize() != 0U || manager.GetResidentBytes() != 0U) {
-        fs::remove_all(root, ec); return 14;
+        fs::remove_all(root, ec); return 13;
     }
 
     // Shutdown must complete requests that never reached a worker as cancelled.
     if (!manager.RequestLoad(lowPath.string(), 1, {}, completion("stop-cancel"))) {
-        fs::remove_all(root, ec); return 15;
+        fs::remove_all(root, ec);
+        return 14;
     }
     manager.Stop();
     {
         std::lock_guard<std::mutex> lock(callbackMutex);
-        if (completions.size() != 5U ||
+        if (completions.size() != 6U ||
             completions.back() != std::pair<std::string, bool>{"stop-cancel", false}) {
-            fs::remove_all(root, ec); return 16;
+            fs::remove_all(root, ec);
+            return 15;
         }
     }
 
     // Stop/Start must recreate workers and continue accepting requests.
     if (!manager.RequestLoad(highPath.string(), 1, {}, completion("restart"))) {
-        fs::remove_all(root, ec); return 17;
+        fs::remove_all(root, ec);
+        return 16;
     }
     manager.Start();
+    phaseFailed = false;
     {
         std::unique_lock<std::mutex> lock(callbackMutex);
-        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 7U; }) ||
-            completions.back() != std::pair<std::string, bool>{"restart", true}) {
-            manager.Stop(); fs::remove_all(root, ec); return 18;
+        if (!callbackCondition.wait_for(lock, std::chrono::seconds(5), [&] { return completions.size() == 7U; })) {
+            phaseFailed = true;
+        } else if (completions.back() != std::pair<std::string, bool>{"restart", true}) {
+            phaseFailed = true;
         }
     }
+    if (phaseFailed) {
+        manager.Stop();
+        fs::remove_all(root, ec);
+        return 17;
+    }
+
     manager.Stop();
     fs::remove_all(root, ec);
     std::cout << "STREAM_MANAGER_ASYNC_FILE_SMOKE_OK\n";
     return 0;
 }
-
