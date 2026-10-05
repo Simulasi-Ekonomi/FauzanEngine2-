@@ -164,11 +164,12 @@ bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMe
         allocatedSizeMB > memoryBudgetMB_ ||
         residentMemoryMB_ - oldSize > memoryBudgetMB_ - allocatedSizeMB) return false;
 
-    GpuMemoryReleaseCallback previous = std::move(it->second.gpuMemoryReleaseCallback);
+    GpuMemoryReleaseCallback previous;
     try {
-        it->second.gpuMemoryReleaseCallback = std::move(releaseCallback);
+        previous = it->second.gpuMemoryReleaseCallback;
+        if (!previous) return false;
+        it->second.gpuMemoryReleaseCallback = releaseCallback;
     } catch (...) {
-        it->second.gpuMemoryReleaseCallback = std::move(previous);
         return false;
     }
     it->second.gpuMemory = gpuMemory;
