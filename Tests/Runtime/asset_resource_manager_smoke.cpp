@@ -4,7 +4,7 @@
 #include <string>
 #include <cstddef>
 #include <cassert>
-#include <vector>
+#include <vector>\n#include <cstdio>\n\n#define assert(expr) do { if (!(expr)) { std::fprintf(stderr, "ASSET_RESOURCE_MANAGER_ASSERT_FAIL line=%d\\n", __LINE__); return 1000 + __LINE__; } } while (false)
 
 int main() {
     using namespace NeoEngine;
