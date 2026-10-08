@@ -24,7 +24,8 @@ int main() {
         bones[i].m[0] = bones[i].m[5] = bones[i].m[10] = bones[i].m[15] = 1.0F;
         bones[i].m[12] = static_cast<float>(i);
     }
-    if (!require(palette.UploadPalette(bones), "two-bone upload") ||
+    if (!require(palette.BeginFrame(0U), "begin frame") ||
+        !require(palette.UploadPalette(bones), "two-bone upload") ||
         !require(palette.IsValid(), "palette invalid after upload") ||
         !require(palette.GetBuffer() != VK_NULL_HANDLE, "buffer handle missing") ||
         !require(palette.BoneCount() == bones.size(), "bone count after two-bone upload")) return 3;
