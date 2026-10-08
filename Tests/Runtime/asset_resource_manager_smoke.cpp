@@ -34,8 +34,12 @@ int main() {
      if (materialReceipt.dependencyCount != 2U) return fail(304);
      if (materialReceipt.resourceGeneration == 0U) return fail(305);
      if (resources.Data(materialHandle) == nullptr) return fail(306);
-    if (materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U || !resources.BeginGpuUpload(materialHandle)) return fail(3);
-    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 1U) return fail(3);
+    if (materialReceipt.gpuResident) return fail(307);
+    if (materialReceipt.gpuUploadsInFlight != 0U) return fail(308);
+    if (!resources.BeginGpuUpload(materialHandle)) return fail(309);
+    if (!resources.Query(materialHandle, materialReceipt)) return fail(310);
+    if (materialReceipt.gpuResident) return fail(311);
+    if (materialReceipt.gpuUploadsInFlight != 1U) return fail(312);
     if (resources.Release(materialHandle) || resources.LastError() != AssetResourceError::GpuUploadPending) return fail(3);
     uint16_t gpuPinnedEvictions = 999U;
     if (!resources.EvictUnleased(gpuPinnedEvictions) || gpuPinnedEvictions != 0U || resources.LastError() != AssetResourceError::None) return fail(3);
