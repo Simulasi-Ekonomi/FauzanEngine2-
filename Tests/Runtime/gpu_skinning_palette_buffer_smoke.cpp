@@ -3,8 +3,10 @@
 #include "Runtime/VulkanContext.h"
 
 #include <vector>
+#include <cstdlib>
 
 int main() {
+    std::atexit([] { std::fprintf(stderr, "GPU_SKINNING_ATEXIT\n"); });
     auto require = [](bool condition, const char* message) -> bool {
         if (!condition) std::fprintf(stderr, "GPU_SKINNING_PALETTE_SMOKE_FAIL: %s\n", message);
         return condition;
