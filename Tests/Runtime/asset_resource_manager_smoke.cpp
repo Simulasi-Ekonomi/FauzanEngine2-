@@ -11,7 +11,8 @@
 
 int main() {
     using namespace NeoEngine;
-    auto fail = [](int code) -> int { std::fprintf(stderr, "ASSET_RESOURCE_MANAGER_FAIL_CODE=%d\n", code); return code; };\n    AssetRegistry registry;
+    auto fail = [](int code) -> int { std::fprintf(stderr, "ASSET_RESOURCE_MANAGER_FAIL_CODE=%d\n", code); return code; };
+    AssetRegistry registry;
     if (registry.Declare(std::string("nul\0asset", 9U), AssetKind::Texture, {}) || registry.LastError() != AssetRegistryError::InvalidIdentifier || !registry.All().empty()) return fail(1);
     if (registry.Declare("bad-dependency-owner", AssetKind::Texture, {"bad id"}) || registry.LastError() != AssetRegistryError::InvalidIdentifier || !registry.All().empty()) return fail(1);
     if (registry.MarkReady("missing.asset") || registry.LastError() != AssetRegistryError::MissingAsset || !registry.All().empty()) return fail(1);
