@@ -28,7 +28,12 @@ int main() {
     AssetResourceHandle materialHandle{};
     if (!resources.Acquire("material.crop", materialHandle) || materialHandle.generation == 0U || resources.ActiveResourceCount() != 3U || resources.TotalLeaseCount() != 3U || resources.ActiveLeaseCount() != 1U) return fail(2);
     AssetResourceReceipt materialReceipt{};
-    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.assetId != "material.crop" || materialReceipt.refCount != 1U || materialReceipt.dependencyCount != 2U || materialReceipt.resourceGeneration == 0U || resources.Data(materialHandle) == nullptr) return fail(3);
+    if (!resources.Query(materialHandle, materialReceipt)) return fail(301);
+     if (materialReceipt.assetId != "material.crop") return fail(302);
+     if (materialReceipt.refCount != 1U) return fail(303);
+     if (materialReceipt.dependencyCount != 2U) return fail(304);
+     if (materialReceipt.resourceGeneration == 0U) return fail(305);
+     if (resources.Data(materialHandle) == nullptr) return fail(306);
     if (materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U || !resources.BeginGpuUpload(materialHandle)) return fail(3);
     if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 1U) return fail(3);
     if (resources.Release(materialHandle) || resources.LastError() != AssetResourceError::GpuUploadPending) return fail(3);
