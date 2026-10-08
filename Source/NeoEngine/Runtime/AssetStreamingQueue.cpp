@@ -140,7 +140,7 @@ bool AssetStreamingQueue::CompleteUpload(AssetID id, VkDeviceMemory gpuMemory, u
         std::lock_guard<std::mutex> lock(mutex_);
         callback = gpuMemoryReleaseCallback_;
     }
-    return CompleteUpload(id, gpuMemory, allocatedSizeMB, std::move(callback));
+    return CompleteUpload(id, gpuMemory, allocatedSizeMB, callback);
 }
 
 bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMemory,
@@ -167,8 +167,8 @@ bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMe
     GpuMemoryReleaseCallback previous;
     try {
         if (!it->second.gpuMemoryReleaseCallback || !releaseCallback) return false;
-        previous = std::move(it->second.gpuMemoryReleaseCallback);
-        it->second.gpuMemoryReleaseCallback = std::move(releaseCallback);
+        previous = it->second.gpuMemoryReleaseCallback;
+        it->second.gpuMemoryReleaseCallback = releaseCallback;
         if (!previous || !it->second.gpuMemoryReleaseCallback) return false;
     } catch (...) {
         return false;
