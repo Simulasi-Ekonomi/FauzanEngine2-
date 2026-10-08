@@ -92,10 +92,14 @@ int main() {
 
     AssetStreamingQueue::GpuMemoryReleaseCallback oldRefreshOwner;
     VkDeviceMemory oldRefreshMemory = VK_NULL_HANDLE;
-    assert(refreshQueue.CompleteRefreshUpload(
-        "refresh", FakeDeviceMemory(22), 3,
-        [&refreshReleased](VkDeviceMemory memory) { refreshReleased.push_back(memory); },
-        oldRefreshOwner, oldRefreshMemory));
+    assert(refreshQueue.IsRefreshing("refresh"));
+    if (!refreshQueue.CompleteRefreshUpload(
+            "refresh", FakeDeviceMemory(22), 3,
+            [&refreshReleased](VkDeviceMemory memory) { refreshReleased.push_back(memory); },
+            oldRefreshOwner, oldRefreshMemory)) {
+        std::cerr << "REFRESH_COMPLETE_FAILED\\n";
+        return 1;
+    }
     assert(refreshQueue.IsReady("refresh"));
     assert(refreshQueue.GetMemory("refresh") == FakeDeviceMemory(22));
     assert(refreshQueue.GetResidentMB() == 3);
