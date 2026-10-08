@@ -1,12 +1,12 @@
-#include <cassert>\n#include <cstdio>\n#include "Animation/GPUSkinningPaletteBuffer.h"
+#include <cstdio>
+#include "Animation/GPUSkinningPaletteBuffer.h"
 #include "Runtime/VulkanContext.h"
 
-#include <cassert>
 #include <vector>
 
 int main() {
     auto require = [](bool condition, const char* message) -> bool {
-        if (!condition) std::fprintf(stderr, "GPU_SKINNING_PALETTE_SMOKE_FAIL: %s\\n", message);
+        if (!condition) std::fprintf(stderr, "GPU_SKINNING_PALETTE_SMOKE_FAIL: %s\n", message);
         return condition;
     };
     NeoEngine::VulkanContext context;
