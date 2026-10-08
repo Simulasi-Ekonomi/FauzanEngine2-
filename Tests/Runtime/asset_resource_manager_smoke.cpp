@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <string>
 #include <cstddef>
-#include <cassert>
 #include <vector>
 
 #define CHECK(expr) do { if (!(expr)) return 1; } while (false)
