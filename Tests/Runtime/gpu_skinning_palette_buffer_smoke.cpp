@@ -54,5 +54,6 @@ int main() {
     if (!require(!palette.IsValid(), "second destroy resurrected palette")) return 7;
     std::fprintf(stderr, "GPU_SKINNING_STAGE=context_reset\n");
     context.Reset();
+    std::fprintf(stderr, "GPU_SKINNING_STAGE=context_reset_complete\n");
     return 0;
 }
