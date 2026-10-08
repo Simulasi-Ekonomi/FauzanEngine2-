@@ -179,7 +179,7 @@ bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMe
     it->second.state = StreamState::Ready;
     it->second.replacingResident = false;
     residentMemoryMB_ = residentMemoryMB_ - oldSize + allocatedSizeMB;
-    oldReleaseCallback = std::move(previous);
+    oldReleaseCallback = previous;
     oldGpuMemory = previousMemory;
     return true;
 }
