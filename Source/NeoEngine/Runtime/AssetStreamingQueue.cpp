@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <utility>
+#include <cstdio>
 
 namespace NeoEngine {
 
@@ -150,27 +151,28 @@ bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMe
                                             VkDeviceMemory& oldGpuMemory) noexcept {
     oldReleaseCallback = {};
     oldGpuMemory = VK_NULL_HANDLE;
-    if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0U || !releaseCallback) return false;
+    if (id.empty() || gpuMemory == VK_NULL_HANDLE || allocatedSizeMB == 0U || !releaseCallback) { std::fprintf(stderr, "REFRESH_DIAG=precondition\n"); return false; }
 
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = loadedAssets_.find(id);
     if (it == loadedAssets_.end() || it->second.state != StreamState::Uploading ||
         !it->second.replacingResident || it->second.gpuMemory == VK_NULL_HANDLE ||
-        it->second.allocatedSizeMB == 0U) return false;
+        it->second.allocatedSizeMB == 0U) { std::fprintf(stderr, "REFRESH_DIAG=state\n"); return false; }
 
     const uint32_t oldSize = it->second.allocatedSizeMB;
     const VkDeviceMemory previousMemory = it->second.gpuMemory;
     if (residentMemoryMB_ < oldSize ||
         allocatedSizeMB > memoryBudgetMB_ ||
-        residentMemoryMB_ - oldSize > memoryBudgetMB_ - allocatedSizeMB) return false;
+        residentMemoryMB_ - oldSize > memoryBudgetMB_ - allocatedSizeMB) { std::fprintf(stderr, "REFRESH_DIAG=budget resident=%u old=%u budget=%u new=%u\n", residentMemoryMB_, oldSize, memoryBudgetMB_, allocatedSizeMB); return false; }
 
     GpuMemoryReleaseCallback previous;
     try {
-        if (!it->second.gpuMemoryReleaseCallback || !releaseCallback) return false;
+        if (!it->second.gpuMemoryReleaseCallback || !releaseCallback) { std::fprintf(stderr, "REFRESH_DIAG=callback_missing\n"); return false; }
         previous = it->second.gpuMemoryReleaseCallback;
         it->second.gpuMemoryReleaseCallback = releaseCallback;
-        if (!previous || !it->second.gpuMemoryReleaseCallback) return false;
+        if (!previous || !it->second.gpuMemoryReleaseCallback) { std::fprintf(stderr, "REFRESH_DIAG=callback_assignment\n"); return false; }
     } catch (...) {
+        std::fprintf(stderr, "REFRESH_DIAG=callback_exception\n");
         return false;
     }
     it->second.gpuMemory = gpuMemory;
