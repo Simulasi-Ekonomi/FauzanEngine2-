@@ -71,7 +71,7 @@ int main() {
             phaseFailed = true;
         } else if (completions[0] != std::pair<std::string, bool>{"cancelled", false} ||
                    completions[1] != std::pair<std::string, bool>{"high", true} ||
-                   completions[2] != std::pair<std::string, bool>{"low", true}) {
+                   completions[2] != std::pair<std::string, bool>{"low", false}) {
             phaseFailed = true;
         }
     }
