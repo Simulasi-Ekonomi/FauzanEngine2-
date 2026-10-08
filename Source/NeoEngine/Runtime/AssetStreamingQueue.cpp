@@ -165,10 +165,12 @@ bool AssetStreamingQueue::CompleteRefreshUpload(AssetID id, VkDeviceMemory gpuMe
         residentMemoryMB_ - oldSize > memoryBudgetMB_ - allocatedSizeMB) return false;
 
     GpuMemoryReleaseCallback previous;
+    GpuMemoryReleaseCallback replacement;
     try {
         previous = it->second.gpuMemoryReleaseCallback;
-        if (!previous) return false;
-        it->second.gpuMemoryReleaseCallback = releaseCallback;
+        replacement = releaseCallback;
+        if (!previous || !replacement) return false;
+        it->second.gpuMemoryReleaseCallback.swap(replacement);
     } catch (...) {
         return false;
     }
