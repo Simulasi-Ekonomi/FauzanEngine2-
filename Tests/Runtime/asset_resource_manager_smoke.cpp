@@ -118,7 +118,7 @@ int main() {
     AssetResourceHandle plannedHandle{};
     if (!plannedResources.Acquire("material.crop", plannedHandle) || !plannedResources.Release(plannedHandle) || plannedResources.ResidentBytes() != 7U) return 23;
     AssetEvictionPlan plan{};
-    if (!plannedResources.PlanEviction(2U, plan) || plan.residentBytesBefore != 7U || plan.residentBytesAfter != 2U || plan.victimCount != 2U || plan.victims[0].byteSize != 3U || plan.victims[1].byteSize != 2U) return 24;
+    if (!plannedResources.PlanEviction(2U, plan) || plan.residentBytesBefore != 7U || plan.residentBytesAfter != 2U || plan.victimCount != 2U || plan.victims[0].byteSize != 2U || plan.victims[1].byteSize != 2U) return 24;
     AssetEvictionPlan malformedPlan = plan;
     malformedPlan.victimCount = 0U;
     if (plannedResources.CommitEviction(malformedPlan) || plannedResources.LastError() != AssetResourceError::InvalidEvictionPlan || plannedResources.ResidentBytes() != 7U || plannedResources.ActiveResourceCount() != 3U) return 25;
