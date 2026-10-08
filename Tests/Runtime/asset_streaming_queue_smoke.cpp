@@ -1,6 +1,5 @@
 #include "AssetStreamingQueue.h"
 
-#include <cassert>
 #include <cstdint>
 #include <type_traits>
 
@@ -95,13 +94,10 @@ int main() {
     AssetStreamingQueue::GpuMemoryReleaseCallback oldRefreshOwner;
     VkDeviceMemory oldRefreshMemory = VK_NULL_HANDLE;
     CHECK(refreshQueue.IsRefreshing("refresh"));
-    if (!refreshQueue.CompleteRefreshUpload(
-            "refresh", FakeDeviceMemory(22), 3,
-            [&refreshReleased](VkDeviceMemory memory) { refreshReleased.push_back(memory); },
-            oldRefreshOwner, oldRefreshMemory)) {
-        std::cerr << "REFRESH_COMPLETE_FAILED\\n";
-        return 1;
-    }
+    CHECK(refreshQueue.CompleteRefreshUpload(
+        "refresh", FakeDeviceMemory(22), 3,
+        [&refreshReleased](VkDeviceMemory memory) { refreshReleased.push_back(memory); },
+        oldRefreshOwner, oldRefreshMemory));
     CHECK(refreshQueue.IsReady("refresh"));
     CHECK(refreshQueue.GetMemory("refresh") == FakeDeviceMemory(22));
     CHECK(refreshQueue.GetResidentMB() == 3);
