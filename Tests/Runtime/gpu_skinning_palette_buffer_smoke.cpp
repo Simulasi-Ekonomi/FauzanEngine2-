@@ -55,5 +55,6 @@ int main() {
     std::fprintf(stderr, "GPU_SKINNING_STAGE=context_reset\n");
     context.Reset();
     std::fprintf(stderr, "GPU_SKINNING_STAGE=context_reset_complete\n");
+    std::fprintf(stderr, "GPU_SKINNING_RETURN=0\n");
     return 0;
 }
