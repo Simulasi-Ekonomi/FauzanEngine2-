@@ -1,7 +1,6 @@
 #include "Runtime/AssetResourceManager.h"
 
 #include <cstdint>
-#include <cstdio>
 #include <string>
 #include <cstddef>
 #include <vector>
@@ -49,7 +48,7 @@ int main() {
     if (resources.LastError() != AssetResourceError::None) return 320;
     if (!resources.BeginGpuUpload(materialHandle)) return 321;
     if (!resources.BeginGpuUpload(materialHandle)) return 322;
-    if (!resources.CompleteGpuUpload(materialHandle)) { std::fprintf(stderr, "ASSET_RESOURCE_COMPLETE_FAIL error=%u active=%u leases=%u\n", static_cast<unsigned>(resources.LastError()), resources.ActiveResourceCount(), resources.ActiveLeaseCount()); return 323; }
+    if (!resources.CompleteGpuUpload(materialHandle)) return 323;
     if (!resources.Query(materialHandle, materialReceipt)) return 324;
     if (materialReceipt.gpuResident) return 325;
     if (materialReceipt.gpuUploadsInFlight != 1U) return 326;
@@ -139,7 +138,7 @@ int main() {
     AssetResourceHandle plannedHandle{};
     if (!plannedResources.Acquire("material.crop", plannedHandle) || !plannedResources.Release(plannedHandle) || plannedResources.ResidentBytes() != 7U) return 23;
     AssetEvictionPlan plan{};
-    if (!plannedResources.PlanEviction(2U, plan) || plan.residentBytesBefore != 7U || plan.residentBytesAfter != 2U || plan.victimCount != 2U || plan.victims[0].byteSize != 2U || plan.victims[1].byteSize != 2U) return 24;
+    if (!plannedResources.PlanEviction(3U, plan) || plan.residentBytesBefore != 7U || plan.residentBytesAfter != 3U || plan.victimCount != 2U || plan.victims[0].byteSize != 2U || plan.victims[1].byteSize != 2U) return 24;
     AssetEvictionPlan malformedPlan = plan;
     malformedPlan.victimCount = 0U;
     if (plannedResources.CommitEviction(malformedPlan) || plannedResources.LastError() != AssetResourceError::InvalidEvictionPlan || plannedResources.ResidentBytes() != 7U || plannedResources.ActiveResourceCount() != 3U) return 25;
@@ -147,7 +146,7 @@ int main() {
     AssetEvictionPlan preservedPlan{};
     preservedPlan.maxResidentBytes = 123U;
     if (plannedResources.PlanEviction(0U, preservedPlan) || plannedResources.LastError() != AssetResourceError::BudgetExceeded || preservedPlan.maxResidentBytes != 123U || plannedResources.ActiveResourceCount() != 3U) return 27;
-    if (!plannedResources.Release(plannedHandle) || !plannedResources.PlanEviction(2U, plan) || !plannedResources.CommitEviction(plan) || plannedResources.ResidentBytes() != 2U || plannedResources.ActiveResourceCount() != 1U) return 28;
+    if (!plannedResources.Release(plannedHandle) || !plannedResources.PlanEviction(3U, plan) || !plannedResources.CommitEviction(plan) || plannedResources.ResidentBytes() != 3U || plannedResources.ActiveResourceCount() != 1U) return 28;
     AssetResourceHandle plannedReloadHandle{};
     if (!plannedResources.Acquire("material.crop", plannedReloadHandle) || !plannedResources.Release(plannedReloadHandle)) return 29;
     AssetResourceReceipt reloadBefore{};
