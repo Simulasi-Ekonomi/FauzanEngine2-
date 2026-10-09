@@ -47,5 +47,6 @@ int main() {
     palette.Destroy();
     if (!require(!palette.IsValid(), "second destroy resurrected palette")) return 7;
     context.Reset();
+    if (!require(!palette.IsValid(), "palette remained valid after device reset")) return 8;
     return 0;
 }
