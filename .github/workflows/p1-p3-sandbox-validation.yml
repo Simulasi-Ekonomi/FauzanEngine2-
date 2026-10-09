@@ -151,7 +151,7 @@ jobs:
           for ((i=start;i<end;i++)); do
             t="${targets[$i]}"
             echo "RUN RELEASE SHARD=${{ matrix.shard }} INDEX=$i TARGET=$t"
-            if xvfb-run -a "./build/p1-release-${{ matrix.shard }}/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
+            if xvfb-run -a "./build/p1-release-${{ matrix.shard }}/$t"; then pass=$((pass+1)); else status=$?; echo "P1 RELEASE TARGET FAILURE shard=${{ matrix.shard }} index=$i target=$t exit=$status"; fail=$((fail+1)); fi
           done
           echo "P1 RELEASE SHARD ${{ matrix.shard }}: pass=$pass fail=$fail total=27"
           test "$pass" -eq 27
@@ -285,7 +285,7 @@ jobs:
           for ((i=start;i<end;i++)); do
             t="${targets[$i]}"
             echo "RUN ASAN SHARD=${{ matrix.shard }} INDEX=$i TARGET=$t"
-            if xvfb-run -a "./build/p1-asan-${{ matrix.shard }}/$t"; then pass=$((pass+1)); else fail=$((fail+1)); fi
+            if xvfb-run -a "./build/p1-asan-${{ matrix.shard }}/$t"; then pass=$((pass+1)); else status=$?; echo "P1 ASAN TARGET FAILURE shard=${{ matrix.shard }} index=$i target=$t exit=$status"; fail=$((fail+1)); fi
           done
           echo "P1 ASAN SHARD ${{ matrix.shard }}: pass=$pass fail=$fail total=27"
           test "$pass" -eq 27
