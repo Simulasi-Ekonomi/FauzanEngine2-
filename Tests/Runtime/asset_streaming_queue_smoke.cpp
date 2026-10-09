@@ -27,8 +27,8 @@ using namespace NeoEngine;
 #define CHECK(expr) do { if (!(expr)) return 1; } while (false)
 
 int main() {
-    AssetStreamingQueue queue(8, 8);
     std::vector<VkDeviceMemory> released;
+    AssetStreamingQueue queue(8, 8);
     queue.SetGpuMemoryReleaseCallback([&released](VkDeviceMemory memory) { released.push_back(memory); });
     CHECK(queue.HasGpuMemoryReleaseCallback());
 
@@ -77,8 +77,8 @@ int main() {
     CHECK(queue.GetMemory("high") == FakeDeviceMemory(1));
     CHECK(queue.GetResidentMB() == 3);
 
-    AssetStreamingQueue refreshQueue(8, 8);
     std::vector<VkDeviceMemory> refreshReleased;
+    AssetStreamingQueue refreshQueue(8, 8);
     refreshQueue.SetGpuMemoryReleaseCallback([&refreshReleased](VkDeviceMemory memory) {
         refreshReleased.push_back(memory);
     });
@@ -154,9 +154,9 @@ int main() {
 
     // Existing allocations retain the releaser that owned them even if the
     // queue callback is replaced later (e.g. after a Vulkan device recreation).
-    AssetStreamingQueue ownershipQueue(8, 8);
     std::vector<VkDeviceMemory> ownerA;
     std::vector<VkDeviceMemory> ownerB;
+    AssetStreamingQueue ownershipQueue(8, 8);
     ownershipQueue.SetGpuMemoryReleaseCallback([&ownerA](VkDeviceMemory memory) { ownerA.push_back(memory); });
     CHECK(ownershipQueue.Enqueue(StreamRequest{"owned", "owned.obj", 1.0f, 2, 1}));
     CHECK(ownershipQueue.TryDequeue(next));
@@ -169,9 +169,9 @@ int main() {
 
     // A throwing releaser must not make an allocation disappear or corrupt
     // resident accounting. A shared state lets the test recover and retry.
-    AssetStreamingQueue retryQueue(8, 8);
     auto throwOnce = std::make_shared<bool>(true);
     std::vector<VkDeviceMemory> retryReleased;
+    AssetStreamingQueue retryQueue(8, 8);
     retryQueue.SetGpuMemoryReleaseCallback([throwOnce, &retryReleased](VkDeviceMemory memory) {
         if (*throwOnce) { *throwOnce = false; throw 1; }
         retryReleased.push_back(memory);
