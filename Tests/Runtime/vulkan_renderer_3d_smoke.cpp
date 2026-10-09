@@ -12,7 +12,7 @@
 #define TEST_CHECK(cond, msg) \
     do { \
         if (!(cond)) { \
-            std::cerr << "[TEST FAIL] " << msg << " (" << #cond << ")\\n"; \
+            std::cerr << "[TEST FAIL] " << msg << " (" << #cond << ")\n"; \
             cleanup(); \
             return 1; \
         } \
@@ -20,22 +20,22 @@
 
 int main() {
     using namespace NeoEngine;
-    std::cout << "[Smoke Test] Starting vulkan_renderer_3d_smoke...\\n";
+    std::cout << "[Smoke Test] Starting vulkan_renderer_3d_smoke...\n";
 
     constexpr const char* assetPath = "vulkan_renderer_3d_streamed_texture.ppm";
     {
         std::ofstream file(assetPath, std::ios::binary | std::ios::trunc);
-        const char header[] = "P6\\n1 1\\n255\\n";
+        const char header[] = "P6\n1 1\n255\n";
         const unsigned char pixel[] = {24U, 96U, 192U};
         if (!file.is_open()) {
-            std::cerr << "[TEST FAIL] could not create streamed texture fixture\\n";
+            std::cerr << "[TEST FAIL] could not create streamed texture fixture\n";
             return 1;
         }
         file.write(header, sizeof(header) - 1U);
         file.write(reinterpret_cast<const char*>(pixel), sizeof(pixel));
         if (!file.good()) {
             std::remove(assetPath);
-            std::cerr << "[TEST FAIL] could not write streamed texture fixture\\n";
+            std::cerr << "[TEST FAIL] could not write streamed texture fixture\n";
             return 1;
         }
     }
@@ -56,7 +56,7 @@ int main() {
 
     TEST_CHECK(bridge.Start(), "stream manager failed to start");
     if (!renderer.Initialize(800, 600, "NeoEngine Vulkan 3D Smoke")) {
-        std::cout << "[INFO] Vulkan3DRenderer initialization unavailable in this environment; streaming integration not exercised.\\n";
+        std::cout << "[INFO] Vulkan3DRenderer initialization unavailable in this environment; streaming integration not exercised.\n";
         cleanup();
         return 0;
     }
@@ -119,6 +119,6 @@ int main() {
     bridge.Stop();
     std::remove(assetPath);
 
-    std::cout << "VULKAN_RENDERER_3D_SMOKE_OK file_to_registry_to_gpu_to_descriptor=1 fence_authority=1 release=1\\n";
+    std::cout << "VULKAN_RENDERER_3D_SMOKE_OK file_to_registry_to_gpu_to_descriptor=1 fence_authority=1 release=1\n";
     return 0;
 }
