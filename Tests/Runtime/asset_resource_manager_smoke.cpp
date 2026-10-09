@@ -1,6 +1,7 @@
 #include "Runtime/AssetResourceManager.h"
 
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <cstddef>
 #include <vector>
@@ -48,7 +49,7 @@ int main() {
     if (resources.LastError() != AssetResourceError::None) return 320;
     if (!resources.BeginGpuUpload(materialHandle)) return 321;
     if (!resources.BeginGpuUpload(materialHandle)) return 322;
-    if (!resources.CompleteGpuUpload(materialHandle)) return 323;
+    if (!resources.CompleteGpuUpload(materialHandle)) { std::fprintf(stderr, "ASSET_RESOURCE_COMPLETE_FAIL error=%u active=%u leases=%u\n", static_cast<unsigned>(resources.LastError()), resources.ActiveResourceCount(), resources.ActiveLeaseCount()); return 323; }
     if (!resources.Query(materialHandle, materialReceipt)) return 324;
     if (materialReceipt.gpuResident) return 325;
     if (materialReceipt.gpuUploadsInFlight != 1U) return 326;
