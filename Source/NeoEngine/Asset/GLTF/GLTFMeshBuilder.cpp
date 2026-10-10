@@ -21,6 +21,8 @@ constexpr std::size_t kMaxBufferViews = 4096U;
 constexpr std::size_t kMaxAccessors = 4096U;
 constexpr std::size_t kMaxVerticesPerPrimitive = 1U << 20U;
 constexpr std::size_t kMaxIndicesPerPrimitive = 3U * (1U << 20U);
+constexpr std::uint32_t kMaxSkinningBones = 64U;
+constexpr float kMinimumSkinWeightSum = 1.0e-8F;
 
 bool ReadFile(const std::filesystem::path& path, std::vector<std::uint8_t>& out) {
     std::error_code ec;
@@ -165,7 +167,20 @@ bool BuildFromDocument(const rapidjson::Document& doc, const std::vector<std::ve
             if (!attributes.HasMember("POSITION") || !attributes["POSITION"].IsUint()) return false;
             AccessorView position;
             if (!ResolveAccessor(doc, buffers, attributes["POSITION"].GetUint(), position) || position.components != 3U) return false;
-            AccessorView normal, uv;
+            AccessorView normal, uv, joints, weights;
+            const bool hasJointsAttribute = attributes.HasMember("JOINTS_0");
+            const bool hasWeightsAttribute = attributes.HasMember("WEIGHTS_0");
+            if (hasJointsAttribute != hasWeightsAttribute) return false;
+            bool hasSkinning = false;
+            if (hasJointsAttribute) {
+                if (!attributes["JOINTS_0"].IsUint() || !attributes["WEIGHTS_0"].IsUint()) return false;
+                if (!ResolveAccessor(doc, buffers, attributes["JOINTS_0"].GetUint(), joints) ||
+                    !ResolveAccessor(doc, buffers, attributes["WEIGHTS_0"].GetUint(), weights) ||
+                    joints.components != 4U || weights.components != 4U ||
+                    joints.count != position.count || weights.count != position.count ||
+                    joints.componentType != 5121 && joints.componentType != 5123 || joints.normalized) return false;
+                hasSkinning = true;
+            }
             const bool hasNormal = attributes.HasMember("NORMAL") && attributes["NORMAL"].IsUint() && ResolveAccessor(doc, buffers, attributes["NORMAL"].GetUint(), normal) && normal.components == 3U && normal.count == position.count;
             const bool hasUv = attributes.HasMember("TEXCOORD_0") && attributes["TEXCOORD_0"].IsUint() && ResolveAccessor(doc, buffers, attributes["TEXCOORD_0"].GetUint(), uv) && uv.components == 2U && uv.count == position.count;
             GLTFMesh mesh{};
@@ -180,11 +195,28 @@ bool BuildFromDocument(const rapidjson::Document& doc, const std::vector<std::ve
                 }
                 vertex.normal[0] = 0.0F; vertex.normal[1] = 1.0F; vertex.normal[2] = 0.0F;
                 vertex.uv[0] = 0.0F; vertex.uv[1] = 0.0F;
+                vertex.boneIndices[0] = 0U; vertex.boneIndices[1] = 0U; vertex.boneIndices[2] = 0U; vertex.boneIndices[3] = 0U;
+                vertex.boneWeights[0] = 1.0F; vertex.boneWeights[1] = 0.0F; vertex.boneWeights[2] = 0.0F; vertex.boneWeights[3] = 0.0F;
                 if (hasNormal) for (std::size_t component = 0U; component < 3U; ++component) {
                     float value = 0.0F; if (!ReadFloat(normal.data + i * normal.stride + component * normal.componentSize, normal.componentType, normal.normalized, value) || !std::isfinite(value)) return false; vertex.normal[component] = value;
                 }
                 if (hasUv) for (std::size_t component = 0U; component < 2U; ++component) {
                     float value = 0.0F; if (!ReadFloat(uv.data + i * uv.stride + component * uv.componentSize, uv.componentType, uv.normalized, value) || !std::isfinite(value)) return false; vertex.uv[component] = value;
+                }
+                if (hasSkinning) {
+                    float weightSum = 0.0F;
+                    for (std::size_t component = 0U; component < 4U; ++component) {
+                        std::uint32_t joint = 0U;
+                        if (!ReadUnsigned(joints.data + i * joints.stride + component * joints.componentSize, joints.componentType, joint) || joint >= kMaxSkinningBones) return false;
+                        float weight = 0.0F;
+                        if (!ReadFloat(weights.data + i * weights.stride + component * weights.componentSize, weights.componentType, weights.normalized, weight) || !std::isfinite(weight) || weight < 0.0F) return false;
+                        vertex.boneIndices[component] = joint;
+                        vertex.boneWeights[component] = weight;
+                        weightSum += weight;
+                    }
+                    if (!std::isfinite(weightSum) || weightSum <= kMinimumSkinWeightSum) return false;
+                    const float inverseWeightSum = 1.0F / weightSum;
+                    for (float& weight : vertex.boneWeights) weight *= inverseWeightSum;
                 }
             }
             if (primitive.HasMember("indices")) {

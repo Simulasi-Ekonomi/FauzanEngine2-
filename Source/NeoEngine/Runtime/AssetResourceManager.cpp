@@ -45,7 +45,7 @@ bool AssetResourceManager::BuildDependencyClosure(std::string_view assetId, std:
 }
 
 bool AssetResourceManager::RefreshUnleasedSlot(Slot& slot, const AssetDefinition& definition) {
-    if (slot.refCount != 0U) return Fail(AssetResourceError::StaleInUse);
+    if (slot.refCount != 0U || slot.gpuUploadsInFlight != 0U) return Fail(AssetResourceError::StaleInUse);
     if (slot.generation >= std::numeric_limits<uint32_t>::max() - 2U || slot.hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     slot.state = AssetResourceState::Ready;
     slot.contentHash = definition.contentHash;
@@ -57,7 +57,7 @@ bool AssetResourceManager::RefreshUnleasedSlot(Slot& slot, const AssetDefinition
 bool AssetResourceManager::FillReceipt(const Slot& slot, AssetResourceHandle handle, AssetResourceReceipt& receipt) const {
     if (!slot.occupied) return false;
     try {
-        AssetResourceReceipt candidate{slot.assetId, handle, slot.state, slot.contentHash, slot.refCount, slot.dependencyCount, slot.hotReloadGeneration, slot.generation};
+        AssetResourceReceipt candidate{slot.assetId, handle, slot.state, slot.contentHash, slot.refCount, slot.dependencyCount, slot.hotReloadGeneration, slot.generation, slot.gpuResident, slot.gpuUploadsInFlight};
         receipt = std::move(candidate);
         return true;
     } catch (const std::bad_alloc&) {
@@ -143,6 +143,7 @@ bool AssetResourceManager::Acquire(std::string_view assetId, AssetResourceHandle
 bool AssetResourceManager::Release(AssetResourceHandle handle) {
     if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
     LeaseSlot& lease = leases_[handle.slot];
+    if (slots_[lease.rootResourceSlot].gpuUploadsInFlight != 0U) return Fail(AssetResourceError::GpuUploadPending);
     if (lease.generation >= std::numeric_limits<uint32_t>::max() - 1U) return Fail(AssetResourceError::Capacity);
     if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     const uint16_t targetCount = static_cast<uint16_t>(lease.dependencyCount + 1U);
@@ -163,6 +164,76 @@ bool AssetResourceManager::Release(AssetResourceHandle handle) {
     lastError_ = AssetResourceError::None;
     return true;
 }
+bool AssetResourceManager::BeginGpuUpload(AssetResourceHandle handle) {
+    if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
+    LeaseSlot& lease = leases_[handle.slot];
+    Slot& slot = slots_[lease.rootResourceSlot];
+    if (slot.gpuUploadsInFlight == std::numeric_limits<uint16_t>::max() || managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    if (slot.state != AssetResourceState::Ready) return Fail(AssetResourceError::NotReady);
+    ++slot.gpuUploadsInFlight;
+    slot.gpuResident = false;
+    ++managerRevision_;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
+bool AssetResourceManager::BeginGpuRefresh(AssetResourceHandle handle) {
+    if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
+    LeaseSlot& lease = leases_[handle.slot];
+    Slot& slot = slots_[lease.rootResourceSlot];
+    if (slot.gpuUploadsInFlight == std::numeric_limits<uint16_t>::max() ||
+        managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    if (slot.state != AssetResourceState::Ready || !slot.gpuResident || slot.gpuUploadsInFlight != 0U)
+        return Fail(slot.state != AssetResourceState::Ready ? AssetResourceError::NotReady : AssetResourceError::GpuUploadPending);
+    ++slot.gpuUploadsInFlight;
+    ++managerRevision_;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
+bool AssetResourceManager::CompleteGpuUpload(AssetResourceHandle handle) {
+    if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
+    LeaseSlot& lease = leases_[handle.slot];
+    Slot& slot = slots_[lease.rootResourceSlot];
+    if (slot.gpuUploadsInFlight == 0U) return Fail(AssetResourceError::GpuUploadNotPending);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    --slot.gpuUploadsInFlight;
+    slot.gpuResident = slot.gpuUploadsInFlight == 0U;
+    ++managerRevision_;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
+bool AssetResourceManager::CompleteGpuRefresh(AssetResourceHandle handle, uint64_t newContentHash) {
+    if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
+    if (newContentHash == 0U) return Fail(AssetResourceError::HotReloadRejected);
+    LeaseSlot& lease = leases_[handle.slot];
+    Slot& slot = slots_[lease.rootResourceSlot];
+    if (slot.gpuUploadsInFlight == 0U) return Fail(AssetResourceError::GpuUploadNotPending);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max() ||
+        slot.hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    --slot.gpuUploadsInFlight;
+    slot.gpuResident = true;
+    slot.contentHash = newContentHash;
+    ++slot.hotReloadGeneration;
+    ++managerRevision_;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
+bool AssetResourceManager::CancelGpuUpload(AssetResourceHandle handle) {
+    if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
+    LeaseSlot& lease = leases_[handle.slot];
+    Slot& slot = slots_[lease.rootResourceSlot];
+    if (slot.gpuUploadsInFlight == 0U) return Fail(AssetResourceError::GpuUploadNotPending);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    --slot.gpuUploadsInFlight;
+    if (slot.gpuUploadsInFlight == 0U) slot.gpuResident = false;
+    ++managerRevision_;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
 
 bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
     if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
@@ -195,6 +266,19 @@ bool AssetResourceManager::ReloadIfSafe(std::string_view assetId) {
     return true;
 }
 
+bool AssetResourceManager::CancelGpuRefresh(AssetResourceHandle handle) {
+    if (!ValidHandle(handle)) return Fail(AssetResourceError::InvalidHandle);
+    LeaseSlot& lease = leases_[handle.slot];
+    Slot& slot = slots_[lease.rootResourceSlot];
+    if (slot.gpuUploadsInFlight == 0U) return Fail(AssetResourceError::GpuUploadNotPending);
+    if (managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
+    --slot.gpuUploadsInFlight;
+    slot.gpuResident = true;
+    ++managerRevision_;
+    lastError_ = AssetResourceError::None;
+    return true;
+}
+
 bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
     if (!AssetRegistry::IsValidIdentifier(assetId)) return Fail(AssetResourceError::InvalidIdentifier);
     const AssetDefinition* definition = registry_.Find(assetId);
@@ -218,7 +302,7 @@ bool AssetResourceManager::SyncHotReload(std::string_view assetId) {
         if (!changed) break;
     }
     for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) {
-        if (slots_[index].refCount != 0U) return Fail(AssetResourceError::StaleInUse);
+        if (slots_[index].refCount != 0U || slots_[index].gpuUploadsInFlight != 0U) return Fail(AssetResourceError::StaleInUse);
         if (slots_[index].generation >= std::numeric_limits<uint32_t>::max() - 2U || slots_[index].hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
         const AssetDefinition* current = registry_.Find(slots_[index].assetId);
         if (current == nullptr || current->state != AssetState::Ready) return Fail(AssetResourceError::NotReady);
@@ -266,7 +350,7 @@ bool AssetResourceManager::PlanHotReload(std::string_view assetId, AssetHotReloa
     candidate.rootGeneration = root.generation;
     for (uint16_t index = 0U; index < kMaxResources; ++index) if (affected[index]) {
         const Slot& slot = slots_[index];
-        if (!slot.occupied || slot.refCount != 0U) return Fail(AssetResourceError::StaleInUse);
+        if (!slot.occupied || slot.refCount != 0U || slot.gpuUploadsInFlight != 0U) return Fail(AssetResourceError::StaleInUse);
         if (slot.generation >= std::numeric_limits<uint32_t>::max() - 2U || slot.hotReloadGeneration == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
         const AssetDefinition* definition = registry_.Find(slot.assetId);
         if (definition == nullptr) return Fail(AssetResourceError::MissingAsset);
@@ -290,7 +374,7 @@ bool AssetResourceManager::CommitHotReload(const AssetHotReloadPlan& plan) {
 
     for (uint16_t index = 0U; index < plan.targetCount; ++index) {
         const AssetHotReloadTarget& target = plan.targets[index];
-        if (target.slot >= kMaxResources || !slots_[target.slot].occupied || slots_[target.slot].generation != target.resourceGeneration || slots_[target.slot].refCount != 0U || slots_[target.slot].hotReloadGeneration != target.hotReloadGeneration) return Fail(AssetResourceError::InvalidHotReloadPlan);
+        if (target.slot >= kMaxResources || !slots_[target.slot].occupied || slots_[target.slot].generation != target.resourceGeneration || slots_[target.slot].refCount != 0U || slots_[target.slot].gpuUploadsInFlight != 0U || slots_[target.slot].hotReloadGeneration != target.hotReloadGeneration) return Fail(AssetResourceError::InvalidHotReloadPlan);
     }
     for (uint16_t index = 0U; index < plan.targetCount; ++index) {
         const AssetHotReloadTarget& target = plan.targets[index];
@@ -321,7 +405,7 @@ bool AssetResourceManager::PlanEviction(uint32_t maxResidentBytes, AssetEviction
         const AssetDefinition* definition = registry_.Find(slot.assetId);
         if (definition == nullptr) return Fail(AssetResourceError::HotReloadRejected);
         total += definition->byteSize;
-        if (slot.refCount == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U) reclaimable += definition->byteSize;
+        if (slot.refCount == 0U && slot.gpuUploadsInFlight == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U) reclaimable += definition->byteSize;
     }
     if (total > std::numeric_limits<uint32_t>::max() || (total > maxResidentBytes && total - reclaimable > maxResidentBytes)) return Fail(AssetResourceError::BudgetExceeded);
     AssetEvictionPlan candidate{};
@@ -332,7 +416,7 @@ bool AssetResourceManager::PlanEviction(uint32_t maxResidentBytes, AssetEviction
     uint64_t candidateTotal = total;
     for (uint16_t index = 0U; index < kMaxResources && candidateTotal > maxResidentBytes; ++index) {
         const Slot& slot = slots_[index];
-        if (!slot.occupied || slot.refCount != 0U || slot.generation >= std::numeric_limits<uint32_t>::max() - 2U) continue;
+        if (!slot.occupied || slot.refCount != 0U || slot.gpuUploadsInFlight != 0U || slot.generation >= std::numeric_limits<uint32_t>::max() - 2U) continue;
         const AssetDefinition* definition = registry_.Find(slot.assetId);
         if (definition == nullptr || definition->byteSize > candidateTotal || candidate.victimCount >= candidate.victims.size()) return Fail(AssetResourceError::HotReloadRejected);
         candidate.victims[candidate.victimCount++] = {index, slot.generation, definition->byteSize};
@@ -353,7 +437,7 @@ bool AssetResourceManager::CommitEviction(const AssetEvictionPlan& plan) {
     if (plan.victimCount != 0U && managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     for (uint16_t index = 0U; index < plan.victimCount; ++index) {
         const AssetEvictionTarget& target = plan.victims[index];
-        if (target.slot >= kMaxResources || !slots_[target.slot].occupied || slots_[target.slot].generation != target.generation || slots_[target.slot].refCount != 0U) return Fail(AssetResourceError::InvalidEvictionPlan);
+        if (target.slot >= kMaxResources || !slots_[target.slot].occupied || slots_[target.slot].generation != target.generation || slots_[target.slot].refCount != 0U || slots_[target.slot].gpuUploadsInFlight != 0U) return Fail(AssetResourceError::InvalidEvictionPlan);
         Slot& slot = slots_[target.slot];
         const uint32_t nextGeneration = slot.generation + 1U;
         slot = {};
@@ -374,12 +458,12 @@ bool AssetResourceManager::EvictToBudget(uint32_t maxResidentBytes, uint32_t& re
 }
 
 bool AssetResourceManager::EvictUnleased(uint16_t& evictedResources) {
-    for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation >= std::numeric_limits<uint32_t>::max() - 2U) return Fail(AssetResourceError::Capacity);
+    for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.gpuUploadsInFlight == 0U && slot.generation >= std::numeric_limits<uint32_t>::max() - 2U) return Fail(AssetResourceError::Capacity);
     bool willEvict = false;
-    for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U) { willEvict = true; break; }
+    for (const Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.gpuUploadsInFlight == 0U) { willEvict = true; break; }
     if (willEvict && managerRevision_ == std::numeric_limits<uint64_t>::max()) return Fail(AssetResourceError::Capacity);
     uint16_t candidateEvicted = 0U;
-    for (Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U) {
+    for (Slot& slot : slots_) if (slot.occupied && slot.refCount == 0U && slot.gpuUploadsInFlight == 0U && slot.generation < std::numeric_limits<uint32_t>::max() - 2U) {
         const uint32_t nextGeneration = slot.generation + 1U;
         slot = {};
         slot.generation = nextGeneration == 0U ? 1U : nextGeneration;

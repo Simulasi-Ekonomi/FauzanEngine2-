@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <vector>
 
+#define CHECK(expr) do { if (!(expr)) return 1; } while (false)
+
 int main() {
     using namespace NeoEngine;
     AssetRegistry registry;
@@ -12,7 +14,7 @@ int main() {
     if (registry.Declare("bad-dependency-owner", AssetKind::Texture, {"bad id"}) || registry.LastError() != AssetRegistryError::InvalidIdentifier || !registry.All().empty()) return 1;
     if (registry.MarkReady("missing.asset") || registry.LastError() != AssetRegistryError::MissingAsset || !registry.All().empty()) return 1;
     if (registry.Declare("invalid-kind", static_cast<AssetKind>(255U), {}) || registry.LastError() != AssetRegistryError::InvalidKind || !registry.All().empty() || registry.ImportBytes("invalid-kind-bytes", static_cast<AssetKind>(255U), {}, {1U}) || registry.LastError() != AssetRegistryError::InvalidKind || !registry.All().empty()) return 1;
-    if (!registry.ImportBytes("texture.wheat", AssetKind::Texture, {}, {1U, 2U, 3U}) || !registry.ImportBytes("mesh.crop", AssetKind::Mesh, {"texture.wheat"}, {4U, 5U}) || !registry.ImportBytes("material.crop", AssetKind::Material, {"mesh.crop"}, {6U, 7U, 8U}) || !registry.MarkReady("texture.wheat") || !registry.MarkReady("mesh.crop") || !registry.MarkReady("material.crop")) return 1;
+    if (!registry.ImportBytes("texture.wheat", AssetKind::Texture, {}, {1U, 2U, 3U}) || !registry.ImportBytes("mesh.crop", AssetKind::Mesh, {"texture.wheat"}, {4U, 5U}) || !registry.ImportBytes("material.crop", AssetKind::Material, {"mesh.crop"}, {6U, 7U}) || !registry.MarkReady("texture.wheat") || !registry.MarkReady("mesh.crop") || !registry.MarkReady("material.crop")) return 1;
     AssetResourceManager resources(registry);
     AssetResourceHandle malformedHandle{321U, 654U};
     if (resources.Acquire("bad id", malformedHandle) || resources.LastError() != AssetResourceError::InvalidIdentifier || malformedHandle != AssetResourceHandle{321U, 654U} || resources.ReloadIfSafe("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier || resources.SyncHotReload("bad id") || resources.LastError() != AssetResourceError::InvalidIdentifier) return 2;
@@ -23,7 +25,54 @@ int main() {
     AssetResourceHandle materialHandle{};
     if (!resources.Acquire("material.crop", materialHandle) || materialHandle.generation == 0U || resources.ActiveResourceCount() != 3U || resources.TotalLeaseCount() != 3U || resources.ActiveLeaseCount() != 1U) return 2;
     AssetResourceReceipt materialReceipt{};
-    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.assetId != "material.crop" || materialReceipt.refCount != 1U || materialReceipt.dependencyCount != 2U || materialReceipt.resourceGeneration == 0U || resources.Data(materialHandle) == nullptr) return 3;
+    if (!resources.Query(materialHandle, materialReceipt)) return 301;
+     if (materialReceipt.assetId != "material.crop") return 302;
+     if (materialReceipt.refCount != 1U) return 303;
+     if (materialReceipt.dependencyCount != 2U) return 304;
+     if (materialReceipt.resourceGeneration == 0U) return 305;
+     if (resources.Data(materialHandle) == nullptr) return 306;
+    if (materialReceipt.gpuResident) return 307;
+    if (materialReceipt.gpuUploadsInFlight != 0U) return 308;
+    if (!resources.BeginGpuUpload(materialHandle)) return 309;
+    if (!resources.Query(materialHandle, materialReceipt)) return 310;
+    if (materialReceipt.gpuResident) return 311;
+    if (materialReceipt.gpuUploadsInFlight != 1U) return 312;
+    if (resources.Release(materialHandle)) return 313;
+    if (resources.LastError() != AssetResourceError::GpuUploadPending) return 314;
+    if (!resources.CancelGpuUpload(materialHandle)) return 315;
+    if (!resources.Query(materialHandle, materialReceipt)) return 316;
+    if (materialReceipt.gpuUploadsInFlight != 0U || materialReceipt.gpuResident) return 317;
+    uint16_t gpuPinnedEvictions = 999U;
+    if (!resources.EvictUnleased(gpuPinnedEvictions)) return 318;
+    if (gpuPinnedEvictions != 0U) return 319;
+    if (resources.LastError() != AssetResourceError::None) return 320;
+    if (!resources.BeginGpuUpload(materialHandle)) return 321;
+    if (!resources.BeginGpuUpload(materialHandle)) return 322;
+    if (!resources.CompleteGpuUpload(materialHandle)) return 323;
+    if (!resources.Query(materialHandle, materialReceipt)) return 324;
+    if (materialReceipt.gpuResident) return 325;
+    if (materialReceipt.gpuUploadsInFlight != 1U) return 326;
+    if (!resources.CompleteGpuUpload(materialHandle)) return 327;
+    if (!resources.Query(materialHandle, materialReceipt)) return 328;
+    if (!materialReceipt.gpuResident) return 329;
+    if (materialReceipt.gpuUploadsInFlight != 0U) return 330;
+
+    const uint64_t residentHashBeforeRefresh = materialReceipt.contentHash;
+    CHECK(resources.BeginGpuRefresh(materialHandle));
+    CHECK(resources.Query(materialHandle, materialReceipt) &&
+           materialReceipt.gpuResident && materialReceipt.gpuUploadsInFlight == 1U);
+    CHECK(resources.Release(materialHandle) == false &&
+           resources.LastError() == AssetResourceError::GpuUploadPending);
+    CHECK(registry.ReplaceBytes("material.crop", {19U, 18U, 17U}));
+    const AssetDefinition* refreshedDefinition = registry.Find("material.crop");
+    CHECK(refreshedDefinition != nullptr && refreshedDefinition->contentHash != residentHashBeforeRefresh);
+    CHECK(resources.CompleteGpuRefresh(materialHandle, refreshedDefinition->contentHash));
+    CHECK(resources.Query(materialHandle, materialReceipt) &&
+           materialReceipt.gpuResident && materialReceipt.gpuUploadsInFlight == 0U &&
+           materialReceipt.contentHash == refreshedDefinition->contentHash &&
+           materialReceipt.hotReloadGeneration > 0U);
+    if (!resources.BeginGpuUpload(materialHandle) || !resources.CancelGpuUpload(materialHandle)) return 3;
+    if (!resources.Query(materialHandle, materialReceipt) || materialReceipt.gpuResident || materialReceipt.gpuUploadsInFlight != 0U) return 3;
     AssetResourceHandle materialHandle2{};
     if (!resources.Acquire("material.crop", materialHandle2) || materialHandle2.slot == materialHandle.slot || materialHandle2.generation == 0U || resources.TotalLeaseCount() != 6U || resources.ActiveLeaseCount() != 2U || !resources.Query(materialHandle, materialReceipt) || materialReceipt.refCount != 2U) return 4;
     AssetResourceReceipt textureReceipt{};
@@ -89,7 +138,7 @@ int main() {
     AssetResourceHandle plannedHandle{};
     if (!plannedResources.Acquire("material.crop", plannedHandle) || !plannedResources.Release(plannedHandle) || plannedResources.ResidentBytes() != 7U) return 23;
     AssetEvictionPlan plan{};
-    if (!plannedResources.PlanEviction(2U, plan) || plan.residentBytesBefore != 7U || plan.residentBytesAfter != 2U || plan.victimCount != 2U || plan.victims[0].byteSize != 3U || plan.victims[1].byteSize != 2U) return 24;
+    if (!plannedResources.PlanEviction(3U, plan) || plan.residentBytesBefore != 7U || plan.residentBytesAfter != 2U || plan.victimCount != 2U || plan.victims[0].byteSize != 3U || plan.victims[1].byteSize != 2U) return 24;
     AssetEvictionPlan malformedPlan = plan;
     malformedPlan.victimCount = 0U;
     if (plannedResources.CommitEviction(malformedPlan) || plannedResources.LastError() != AssetResourceError::InvalidEvictionPlan || plannedResources.ResidentBytes() != 7U || plannedResources.ActiveResourceCount() != 3U) return 25;
@@ -97,7 +146,7 @@ int main() {
     AssetEvictionPlan preservedPlan{};
     preservedPlan.maxResidentBytes = 123U;
     if (plannedResources.PlanEviction(0U, preservedPlan) || plannedResources.LastError() != AssetResourceError::BudgetExceeded || preservedPlan.maxResidentBytes != 123U || plannedResources.ActiveResourceCount() != 3U) return 27;
-    if (!plannedResources.Release(plannedHandle) || !plannedResources.PlanEviction(2U, plan) || !plannedResources.CommitEviction(plan) || plannedResources.ResidentBytes() != 2U || plannedResources.ActiveResourceCount() != 1U) return 28;
+    if (!plannedResources.Release(plannedHandle) || !plannedResources.PlanEviction(3U, plan) || !plannedResources.CommitEviction(plan) || plannedResources.ResidentBytes() != 2U || plannedResources.ActiveResourceCount() != 1U) return 28;
     AssetResourceHandle plannedReloadHandle{};
     if (!plannedResources.Acquire("material.crop", plannedReloadHandle) || !plannedResources.Release(plannedReloadHandle)) return 29;
     AssetResourceReceipt reloadBefore{};

@@ -1,5 +1,6 @@
 #include "Runtime/VulkanGPUBuffer.h"
 #include <cstring>
+#include <cstddef>
 #include <utility>
 
 namespace NeoEngine {
@@ -126,28 +127,35 @@ bool VulkanGPUBuffer::Initialize(VkDevice device,
 }
 
 bool VulkanGPUBuffer::UploadData(const void* data, VkDeviceSize dataSize) {
-    if (!IsValid() || data == nullptr || dataSize == 0 || dataSize > size_) {
+    return UploadDataAtOffset(data, dataSize, 0U);
+}
+
+bool VulkanGPUBuffer::UploadDataAtOffset(const void* data, VkDeviceSize dataSize, VkDeviceSize offset) {
+    if (!IsValid() || data == nullptr || dataSize == 0 || offset > size_ || dataSize > size_ - offset) {
         return false;
     }
 
     void* mappedMemory = nullptr;
-    if (vkMapMemory(device_, memory_, 0, dataSize, 0, &mappedMemory) != VK_SUCCESS) {
+    if (vkMapMemory(device_, memory_, 0, VK_WHOLE_SIZE, 0, &mappedMemory) != VK_SUCCESS) {
         return false;
     }
 
-    std::memcpy(mappedMemory, data, static_cast<size_t>(dataSize));
+    std::memcpy(static_cast<std::byte*>(mappedMemory) + static_cast<size_t>(offset), data, static_cast<size_t>(dataSize));
 
     if ((memoryProperties_ & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0) {
         VkMappedMemoryRange flushRange{};
         flushRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
         flushRange.memory = memory_;
         flushRange.offset = 0;
-        flushRange.size = dataSize;
-        vkFlushMappedMemoryRanges(device_, 1, &flushRange);
+        flushRange.size = VK_WHOLE_SIZE;
+        const VkResult flushed = vkFlushMappedMemoryRanges(device_, 1, &flushRange);
+        if (flushed != VK_SUCCESS) {
+            vkUnmapMemory(device_, memory_);
+            return false;
+        }
     }
 
     vkUnmapMemory(device_, memory_);
-
     return true;
 }
 
