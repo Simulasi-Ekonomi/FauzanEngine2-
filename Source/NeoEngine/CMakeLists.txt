@@ -81,6 +81,8 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayPhysicsBody.cpp
+    Networking/Cloud/CloudServerManager.cpp
+    Networking/Server/ServerAuthoritativeNetwork.cpp
     Runtime/Vulkan3DRenderer.cpp
     Runtime/VulkanBootstrap.cpp
     Runtime/VulkanContext.cpp
