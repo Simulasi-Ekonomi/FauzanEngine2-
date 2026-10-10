@@ -80,6 +80,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetResourceManager.cpp
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
+    Runtime/GameplayPhysicsBody.cpp
     Runtime/Vulkan3DRenderer.cpp
     Runtime/VulkanBootstrap.cpp
     Runtime/VulkanContext.cpp
@@ -150,6 +151,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/ActorComponentWorld.cpp
     Runtime/ReplicationWorld.cpp
     Runtime/KinematicMotionController.cpp
+    Runtime/KinematicCollisionPreflight.cpp
     Runtime/FarmPlayerInputBridge.cpp
     Runtime/RuntimeTimerQueue.cpp
     Runtime/MovementAuthority.cpp
