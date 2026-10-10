@@ -40,13 +40,31 @@ jobs:
       - name: Report sandbox coverage
         if: always()
         run: |
-          cat Build/p1_unreal_parity/sandbox-report/summary.txt
+          report_dir="Build/p1_unreal_parity/sandbox-report"
+          echo "=== SANDBOX SUMMARY ==="
+          if [[ -s "$report_dir/summary.txt" ]]; then
+            cat "$report_dir/summary.txt"
+          else
+            echo "REPORT_MISSING: $report_dir/summary.txt (coverage step may have failed before report generation)"
+          fi
           echo "=== STATIC MARKERS ==="
-          cat Build/p1_unreal_parity/report/p1_markers.txt 2>/dev/null || true
+          if [[ -f Build/p1_unreal_parity/report/p1_markers.txt ]]; then
+            cat Build/p1_unreal_parity/report/p1_markers.txt
+          else
+            echo "REPORT_MISSING: Build/p1_unreal_parity/report/p1_markers.txt"
+          fi
           echo "=== EXECUTION ==="
-          cat Build/p1_unreal_parity/sandbox-report/execution.tsv
+          if [[ -f "$report_dir/execution.tsv" ]]; then
+            cat "$report_dir/execution.tsv"
+          else
+            echo "REPORT_MISSING: $report_dir/execution.tsv"
+          fi
           echo "=== TARGET COUNT ==="
-          wc -l < Build/p1_unreal_parity/sandbox-report/targets.txt
+          if [[ -f "$report_dir/targets.txt" ]]; then
+            wc -l < "$report_dir/targets.txt"
+          else
+            echo "REPORT_MISSING: $report_dir/targets.txt"
+          fi
 
       - name: Scan P1 changed code for stub/minimal/placeholder markers
         if: always()
