@@ -81,6 +81,13 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayPhysicsBody.cpp
+        Runtime/AnimationTimeline.cpp
+        Runtime/AnimationStateMachine.cpp
+        Runtime/AnimationLocomotionBridge.cpp
+        Runtime/PhysicsAnimationLocomotionBridge.cpp
+        Runtime/AnimationSpriteTintBinding.cpp
+        Runtime/TextureImportPipeline.cpp
+        Demos/PhysicsAnimationSurfaceDemo.cpp
     Networking/Cloud/CloudServerManager.cpp
     Networking/Server/ServerAuthoritativeNetwork.cpp
     Runtime/Vulkan3DRenderer.cpp
