@@ -22,7 +22,12 @@ int main() {
     cmd.quantity = 10;
 
     if (!ledger.Apply(catalog, cmd) || ledger.Quantity("C001") != 10 || !ledger.HasApplied("cmd_001")) return 1;
-    if (ledger.Apply(catalog, cmd) || ledger.Quantity("C001") != 10) return 1;
+    if (ledger.Apply(catalog, cmd) || ledger.LastError() != NeoEngine::CommodityEconomyError::DuplicateCommand || ledger.Quantity("C001") != 10) return 1;
+
+    NeoEngine::CommodityEconomyCommand invalid = cmd;
+    invalid.id = "cmd_invalid_kind";
+    invalid.kind = static_cast<NeoEngine::CommodityEconomyKind>(255U);
+    if (ledger.Apply(catalog, invalid) || ledger.LastError() != NeoEngine::CommodityEconomyError::InvalidCommand || ledger.Quantity("C001") != 10) return 1;
 
     std::vector<uint8_t> bytes;
     if (!ledger.Serialize(bytes) || bytes.empty()) return 1;
