@@ -11,9 +11,16 @@ CanonicalReplicationBridge::CanonicalReplicationBridge(CanonicalRuntimeWorld& wo
     : world_(world), replication_(world.Scene(), role, localClientId, allowDynamicLifecycle) {}
 
 bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_t networkId, uint32_t ownerId) {
-    if (entity.scene.index == 0xFFFFU || world_.Scene().GetTransform(entity.scene) == nullptr ||
-        networkId == std::numeric_limits<uint32_t>::max() || ownerId == std::numeric_limits<uint32_t>::max()) {
+    if (entity.scene.index == 0xFFFFU || world_.Scene().GetTransform(entity.scene) == nullptr) {
         lastError_ = CanonicalReplicationBridgeError::InvalidEntity;
+        return false;
+    }
+    if (networkId == 0U || networkId == std::numeric_limits<uint32_t>::max()) {
+        lastError_ = CanonicalReplicationBridgeError::InvalidNetworkId;
+        return false;
+    }
+    if (ownerId == std::numeric_limits<uint32_t>::max()) {
+        lastError_ = CanonicalReplicationBridgeError::InvalidOwnerId;
         return false;
     }
     if (!replication_.RegisterEntity(entity.scene, networkId, ownerId)) {
