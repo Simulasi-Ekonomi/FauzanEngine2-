@@ -10,6 +10,7 @@ The active CMake target compiles the bounded core introduced in this work: ECS/X
 |---|---|---|
 | Active canonical runtime | `Runtime/*`, `Systems/Farm*`, `Agents/AgentCommandGateway*`, `Templates/*`, `Physics/V5/*` listed by canonical CMake. | Built and smoke-tested; capability boundaries are explicit. |
 | Graphical renderer blocker | `Rendering/RHI/Vulkan/VulkanRHI.cpp`, OpenGL/renderer paths, FrameGraph comments. | Not part of active target. `RendererCapabilityProbe` reports `NotImplemented`; graphical readiness is blocked. |
+| Isolated Hi-Z occlusion foundation | `Rendering/Rendering/Renderer/HiZBuffer.{h,cpp}`, `OcclusionCulling.{h,cpp}`. | Compiled only into `hiz_occlusion_culling_smoke`, not `NeoEngineRuntime`; no caller was found in `Vulkan3DRenderer` or `GPUDrivenRenderer`. The smoke validates CPU bounds/depth behavior only and does not establish production renderer integration. |
 | Legacy AI generator | `AI/OpenCodeIntegration.cpp` includes generated TODO fallback and localhost calls. | Not part of active target; Coba/Aries use the bounded typed gateway instead. |
 | Legacy ECS/editor placeholders | `Core/ECS/*Editor*`, `ChunkedSystems.h`, `ECSGPUBridge.cpp`, `ECS/V4/*`. | Not part of active target. They must be deleted, migrated, or made explicitly unsupported before any broad-source Android build. |
 | Legacy streaming/economy placeholder | `Streaming/StreamManager.h`, `Systems/ItemSerialTracker.cpp`. | Not part of active target. Runtime economy authority remains in FarmSystem’s bounded ledger; do not wire legacy code into production. |
