@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace NeoEngine {
-enum class TextureImportPipelineError : uint8_t { None, InvalidRequest, BatchCapacity, RegistryImportFailed, RegistryReadyFailed, StageFailed };
+enum class TextureImportPipelineError : uint8_t { None, InvalidRequest, BatchCapacity, RegistryImportFailed, RegistryReadyFailed, StageFailed, InvalidFormat };
 enum class TextureImportFormat : uint8_t { PpmP6, BmpBiRgb };
 struct TextureImportReceipt { std::string assetId; uint64_t contentHash = 0; uint16_t width = 0; uint16_t height = 0; TextureImportFormat format = TextureImportFormat::PpmP6; };
 struct TextureImportRequest { std::string assetId; std::vector<std::string> dependencies; std::vector<uint8_t> bytes; TextureImportFormat format = TextureImportFormat::PpmP6; };
