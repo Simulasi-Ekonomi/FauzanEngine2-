@@ -430,5 +430,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Runtime/editor_scene_session_
     add_xpbd_executable(editor_scene_session_smoke ../../Tests/Runtime/editor_scene_session_smoke.cpp)
 endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp")
-    add_xpbd_executable(hiz_occlusion_culling_smoke ../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp)
+    # CPU Hi-Z foundation remains isolated until a canonical renderer caller exists.
+    add_executable(hiz_occlusion_culling_smoke
+        ../../Tests/Rendering/hiz_occlusion_culling_smoke.cpp
+        Rendering/Rendering/Renderer/HiZBuffer.cpp
+        Rendering/Rendering/Renderer/OcclusionCulling.cpp
+    )
+    target_include_directories(hiz_occlusion_culling_smoke PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(hiz_occlusion_culling_smoke PRIVATE NeoEngineRuntime)
 endif()
