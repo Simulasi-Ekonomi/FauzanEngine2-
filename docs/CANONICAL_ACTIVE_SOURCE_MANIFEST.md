@@ -13,7 +13,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 
 ## Integrity
 
-- Canonical source entries: **138**
+- Canonical source entries: **139**
 - Duplicate entries: **0**
 - Duplicate paths: none
 
@@ -32,6 +32,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/AssetStreamingQueue.cpp`
 - `Runtime/GameplayPhysicsQuery.cpp`
 - `Runtime/GameplayPhysicsBody.cpp`
+- `Runtime/ScenePhysicsPoseSync.cpp`
 - `Runtime/AnimationTimeline.cpp`
 - `Runtime/AnimationStateMachine.cpp`
 - `Runtime/AnimationLocomotionBridge.cpp`
