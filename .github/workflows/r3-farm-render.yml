@@ -54,7 +54,8 @@ jobs:
 
       - name: Build and run ASAN smoke under Xvfb
         env:
-          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          LSAN_OPTIONS: suppressions=.github/asan/third_party_sdl_x11.lsan.supp
         run: |
           cmake --build build/r3-asan --target farm_vulkan_textured_present_smoke -j2
           xvfb-run -a -s '-screen 0 1024x768x24' env SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=${VULKAN_ICD} ./build/r3-asan/farm_vulkan_textured_present_smoke
