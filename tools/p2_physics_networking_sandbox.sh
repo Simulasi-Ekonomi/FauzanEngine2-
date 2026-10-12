@@ -12,7 +12,42 @@ cmake -S Source/NeoEngine -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_EXE_LINKER_FLAGS="${P2_CMAKE_EXE_LINKER_FLAGS:-}"
 
 cmake --build "$BUILD_DIR" -j"${P2_BUILD_JOBS:-2}"
-TARGETS=("canonical_runtime_world_smoke" "physics_step_measurement_smoke" "gameplay_physics_query_smoke" "gameplay_physics_body_smoke" "kinematic_collision_preflight_smoke" "physics_animation_locomotion_bridge_smoke" "physics_animation_surface_demo_smoke" "scene_physics_pose_sync_smoke" "canonical_replication_bridge_smoke" "replication_world_smoke" "network_extended_smoke" "network_legacy_smoke" "network_replication_baseline_smoke" "network_replication_policy_smoke" "network_rpc_dispatcher_smoke" "network_session_smoke" "network_transport_smoke" "authority_loopback_transport_smoke" "farm_authoritative_session_loopback_smoke" "physics_test" "audit_v4_v5" "bench_100" "bench_100k" "bench_1k_timing" "bench_20k" "bench_20k_debug" "bench_5k" "bench_5k_parallel" "bench_8w" "bench_asan8" "bench_dbg" "bench_debug" "bench_fdebug" "bench_min" "bench_mini" "bench_scale" "bench_st" "bench_test" "bench_tight" "benchmark" "benchmark_heap" "concurrent_test" "test_xpbd_v5" "xpbd_determinism" "xpbd_regression" "bench_100k_bodies_200k_collisions")
+TARGETS=(
+  "canonical_runtime_world_smoke"
+  "physics_step_measurement_smoke"
+  "gameplay_physics_query_smoke"
+  "gameplay_physics_body_smoke"
+  "kinematic_collision_preflight_smoke"
+  "physics_animation_locomotion_bridge_smoke"
+  "physics_animation_surface_demo_smoke"
+  "scene_physics_pose_sync_smoke"
+  "canonical_replication_bridge_smoke"
+  "replication_world_smoke"
+  "network_extended_smoke"
+  "network_legacy_smoke"
+  "network_replication_baseline_smoke"
+  "network_replication_policy_smoke"
+  "network_rpc_dispatcher_smoke"
+  "network_session_smoke"
+  "network_transport_smoke"
+  "authority_loopback_transport_smoke"
+  "farm_authoritative_session_loopback_smoke"
+  "physics_test"
+  "audit_v4_v5"
+  "concurrent_test"
+  "test_xpbd_v5"
+  "xpbd_determinism"
+  "xpbd_regression"
+)
+# Legacy performance programs remain build-checked, but are not correctness gates.
+# The historical 100k-body <5ms target was explicitly retired.
+NON_GATING_BENCHMARKS=(
+  "bench_100" "bench_100k" "bench_1k_timing" "bench_20k" "bench_20k_debug"
+  "bench_5k" "bench_5k_parallel" "bench_8w" "bench_asan8" "bench_dbg"
+  "bench_debug" "bench_fdebug" "bench_min" "bench_mini" "bench_scale"
+  "bench_st" "bench_test" "bench_tight" "benchmark" "benchmark_heap"
+  "bench_100k_bodies_200k_collisions"
+)
 missing=0
 for target in "${TARGETS[@]}"; do
   if [[ ! -x "$BUILD_DIR/$target" ]]; then
@@ -30,11 +65,7 @@ for target in "${TARGETS[@]}"; do cmake --build "$BUILD_DIR" --target "$target" 
 pass=0
 fail=0
 for target in "${TARGETS[@]}"; do
-  run_args=()
-  if [[ "$target" == "bench_100k_bodies_200k_collisions" ]]; then
-    run_args=("${P2_BENCH_FRAMES:-20}" "${P2_BENCH_WORKERS:-8}" "0")
-  fi
-  if SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}" SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-dummy}" "$BUILD_DIR/$target" "${run_args[@]}" >>"$REPORT_DIR/execution.log" 2>&1; then
+  if SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}" SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-dummy}" "$BUILD_DIR/$target" >>"$REPORT_DIR/execution.log" 2>&1; then
     printf "%s\tPASS\n" "$target" | tee -a "$REPORT_DIR/execution.txt"
     pass=$((pass+1))
   else
@@ -44,7 +75,28 @@ for target in "${TARGETS[@]}"; do
   fi
 done
 
-printf "P2 physics/networking complete coverage\ntargets=%d\npass=%d\nfail=%d\nskip=0\n" "${#TARGETS[@]}" "$pass" "$fail" | tee "$REPORT_DIR/summary.txt"
+printf "%s\n" "${NON_GATING_BENCHMARKS[@]}" >"$REPORT_DIR/non_gating_benchmarks.txt"
+benchmarks_executed="no"
+if [[ "${P2_RUN_LEGACY_BENCHMARKS:-0}" == "1" ]]; then
+  benchmarks_executed="yes"
+  : >"$REPORT_DIR/benchmark_execution.txt"
+  for target in "${NON_GATING_BENCHMARKS[@]}"; do
+    run_args=()
+    if [[ "$target" == "bench_100k_bodies_200k_collisions" ]]; then
+      run_args=("${P2_BENCH_FRAMES:-20}" "${P2_BENCH_WORKERS:-8}" "0")
+    fi
+    if SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-dummy}" SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-dummy}" "$BUILD_DIR/$target" "${run_args[@]}" >>"$REPORT_DIR/benchmark_execution.log" 2>&1; then
+      printf "%s\tPASS\n" "$target" | tee -a "$REPORT_DIR/benchmark_execution.txt"
+    else
+      rc=$?
+      printf "%s\tNON_GATING_FAILURE\texit=%d\n" "$target" "$rc" | tee -a "$REPORT_DIR/benchmark_execution.txt"
+    fi
+  done
+else
+  printf "not executed: historical performance programs are non-gating by P2 contract\n" >"$REPORT_DIR/benchmark_execution.txt"
+fi
+
+printf "P2 physics/networking functional correctness coverage\ntargets=%d\npass=%d\nfail=%d\nskip=0\nnon_gating_benchmarks=%d\nbenchmarks_executed=%s\n" "${#TARGETS[@]}" "$pass" "$fail" "${#NON_GATING_BENCHMARKS[@]}" "$benchmarks_executed" | tee "$REPORT_DIR/summary.txt"
 
 git fetch --unshallow origin main 2>/dev/null || git fetch --no-tags origin main
 BASE_SHA="$(git rev-parse origin/main)"
