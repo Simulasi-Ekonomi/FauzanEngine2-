@@ -57,7 +57,7 @@ for target in "${TARGETS[@]}"; do
 done
 if (( missing != 0 )); then exit 1; fi
 printf "%s\n" "${TARGETS[@]}" >"$REPORT_DIR/targets.txt"
-echo "[P2-SANDBOX] discovered ${#TARGETS[@]} CMake smoke targets"
+echo "[P2-SANDBOX] mandatory correctness targets=${#TARGETS[@]}; non-gating benchmarks=${#NON_GATING_BENCHMARKS[@]}"
 
 for target in "${TARGETS[@]}"; do cmake --build "$BUILD_DIR" --target "$target" -j"${P2_BUILD_JOBS:-2}" >/dev/null; done
 
@@ -104,7 +104,7 @@ git diff --name-only "$BASE_SHA"...HEAD -- 'Source/NeoEngine' 'Tests' >"$REPORT_
 : >"$REPORT_DIR/static_markers.txt"
 while IFS= read -r file; do
   [[ -f "$file" ]] || continue
-  grep -nEi '^[[:space:]]*(//|/\\*|#)[[:space:]]*(TODO|FIXME|XXX|placeholder|not implemented|IMPLEMENT_ME|stub)\\b' "$file" >>"$REPORT_DIR/static_markers.txt" || true
+  grep -nEi '^[[:space:]]*(//|/\*|#)[[:space:]]*(TODO|FIXME|XXX|placeholder|not implemented|IMPLEMENT_ME|stub)\b' "$file" >>"$REPORT_DIR/static_markers.txt" || true
 done <"$REPORT_DIR/changed_files.txt"
 if [[ -s "$REPORT_DIR/static_markers.txt" ]]; then
   echo "[P2-SANDBOX] changed-source marker scan FAILED"
