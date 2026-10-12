@@ -59,7 +59,12 @@ int main() {
         !Require(!bridge.Register(entity, 1004U, std::numeric_limits<uint32_t>::max()),
                  "reject_reserved_owner_id") ||
         !Require(bridge.LastError() == CanonicalReplicationBridgeError::InvalidOwnerId,
-                 "owner_id_error")) {
+                 "owner_id_error") ||
+        !Require(!bridge.Unregister(0U), "reject_zero_unregister_id") ||
+        !Require(bridge.LastError() == CanonicalReplicationBridgeError::InvalidNetworkId,
+                 "zero_unregister_id_error") ||
+        !Require(bridge.Replication().ReplicatedCount() == 2U,
+                 "invalid_id_does_not_mutate_registry")) {
         return 6;
     }
 
