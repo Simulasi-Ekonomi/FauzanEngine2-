@@ -11,6 +11,7 @@ on:
       - 'Source/NeoEngine/**'
       - 'Tests/Runtime/editor_scene_agent_smoke.cpp'
       - 'Tests/Runtime/editor_scene_session_smoke.cpp'
+      - 'Tests/Rendering/hiz_occlusion_culling_smoke.cpp'
       - 'Source/NeoEngine/CMakeLists.txt'
 
 permissions:
@@ -38,7 +39,7 @@ jobs:
         run: cmake -S Source/NeoEngine -B build/pr44-release -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build PR44 functional smoke targets
         run: |
-          cmake --build build/pr44-release --target             editor_scene_agent_smoke             editor_scene_session_smoke             audio_subsystem_smoke             neo_runtime_audio_smoke             wav_audio_pitch_regression_smoke             pbr_lighting_smoke             vulkan_renderer_3d_smoke             -j2
+          cmake --build build/pr44-release --target             editor_scene_agent_smoke             editor_scene_session_smoke             audio_subsystem_smoke             neo_runtime_audio_smoke             wav_audio_pitch_regression_smoke             pbr_lighting_smoke             vulkan_renderer_3d_smoke             hiz_occlusion_culling_smoke             -j2
       - name: Run PR44 functional smoke targets
         run: |
           set +e
@@ -50,7 +51,8 @@ jobs:
             neo_runtime_audio_smoke \
             wav_audio_pitch_regression_smoke \
             pbr_lighting_smoke \
-            vulkan_renderer_3d_smoke; do
+            vulkan_renderer_3d_smoke \
+            hiz_occlusion_culling_smoke; do
             echo "=== PR44 RELEASE: $test ==="
             "./build/pr44-release/$test"
             rc=$?
