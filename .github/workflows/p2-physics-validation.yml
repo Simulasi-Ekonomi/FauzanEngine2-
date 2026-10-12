@@ -36,6 +36,9 @@ jobs:
           version: 3.4.16
           install-linux-dependencies: true
 
+      - name: Verify canonical source boundary
+        run: python3 tools/canonical_source_audit.py
+
       - name: Run complete P2 Release coverage
         env:
           SDL_VIDEODRIVER: x11
