@@ -19,7 +19,9 @@ enum class CanonicalReplicationBridgeError : uint8_t {
     ApplyFailed,
     AcknowledgementFailed,
     EncodeFailed,
-    DecodeFailed
+    DecodeFailed,
+    InvalidNetworkId,
+    InvalidOwnerId
 };
 
 class CanonicalReplicationBridge {
