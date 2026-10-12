@@ -81,6 +81,7 @@ set(XPBD_RUNTIME_SOURCES
     Runtime/AssetStreamingQueue.cpp
     Runtime/GameplayPhysicsQuery.cpp
     Runtime/GameplayPhysicsBody.cpp
+    Runtime/ScenePhysicsPoseSync.cpp
         Runtime/AnimationTimeline.cpp
         Runtime/AnimationStateMachine.cpp
         Runtime/AnimationLocomotionBridge.cpp
