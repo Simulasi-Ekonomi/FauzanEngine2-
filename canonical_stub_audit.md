@@ -13,6 +13,7 @@ The active CMake target compiles the bounded core introduced in this work: ECS/X
 | Legacy AI generator | `AI/OpenCodeIntegration.cpp` includes generated TODO fallback and localhost calls. | Not part of active target; Coba/Aries use the bounded typed gateway instead. |
 | Legacy ECS/editor placeholders | `Core/ECS/*Editor*`, `ChunkedSystems.h`, `ECSGPUBridge.cpp`, `ECS/V4/*`. | Not part of active target. They must be deleted, migrated, or made explicitly unsupported before any broad-source Android build. |
 | Legacy streaming/economy placeholder | `Streaming/StreamManager.h`, `Systems/ItemSerialTracker.cpp`. | Not part of active target. Runtime economy authority remains in FarmSystem’s bounded ledger; do not wire legacy code into production. |
+| Isolated R7 commodity foundation | `Systems/CommodityCatalog.{h,cpp}`, `Systems/CommodityEconomyLedger.{h,cpp}`. | Compiled only into `r7_economy_commerce_100_smoke`, not `NeoEngineRuntime`; no canonical runtime caller has been established. Keep isolated until a single-owner integration into the authoritative Farm economy is designed and validated. |
 | Legacy lifecycle stub | `Core/EngineLoop.cpp`. | Now compiled and fail-closed with an explicit `NOT_IMPLEMENTED` logic error; `NeoRuntime` remains the canonical state lifecycle. |
 
 ## Priority order
