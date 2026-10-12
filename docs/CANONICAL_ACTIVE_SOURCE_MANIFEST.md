@@ -13,7 +13,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 
 ## Integrity
 
-- Canonical source entries: **141**
+- Canonical source entries: **139**
 - Duplicate entries: **0**
 - Duplicate paths: none
 
@@ -149,8 +149,6 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Systems/AgricultureCurriculum.cpp`
 - `Systems/AuthoringCatalog.cpp`
 - `Systems/FarmSystem.cpp`
-- `Systems/CommodityCatalog.cpp`
-- `Systems/CommodityEconomyLedger.cpp`
 - `Templates/GameTemplateRegistry.cpp`
 - `Templates/MatchThreeGame.cpp`
 - `Templates/RpgSandboxGame.cpp`
