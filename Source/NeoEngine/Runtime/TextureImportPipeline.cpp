@@ -3,6 +3,7 @@
 namespace NeoEngine {
 bool TextureImportPipeline::Import(AssetRegistry& registry, TextureStagingStore& textures, std::string assetId, std::vector<std::string> dependencies, std::vector<uint8_t> bytes, TextureImportFormat format, TextureImportReceipt& receipt) {
     if (assetId.empty() || bytes.empty()) { lastError_ = TextureImportPipelineError::InvalidRequest; return false; }
+    if (format != TextureImportFormat::PpmP6 && format != TextureImportFormat::BmpBiRgb) { lastError_ = TextureImportPipelineError::InvalidFormat; return false; }
     AssetRegistry candidateRegistry = registry; TextureStagingStore candidateTextures = textures;
     if (!candidateRegistry.ImportBytes(assetId, AssetKind::Texture, std::move(dependencies), std::move(bytes))) { lastError_ = TextureImportPipelineError::RegistryImportFailed; return false; }
     if (!candidateRegistry.MarkReady(assetId)) { lastError_ = TextureImportPipelineError::RegistryReadyFailed; return false; }
