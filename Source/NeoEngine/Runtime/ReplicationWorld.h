@@ -32,6 +32,7 @@ enum class ReplicationError : uint8_t {
     InvalidAcknowledgement,
     CorruptAcknowledgement,
     StaleAcknowledgement,
+    InvalidOwnerId,
 };
 
 struct ReplicatedEntityState {
