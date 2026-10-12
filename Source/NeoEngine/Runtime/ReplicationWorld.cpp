@@ -197,6 +197,7 @@ bool ReplicationWorld::RegisterEntity(SceneEntity entity, uint32_t networkId, ui
     if (role_ != ReplicationRole::Server && role_ != ReplicationRole::Client) return Fail(ReplicationError::InvalidInput);
     if (entity.index >= SceneWorld::kCapacity || sceneWorld_.GetTransform(entity) == nullptr) return Fail(ReplicationError::InvalidEntity);
     if (networkId == 0U) return Fail(ReplicationError::InvalidNetworkId);
+    if (ownerId == std::numeric_limits<uint32_t>::max()) return Fail(ReplicationError::InvalidOwnerId);
     if (FindSlot(networkId) != nullptr) return Fail(ReplicationError::DuplicateNetworkId);
     if (FindSlot(entity) != nullptr) return Fail(ReplicationError::DuplicateEntity);
     for (const Slot& slot : slots_) if (slot.registered && slot.entity.index == entity.index && slot.entity != entity) return Fail(ReplicationError::InvalidEntity);
