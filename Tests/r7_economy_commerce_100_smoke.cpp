@@ -41,6 +41,20 @@ int main() {
 
     std::vector<uint8_t> bytes;
     if (!ledger.Serialize(bytes) || bytes.empty()) return 1;
+
+    NeoEngine::CommodityEconomyLedger restored;
+    if (!restored.Deserialize(catalog, bytes) ||
+        restored.Quantity("C001") != 10 ||
+        !restored.HasApplied("cmd_001") ||
+        restored.Coins() != ledger.Coins()) return 1;
+
+    std::vector<uint8_t> corrupted = bytes;
+    corrupted.back() ^= 0x01U;
+    if (restored.Deserialize(catalog, corrupted) ||
+        restored.LastError() != NeoEngine::CommodityEconomyError::ChecksumMismatch ||
+        restored.Quantity("C001") != 10 ||
+        !restored.HasApplied("cmd_001")) return 1;
+
     std::cout << "R7 Economy & Commerce Smoke Test Passed" << std::endl;
     return 0;
 }
