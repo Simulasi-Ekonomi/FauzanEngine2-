@@ -82,7 +82,8 @@ int main() {
     if (!Require(!bridge.DecodeSnapshot(bytes, decoded), "reject_corrupt_snapshot") ||
         !Require(bridge.LastError() == CanonicalReplicationBridgeError::DecodeFailed,
                  "corrupt_snapshot_error") ||
-        !Require(decoded.count == 0U && decoded.states.empty(),
+        !Require(decoded.count == 0U && decoded.states[0].networkId == 0U &&
+                     decoded.states[0].ownerId == 0U,
                  "failed_decode_clears_output")) {
         return 6;
     }
