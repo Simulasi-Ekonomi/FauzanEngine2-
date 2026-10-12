@@ -2,13 +2,13 @@ name: R3 Farm renderer path
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, p1-renderer-asset-animation-night ]
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
       - '.github/workflows/r3-farm-render.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, sandbox-p1-unreal-parity-validation ]
     paths:
       - 'Source/NeoEngine/**'
       - 'Tests/Runtime/farm_vulkan_textured_present_smoke.cpp'
