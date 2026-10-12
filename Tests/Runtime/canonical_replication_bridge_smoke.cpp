@@ -71,6 +71,8 @@ int main() {
     ReplicationSnapshot decoded{};
     if (!Require(bridge.DecodeSnapshot(bytes, decoded), "decode_snapshot") ||
         !Require(decoded.count == snapshot.count && decoded.states.size() >= decoded.count &&
+                     decoded.states[0].networkId == 1002U && decoded.states[0].ownerId == 7U &&
+                     decoded.states[1].networkId == 1003U && decoded.states[1].ownerId == 8U &&
                      decoded.sequence == snapshot.sequence &&
                      decoded.checksum == snapshot.checksum &&
                      decoded.serverTick == snapshot.serverTick,
