@@ -495,7 +495,13 @@ target_link_libraries(r7_economy_commerce_100_smoke PRIVATE NeoEngineRuntime)
 add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence_recovery_100_smoke.cpp)
 add_xpbd_executable(r9_live_ops_telemetry_100_smoke ../../Tests/r9_live_ops_telemetry_100_smoke.cpp)
 add_xpbd_executable(r10_security_privacy_100_smoke ../../Tests/r10_security_privacy_100_smoke.cpp)
-add_xpbd_executable(comprehensive_engine_verification_smoke ../../Tests/comprehensive_engine_verification_smoke.cpp)
+add_executable(comprehensive_engine_verification_smoke
+    ../../Tests/comprehensive_engine_verification_smoke.cpp
+    Systems/CommodityCatalog.cpp
+    Systems/CommodityEconomyLedger.cpp
+)
+target_include_directories(comprehensive_engine_verification_smoke PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comprehensive_engine_verification_smoke PRIVATE NeoEngineRuntime)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Farm/farm_telemetry_smoke.cpp")
     add_xpbd_executable(farm_telemetry_smoke ../../Tests/Farm/farm_telemetry_smoke.cpp)
