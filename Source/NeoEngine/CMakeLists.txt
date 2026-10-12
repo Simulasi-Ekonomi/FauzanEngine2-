@@ -198,6 +198,8 @@ set(XPBD_RUNTIME_SOURCES
     Systems/AgricultureCurriculum.cpp
     Systems/AuthoringCatalog.cpp
     Systems/FarmSystem.cpp
+    Systems/CommodityCatalog.cpp
+    Systems/CommodityEconomyLedger.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
     Templates/RpgSandboxGame.cpp
