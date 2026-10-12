@@ -12,7 +12,17 @@ int main() {
     def.baseUnitPrice = 50;
     def.maxStack = 999;
     def.tradable = true;
-    catalog.Add(def);
+    if (!catalog.Add(def) || catalog.Count() != 1U) return 1;
+    if (catalog.Add(def) ||
+        catalog.LastError() != NeoEngine::CommodityCatalogError::DuplicateId ||
+        catalog.Count() != 1U) return 1;
+
+    NeoEngine::CommodityDefinition invalidDefinition = def;
+    invalidDefinition.id = "C002";
+    invalidDefinition.category = static_cast<NeoEngine::CommodityCategory>(255U);
+    if (catalog.Add(invalidDefinition) ||
+        catalog.LastError() != NeoEngine::CommodityCatalogError::InvalidDefinition ||
+        catalog.Count() != 1U) return 1;
 
     NeoEngine::CommodityEconomyLedger ledger;
     NeoEngine::CommodityEconomyCommand cmd;
