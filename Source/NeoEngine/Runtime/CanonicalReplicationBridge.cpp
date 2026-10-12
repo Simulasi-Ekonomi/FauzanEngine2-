@@ -32,8 +32,8 @@ bool CanonicalReplicationBridge::Register(const CanonicalEntity& entity, uint32_
 }
 
 bool CanonicalReplicationBridge::Unregister(uint32_t networkId) {
-    if (networkId == std::numeric_limits<uint32_t>::max()) {
-        lastError_ = CanonicalReplicationBridgeError::RegistrationFailed;
+    if (networkId == 0U || networkId == std::numeric_limits<uint32_t>::max()) {
+        lastError_ = CanonicalReplicationBridgeError::InvalidNetworkId;
         return false;
     }
     if (!replication_.UnregisterEntity(networkId)) {
