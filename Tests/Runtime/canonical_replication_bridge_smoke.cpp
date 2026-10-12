@@ -40,14 +40,27 @@ int main() {
         return 4;
     }
 
+    CanonicalEntity secondEntity{};
+    if (!Require(world.CreateEntity(
+                     {8.0F, 0.0F, 9.0F, 0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F},
+                     0U, CanonicalTransformAuthority::Scene, secondEntity),
+                 "create_second_entity")) return 5;
+
     CanonicalReplicationBridge bridge(world, ReplicationRole::Server, 0U, false);
-    if (!Require(bridge.Register(entity, 1002U, 7U), "bridge_register") ||
-        !Require(bridge.Register(entity, 0U, 8U), "bridge_register_zero_network_id") ||
+    if (!Require(bridge.Register(entity, 1002U, 7U), "bridge_register_first") ||
+        !Require(bridge.Register(secondEntity, 1003U, 8U), "bridge_register_second") ||
+        !Require(!bridge.Register(entity, 0U, 8U), "reject_zero_network_id") ||
+        !Require(bridge.LastError() == CanonicalReplicationBridgeError::InvalidNetworkId,
+                 "zero_network_id_error") ||
         !Require(!bridge.Register(entity, std::numeric_limits<uint32_t>::max(), 8U),
-                 "reject_reserved_network_id") ||
-        !Require(bridge.LastError() == CanonicalReplicationBridgeError::InvalidEntity,
-                 "reserved_network_id_error")) {
-        return 5;
+                 "reject_max_network_id") ||
+        !Require(bridge.LastError() == CanonicalReplicationBridgeError::InvalidNetworkId,
+                 "max_network_id_error") ||
+        !Require(!bridge.Register(entity, 1004U, std::numeric_limits<uint32_t>::max()),
+                 "reject_reserved_owner_id") ||
+        !Require(bridge.LastError() == CanonicalReplicationBridgeError::InvalidOwnerId,
+                 "owner_id_error")) {
+        return 6;
     }
 
     ReplicationSnapshot snapshot{};
@@ -55,7 +68,7 @@ int main() {
         !Require(snapshot.count == 2U && snapshot.sequence != std::numeric_limits<uint64_t>::max() &&
                      snapshot.serverTick == 4U && snapshot.checksum != 0U,
                  "bridge_snapshot_content")) {
-        return 6;
+        return 7;
     }
 
     std::vector<uint8_t> bytes;
