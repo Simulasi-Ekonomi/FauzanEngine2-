@@ -65,10 +65,20 @@ int main() {
     }
     if (!Require(rejectedWrongSize, "mismatched depth-buffer size was accepted")) return 5;
 
+    std::vector<float> outOfRangeDepth(16, 0.0F);
+    outOfRangeDepth[3] = 1.01F;
+    bool rejectedOutOfRange = false;
+    try {
+        hiz.Build(outOfRangeDepth);
+    } catch (const std::invalid_argument&) {
+        rejectedOutOfRange = true;
+    }
+    if (!Require(rejectedOutOfRange, "out-of-range normalized depth was accepted")) return 6;
+
     hiz.BuildOcclusion(std::vector<float>(16, 0.0F));
     if (!Require(!culling.IsOccludedNDC(occluded, hiz),
                  "empty/far depth incorrectly occluded bounds")) {
-        return 6;
+        return 7;
     }
 
     AABB invalid = occluded;
@@ -76,7 +86,7 @@ int main() {
     invalid.max[0] = 3.0F;
     if (!Require(!culling.IsOccludedNDC(invalid, hiz),
                  "out-of-frustum bounds were incorrectly occluded")) {
-        return 7;
+        return 8;
     }
 
     bool rejectedDimensions = false;
@@ -85,7 +95,7 @@ int main() {
     } catch (const std::invalid_argument&) {
         rejectedDimensions = true;
     }
-    if (!Require(rejectedDimensions, "non-positive dimensions were accepted")) return 8;
+    if (!Require(rejectedDimensions, "non-positive dimensions were accepted")) return 9;
 
     std::cout << "Hi-Z occlusion smoke passed\n";
     return 0;
