@@ -12,7 +12,7 @@ bool KinematicCollisionPreflight::Probe(const XPBDPhysicsSystem& physics, const 
     if (!std::isfinite(input.x) || !std::isfinite(input.z) || !std::isfinite(seconds) || seconds <= 0.0F || seconds > motion.MaxStepSeconds()) { lastError_ = KinematicCollisionPreflightError::InvalidInput; return false; }
     const Transform3* transform = world.GetLocalTransform(entity); if (transform == nullptr) { lastError_ = KinematicCollisionPreflightError::MissingTransform; return false; }
     KinematicCollisionPreflightProbe candidate{};
-    const float length = std::sqrt(input.x * input.x + input.z * input.z); if (length > 0.0F) {
+    const float length = std::sqrt(input.x * input.x + input.z * input.z); if (!std::isfinite(length)) { lastError_ = KinematicCollisionPreflightError::InvalidInput; return false; } if (length > 0.0F) {
         const float distance = motion.UnitsPerSecond() * seconds + config_.clearance; if (!std::isfinite(distance) || distance <= 0.0F) { lastError_ = KinematicCollisionPreflightError::InvalidInput; return false; }
         GameplayRayHit2 hit{}; const bool found = query_.Raycast(physics, {transform->x, transform->z, input.x / length, input.z / length, distance, config_.mask}, hit);
         if (found) { candidate.blocked = true; candidate.blocker = hit; }
