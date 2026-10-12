@@ -1,6 +1,6 @@
 # Canonical Active C++ Source Manifest
 
-Generated from `Source/NeoEngine/CMakeLists.txt` on 2026-10-01.
+Generated from `Source/NeoEngine/CMakeLists.txt` on 2026-10-13.
 
 This manifest is an audit artifact, not a second build definition. The canonical build authority remains CMake.
 
@@ -13,7 +13,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 
 ## Integrity
 
-- Canonical source entries: **124**
+- Canonical source entries: **138**
 - Duplicate entries: **0**
 - Duplicate paths: none
 
@@ -31,6 +31,16 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/AssetResourceManager.cpp`
 - `Runtime/AssetStreamingQueue.cpp`
 - `Runtime/GameplayPhysicsQuery.cpp`
+- `Runtime/GameplayPhysicsBody.cpp`
+- `Runtime/AnimationTimeline.cpp`
+- `Runtime/AnimationStateMachine.cpp`
+- `Runtime/AnimationLocomotionBridge.cpp`
+- `Runtime/PhysicsAnimationLocomotionBridge.cpp`
+- `Runtime/AnimationSpriteTintBinding.cpp`
+- `Runtime/TextureImportPipeline.cpp`
+- `Demos/PhysicsAnimationSurfaceDemo.cpp`
+- `Networking/Cloud/CloudServerManager.cpp`
+- `Networking/Server/ServerAuthoritativeNetwork.cpp`
 - `Runtime/Vulkan3DRenderer.cpp`
 - `Runtime/VulkanBootstrap.cpp`
 - `Runtime/VulkanContext.cpp`
@@ -39,8 +49,11 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/VulkanOffscreen.cpp`
 - `Runtime/VulkanGPUBuffer.cpp`
 - `Runtime/VulkanGraphicsPipeline.cpp`
+- `Runtime/VulkanShaderProbe.cpp`
 - `Runtime/VulkanRenderCommandRecorder.cpp`
 - `Runtime/VulkanRenderPassManager.cpp`
+- `Runtime/VulkanSwapchainManager.cpp`
+- `Runtime/VulkanSyncPrimitives.cpp`
 - `Runtime/VulkanMeshBufferBuilder.cpp`
 - `Runtime/VulkanPresentProbe.cpp`
 - `Runtime/VulkanTexturedPresent.cpp`
@@ -98,6 +111,7 @@ This manifest is an audit artifact, not a second build definition. The canonical
 - `Runtime/ActorComponentWorld.cpp`
 - `Runtime/ReplicationWorld.cpp`
 - `Runtime/KinematicMotionController.cpp`
+- `Runtime/KinematicCollisionPreflight.cpp`
 - `Runtime/FarmPlayerInputBridge.cpp`
 - `Runtime/RuntimeTimerQueue.cpp`
 - `Runtime/MovementAuthority.cpp`
