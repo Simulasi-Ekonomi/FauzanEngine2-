@@ -198,8 +198,6 @@ set(XPBD_RUNTIME_SOURCES
     Systems/AgricultureCurriculum.cpp
     Systems/AuthoringCatalog.cpp
     Systems/FarmSystem.cpp
-    Systems/CommodityCatalog.cpp
-    Systems/CommodityEconomyLedger.cpp
     Templates/GameTemplateRegistry.cpp
     Templates/MatchThreeGame.cpp
     Templates/RpgSandboxGame.cpp
@@ -484,7 +482,15 @@ add_xpbd_executable(bench_100k_bodies_200k_collisions ../../Tests/bench_100k_bod
 message(STATUS "NeoEngine CMake configured with canonical Vulkan 3D shader generation, Renderer, Audio, Editor, Asset, and Farm runtime sources")
 
 add_xpbd_executable(r6_anti_cheat_100_smoke ../../Tests/r6_anti_cheat_100_smoke.cpp)
-add_xpbd_executable(r7_economy_commerce_100_smoke ../../Tests/r7_economy_commerce_100_smoke.cpp)
+# Keep the R7 commodity ledger as an isolated, explicitly tested foundation.
+# It is not the authoritative Farm runtime economy until a single-owner integration is designed.
+add_executable(r7_economy_commerce_100_smoke
+    ../../Tests/r7_economy_commerce_100_smoke.cpp
+    Systems/CommodityCatalog.cpp
+    Systems/CommodityEconomyLedger.cpp
+)
+target_include_directories(r7_economy_commerce_100_smoke PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(r7_economy_commerce_100_smoke PRIVATE NeoEngineRuntime)
 add_xpbd_executable(r8_persistence_recovery_100_smoke ../../Tests/r8_persistence_recovery_100_smoke.cpp)
 add_xpbd_executable(r9_live_ops_telemetry_100_smoke ../../Tests/r9_live_ops_telemetry_100_smoke.cpp)
 add_xpbd_executable(r10_security_privacy_100_smoke ../../Tests/r10_security_privacy_100_smoke.cpp)
